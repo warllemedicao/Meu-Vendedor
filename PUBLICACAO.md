@@ -1,12 +1,20 @@
 # Publicações — Meu Vendedor
 
+## Catálogo publicado no Cloudflare — confirmado
+
+Após autorização do responsável, em 04/11/2026 às 18:59 UTC foi publicado o build do commit `5d56fb8` no Worker existente `meu-vendedor`, conta `2cd6c753710fbaba6b94e33ef662c9b3`. Versão ativa: `29c743ed-e672-4e98-b059-0213bd9a0ec8`, com 100% do tráfego. Foram enviados 73 assets novos/modificados; preservados o segredo de agendamento e o cron de 30 minutos.
+
+Verificação pública: `/dashboard` respondeu HTTP 200 com o título “Encontre seu próximo produto” e as sete plataformas; o painel demonstrativo anterior não está no HTML. `/` e `/dashboard` usam o mesmo catálogo. Autenticação Wrangler e dry-run de publicação foram verificados. Não houve teste visual em navegador nem consulta comercial autenticada nesta publicação.
+
+A função Supabase `catalog` já está ACTIVE na versão 1, conforme registro abaixo. A publicação da interface não concede acesso às APIs comerciais: ainda é necessário configurar credenciais por usuário e validar as consultas reais. Magalu/SHEIN permanecem sem contrato de catálogo de afiliados confirmado. Os registros de publicação pendente abaixo são históricos e foram superados por esta publicação.
+
 ## Correção de rota e publicação do backend de catálogo
 
 Em 04/11/2026, a inspeção por HTTP confirmou que `/dashboard` ainda servia o painel demonstrativo anterior. A rota foi corrigida no código para apresentar o mesmo catálogo de `/`; é necessário publicar os assets para a correção aparecer no Worker.
 
 A função Supabase `catalog` foi publicada no projeto `jzchlrvxdaffnrgbvabv`: versão 1, status ACTIVE, `verify_jwt=true`. Verificação remota: preflight OPTIONS retornou 204 com a origem correta e POST sem sessão retornou 401. Não foram criadas contas de teste nem configuradas credenciais comerciais por esta publicação. A verificação não comprova sucesso nas APIs de lojas.
 
-Publicação do frontend permanece pendente de autenticação do Wrangler no Cloudflare. O acesso ao aplicativo Cloudflare permite consultar a configuração, mas não transfere uma sessão ao Wrangler. O commit/push anterior não acionou uma publicação confirmada. Não apresentar a versão do GitHub como se já estivesse no site.
+Na primeira verificação, a publicação do frontend estava pendente de autenticação do Wrangler. A autorização foi posteriormente concedida e a publicação concluída, conforme registro no início deste documento. O commit/push anterior, isoladamente, não havia atualizado o site.
 
 ## Catálogo inicial de sete plataformas — alteração local
 

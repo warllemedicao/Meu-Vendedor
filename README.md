@@ -3,7 +3,7 @@
 App web de gerenciamento de afiliados com **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**.
 O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afiliação, e pode organizar seus links na sua conta do Meu Vendedor.
 
-**Estado atual:** frontend público no Cloudflare e base Supabase ativada no projeto `meu-vendedor`. Migração e autenticação configuradas; login, perfil, CRUD e isolamento entre usuários testados na API hospedada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. O conector Shopee para ofertas e links está implementado e exige validação de credenciais reais. No código, consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram adicionadas ao catálogo inicial; publicação, configuração por usuário e testes comerciais reais continuam pendentes. Magalu/SHEIN, IA e automações permanecem em preparação. O dashboard original mantém dados demonstrativos rotulados.
+**Estado atual:** frontend público no Cloudflare e base Supabase ativada no projeto `meu-vendedor`. Migração e autenticação configuradas; login, perfil, CRUD e isolamento entre usuários testados na API hospedada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. O conector Shopee para ofertas e links está implementado e exige validação de credenciais reais. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram adicionadas ao catálogo inicial e publicadas com o frontend/backend; configuração por usuário e testes comerciais reais continuam pendentes. Magalu/SHEIN, IA e automações permanecem em preparação. O dashboard original mantém dados demonstrativos rotulados.
 
 ## Documentos
 
