@@ -1,5 +1,13 @@
 # Publicações — Meu Vendedor
 
+## Correção de rota e publicação do backend de catálogo
+
+Em 04/11/2026, a inspeção por HTTP confirmou que `/dashboard` ainda servia o painel demonstrativo anterior. A rota foi corrigida no código para apresentar o mesmo catálogo de `/`; é necessário publicar os assets para a correção aparecer no Worker.
+
+A função Supabase `catalog` foi publicada no projeto `jzchlrvxdaffnrgbvabv`: versão 1, status ACTIVE, `verify_jwt=true`. Verificação remota: preflight OPTIONS retornou 204 com a origem correta e POST sem sessão retornou 401. Não foram criadas contas de teste nem configuradas credenciais comerciais por esta publicação. A verificação não comprova sucesso nas APIs de lojas.
+
+Publicação do frontend permanece pendente de autenticação do Wrangler no Cloudflare. O acesso ao aplicativo Cloudflare permite consultar a configuração, mas não transfere uma sessão ao Wrangler. O commit/push anterior não acionou uma publicação confirmada. Não apresentar a versão do GitHub como se já estivesse no site.
+
 ## Catálogo inicial de sete plataformas — alteração local
 
 Em 04/11/2026, a rota `/` foi alterada no checkout para apresentar oportunidades e disponibilidade de Amazon, Mercado Livre, TikTok Shop, Magalu, Shopee, SHEIN e AliExpress. Além da Shopee por conta autorizada, o código inclui a função `catalog` com consultas Amazon, Mercado Livre, TikTok Shop e AliExpress. A nova função e seus segredos por usuário ainda precisam ser publicados/configurados e testados com acesso comercial real. Magalu e SHEIN não têm adaptador de afiliados. Detalhes em `CATALOGO_APIS.md`.

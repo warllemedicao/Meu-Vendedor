@@ -13,6 +13,8 @@
 
 **Estado atual: frontend público no Cloudflare e base Supabase ativada.**
 
+Correção de publicação: o backend `catalog` foi publicado na versão 1 (OPTIONS 204, POST sem sessão 401). `/dashboard` foi ajustado no código para apresentar o mesmo catálogo de `/`, mas a publicação do frontend continua pendente de autenticação Wrangler. Credenciais comerciais e testes reais das novas fontes continuam pendentes. Detalhes em `PUBLICACAO.md`.
+
 Atualização do catálogo inicial no código: `/` apresenta oportunidades com seleção de Amazon, Mercado Livre, TikTok Shop, Magalu, Shopee, SHEIN e AliExpress. Reutiliza os produtos Shopee sincronizados e adiciona consultas sob demanda de Amazon, Mercado Livre, TikTok Shop e AliExpress na função `catalog`, ainda sem publicação/configuração e validação comercial real nesta etapa. Magalu/SHEIN seguem sem contrato de catálogo de afiliados confirmado. Pesquisa oficial e dependências em `CATALOGO_APIS.md`. A inclusão das duas novas plataformas neste catálogo não amplia automaticamente o CRUD de links ou os conectores existentes.
 Cadastro/login, perfil e links manuais estão implementados. A migração foi aplicada no projeto `meu-vendedor` e login, persistência e isolamento foram verificados na API hospedada com duas contas temporárias removidas ao final. A entrega de e-mails ainda precisa ser validada. O primeiro conector Shopee foi implementado, condicionado à validação de credenciais reais da conta. As novas consultas de catálogo estão descritas acima; IA e automações comerciais não estão implementadas.
 

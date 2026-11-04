@@ -4,7 +4,7 @@ Pesquisa realizada em 04/11/2026 por solicitação do responsável. Escopo desta
 
 ## Entrega no código
 
-A rota `/` passa a mostrar o catálogo de oportunidades, em vez de redirecionar ao dashboard demonstrativo. Há seleção de sete plataformas e estados explícitos de disponibilidade. O dashboard anterior continua em `/dashboard`.
+A rota `/` passa a mostrar o catálogo de oportunidades, em vez de redirecionar ao dashboard demonstrativo. Há seleção de sete plataformas e estados explícitos de disponibilidade. Após identificação de que os usuários continuam acessando `/dashboard`, essa rota foi corrigida no código para mostrar o mesmo catálogo. A correção só aparece no site após publicação dos assets.
 
 A página inicial reutiliza o catálogo Shopee autenticado existente: somente produtos da conta do usuário, provenientes da última sincronização. Inclui busca, ordenação por vendas na seleção, desconto, preço e comissão, filtro de descontos e data/origem nos cartões. A ficha na página inicial não oferece publicação ou geração de links. Os fluxos existentes de `/produtos` foram preservados.
 
@@ -94,7 +94,7 @@ Testes de contrato controlados cobrem OAuth Amazon e locale BR, assinatura TOP, 
 1. Identificar quais acessos de API já estão aprovados. Credenciais nunca pelo chat ou Git.
 2. Validar primeiro uma chamada autorizada por plataforma e definir a fonte/abrangência de ranking e descontos.
 3. Confirmar os contratos de afiliados de Magalu/SHEIN ou um feed licenciado adequado, antes de escrever os dois adaptadores restantes.
-4. Publicar a nova função e o frontend; configurar segredos por conta e verificar resultados reais. Não presumir que commit/push publica no Cloudflare ou no Supabase.
+4. A função `catalog` já foi publicada na versão 1 e verificada por preflight/negação de chamada sem sessão. Publicar o frontend, configurar segredos por conta e verificar resultados reais. Não presumir que commit/push publica no Cloudflare ou no Supabase.
 5. Dimensionar coleta e atualização. O cron atual de duas contas Shopee por execução não é uma coleta global das sete lojas.
 
 Até esses passos serem concluídos, a solicitação de exibir produtos reais das sete lojas permanece parcialmente pendente.
