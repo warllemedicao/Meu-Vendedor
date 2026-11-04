@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Paleta: tinta azul-petróleo + âmbar. Valores definidos como variáveis para os dois temas. */
+:root {
+  --background: #f3f5f4;
+  --surface: #ffffff;
+  --surface-muted: #eaeeed;
+  --border: #d8dedc;
+  --foreground: #0e1b26;
+  --muted: #55646f;
+  --primary: #0b6e69;
+  --primary-soft: #d6ece9;
+  --accent: #b87d00;
+  --accent-soft: #fbefcc;
+  --danger: #b4392a;
+  --danger-soft: #f8dcd7;
+}
+
+.dark {
+  --background: #0a141c;
+  --surface: #101e29;
+  --surface-muted: #16293a;
+  --border: #223545;
+  --foreground: #e6edf0;
+  --muted: #94a5b0;
+  --primary: #4fc3bb;
+  --primary-soft: #11373a;
+  --accent: #f0b429;
+  --accent-soft: #3a2f0d;
+  --danger: #f08a7c;
+  --danger-soft: #3b1f1a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
