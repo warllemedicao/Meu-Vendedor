@@ -1,9 +1,9 @@
 # Meu Vendedor — Viral Commerce AI
 
 App web de gerenciamento de afiliados com **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**.
-O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afiliação, e pode organizar seus links no Meu Vendedor quando a base Supabase estiver ativada.
+O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afiliação, e pode organizar seus links na sua conta do Meu Vendedor.
 
-**Estado atual:** frontend público no Cloudflare e base Supabase implementada no código. A migração foi testada localmente; aplicação e configuração no projeto Supabase hospedado ainda dependem de concluir a autorização do responsável. Não há APIs de lojas, IA ou automações ativas. O dashboard original mantém dados demonstrativos rotulados.
+**Estado atual:** frontend público no Cloudflare e base Supabase ativada no projeto `meu-vendedor`. Migração e autenticação configuradas; login, perfil, CRUD e isolamento entre usuários testados na API hospedada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. Não há APIs de lojas, IA ou automações ativas. O dashboard original mantém dados demonstrativos rotulados.
 
 ## Documentos
 
@@ -23,7 +23,7 @@ O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afilia
 - Migração PostgreSQL e RLS para isolamento dos dados por usuário.
 - Estado informativo quando Supabase não estiver configurado, sem apresentar operações falsas.
 
-As telas de autenticação e persistência só ficam disponíveis com a configuração Supabase. Sua presença no código não comprova que a migração foi aplicada no projeto hospedado.
+A migração já foi aplicada no projeto hospedado. Em outros ambientes, as telas de autenticação e persistência só ficam disponíveis após fornecer a configuração Supabase e aplicar a mesma migração.
 
 ## Tecnologias
 
@@ -62,4 +62,4 @@ Nunca commitar senha, `service_role`, `sb_secret_*`, token de gerenciamento ou c
 
 ## Próximas etapas
 
-Concluir autorização Supabase, identificar `meu-vendedor`, aplicar a migração, configurar confirmação de e-mail e redirects, ativar as variáveis públicas no build e validar os fluxos reais. Depois, evoluir cada integração de loja somente conforme disponibilidade oficial e autorização específica, sem presumir suporte universal.
+Validar a entrega de e-mails de confirmação e recuperação e configurar SMTP próprio quando necessário. Evoluir cada integração de loja somente conforme disponibilidade oficial e autorização específica, sem presumir suporte universal.

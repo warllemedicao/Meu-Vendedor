@@ -2,11 +2,11 @@
 
 ## Estado desta implementação
 
-O frontend atualizado já foi publicado no Worker Cloudflare; a ativação remota do banco permanece pendente.
+Projeto hospedado **meu-vendedor**, referência `jzchlrvxdaffnrgbvabv`, autorizado e configurado. Migração `20261104000100` aplicada e registrada no histórico remoto. As três tabelas estão com RLS habilitada e forçada.
 
-Código do cliente, telas e migração preparados. A aplicação no projeto hospedado `meu-vendedor` ainda depende de concluir a autorização oficial da CLI iniciada nesta conversa. A instalação do plugin não disponibilizou ferramentas de gestão do projeto nesta execução.
+A URL pública do Supabase e a chave publicável foram obtidas do projeto correto e configuradas no build via `.env.local`, ignorado pelo Git. Nenhuma chave administrativa foi inserida no frontend ou no repositório. A configuração foi validada por testes de login e persistência na API hospedada.
 
-Não há chave de projeto configurada no código. Sem as duas variáveis públicas, a aplicação mostra que o acesso de usuários está em preparação e não oferece operações que aparentem salvar no banco.
+Site URL, retornos de cadastro/recuperação e senha mínima de 8 caracteres foram aplicados. Confirmação de e-mail permanece habilitada. As opções remotas não declaradas no arquivo local foram preservadas. Entrega de e-mail e SMTP personalizado não foram testados/configurados nesta execução.
 
 ## Funcionalidades
 
@@ -57,3 +57,17 @@ Nenhum token externo de Shopee, TikTok, Mercado Livre, Amazon ou Magalu é armaz
 Executar `npm run lint`, `npm run typecheck` e `npm run build:pages`. O Worker pode servir o frontend estático porque autenticação e banco são acessados pelo cliente oficial. Nunca implantar credenciais administrativas para isso.
 
 Referências oficiais: [Supabase Auth](https://supabase.com/docs/guides/auth), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [signUp](https://supabase.com/docs/reference/javascript/auth-signup).
+
+## Verificação remota realizada
+
+Em 04/11/2026 foram executadas verificações no Supabase hospedado:
+
+- Catálogo público com exatamente cinco plataformas e leitura anônima de links bloqueada.
+- Duas contas temporárias criadas pela API administrativa com e-mail já confirmado, sem envio de mensagens.
+- Login por senha das duas contas e logout.
+- Trigger de criação de perfil e isolamento de sua leitura/atualização.
+- CRUD de links do proprietário, bloqueio de leitura/edição/exclusão pelo outro usuário e bloqueio de adulteração do proprietário.
+- Rejeição de URL insegura pelo banco.
+- As duas contas temporárias foram removidas ao final, sem deixar links/perfis de teste.
+
+As chaves administrativas foram obtidas e usadas somente em memória pelo teste. Cadastro com confirmação por e-mail e recuperação dependem da entrega de mensagens, que ainda precisa ser validada no ambiente real. Esses testes de e-mail não foram simulados como concluídos.

@@ -38,8 +38,14 @@ Para futuras alterações, reutilizar o mesmo ID de projeto Sites e abrir sua fo
 
 Não conectado a esta conversa nesta publicação. Não há configuração Supabase no código nem variáveis Supabase disponíveis no ambiente. A versão estática atual não depende do banco. A integração Supabase foi sugerida para habilitação pelo responsável; sua existência no catálogo não comprova acesso ao projeto dele. Após a conexão, identificar o projeto correto antes de consultar ou alterar estruturas.
 
-## Base Supabase — frontend publicado, ativação do banco pendente
+## Base Supabase — ativação concluída
 
-Código preparado com catálogo de cinco plataformas, rotas de autenticação, perfil e gerenciamento manual de links. Migração validada em PostgreSQL local e testes de RLS aprovados. A autorização Supabase está pendente: não há migração remota aplicada nem variáveis públicas configuradas neste momento. A interface deve continuar informando essa pendência e não apresentar operações de banco como ativas. O frontend foi publicado com sucesso no Worker existente a partir do commit `00e5e01`. Versão Cloudflare: `70877960-c543-4b34-ac35-50ccbeda8e55`. `/dashboard`, `/contas`, `/entrar`, `/redefinir-senha`, `/afiliados` e `/configuracoes` responderam HTTP 200; CSS e JavaScript também. Uma rota inexistente respondeu 404. A tela de entrada foi conferida exibindo configuração em preparação, sem simular autenticação ativa.
+Projeto `meu-vendedor` (`jzchlrvxdaffnrgbvabv`) autorizado e saudável. Migração `20261104000100` aplicada e registrada no histórico remoto. Tabelas `mv_platforms`, `mv_profiles` e `mv_affiliate_links` com RLS habilitada e forçada; políticas e privilégios conferidos.
 
-Validação local: 6 testes aprovados, TypeScript e linter aprovados, build estático aprovado. Os testes de cadastro, confirmação de e-mail, login e persistência no Supabase hospedado ainda não foram realizados, pois a autorização desse serviço não foi concluída.
+Site URL, retornos de cadastro/recuperação e senha mínima de 8 caracteres configurados. Confirmação de e-mail mantida habilitada. Configurações remotas não declaradas foram preservadas. A configuração publicável foi incluída no build via `.env.local`, ignorado pelo Git.
+
+Frontend conectado publicado no mesmo Worker. Versão Cloudflare ativa: `31d1b45c-bb40-4d95-bae8-ec172dac1cb4`. `/entrar`, `/afiliados`, `/configuracoes` e `/contas` responderam HTTP 200; bundle público conferido com a URL e a chave publicável do projeto correto. O aviso de configuração pendente não aparece nesta publicação. A publicação anterior sem configuração tinha versão `70877960-c543-4b34-ac35-50ccbeda8e55`.
+
+Validações locais: 6 testes, TypeScript, linter e build estático aprovados. Validações remotas de API: catálogo de cinco plataformas; bloqueio anônimo; login por senha de duas contas; perfil; CRUD do proprietário; bloqueio entre usuários; bloqueio de falsificação do proprietário e URLs inseguras; logout. As duas contas temporárias foram criadas já confirmadas sem enviar mensagens e removidas ao final. Nenhuma chave administrativa foi colocada no frontend ou Git.
+
+Limites: não houve teste visual em navegador nesta execução. A entrega de e-mails de confirmação e recuperação ainda precisa ser validada; SMTP próprio não foi configurado. A ligação de builds automáticos GitHub/Cloudflare permanece não confirmada pela API Workers Builds com a autorização atual. APIs das lojas não foram ativadas.

@@ -83,4 +83,4 @@ Não havia suíte de testes anterior na Etapa 1; os testes do catálogo foram ad
 
 O catálogo foi limitado a Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza. TikTok Shop permanece dentro da orientação TikTok, com requisitos próprios de API. Os portais oficiais da Amazon (`https://associados.amazon.com.br/`) e Influenciador Magalu (`https://www.magazinevoce.com.br/`) foram consultados para acesso e afiliação, sem confirmar APIs para o aplicativo.
 
-A base Supabase atende a conta do próprio Meu Vendedor, perfis e links cadastrados manualmente. Não conecta automaticamente contas das plataformas. A migração e as políticas estão em `SUPABASE.md`; a aplicação no projeto remoto ainda depende de autorização.
+A base Supabase atende a conta do próprio Meu Vendedor, perfis e links cadastrados manualmente. Não conecta automaticamente contas das plataformas. A migração e as políticas foram aplicadas no projeto remoto; verificação e limites estão em `SUPABASE.md`.

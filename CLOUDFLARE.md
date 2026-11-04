@@ -1,40 +1,31 @@
-# Publicação do Meu Vendedor no Cloudflare Pages
+# Hospedagem do Meu Vendedor no Cloudflare
 
-Estado atual: Worker existente `meu-vendedor` confirmado e site público testado em https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev.
+## Publicação atual
 
-A autorização OAuth permitiu consultar o Worker e a versão ativa. O vínculo de builds automáticos com GitHub não pôde ser confirmado pela API, que retornou 403. Detalhes em `PUBLICACAO.md`.
+- Tipo: **Cloudflare Worker com Static Assets**, não Pages.
+- Worker: `meu-vendedor`.
+- URL pública: https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev
+- Configuração: `wrangler.jsonc`, com saída estática `out`.
+- Build: `npm run build:pages`.
+- Build e deploy: `npm run deploy:cloudflare`, com Wrangler autorizado na conta correta.
+- Node.js: `24`, declarado em `.node-version`.
 
-As instruções abaixo descrevem a opção alternativa Cloudflare Pages preparada anteriormente. Não é necessário criar um segundo projeto Pages para abrir a publicação atual do Worker.
+O build normal do Next.js foi preservado; o comando específico gera exportação estática com Webpack. Não é necessário criar outro projeto Pages para usar esta hospedagem. O nome histórico `build:pages` identifica o build estático, que também pode ser servido pelo Worker.
 
-## Valores deste projeto
+## Supabase
 
-| Campo | Valor |
-| --- | --- |
-| Repositório | `warllemedicao/Meu-Vendedor` |
-| Nome sugerido | `meu-vendedor` (sujeito a disponibilidade) |
-| Branch de produção | `main` |
-| Framework | Next.js (Static HTML Export) |
-| Build | `npm run build:pages` |
-| Saída | `out` |
-| Raiz | raiz do repositório; deixar em branco |
-| Node | `24`, também declarado em `.node-version` |
+A autenticação e o banco estão no projeto Supabase `meu-vendedor` (`jzchlrvxdaffnrgbvabv`). O frontend usa a configuração pública incorporada durante o build. Definir `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` no ambiente de build antes de publicar. O checkout atual usa `.env.local`, ignorado pelo Git.
 
-Sem variáveis de banco ou segredos nesta publicação. O comando específico define `MEU_VENDEDOR_STATIC_EXPORT=1` e usa Webpack. `npm run build` continua sem exportação estática.
+Nunca usar chave administrativa ou senha do banco no frontend. Alterar variáveis de runtime no Worker não altera um bundle estático já gerado; é necessário refazer o build. Instruções e testes em `SUPABASE.md`.
 
-## Ação do proprietário
+## GitHub
 
-No [painel Cloudflare](https://dash.cloudflare.com/), abrir Workers & Pages → Create application → Pages → Connect to Git / Import an existing Git repository. Autorizar o aplicativo no GitHub apenas para este repositório, selecionar o projeto e preencher os valores acima. Revisar e publicar com Save and Deploy.
+Repositório: `warllemedicao/Meu-Vendedor`, branch `main`. O código foi enviado ao GitHub. A consulta a Workers Builds retornou 403 com a autorização atual, por isso a atualização automática via GitHub **não foi confirmada nem declarada configurada**. As publicações verificadas foram realizadas diretamente pelo Wrangler.
 
-A hospedagem informará o endereço real `*.pages.dev`; ele ainda não foi criado nem verificado nesta preparação. Não configurar domínio ou Cloudflare Access para esta primeira publicação pública. A vinculação autoriza Cloudflare a ler o código e publicar builds; não concede acesso à conta Cloudflare ao assistente.
+Para futura vinculação no painel, usar o Worker existente, autorizar apenas o repositório do projeto, configurar build `npm run build:pages` e deploy `npx wrangler deploy`, e fornecer as duas variáveis públicas Supabase também no ambiente de build. Não é necessário commitar credenciais.
 
 ## Verificação
 
-Abrir o endereço fornecido em janela anônima e conferir `/dashboard` e `/contas`. Se o repositório não aparecer, conferir a instalação do aplicativo em GitHub → Settings → Applications → Installed GitHub Apps. Se houver erro de build, consultar o primeiro erro no log e conferir comando, branch e diretório de saída.
+As páginas e os recursos públicos foram testados por HTTP, e login/CRUD/RLS foram verificados na API Supabase com duas contas temporárias removidas ao final. A entrega de e-mails permanece a validar. Histórico, versões e limites em `PUBLICACAO.md`.
 
-A exportação serve o frontend atual. Não executa backend FastAPI, API Routes ou código de servidor em runtime; recursos futuros precisarão de Supabase, funções ou Workers conforme seu desenho.
-
-Referências: [integração Git](https://developers.cloudflare.com/pages/get-started/git-integration/) e [Next.js estático](https://developers.cloudflare.com/pages/framework-guides/nextjs/deploy-a-static-nextjs-site/).
-
-## Configuração do Worker no repositório
-
-`wrangler.jsonc` permite servir a pasta `out` no Worker `meu-vendedor`, sem recriar o projeto. `npm run deploy:cloudflare` executa o build estático e Wrangler. Esta configuração suporta a base Supabase no navegador; não cria serviços de banco. Valores públicos Supabase precisam existir no ambiente de build após ativação do projeto. A publicação de uma versão sem configuração mantém o aviso de acesso em preparação.
+Referências: [Static Assets](https://developers.cloudflare.com/workers/static-assets/get-started/) e [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/).

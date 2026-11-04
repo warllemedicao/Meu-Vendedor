@@ -18,9 +18,9 @@ A referência ForneceUp orienta a apresentação e a organização visual. O foc
 | Dashboard | Resumo de contas, produtos, links e resultados; filtros por plataforma e período | Existe com dados demonstrativos |
 | Contas Conectadas | Mostrar plataformas, requisitos, capacidades, autorizações e erros; conectar e revogar quando houver fluxo real | Catálogo informativo de quatro plataformas; sem autorização real |
 | Produtos | Reunir produtos de fontes autorizadas; pesquisa, categoria, plataforma e favoritos | Página de apresentação; operações futuras |
-| Afiliados / Meus links | Cadastrar links próprios, associar produto, plataforma e campanha; editar e arquivar | Página de apresentação; persistência futura |
+| Afiliados / Meus links | Cadastrar links próprios, associar produto, plataforma e campanha; editar e arquivar | CRUD manual implementado com Supabase e RLS |
 | Relatórios | Exibir métricas disponíveis por origem e período, com data de atualização | Página de apresentação; sem métricas reais |
-| Configurações | Perfil, preferências e gestão das permissões do usuário | Página de apresentação; sem autenticação |
+| Configurações | Perfil, preferências e gestão das permissões do usuário | Perfil implementado com Supabase Auth e RLS |
 | Ajuda | Instruções originais para configurar e usar o Meu Vendedor | Planejada; sem rota criada |
 | Tendências, Top 10, Vídeos, Publicações, Automações | Evolução posterior, após a base de gerenciamento | Rotas existentes; funcionalidades não implementadas |
 
@@ -60,4 +60,4 @@ O objetivo de reunir todas as plataformas é uma direção de expansão, não um
 
 ## Preparação do Supabase
 
-O responsável informou ter criado um projeto chamado `meu-vendedor`. O acesso ainda depende de habilitar a integração Supabase nesta conversa e identificar o projeto correto. O endereço publicado do frontend não concede acesso ao banco. O Supabase está previsto para banco e autenticação; sua adoção ainda exige implementação, migrações e políticas de acesso. A hospedagem atual do frontend permanece no Sites.
+O projeto `meu-vendedor` (`jzchlrvxdaffnrgbvabv`) foi autorizado e configurado com migração e RLS aplicadas. Auth, perfil e CRUD de links foram verificados na API hospedada. A hospedagem pública do frontend está no Cloudflare Workers. O endereço do site não concede acesso administrativo ao banco. A entrega de e-mails de confirmação/recuperação permanece a validar.

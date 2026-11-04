@@ -11,10 +11,10 @@
 | 🟡 Planejado | Decidido, ainda não escrito |
 | 🔌 Depende de API externa | Exige credenciais, permissões ou aprovação de terceiros |
 
-**Estado atual: frontend público no Cloudflare; base Supabase implementada no código, com ativação remota pendente de autorização.**
-Cadastro/login, perfil e links manuais foram preparados e a migração foi testada localmente. Não há conexão real com APIs das lojas, IA ou automações. A aplicação da migração e a configuração do projeto Supabase hospedado ainda não foram confirmadas.
+**Estado atual: frontend público no Cloudflare e base Supabase ativada.**
+Cadastro/login, perfil e links manuais estão implementados. A migração foi aplicada no projeto `meu-vendedor` e login, persistência e isolamento foram verificados na API hospedada com duas contas temporárias removidas ao final. A entrega de e-mails ainda precisa ser validada. APIs das lojas, IA e automações não estão implementadas.
 
-A situação atual da base está em [`SUPABASE.md`](./SUPABASE.md). As seções históricas abaixo registram as etapas anteriores; a seção 11 descreve a implementação atual.
+A situação atual da base está em [`SUPABASE.md`](./SUPABASE.md). A seção 11 registra a ativação; as seções de etapas anteriores preservam o histórico.
 
 ---
 
@@ -50,7 +50,7 @@ Produto (marketplace) → Conteúdo do afiliado → Link rastreável → Compra 
 
 ## 2. Funcionalidades futuras (módulos)
 
-Todos os módulos abaixo têm rota e navegação. Na Etapa 2, `/contas` recebeu um catálogo informativo com requisitos e documentação oficial; conexões e operações de negócio continuam planejadas.
+Todos os módulos abaixo têm rota e navegação. Na Etapa 2, `/contas` recebeu um catálogo informativo com requisitos e documentação oficial; conexões e operações nas lojas continuam planejadas. A conta do Meu Vendedor, perfil e links manuais já usam Supabase.
 
 | # | Módulo | Rota | Descrição | Depende de API externa? |
 | --- | --- | --- | --- | --- |
@@ -114,9 +114,9 @@ Todos os módulos abaixo têm rota e navegação. Na Etapa 2, `/contas` recebeu 
 | Rotas dos 11 itens de menu | ✅ Implementado | Dashboard, catálogo de contas e páginas de módulos futuros |
 | Preparação das integrações | ✅ Implementado | Catálogo público, contratos TypeScript, testes e INTEGRACOES.md |
 | Dashboard com dados demonstrativos | ✅ Implementado | Dados fictícios, rotulados como tal |
-| Autenticação e perfil de usuário | 🟡 Planejado | Cabeçalho tem apenas área reservada |
+| Autenticação e perfil de usuário | ✅ Implementado | Supabase Auth e perfil protegido por RLS |
 | API backend (FastAPI) | 🟡 Planejado | Não existe código de backend |
-| Banco PostgreSQL e migrações | 🟡 Planejado | Nenhuma persistência hoje |
+| Banco PostgreSQL e migrações | ✅ Implementado | Supabase; plataformas, perfis e links manuais com RLS |
 | Fila e agendador de tarefas | 🟡 Planejado | Necessário para automações e publicações |
 | Provider Shopee | 🔌 Depende de API externa | Requer programa de afiliados/API oficial |
 | Provider Mercado Livre | 🔌 Depende de API externa | Requer app registrado e credenciais |
@@ -140,9 +140,9 @@ Todos os módulos abaixo têm rota e navegação. Na Etapa 2, `/contas` recebeu 
   `publicacoes`, `automacoes`, `relatorios`, `contas`).
 - Tarefas longas (coleta, análise, geração de vídeo) executadas em segundo plano por uma fila.
 
-### 3.6 Banco de dados (futuro)
+### 3.6 Banco de dados
 
-PostgreSQL com migrações versionadas. Entidades previstas: usuário, conta conectada, produto, snapshot de
+PostgreSQL no Supabase com migração versionada e aplicada: `mv_platforms`, `mv_profiles` e `mv_affiliate_links`. Os dados privados são protegidos por RLS. Entidades previstas: usuário, conta conectada, produto, snapshot de
 preço, tendência, ranking diário, roteiro, vídeo, link de afiliado, publicação, automação, execução e métrica.
 Tokens de acesso de terceiros devem ser armazenados **criptografados**.
 
@@ -296,8 +296,8 @@ Após autorização OAuth do responsável, foi localizado o Worker existente `me
 
 Implementados o cliente oficial Supabase, telas de conta e recuperação de senha, perfil e CRUD de links manuais. O catálogo agora tem somente Shopee, TikTok (com orientação TikTok Shop), Mercado Livre, Amazon e Magazine Luiza, com redirecionamento oficial para acesso/afiliação. Não existe login nas lojas dentro do aplicativo.
 
-A arquitetura desta base é navegador/Next.js → Supabase Auth e Data API → PostgreSQL com RLS. O frontend continua publicável no Worker existente com exportação estática. FastAPI não é requisito para este CRUD; permanece uma possibilidade futura para processamento especializado. O arquivo `wrangler.jsonc` descreve o Worker e seus assets, sem credenciais.
+A arquitetura desta base é navegador/Next.js → Supabase Auth e Data API → PostgreSQL com RLS. Projeto autorizado: `meu-vendedor` (`jzchlrvxdaffnrgbvabv`). O frontend continua publicável no Worker existente com exportação estática. FastAPI não é requisito para este CRUD; permanece uma possibilidade futura para processamento especializado. O arquivo `wrangler.jsonc` descreve o Worker e seus assets, sem credenciais.
 
 A migração cria `mv_platforms`, `mv_profiles` e `mv_affiliate_links`, com isolamento por usuário e privilégios limitados por coluna. Foi testada em PostgreSQL local via PGlite, incluindo bloqueio de acessos indevidos. As chaves administrativas e futuras credenciais de lojas não passam pelo cliente. A sessão do próprio app é gerida pelo SDK Supabase.
 
-A implementação não implica aplicação remota: a autorização Supabase ainda precisa ser concluída, o projeto informado precisa ser identificado e a migração/configuração precisam ser aplicadas e testadas antes de declarar a persistência ativa. Procedimento em `SUPABASE.md`.
+Ativação remota concluída: migração `20261104000100` aplicada e registrada; URLs de Auth e senha mínima configuradas. Login, perfis e CRUD foram testados por API com duas contas temporárias e isolamento entre usuários. As contas de teste foram removidas. Confirmação/recuperação de e-mail têm fluxo implementado, mas a entrega de mensagens não foi testada. Procedimento e limites em `SUPABASE.md`.
