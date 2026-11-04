@@ -20,10 +20,13 @@ Nenhuma integração, automação, IA ou persistência existe ainda.
 
 ### 1.1 Objetivo
 
-O **Meu Vendedor** é uma plataforma web de **marketing de afiliados com apoio de inteligência artificial**. A
-proposta é reunir em um só painel o trabalho que hoje costuma ser manual e espalhado: descobrir produtos com
-potencial, entender o que está em alta, produzir conteúdo promocional, organizar links de afiliado, publicar e
-acompanhar o resultado.
+O **Meu Vendedor** é um **app web central de interação e gerenciamento de programas de afiliados de múltiplas plataformas**. A intenção confirmada pelo responsável é reunir contas, produtos, links, campanhas e resultados em uma única interface.
+
+O escopo inclui Mercado Livre, Shopee, TikTok/TikTok Shop, **Magazine Luiza** e, progressivamente, outros serviços com programas de afiliados. Cada integração será independente e terá apenas as capacidades oficialmente disponíveis para a conta e região autorizadas. “Todas as plataformas” é a direção de expansão; não significa que exista integração universal ou cobertura automática implementada.
+
+A prioridade atual é o gerenciamento de afiliados e a base das APIs. Inteligência artificial, produção de vídeos e automações permanecem como evolução posterior. A referência ForneceUp serve à apresentação e organização; o produto continua orientado a afiliados.
+
+O detalhamento das páginas e o plano do primeiro ciclo de APIs estão em [`ESCOPO.md`](./ESCOPO.md). As decisões e pendências específicas de integração estão em [`INTEGRACOES.md`](./INTEGRACOES.md).
 
 ### 1.2 Público-alvo
 
@@ -184,7 +187,8 @@ ESLint. Ícones: `lucide-react` (open source). Fontes: pilha de fontes do sistem
 | **TikTok** | Tendências de conteúdo e publicação | Acesso por API oficial exige app aprovado e escopos específicos. |
 | **TikTok Shop** | Produtos e afiliação dentro do TikTok | Disponibilidade e regras variam por país e tipo de conta. |
 | **Mercado Livre** | Produtos, preços e programa de afiliados | API pública com autenticação OAuth; algumas funções exigem permissão. |
-| **Outras** | Amazon, Magalu, Hotmart etc. | Avaliar caso a caso, após validar as três primeiras. |
+| **Magazine Luiza (Magalu)** | Gerenciamento do programa de afiliados, produtos, links e resultados quando suportados | Incluída no escopo; pesquisa técnica, permissões e conector ainda pendentes. Nenhum recurso de API presumido. |
+| **Outras** | Outros programas de afiliados, conforme prioridade do responsável | Avaliar contrato e capacidades de cada programa antes de integrar. |
 
 **Regras para todas as integrações**
 
@@ -257,3 +261,27 @@ A ordem pode mudar conforme as credenciais e permissões forem sendo obtidas.
 ## 9. Registro da Etapa 2
 
 Implementados o catálogo das quatro plataformas em `/contas`, contratos públicos de conectores, testes de invariantes e `INTEGRACOES.md`. Preservados layout, tema, dashboard demonstrativo e demais módulos. Sem login externo, consultas de API, monitoramento, vídeos ou automações. Validação da entrega: 3 testes do catálogo, ESLint e TypeScript aprovados; build de produção aprovado com `npm run build -- --webpack`. O Turbopack encontrou bloqueio de porta local pelo ambiente. Detalhes em `INTEGRACOES.md`.
+
+## 10. Intenção confirmada e preparação do primeiro ciclo de APIs
+
+Em 04/11/2026, o responsável confirmou que o produto deve centralizar o gerenciamento de afiliados de Mercado Livre, TikTok/TikTok Shop, Shopee, Magazine Luiza e outras plataformas. O escopo de cada página foi consolidado em `ESCOPO.md`. Magazine Luiza está planejada; o catálogo TypeScript e `/contas` continuam com as quatro plataformas da Etapa 2.
+
+A arquitetura já pode orientar o início do processo de APIs: primeiro a API interna, autenticação própria e banco; depois gerenciamento persistente e segurança das conexões; por fim um conector externo de leitura com acesso legítimo. Não há backend nem integração real implementados neste momento. A primeira plataforma será definida pela disponibilidade de acesso oficial e aprovação da conta, não por suposição de que qualquer API de marketplace atende afiliados.
+
+Entidades adicionais planejadas: `Platform` (identificação e capacidades), `Campaign` (organização de links), `CredentialRecord` (credenciais cifradas, exclusivamente no servidor) e `SyncRun` (tentativa, resultado e erro sanitizado). `Connection` pertence a um usuário; `AffiliateLink` mantém plataforma e origem; métricas preservam fonte, período e horário de coleta. A interface pública de conexão não inclui credenciais. Modelos e migrações ainda serão implementados.
+
+O sistema deverá permitir adicionar conectores sem acoplar regras de uma plataforma às demais. Permissões e capacidades concedidas serão verificadas no servidor. Cadastro manual futuro de links não poderá ser exibido como conexão automática. As rotas e os contratos de API interna serão definidos na implementação da base, sem inventar endpoints de terceiros neste documento.
+
+### 10.1 Prioridade do catálogo básico
+
+Por orientação do responsável, construir o básico e disponibilizar o site para análise não depende de ele já possuir contas de afiliado. O catálogo poderá incluir as plataformas planejadas com links oficiais verificados para entrar ou solicitar afiliação, distinguindo esses acessos externos da conexão real ao Meu Vendedor. A disponibilidade de APIs será tratada posteriormente, por recurso. Esta decisão não declara novas lojas ou ações como implementadas na interface atual.
+
+### 10.2 Escopo básico e projeto Supabase informado
+
+O responsável limitou a primeira versão a Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza. Outras plataformas ficam para expansão posterior. Esta definição é de escopo; a interface publicada ainda corresponde à versão 1 descrita em `PUBLICACAO.md`.
+
+O responsável informou já ter criado `meu-vendedor` no Supabase. Planeja-se usar esse projeto para banco e autenticação, após autorização e identificação inequívoca do projeto. Não há conexão, migração ou mudança de backend implementada por este registro. A necessidade de um backend FastAPI separado será reavaliada quando forem definidas as operações que Supabase Auth, PostgreSQL e funções de servidor atenderão. O endereço de visualização do site não fornece acesso ao Supabase.
+
+### 10.3 Preparação para Cloudflare Pages
+
+Adicionado `npm run build:pages`, com exportação estática condicional em `next.config.ts` e saída `out`; Node.js 24 definido em `.node-version`. O build padrão permanece disponível. A vinculação de `warllemedicao/Meu-Vendedor` ao Pages deverá ser autorizada pelo proprietário nas contas Cloudflare/GitHub. O procedimento e os valores do painel estão em `CLOUDFLARE.md`; a preparação do repositório não comprova criação do projeto nem publicação no Cloudflare.

@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test --test-isolation=none tests/*.test.mjs"
+    "test": "node --experimental-strip-types --test --test-isolation=none tests/*.test.mjs",
+    "build:pages": "MEU_VENDEDOR_STATIC_EXPORT=1 next build --webpack"
   },
   "dependencies": {
     "lucide-react": "^1.68.0",

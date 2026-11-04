@@ -1,6 +1,6 @@
 # Meu Vendedor — Viral Commerce AI
 
-Plataforma web de **marketing de afiliados sem estoque, com apoio de inteligência artificial**.
+App web de **interação e gerenciamento de afiliados de múltiplas plataformas**: Mercado Livre, Shopee, TikTok/TikTok Shop, Magazine Luiza e outras, com integrações entregues progressivamente conforme acesso oficial.
 O afiliado divulga produtos de marketplaces com links rastreáveis e recebe comissão; a plataforma ajuda a
 escolher produtos, produzir conteúdo e acompanhar resultados.
 
@@ -8,6 +8,8 @@ escolher produtos, produzir conteúdo e acompanhar resultados.
 > demonstrativos (fictícios)**. Contas Conectadas apresenta requisitos e documentação oficial das quatro plataformas. Não existem conexões reais, automações, IA, backend ou banco de dados ainda.
 
 A visão completa do sistema está em [`ARQUITETURA.md`](./ARQUITETURA.md) (documento de referência).
+
+A intenção do produto, o escopo das páginas e o plano para iniciar as APIs estão em [`ESCOPO.md`](./ESCOPO.md). Magazine Luiza está no planejamento e ainda não possui conector implementado.
 
 O catálogo e o desenho de segurança estão em [`INTEGRACOES.md`](./INTEGRACOES.md).
 
@@ -94,3 +96,9 @@ automações. **Cada etapa só começa mediante instrução explícita.**
 ## Segurança
 
 Nunca commite senhas, tokens ou chaves. Credenciais futuras ficarão em variáveis de ambiente (`.env.local`).
+
+## Publicação no Cloudflare Pages
+
+O repositório está preparado para exportação estática com `npm run build:pages`; a saída é `out`. O build normal mantém o comportamento anterior. Use Node.js 24 (arquivo `.node-version`), branch `main` e raiz do repositório. Não são necessárias variáveis Supabase para a versão atual.
+
+O projeto Cloudflare e a autorização do aplicativo Cloudflare no GitHub devem ser configurados pelo proprietário. Após a vinculação, novos pushes em `main` poderão disparar publicações automáticas. Não há credencial Cloudflare no repositório. O procedimento está em `CLOUDFLARE.md`.
