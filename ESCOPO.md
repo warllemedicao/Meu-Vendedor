@@ -6,6 +6,8 @@ Atualização do catálogo: o responsável acrescentou SHEIN e AliExpress à pes
 
 ## Intenção
 
+Requisito corrigido pelo responsável: mostrar os produtos sem exigir conexão de contas das lojas. Conectar o perfil de afiliado é uma ação posterior e deverá usar consentimento na própria plataforma quando houver suporte oficial. App IDs e segredos de aplicação são configuração técnica do serviço, não o fluxo esperado para o usuário comum. A implementação publicada ainda exige autenticação/configuração por usuário e precisa ser reestruturada para atender esse requisito. Não substituir um fluxo de autorização ausente por um botão que apenas abre o portal e aparenta conectar.
+
 Construir um app web central de interação e gerenciamento de programas de afiliados. O usuário deverá organizar contas, produtos, links e resultados de diferentes plataformas no mesmo painel.
 
 Plataformas do escopo básico atual: **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**. A inclusão de outras plataformas fica para evolução posterior. TikTok Shop será tratado dentro do planejamento TikTok quando necessário, preservando as autorizações específicas de cada produto. A cobertura será ampliada por conectores independentes. Suporte automático depende da existência de recursos oficiais adequados e da autorização concedida à conta.

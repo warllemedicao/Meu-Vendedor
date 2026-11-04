@@ -3,7 +3,7 @@ export type CatalogPlatform = typeof catalogPlatforms[number];
 export type ImplementedPlatform = Exclude<CatalogPlatform, "magalu" | "shein">;
 export interface CatalogProduct {
   id: string;
-  platform: CatalogPlatform;
+  platform: CatalogPlatform | "shopee";
   title: string;
   imageUrl: string | null;
   productUrl: string | null;
@@ -30,3 +30,5 @@ export interface CatalogSourceStatus {
 }
 export interface CatalogQuery { keywords: string; categoryId: string; discountsOnly: boolean; }
 export type AccountConfig = Record<string, unknown>;
+export type PublicPlatform = "shopee" | "amazon" | "tiktok";
+export interface PublicCatalogResult extends Omit<CatalogResult, "platform"> { platform: PublicPlatform; }

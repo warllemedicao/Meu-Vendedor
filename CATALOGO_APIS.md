@@ -1,5 +1,35 @@
 # Catálogo inicial: ofertas e mais vendidos
 
+## Vitrine pública de três lojas — prioridade atual
+
+Por orientação do responsável, `/` e `/dashboard` passam a usar apenas Shopee, Amazon e TikTok Shop. A vitrine deixou de usar `RemoteCatalog`/`ProductCatalog` pessoais e não exige login no Meu Vendedor nem conexão com lojas. Os conectores privados das demais páginas continuam separados.
+
+Foi criada a função `catalog-public`, publicada na versão 1 com `verify_jwt=false` porque serve somente uma seleção pública de produtos. Ela não lê banco, sessão, credenciais ou resultados de usuários. Usa exclusivamente o segredo de servidor **`MV_PUBLIC_CATALOG_CONFIG`**, com acessos do próprio aplicativo autorizados para essa exibição. Não reutiliza `MV_CATALOG_ACCOUNTS` nem credenciais Shopee pessoais. A autenticação das funções privadas permanece preservada.
+
+Estrutura da configuração central no gerenciador de segredos Supabase (preencher somente as lojas com acesso concedido; nunca no frontend, Git ou chat):
+
+```json
+{
+  "shopee": {"appId": "APP_ID_DO_SERVICO", "secret": "SECRET_DO_SERVICO"},
+  "amazon": {"clientId": "CLIENT_ID_DO_SERVICO", "clientSecret": "SECRET_DO_SERVICO", "partnerTag": "TAG_DA_CONTA", "keywords": "casa"},
+  "tiktok": {"appKey": "APP_KEY_DO_SERVICO", "appSecret": "SECRET_DO_SERVICO", "accessToken": "TOKEN_AUTORIZADO_DO_CRIADOR"}
+}
+```
+
+Uma consulta GET pública recebe apenas `platform=shopee|amazon|tiktok`. Nenhum token de visitante é encaminhado às lojas. A coleta de cada fonte é compartilhada por visitantes e mantida em memória por até 10 minutos, com coalescência de chamadas concorrentes e espera de 30 segundos após falha, por instância. Esse mecanismo não é um rate limiter distribuído; é necessário dimensionar cotas conforme o tráfego. Não há persistência de imagens/produtos no banco. A interface atualiza a leitura a cada 10 minutos e oferece busca/filtros locais.
+
+A vitrine não gera links pessoais. Remove a tag Amazon do endereço público e parâmetros de rastreamento dos outros endereços, preservando apenas região/idioma do TikTok quando presentes. Atribuição de afiliado e consentimento ficam para a próxima etapa. A configuração deve usar uma fonte cuja licença permita a exibição pretendida; um token de criador não concede acesso global ao TikTok.
+
+**Bloqueio real confirmado no ambiente remoto:** GET sem login para as três plataformas retornou HTTP 503 com `catalog_not_configured`. Nenhuma das três fontes centrais está configurada. O banco consultado não contém produtos/conexões sincronizados para aproveitar. A implementação pública e seus testes não significam que o pedido de exibir produtos reais esteja concluído. Não inserir dados de demonstração ou declarar sucesso comercial enquanto faltar a fonte.
+
+Os registros abaixo documentam a pesquisa e a implementação privada anterior; não representam mais a interface da página inicial.
+
+## Requisito de experiência corrigido
+
+O responsável esclareceu que deseja navegar no catálogo sem conectar uma loja e vincular o perfil de afiliado por botão de consentimento oficial, sem digitar chaves técnicas. A implementação publicada abaixo não atende integralmente a isso: ela usa sessão do Meu Vendedor e configurações comerciais por usuário. A próxima mudança deverá separar o catálogo do aplicativo (acesso/licença do serviço para exibição aos usuários) dos dados privados e da atribuição pessoal do afiliado. Não compartilhar credenciais/resultados privados de um usuário para preencher um catálogo público. Não retirar a autenticação do endpoint atual como atalho: ele também seleciona acessos pessoais.
+
+TikTok Shop documenta redirecionamento de criador para `shop.tiktok.com/alliance/creator/auth`, com `state` e retorno ao aplicativo. O contrato Shopee Affiliate verificado usa App ID/Secret e assinatura; não foi confirmado consentimento delegado equivalente para afiliados. A autorização de vendedores Shopee é uma integração distinta. Amazon Creators API documenta `client_credentials`, que é autenticação do serviço e não um consentimento do afiliado final. A disponibilidade da página pública das lojas não dispensa os requisitos da API ou as condições de uso do catálogo.
+
 Pesquisa realizada em 04/11/2026 por solicitação do responsável. Escopo desta etapa: descobrir fontes de produtos para a página inicial. Publicação em redes sociais e geração de links de novas plataformas ficam para outra etapa.
 
 ## Entrega no código

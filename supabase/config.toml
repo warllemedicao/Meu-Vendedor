@@ -20,3 +20,7 @@ verify_jwt = false
 [functions.catalog]
 # Somente chamadas de usuário; também valida a sessão explicitamente com Auth no handler.
 verify_jwt = true
+
+[functions.catalog-public]
+# A vitrine é pública por definição. Não lê sessões, credenciais ou tabelas pessoais.
+verify_jwt = false

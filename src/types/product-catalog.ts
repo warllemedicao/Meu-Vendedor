@@ -1,1 +1,1 @@
-export type { CatalogPlatform, CatalogProduct, CatalogQuery, CatalogResult, CatalogSourceStatus } from "../../supabase/functions/catalog/_shared/types";
+export type { CatalogPlatform, CatalogProduct, CatalogQuery, CatalogResult, CatalogSourceStatus, PublicCatalogResult, PublicPlatform } from "../../supabase/functions/catalog/_shared/types";

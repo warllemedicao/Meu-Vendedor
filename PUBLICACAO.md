@@ -1,5 +1,15 @@
 # Publicações — Meu Vendedor
 
+## Vitrine pública de Shopee, Amazon e TikTok — fonte ainda pendente
+
+Em 04/11/2026 foi publicada a versão Cloudflare `9d080273-301c-4e59-b025-be17d3e1b5ea`, com somente Shopee, Amazon e TikTok Shop na vitrine de `/` e `/dashboard`. A vitrine não exige login nem conexão pessoal. Os formulários de conta e os acessos privados continuam nas páginas próprias. O cron existente foi preservado.
+
+A nova função `catalog-public` está ACTIVE na versão 1, com `verify_jwt=false` por servir apenas o catálogo público. Usa um segredo central do aplicativo, sem ler sessões, credenciais ou produtos privados de usuários. As funções privadas existentes não tiveram a autenticação removida.
+
+**O pedido de exibir produtos reais ainda não está concluído:** os testes remotos GET para Shopee, Amazon e TikTok retornaram 503/`catalog_not_configured`. É necessário configurar acessos de catálogo do próprio Meu Vendedor em `MV_PUBLIC_CATALOG_CONFIG`; não são chaves a serem pedidas aos visitantes. Não foram exibidos produtos fictícios como alternativa. A pergunta sobre quais acessos o responsável já possui permanece pendente.
+
+Verificações locais: 31 testes aprovados, TypeScript frontend/backend, lint, build estático e dry-run. HTML gerado com apenas as três lojas, sem exigência de conexão pessoal. Bundle verificado sem a configuração privada do catálogo. Configuração e limites em `CATALOGO_APIS.md`.
+
 ## Catálogo publicado no Cloudflare — confirmado
 
 Após autorização do responsável, em 04/11/2026 às 18:59 UTC foi publicado o build do commit `5d56fb8` no Worker existente `meu-vendedor`, conta `2cd6c753710fbaba6b94e33ef662c9b3`. Versão ativa: `29c743ed-e672-4e98-b059-0213bd9a0ec8`, com 100% do tráfego. Foram enviados 73 assets novos/modificados; preservados o segredo de agendamento e o cron de 30 minutos.

@@ -17,7 +17,7 @@ O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afilia
 
 ## O que está implementado no código
 
-- Página inicial de oportunidades com sete plataformas e catálogo Shopee sincronizado. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress implementadas na função `catalog`, condicionadas a configuração segura por usuário e validação real. Magalu/SHEIN sem fonte de afiliados confirmada.
+- Vitrine inicial pública de Shopee, Amazon e TikTok Shop, sem exigir login ou conexão de lojas. A função `catalog-public` está publicada, mas as três fontes centrais ainda estão sem configuração e não retornam produtos reais. Consultas privadas de outras plataformas continuam separadas. Detalhes em `CATALOGO_APIS.md`.
 - Navegação responsiva e tema claro/escuro.
 - Catálogo das cinco plataformas; conexão Shopee por credenciais oficiais, sem sucesso simulado.
 - Produtos sincronizados com ficha, comissão estimada e geração/compartilhamento de link pela API Shopee, quando a conta possui acesso válido.
