@@ -16,3 +16,7 @@ enable_confirmations = true
 # A função verifica o JWT com Supabase Auth em toda chamada de usuário.
 # O cron utiliza um segredo próprio validado no handler, nunca a chave pública.
 verify_jwt = false
+
+[functions.catalog]
+# Somente chamadas de usuário; também valida a sessão explicitamente com Auth no handler.
+verify_jwt = true

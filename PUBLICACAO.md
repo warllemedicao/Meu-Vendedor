@@ -1,5 +1,11 @@
 # Publicações — Meu Vendedor
 
+## Catálogo inicial de sete plataformas — alteração local
+
+Em 04/11/2026, a rota `/` foi alterada no checkout para apresentar oportunidades e disponibilidade de Amazon, Mercado Livre, TikTok Shop, Magalu, Shopee, SHEIN e AliExpress. Além da Shopee por conta autorizada, o código inclui a função `catalog` com consultas Amazon, Mercado Livre, TikTok Shop e AliExpress. A nova função e seus segredos por usuário ainda precisam ser publicados/configurados e testados com acesso comercial real. Magalu e SHEIN não têm adaptador de afiliados. Detalhes em `CATALOGO_APIS.md`.
+
+Esta alteração **não foi publicada**: a consulta `wrangler whoami` informou ausência de autenticação no ambiente atual; a instalação temporária de autenticação usada anteriormente também não está disponível. Os registros abaixo são históricos e não comprovam que a página nova esteja na produção. Não foi criada hospedagem alternativa.
+
 ## Cloudflare Workers — endereço público confirmado
 
 Em 04/11/2026, autorização OAuth do Wrangler confirmada e Worker existente `meu-vendedor` localizado na conta autorizada.

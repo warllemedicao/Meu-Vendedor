@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export function Brand() {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2.5">
+    <Link href="/" className="flex items-center gap-2.5">
       <span
         aria-hidden
         className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-background"

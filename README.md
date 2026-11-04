@@ -3,10 +3,11 @@
 App web de gerenciamento de afiliados com **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**.
 O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afiliação, e pode organizar seus links na sua conta do Meu Vendedor.
 
-**Estado atual:** frontend público no Cloudflare e base Supabase ativada no projeto `meu-vendedor`. Migração e autenticação configuradas; login, perfil, CRUD e isolamento entre usuários testados na API hospedada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. O conector Shopee para ofertas e links está implementado e exige validação de credenciais reais. Outras plataformas, IA e automações comerciais permanecem em preparação. O dashboard original mantém dados demonstrativos rotulados.
+**Estado atual:** frontend público no Cloudflare e base Supabase ativada no projeto `meu-vendedor`. Migração e autenticação configuradas; login, perfil, CRUD e isolamento entre usuários testados na API hospedada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. O conector Shopee para ofertas e links está implementado e exige validação de credenciais reais. No código, consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram adicionadas ao catálogo inicial; publicação, configuração por usuário e testes comerciais reais continuam pendentes. Magalu/SHEIN, IA e automações permanecem em preparação. O dashboard original mantém dados demonstrativos rotulados.
 
 ## Documentos
 
+- [CATALOGO_APIS.md](./CATALOGO_APIS.md): pesquisa das sete fontes e pendências do catálogo inicial.
 - [ARQUITETURA.md](./ARQUITETURA.md): intenção do produto, arquitetura e histórico.
 - [ESCOPO.md](./ESCOPO.md): páginas e sequência de desenvolvimento.
 - [SUPABASE.md](./SUPABASE.md): banco, autenticação, políticas e ativação.
@@ -16,6 +17,7 @@ O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afilia
 
 ## O que está implementado no código
 
+- Página inicial de oportunidades com sete plataformas e catálogo Shopee sincronizado. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress implementadas na função `catalog`, condicionadas a configuração segura por usuário e validação real. Magalu/SHEIN sem fonte de afiliados confirmada.
 - Navegação responsiva e tema claro/escuro.
 - Catálogo das cinco plataformas; conexão Shopee por credenciais oficiais, sem sucesso simulado.
 - Produtos sincronizados com ficha, comissão estimada e geração/compartilhamento de link pela API Shopee, quando a conta possui acesso válido.

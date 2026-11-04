@@ -2,6 +2,7 @@ import {
   BarChart3,
   Clapperboard,
   LayoutDashboard,
+  House,
   Link2,
   Package,
   Plug,
@@ -15,6 +16,16 @@ import type { NavItem } from "@/types";
 
 /** Fonte única da navegação: usada pelo menu lateral e pelas páginas de módulo. */
 export const navItems: NavItem[] = [
+  {
+    href: "/",
+    label: "Início · Ofertas",
+    icon: House,
+    titulo: "Ofertas e produtos",
+    descricao: "Produtos e ofertas das integrações autorizadas.",
+    recursosPlanejados: ["Catálogo das sete plataformas com fontes oficiais"],
+    dependencias: ["Acesso autorizado às APIs de produtos"],
+    etapaPrevista: "Catálogo inicial",
+  },
   {
     href: "/dashboard",
     label: "Dashboard",

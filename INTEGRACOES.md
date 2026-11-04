@@ -1,7 +1,7 @@
 # Integrações — Meu Vendedor
 
 Etapa 2: preparação visual e contratos TypeScript. Referências consultadas em **04/11/2026**.
-O primeiro conector Shopee para ofertas e links foi implementado; sua ativação por conta exige credenciais reais validadas pela API. As demais integrações comerciais ainda não estão implementadas. Detalhes atuais em `CONECTORES.md`.
+O conector Shopee para ofertas e links foi implementado; sua ativação por conta exige credenciais reais validadas pela API. Foram adicionadas consultas de catálogo Amazon, Mercado Livre, TikTok Shop e AliExpress, ainda sem teste de sucesso com credenciais reais. Magalu/SHEIN continuam sem contrato de catálogo de afiliados confirmado. Detalhes atuais em `CONECTORES.md` e `CATALOGO_APIS.md`; as seções da Etapa 2 abaixo preservam o histórico.
 A existência de uma API na plataforma não significa que esteja liberada para este projeto.
 
 ## Shopee

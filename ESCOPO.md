@@ -2,6 +2,8 @@
 
 Definição confirmada pelo responsável em 04/11/2026. Documento de produto; funcionalidades futuras não devem ser apresentadas como implementadas.
 
+Atualização do catálogo: o responsável acrescentou SHEIN e AliExpress à pesquisa e à página inicial de produtos. A rota `/` agora tem catálogo no código, sem redirecionamento ao dashboard. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram implementadas na função `catalog`, condicionadas à publicação/configuração por usuário e validação real; Magalu/SHEIN ainda sem contrato de afiliados confirmado. O CRUD de links continua com as cinco plataformas originais. Situação atual em `CATALOGO_APIS.md`; a tabela e os planos antigos abaixo preservam o escopo anterior.
+
 ## Intenção
 
 Construir um app web central de interação e gerenciamento de programas de afiliados. O usuário deverá organizar contas, produtos, links e resultados de diferentes plataformas no mesmo painel.
