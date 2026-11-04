@@ -8,6 +8,11 @@ export function IntegrationCard({ connector }: { connector: ConnectorDefinition 
   return (
     <Card titulo={connector.name} acao={<Badge tone="neutral">Não conectado</Badge>}>
       <p className="text-sm text-muted">{connector.description}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <a href={connector.portalUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-background">Acessar portal <span className="sr-only">oficial de {connector.name} (nova aba)</span></a>
+        <a href={connector.affiliationUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-border px-3 py-2 text-sm">Como se afiliar <span className="sr-only">a {connector.name} (nova aba)</span></a>
+      </div>
+      <p className="mt-2 text-xs text-muted">Você será encaminhado ao site oficial. Esse acesso não conecta a loja ao Meu Vendedor.</p>
       <p className="mt-3 rounded-lg bg-accent-soft p-3 text-sm text-accent">{connector.availabilityMessage}</p>
       <dl className="mt-4 space-y-4 text-sm">
         <div><dt className="font-semibold">Conta necessária</dt><dd className="mt-1 text-muted">{connector.accountRequirement}</dd></div>

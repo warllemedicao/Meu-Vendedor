@@ -1,0 +1,13 @@
+project_id = "meu-vendedor"
+
+[auth]
+enabled = true
+site_url = "https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev"
+additional_redirect_urls = ["https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev/entrar", "https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev/redefinir-senha", "http://localhost:3000/entrar", "http://localhost:3000/redefinir-senha"]
+enable_signup = true
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true

@@ -11,8 +11,10 @@
 | 🟡 Planejado | Decidido, ainda não escrito |
 | 🔌 Depende de API externa | Exige credenciais, permissões ou aprovação de terceiros |
 
-**Estado atual: Etapas 1 e 2 concluídas — frontend demonstrativo e preparação das integrações.**
-Nenhuma integração, automação, IA ou persistência existe ainda.
+**Estado atual: frontend público no Cloudflare; base Supabase implementada no código, com ativação remota pendente de autorização.**
+Cadastro/login, perfil e links manuais foram preparados e a migração foi testada localmente. Não há conexão real com APIs das lojas, IA ou automações. A aplicação da migração e a configuração do projeto Supabase hospedado ainda não foram confirmadas.
+
+A situação atual da base está em [`SUPABASE.md`](./SUPABASE.md). As seções históricas abaixo registram as etapas anteriores; a seção 11 descreve a implementação atual.
 
 ---
 
@@ -289,3 +291,13 @@ Adicionado `npm run build:pages`, com exportação estática condicional em `nex
 ### 10.4 Cloudflare Workers confirmado
 
 Após autorização OAuth do responsável, foi localizado o Worker existente `meu-vendedor` e confirmado o frontend público com respostas HTTP 200 nas páginas principais. Não foi necessário recriar ou sobrescrever o serviço. A consulta à API Workers Builds retornou 403; o vínculo automático com GitHub permanece não confirmado. O endereço e a versão consultada estão em `PUBLICACAO.md`. A preparação anterior para Pages permanece uma alternativa, não uma exigência de migração.
+
+## 11. Base Supabase e catálogo básico
+
+Implementados o cliente oficial Supabase, telas de conta e recuperação de senha, perfil e CRUD de links manuais. O catálogo agora tem somente Shopee, TikTok (com orientação TikTok Shop), Mercado Livre, Amazon e Magazine Luiza, com redirecionamento oficial para acesso/afiliação. Não existe login nas lojas dentro do aplicativo.
+
+A arquitetura desta base é navegador/Next.js → Supabase Auth e Data API → PostgreSQL com RLS. O frontend continua publicável no Worker existente com exportação estática. FastAPI não é requisito para este CRUD; permanece uma possibilidade futura para processamento especializado. O arquivo `wrangler.jsonc` descreve o Worker e seus assets, sem credenciais.
+
+A migração cria `mv_platforms`, `mv_profiles` e `mv_affiliate_links`, com isolamento por usuário e privilégios limitados por coluna. Foi testada em PostgreSQL local via PGlite, incluindo bloqueio de acessos indevidos. As chaves administrativas e futuras credenciais de lojas não passam pelo cliente. A sessão do próprio app é gerida pelo SDK Supabase.
+
+A implementação não implica aplicação remota: a autorização Supabase ainda precisa ser concluída, o projeto informado precisa ser identificado e a migração/configuração precisam ser aplicadas e testadas antes de declarar a persistência ativa. Procedimento em `SUPABASE.md`.

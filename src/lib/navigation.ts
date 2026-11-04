@@ -81,13 +81,13 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/afiliados",
-    label: "Afiliados",
+    label: "Meus links",
     icon: Link2,
-    titulo: "Afiliados",
+    titulo: "Meus links",
     descricao: "Gerenciamento dos seus links de afiliado.",
     recursosPlanejados: ["Cadastro de links por plataforma e produto", "Organização por campanha", "Verificação de links"],
     dependencias: [],
-    etapaPrevista: "Etapa 3",
+    etapaPrevista: "Base Supabase",
   },
   {
     href: "/relatorios",

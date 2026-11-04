@@ -26,3 +26,10 @@ yarn-debug.log*
 /Meu-Vendedor-etapa-1.zip
 /meu-vendedor-etapa-1.bundle
 /etapa-1.patch
+
+# estado local de ferramentas e credenciais de desenvolvimento
+.wrangler/
+.dev.vars
+.dev.vars.*
+supabase/.temp/
+supabase/.branches/

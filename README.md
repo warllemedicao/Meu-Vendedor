@@ -1,104 +1,65 @@
 # Meu Vendedor — Viral Commerce AI
 
-App web de **interação e gerenciamento de afiliados de múltiplas plataformas**: Mercado Livre, Shopee, TikTok/TikTok Shop, Magazine Luiza e outras, com integrações entregues progressivamente conforme acesso oficial.
-O afiliado divulga produtos de marketplaces com links rastreáveis e recebe comissão; a plataforma ajuda a
-escolher produtos, produzir conteúdo e acompanhar resultados.
+App web de gerenciamento de afiliados com **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**.
+O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afiliação, e pode organizar seus links no Meu Vendedor quando a base Supabase estiver ativada.
 
-> **Status: Etapa 2 — preparação das integrações.** O site tem navegação, layout e um dashboard com **dados
-> demonstrativos (fictícios)**. Contas Conectadas apresenta requisitos e documentação oficial das quatro plataformas. Não existem conexões reais, automações, IA, backend ou banco de dados ainda.
+**Estado atual:** frontend público no Cloudflare e base Supabase implementada no código. A migração foi testada localmente; aplicação e configuração no projeto Supabase hospedado ainda dependem de concluir a autorização do responsável. Não há APIs de lojas, IA ou automações ativas. O dashboard original mantém dados demonstrativos rotulados.
 
-A visão completa do sistema está em [`ARQUITETURA.md`](./ARQUITETURA.md) (documento de referência).
+## Documentos
 
-A intenção do produto, o escopo das páginas e o plano para iniciar as APIs estão em [`ESCOPO.md`](./ESCOPO.md). Magazine Luiza está no planejamento e ainda não possui conector implementado.
+- [ARQUITETURA.md](./ARQUITETURA.md): intenção do produto, arquitetura e histórico.
+- [ESCOPO.md](./ESCOPO.md): páginas e sequência de desenvolvimento.
+- [SUPABASE.md](./SUPABASE.md): banco, autenticação, políticas e ativação.
+- [INTEGRACOES.md](./INTEGRACOES.md): requisitos das plataformas.
+- [CLOUDFLARE.md](./CLOUDFLARE.md) e [PUBLICACAO.md](./PUBLICACAO.md): hospedagem e verificações.
 
-O catálogo e o desenho de segurança estão em [`INTEGRACOES.md`](./INTEGRACOES.md).
+## O que está implementado no código
+
+- Navegação responsiva e tema claro/escuro.
+- Catálogo das cinco plataformas com links oficiais externos; nenhuma conexão de loja é simulada.
+- Cadastro, login e recuperação da senha do próprio Meu Vendedor via Supabase Auth.
+- Perfil com nome de exibição.
+- Gerenciamento de links manuais: criar, listar, editar, excluir e filtrar por plataforma, com campanha e observações.
+- Migração PostgreSQL e RLS para isolamento dos dados por usuário.
+- Estado informativo quando Supabase não estiver configurado, sem apresentar operações falsas.
+
+As telas de autenticação e persistência só ficam disponíveis com a configuração Supabase. Sua presença no código não comprova que a migração foi aplicada no projeto hospedado.
 
 ## Tecnologias
 
-- [Next.js](https://nextjs.org/) 16 (App Router) + [React](https://react.dev/) 19
-- TypeScript
-- [Tailwind CSS](https://tailwindcss.com/) 4
-- [lucide-react](https://lucide.dev/) (ícones)
-- ESLint
+Next.js 16, React 19, TypeScript, Tailwind CSS 4, Supabase JS, PostgreSQL/RLS, ESLint e testes Node.js com PGlite. O frontend atual pode ser exportado como estático; Auth e Data API são fornecidos pelo Supabase. FastAPI permanece opcional para futuras operações especializadas.
 
-Backend (FastAPI) e banco (PostgreSQL) estão **planejados** e não fazem parte desta etapa.
+## Executar
 
-## Como executar
-
-Requisitos: Node.js 22.18 ou superior e npm (testes usam suporte nativo a TypeScript).
+Requisitos: Node.js 24 (declarado em `.node-version`) e npm.
 
 ```bash
-npm install
-npm run dev        # http://localhost:3000
+npm ci
+npm run dev
 ```
 
-## Comandos de verificação
+Para ativar Auth e banco, aplicar a migração e configurar o projeto correto conforme `SUPABASE.md`. Depois, copiar `.env.example` para `.env.local` e preencher somente `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+
+Sem essas variáveis, é possível explorar o catálogo e o dashboard; a interface informa que o acesso de usuários está em preparação. O build rejeita configuração parcial, URL inválida e chaves administrativas em variáveis públicas.
+
+## Verificações e publicação
 
 ```bash
-npm test           # contratos e invariantes do catálogo
-npm run lint       # ESLint
-npm run typecheck  # TypeScript (tsc --noEmit)
-npm run build      # build de produção
-npm run start      # serve o build de produção
+npm test                 # catálogo, validação e PostgreSQL/RLS local
+npm run lint
+npm run typecheck
+npm run build:pages      # exportação estática com Webpack; saída out/
+npm run build            # build Next.js normal
+npm run start            # serve o build normal (não a exportação estática)
+npm run deploy:cloudflare # gera a exportação e publica com Wrangler autorizado
 ```
 
-Neste ambiente, o Turbopack encontrou um bloqueio de porta local durante o processamento de CSS. A alternativa validada foi `npm run build -- --webpack`; o compilador padrão foi preservado.
-
-## Estrutura das pastas
-
-```text
-Meu-Vendedor/
-├── ARQUITETURA.md          # arquitetura e roadmap (leia primeiro)
-├── INTEGRACOES.md          # plataformas, permissões e segurança futura
-├── README.md
-├── package.json
-├── .env.example            # sem valores reais; .env* está no .gitignore
-├── public/
-└── src/
-    ├── app/                # rotas (App Router)
-    │   ├── layout.tsx      # layout raiz + tema
-    │   ├── page.tsx        # redireciona para /dashboard
-    │   ├── dashboard/  produtos/  tendencias/  top-10/  videos/
-    │   ├── publicacoes/  afiliados/  relatorios/  automacoes/
-    │   ├── contas/  configuracoes/
-    │   └── loading.tsx  error.tsx  not-found.tsx
-    ├── components/
-    │   ├── layout/         # AppShell, Sidebar, Header, ThemeToggle
-    │   ├── dashboard/      # cartões e listas do dashboard
-    │   └── ui/             # Badge, Card, PageHeader, FeaturePage
-    ├── lib/
-    │   ├── navigation.ts   # fonte única do menu e das páginas de módulo
-    │   └── demo-data.ts    # DADOS FICTÍCIOS do dashboard
-    ├── types/
-    └── styles/globals.css  # tokens de cor e tema claro/escuro
-```
-
-## O que existe e o que não existe
-
-| Existe | Não existe (ainda) |
-| --- | --- |
-| Menu lateral e navegação entre as 11 áreas | Login e perfil de usuário |
-| Dashboard com dados demonstrativos rotulados | Dados reais de qualquer plataforma |
-| Tema claro/escuro (salvo no navegador) | Backend, banco de dados e persistência |
-| Layout responsivo (desktop, tablet e celular) | Integrações (Shopee, Mercado Livre, TikTok) |
-| Contas Conectadas com requisitos; demais módulos com estado "não implementado" | IA, geração de vídeo, publicações e automações |
-
-## Entrega da Etapa 2
-
-Página `/contas` com Shopee, TikTok, TikTok Shop e Mercado Livre; catálogo com recursos pretendidos, pendências de aprovação e fontes oficiais. Contratos TypeScript para futuros conectores em `src/types/connectors.ts`. Nenhum botão de conexão ou formulário de credenciais é oferecido sem fluxo real. O dashboard demonstrativo foi preservado.
-
-## Próximas fases
-
-Resumo do roadmap (detalhes em `ARQUITETURA.md`): backend e banco → módulo Afiliados → primeiro provider de
-produtos → monitoramento → Top 10 com IA → tendências → roteiros → vídeos → publicações → relatórios →
-automações. **Cada etapa só começa mediante instrução explícita.**
+O build padrão com Turbopack encontrou restrições deste ambiente em verificações anteriores. O comando estático usa Webpack.
 
 ## Segurança
 
-Nunca commite senhas, tokens ou chaves. Credenciais futuras ficarão em variáveis de ambiente (`.env.local`).
+Nunca commitar senha, `service_role`, `sb_secret_*`, token de gerenciamento ou credenciais das lojas. RLS e permissões do banco são a barreira de acesso aos dados. O navegador recebe somente configuração pública e sua sessão de usuário do Meu Vendedor, gerida pelo SDK. Credenciais administrativas não são usadas no frontend.
 
-## Publicação no Cloudflare Pages
+## Próximas etapas
 
-O repositório está preparado para exportação estática com `npm run build:pages`; a saída é `out`. O build normal mantém o comportamento anterior. Use Node.js 24 (arquivo `.node-version`), branch `main` e raiz do repositório. Não são necessárias variáveis Supabase para a versão atual.
-
-O projeto Cloudflare e a autorização do aplicativo Cloudflare no GitHub devem ser configurados pelo proprietário. Após a vinculação, novos pushes em `main` poderão disparar publicações automáticas. Não há credencial Cloudflare no repositório. O procedimento está em `CLOUDFLARE.md`.
+Concluir autorização Supabase, identificar `meu-vendedor`, aplicar a migração, configurar confirmação de e-mail e redirects, ativar as variáveis públicas no build e validar os fluxos reais. Depois, evoluir cada integração de loja somente conforme disponibilidade oficial e autorização específica, sem presumir suporte universal.

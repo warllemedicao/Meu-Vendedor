@@ -1,5 +1,5 @@
 /** Contratos públicos: nunca transportar tokens, senhas ou segredos nestes tipos. */
-export type PlatformId = "shopee" | "tiktok" | "tiktok-shop" | "mercado-livre";
+export type PlatformId = "shopee" | "tiktok" | "mercado-livre" | "amazon" | "magazine-luiza";
 export type CapabilityId = "products" | "affiliate-links" | "commissions" | "profile" | "videos" | "publishing";
 export type AuthorizationStatus = "not_connected" | "pending" | "authorized" | "expired" | "revoked";
 export type SyncStatus = "not_started" | "idle" | "running" | "failed" | "paused";
@@ -59,6 +59,8 @@ export interface ConnectorDefinition {
   permissions: readonly string[];
   approvals: readonly string[];
   documentation: readonly OfficialDocumentation[];
+  portalUrl: string;
+  affiliationUrl: string;
   reviewedAt: string;
 }
 export interface ConnectionSnapshot {

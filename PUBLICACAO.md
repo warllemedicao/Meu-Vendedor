@@ -37,3 +37,7 @@ Para futuras alterações, reutilizar o mesmo ID de projeto Sites e abrir sua fo
 ## Supabase
 
 Não conectado a esta conversa nesta publicação. Não há configuração Supabase no código nem variáveis Supabase disponíveis no ambiente. A versão estática atual não depende do banco. A integração Supabase foi sugerida para habilitação pelo responsável; sua existência no catálogo não comprova acesso ao projeto dele. Após a conexão, identificar o projeto correto antes de consultar ou alterar estruturas.
+
+## Base Supabase — preparação da próxima publicação
+
+Código preparado com catálogo de cinco plataformas, rotas de autenticação, perfil e gerenciamento manual de links. Migração validada em PostgreSQL local e testes de RLS aprovados. A autorização Supabase está pendente: não há migração remota aplicada nem variáveis públicas configuradas neste momento. A interface deve continuar informando essa pendência e não apresentar operações de banco como ativas. O novo `wrangler.jsonc` permite servir a exportação no Worker existente; a publicação dessa versão será registrada quando confirmada.

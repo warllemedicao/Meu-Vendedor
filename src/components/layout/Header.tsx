@@ -1,5 +1,6 @@
-import { Menu, UserRound } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { AccountButton } from "@/components/auth/AccountButton";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
@@ -15,21 +16,14 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
       </button>
       <span className="text-sm font-semibold lg:hidden">Meu Vendedor</span>
       <div className="hidden lg:block">
-        <Badge tone="demo">Ambiente demonstrativo</Badge>
+        <Badge tone="demo">Meu Vendedor</Badge>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <span className="lg:hidden">
-          <Badge tone="demo">Demonstrativo</Badge>
+        <span className="hidden sm:inline lg:hidden">
+          <Badge tone="demo">Afiliados</Badge>
         </span>
         <ThemeToggle />
-        {/* Área reservada: autenticação e perfil ainda não existem. */}
-        <div
-          title="Perfil do usuário (em breve)"
-          aria-label="Área reservada para o perfil do usuário"
-          className="flex size-9 items-center justify-center rounded-full border border-dashed border-border text-muted"
-        >
-          <UserRound className="size-4" aria-hidden />
-        </div>
+        <AccountButton />
       </div>
     </header>
   );

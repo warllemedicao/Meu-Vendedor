@@ -41,5 +41,6 @@ export const integrations: IntegrationState[] = [
   { nome: "Shopee", descricao: "Produtos e comissões" },
   { nome: "Mercado Livre", descricao: "Produtos e afiliados" },
   { nome: "TikTok", descricao: "Tendências e publicação" },
-  { nome: "TikTok Shop", descricao: "Produtos e afiliação" },
+  { nome: "Amazon", descricao: "Programa de Associados" },
+  { nome: "Magazine Luiza", descricao: "Influenciador Magalu" },
 ];

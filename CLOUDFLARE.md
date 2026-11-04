@@ -34,3 +34,7 @@ Abrir o endereço fornecido em janela anônima e conferir `/dashboard` e `/conta
 A exportação serve o frontend atual. Não executa backend FastAPI, API Routes ou código de servidor em runtime; recursos futuros precisarão de Supabase, funções ou Workers conforme seu desenho.
 
 Referências: [integração Git](https://developers.cloudflare.com/pages/get-started/git-integration/) e [Next.js estático](https://developers.cloudflare.com/pages/framework-guides/nextjs/deploy-a-static-nextjs-site/).
+
+## Configuração do Worker no repositório
+
+`wrangler.jsonc` permite servir a pasta `out` no Worker `meu-vendedor`, sem recriar o projeto. `npm run deploy:cloudflare` executa o build estático e Wrangler. Esta configuração suporta a base Supabase no navegador; não cria serviços de banco. Valores públicos Supabase precisam existir no ambiente de build após ativação do projeto. A publicação de uma versão sem configuração mantém o aviso de acesso em preparação.
