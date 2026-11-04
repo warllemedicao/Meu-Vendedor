@@ -311,3 +311,57 @@ A arquitetura deverá expor uma API interna única, implementada por adaptadores
 O Explorer oficial brasileiro Shopee foi confirmado e os resultados estão em `INTEGRACOES.md`. Ainda não foi comprovado OAuth delegado para o afiliado Shopee nem um provedor externo universal que cubra as cinco lojas com todos os dados. A análise não implementou conexão comercial nem mudou o estado das contas para conectado.
 
 Antes da primeira conexão real: adicionar backend de integração (por exemplo, função Supabase ou Worker com runtime de servidor), armazenamento cifrado de credenciais com chave fora das tabelas públicas e checagem de usuário/capacidades em cada operação. O frontend estático nunca assinará requisições com segredos. O banco atual atende contas do Meu Vendedor e links manuais; tabelas de conexões, sincronizações e métricas serão criadas na etapa correspondente.
+
+## 13. Definição de produto: central única de operação de afiliados
+
+**Diretriz confirmada pelo responsável e registrada antes de novas alterações na aplicação.** Esta seção detalha a experiência desejada. Os itens abaixo são requisitos de evolução; não representam funcionalidades de sincronização já entregues.
+
+### 13.1 Significado de “API universal” neste projeto
+
+“Universal” significa um **padrão único de uso no Meu Vendedor**: conectar as contas das plataformas, consultar os produtos disponíveis para divulgação, analisar suas informações, gerar/compartilhar links e acompanhar os resultados em um único local. O usuário não deverá precisar abrir os painéis de cada plataforma para tarefas que a integração já consiga executar.
+
+O escopo inicial continua sendo Shopee, TikTok/TikTok Shop, Mercado Livre, Amazon e Magazine Luiza. Cada plataforma terá autorização e conector próprios por trás da experiência comum. O Meu Vendedor apresentará um catálogo e uma operação consolidados, respeitando as capacidades liberadas para cada conta.
+
+### 13.2 Jornada desejada
+
+1. O usuário entra na sua conta do Meu Vendedor e escolhe a plataforma que deseja conectar.
+2. Quando houver autorização delegada oficial, é encaminhado à plataforma para entrar e conceder acesso ao aplicativo; após a autorização, retorna ao Meu Vendedor. Quando o contrato exigir credenciais específicas de API, será necessário um fluxo seguro de conexão compatível com esse mecanismo. Não pressupor login delegado em plataformas onde ele não foi confirmado.
+3. O backend valida a autorização, associa a conexão ao usuário e inicia a primeira sincronização. O estado “conectado” só é exibido após validação real.
+4. O catálogo do Meu Vendedor mostra os produtos disponibilizados pela integração, com filtros por plataforma, categoria e outras informações efetivamente recebidas. A lista é atualizada em segundo plano dentro dos limites da fonte.
+5. Ao selecionar um produto, o usuário consulta sua ficha dentro do Meu Vendedor, sem abrir a página externa apenas para obter os dados que a API já fornece.
+6. Na mesma ficha, escolhe divulgar o produto. Onde a API permitir, o backend gera o link rastreável vinculado à conta afiliada correta; o usuário pode copiar ou compartilhar esse link pelo Meu Vendedor.
+7. O painel consolida os resultados disponíveis de cada conta, mantendo plataforma, período, situação e horário de atualização identificados. Autorizações expiradas ou revogadas exigem recuperação ou nova autorização.
+
+### 13.3 Catálogo atualizado e produtos mais vendidos
+
+O requisito de produto é permitir descobrir oportunidades e produtos com bom desempenho em cada plataforma, incluindo uma área de mais vendidos quando houver fonte adequada.
+
+Para apresentar “mais vendidos da Shopee” como ranking da plataforma, o conector deverá confirmar uma fonte oficial que ofereça esse ranking e seu período/abrangência. Uma lista de ofertas elegíveis ou a ordenação por vendas de um conjunto recebido não pode ser apresentada como o ranking global de todo o marketplace.
+
+Quando apenas um subconjunto estiver disponível, a interface deverá identificá-lo, por exemplo como “Mais vendidos entre os produtos disponíveis nesta integração”. Se não houver dados suficientes, informar a indisponibilidade, sem inventar classificação. A sincronização não pressupõe acesso a todo o catálogo, todos os dados ou atualização em tempo real.
+
+### 13.4 Ficha de produto dentro do Meu Vendedor
+
+A experiência desejada reúne, conforme disponibilidade oficial: nome, imagens, descrição, preço, promoção, variações, avaliações, quantidade vendida ou indicador de desempenho, vendedor/loja, elegibilidade para divulgação, comissão estimada e link de afiliado.
+
+Cada campo dependerá do contrato da API. Campos ausentes, desatualizados ou não permitidos serão identificados; não preencher lacunas com valores fictícios. A comissão estimada deve ser distinguida da comissão efetivamente validada/paga. Estoque, frete, prazo e preço final podem depender do comprador e do checkout; não prometer equivalência completa com a página original.
+
+A intenção é oferecer as informações necessárias à decisão de divulgação dentro do painel, com origem e data de atualização. A compra e a confirmação final das condições continuam no ambiente da plataforma responsável.
+
+### 13.5 Divulgação, vitrine e resultados
+
+Gerar/copiar/compartilhar um link de afiliado é uma ação própria. Adicionar o produto a uma vitrine da plataforma, criar anúncio, publicar em rede social ou alterar uma oferta são capacidades separadas, que só serão oferecidas quando houver API, autorização e implementação específicas.
+
+O link deve preservar a atribuição ao usuário conectado; não substituir seu identificador por credenciais ou tags de outra conta. A interface só confirma geração ou publicação após o retorno correspondente do serviço. O programa oficial continua responsável por regras, validação de vendas e pagamento das comissões.
+
+Os termos “ofertar” e “revender”, neste escopo, referem-se à divulgação como afiliado. Não introduzem automaticamente operação de vendedor, estoque próprio, faturamento ou logística.
+
+### 13.6 Consequências técnicas e sequência
+
+A próxima evolução deverá priorizar uma conexão real de ponta a ponta, começando pelo contrato documentado da Shopee: autorização válida → consulta autorizada → persistência de dados permitidos → ficha de produto → geração de link, onde suportada. A documentação do Explorer é evidência do contrato, mas não comprova liberação para uma conta específica.
+
+Serão necessárias estruturas para conexões por usuário, credenciais cifradas acessíveis apenas ao backend, produtos com identificadores externos, elegibilidade/links por conta, histórico de sincronizações e métricas com origem. Dados pessoais de cada usuário e resultados de afiliados continuarão isolados por autorização e RLS. Produtos públicos só poderão ser compartilhados entre usuários conforme licença e condições da fonte; links e resultados pessoais nunca serão misturados.
+
+O backend fará assinatura de requisições, normalização, paginação, controle de limites, atualização periódica e tratamento de falhas. A interface mostrará estados de primeira sincronização, última atualização, autorização expirada e erro, sem apresentar dados antigos como atuais. As próximas plataformas seguirão o mesmo padrão visual e funcional, com diferenças técnicas encapsuladas nos conectores.
+
+Nesta atualização foi alterada somente a arquitetura. Não foram implementadas novas chamadas a APIs de lojas, conexões, rankings, vitrines ou publicação automática.
