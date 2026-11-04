@@ -285,3 +285,7 @@ O responsável informou já ter criado `meu-vendedor` no Supabase. Planeja-se us
 ### 10.3 Preparação para Cloudflare Pages
 
 Adicionado `npm run build:pages`, com exportação estática condicional em `next.config.ts` e saída `out`; Node.js 24 definido em `.node-version`. O build padrão permanece disponível. A vinculação de `warllemedicao/Meu-Vendedor` ao Pages deverá ser autorizada pelo proprietário nas contas Cloudflare/GitHub. O procedimento e os valores do painel estão em `CLOUDFLARE.md`; a preparação do repositório não comprova criação do projeto nem publicação no Cloudflare.
+
+### 10.4 Cloudflare Workers confirmado
+
+Após autorização OAuth do responsável, foi localizado o Worker existente `meu-vendedor` e confirmado o frontend público com respostas HTTP 200 nas páginas principais. Não foi necessário recriar ou sobrescrever o serviço. A consulta à API Workers Builds retornou 403; o vínculo automático com GitHub permanece não confirmado. O endereço e a versão consultada estão em `PUBLICACAO.md`. A preparação anterior para Pages permanece uma alternativa, não uma exigência de migração.

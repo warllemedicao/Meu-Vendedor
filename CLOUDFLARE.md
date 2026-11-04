@@ -1,6 +1,10 @@
 # Publicação do Meu Vendedor no Cloudflare Pages
 
-Estado: configuração do código preparada; conta e projeto Cloudflare ainda dependem de ação do proprietário.
+Estado atual: Worker existente `meu-vendedor` confirmado e site público testado em https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev.
+
+A autorização OAuth permitiu consultar o Worker e a versão ativa. O vínculo de builds automáticos com GitHub não pôde ser confirmado pela API, que retornou 403. Detalhes em `PUBLICACAO.md`.
+
+As instruções abaixo descrevem a opção alternativa Cloudflare Pages preparada anteriormente. Não é necessário criar um segundo projeto Pages para abrir a publicação atual do Worker.
 
 ## Valores deste projeto
 

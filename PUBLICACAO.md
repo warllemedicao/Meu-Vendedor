@@ -1,4 +1,19 @@
-# Publicação para análise — Meu Vendedor
+# Publicações — Meu Vendedor
+
+## Cloudflare Workers — endereço público confirmado
+
+Em 04/11/2026, autorização OAuth do Wrangler confirmada e Worker existente `meu-vendedor` localizado na conta autorizada.
+
+- URL pública: https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev
+- Deployment existente consultado: `7743d9c0-8349-4818-a4ba-6a6c3903f064`.
+- Versão ativa consultada: `ea8236cc-67d9-488e-a653-676900ebb5a6`.
+- Testes HTTP: `/` redireciona ao dashboard; `/dashboard`, `/contas` e `/produtos` respondem 200 sem autenticação ChatGPT.
+- O código remoto contém o frontend Meu Vendedor. Não foi necessário sobrescrever o Worker para confirmar a publicação existente.
+- A consulta a Workers Builds retornou 403 com a autorização atual. Não foi possível confirmar/configurar o vínculo automático GitHub por essa API. Não confundir esse limite com o acesso público, que foi testado separadamente.
+- Requisições com o User-Agent padrão do Python receberam erro Cloudflare 1010; o teste com identificador de navegador funcionou. Não foram alteradas proteções da conta.
+- Credenciais OAuth permanecem fora do repositório. Nenhum segredo foi inserido neste documento.
+
+## Sites — publicação anterior de análise
 
 Versão 1 publicada com sucesso em 04/11/2026 pelo Sites.
 
