@@ -301,3 +301,13 @@ A arquitetura desta base é navegador/Next.js → Supabase Auth e Data API → P
 A migração cria `mv_platforms`, `mv_profiles` e `mv_affiliate_links`, com isolamento por usuário e privilégios limitados por coluna. Foi testada em PostgreSQL local via PGlite, incluindo bloqueio de acessos indevidos. As chaves administrativas e futuras credenciais de lojas não passam pelo cliente. A sessão do próprio app é gerida pelo SDK Supabase.
 
 Ativação remota concluída: migração `20261104000100` aplicada e registrada; URLs de Auth e senha mínima configuradas. Login, perfis e CRUD foram testados por API com duas contas temporárias e isolamento entre usuários. As contas de teste foram removidas. Confirmação/recuperação de e-mail têm fluxo implementado, mas a entrega de mensagens não foi testada. Procedimento e limites em `SUPABASE.md`.
+
+## 12. Experiência unificada de conexão e sincronização
+
+O objetivo confirmado é o usuário conectar cada plataforma ao Meu Vendedor e consultar seus dados no painel, sem precisar abrir a loja para cada consulta. Os acessos externos atuais são apenas a etapa básica de cadastro/afiliação. O login do Meu Vendedor não autoriza as lojas automaticamente.
+
+A arquitetura deverá expor uma API interna única, implementada por adaptadores próprios de cada plataforma. Cada adaptador define autorização oficial, capacidades, consultas, limites, erros e revogação. OAuth deve ser usado onde estiver oficialmente disponível; credenciais específicas são necessárias onde esse for o contrato. Uma integração só aparecerá conectada depois de validação real, e só exibirá os dados permitidos por sua API.
+
+O Explorer oficial brasileiro Shopee foi confirmado e os resultados estão em `INTEGRACOES.md`. Ainda não foi comprovado OAuth delegado para o afiliado Shopee nem um provedor externo universal que cubra as cinco lojas com todos os dados. A análise não implementou conexão comercial nem mudou o estado das contas para conectado.
+
+Antes da primeira conexão real: adicionar backend de integração (por exemplo, função Supabase ou Worker com runtime de servidor), armazenamento cifrado de credenciais com chave fora das tabelas públicas e checagem de usuário/capacidades em cada operação. O frontend estático nunca assinará requisições com segredos. O banco atual atende contas do Meu Vendedor e links manuais; tabelas de conexões, sincronizações e métricas serão criadas na etapa correspondente.

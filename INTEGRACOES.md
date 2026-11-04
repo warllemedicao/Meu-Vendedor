@@ -6,12 +6,14 @@ A existência de uma API na plataforma não significa que esteja liberada para e
 
 ## Shopee
 
-- Fontes oficiais: [portal de afiliados Brasil](https://affiliate.shopee.com.br/open_api) e [API Access — central de ajuda de Singapura](https://help.shopee.sg/portal/10/article/191702-API-Access).
-- Conta necessária: participante aprovado no programa de afiliados; elegibilidade da API brasileira a validar na conta.
-- APIs identificadas: Shopee Affiliate API na referência de Singapura. O portal brasileiro exige JavaScript e não permitiu confirmar publicamente seu contrato nesta consulta.
-- Confirmado na referência de Singapura: listas de ofertas, links curtos e relatórios de conversão/validação. **Não confirmado para o Brasil**: operações, campos de comissão, método de autenticação, permissões e disponibilidade para esta conta.
-- Permissões exigidas: nomes e concessão a confirmar no portal brasileiro; não presumir OAuth ou escopos.
-- Requisitos futuros: aprovação, acesso legítimo ao contrato brasileiro e documentação dos limites. Validar credenciais e assinatura somente no servidor, conforme o mecanismo oficial. A Open Platform de vendedores não comprova acesso a recursos de afiliados.
+Revisão ampliada em 04/11/2026 após indicação do responsável.
+
+- Fontes oficiais: [portal brasileiro](https://affiliate.shopee.com.br/open_api/home), [Explorer](https://open-api.affiliate.shopee.com.br/explorer) e [Explorer V2](https://open-api.affiliate.shopee.com.br/explorer/v2).
+- O portal retorna uma aplicação JavaScript. Os Explorers públicos e seu código HTML/JavaScript confirmam App ID, Secret, GraphQL e assinatura SHA-256 no cabeçalho de autorização.
+- Operações presentes no catálogo público do V2: `productOfferV2`, `shopeeOfferV2`, `conversionReport`, `validatedReport` e `generateShortLink`.
+- Essa evidência confirma documentação brasileira de ofertas, relatórios e links; não comprova acesso liberado para nossa conta. Nenhuma requisição autenticada foi realizada.
+- Login por senha da loja e autorização OAuth delegada para afiliados Shopee não foram confirmados nesse material. O fluxo documentado observado usa credenciais de API.
+- Limites, campos, períodos de relatório e permissões efetivas ainda precisam ser validados antes de sincronizar. O conector executará chamadas e assinatura no servidor, com segredos cifrados e isolamento por usuário.
 
 ## TikTok
 
@@ -84,3 +86,13 @@ Não havia suíte de testes anterior na Etapa 1; os testes do catálogo foram ad
 O catálogo foi limitado a Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza. TikTok Shop permanece dentro da orientação TikTok, com requisitos próprios de API. Os portais oficiais da Amazon (`https://associados.amazon.com.br/`) e Influenciador Magalu (`https://www.magazinevoce.com.br/`) foram consultados para acesso e afiliação, sem confirmar APIs para o aplicativo.
 
 A base Supabase atende a conta do próprio Meu Vendedor, perfis e links cadastrados manualmente. Não conecta automaticamente contas das plataformas. A migração e as políticas foram aplicadas no projeto remoto; verificação e limites estão em `SUPABASE.md`.
+
+## Direção de integração unificada
+
+O responsável definiu que abrir o portal da loja não atende ao objetivo final. O produto deverá conectar contas e trazer os dados disponibilizados pelas APIs para o painel. Os botões externos atuais continuam sendo acesso/afiliação, sem representar conexão.
+
+A proposta é uma API interna unificada do Meu Vendedor, com um adaptador por plataforma e capacidades verificadas individualmente. Não foi identificado um serviço externo com cobertura comprovada das cinco plataformas, login único e todos os dados de afiliados. Redes como Awin oferecem APIs para as contas vinculadas à própria rede, não comprovação de cobertura universal ([autenticação Awin](https://help.awin.com/apidocs/api-authentication)).
+
+Fluxos oficiais diferentes já foram identificados: TikTok Shop documenta autorização de criadores por app e escopos ([guia](https://partner.tiktokshop.com/docv2/page/678e3a362dccb8030ea6f98c)); Amazon documenta Creators API com credenciais e acesso ao catálogo ([introdução](https://affiliate-program.amazon.com/creatorsapi/docs/en-us/introduction)). Esses recursos não comprovam acesso a todas as métricas de cada programa. A API de marketplace Magalu não comprova acesso aos resultados de Influenciador Magalu.
+
+Plano: conectar individualmente cada conta pelo mecanismo oficial; guardar tokens/segredos somente no servidor; validar uma primeira leitura; persistir somente os dados permitidos; mostrar horário, origem e falhas de sincronização; renovar autorização quando o mecanismo permitir. Não solicitar senha das lojas nem automatizar o login por captura de sessão. Novos endpoints, funções e tabelas de sincronização ainda não foram implementados por esta análise.
