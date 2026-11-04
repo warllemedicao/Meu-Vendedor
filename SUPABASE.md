@@ -2,6 +2,8 @@
 
 ## Estado desta implementação
 
+O frontend atualizado já foi publicado no Worker Cloudflare; a ativação remota do banco permanece pendente.
+
 Código do cliente, telas e migração preparados. A aplicação no projeto hospedado `meu-vendedor` ainda depende de concluir a autorização oficial da CLI iniciada nesta conversa. A instalação do plugin não disponibilizou ferramentas de gestão do projeto nesta execução.
 
 Não há chave de projeto configurada no código. Sem as duas variáveis públicas, a aplicação mostra que o acesso de usuários está em preparação e não oferece operações que aparentem salvar no banco.
