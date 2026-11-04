@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test --test-isolation=none tests/*.test.mjs",
     "build:pages": "MEU_VENDEDOR_STATIC_EXPORT=1 next build --webpack",
-    "deploy:cloudflare": "npm run build:pages && wrangler deploy"
+    "deploy:cloudflare": "npm run build:pages && wrangler deploy",
+    "typecheck:edge": "tsc --noEmit -p tsconfig.edge.json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

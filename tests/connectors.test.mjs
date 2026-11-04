@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { connectorCatalog, getUnconfiguredSnapshot } from '../src/lib/connectors/catalog.ts';
 
-test('catálogo cobre as cinco plataformas sem oferecer capacidades implementadas', () => {
+test('catálogo cobre as cinco plataformas e habilita somente ofertas/links Shopee implementados', () => {
   assert.deepEqual(connectorCatalog.map((c) => c.id).sort(), ['amazon', 'magazine-luiza', 'mercado-livre', 'shopee', 'tiktok']);
   for (const connector of connectorCatalog) {
     assert.ok(connector.capabilities.length > 0);
-    assert.ok(connector.capabilities.every((capability) => !capability.available));
+    assert.deepEqual(connector.capabilities.filter(c=>c.available).map(c=>c.id), connector.id === "shopee" ? ["products","affiliate-links"] : []);
     assert.ok(connector.permissions.length && connector.approvals.length);
   }
 });
@@ -27,7 +27,7 @@ test('estado inicial nunca afirma autorização, sincronização ou conta real',
 });
 
 test('referências usam HTTPS e apenas domínios oficiais permitidos', () => {
-  const officialHosts = new Set(['affiliate.shopee.com.br', 'help.shopee.sg', 'developers.tiktok.com', 'partner.tiktokshop.com', 'developers.mercadolivre.com.br', 'associados.amazon.com.br', 'www.magazinevoce.com.br', 'www.parceiromagalu.com.br', 'www.tiktok.com', 'seller-br.tiktok.com', 'www.mercadolivre.com.br']);
+  const officialHosts = new Set(['affiliate.shopee.com.br', 'open-api.affiliate.shopee.com.br', 'help.shopee.sg', 'developers.tiktok.com', 'partner.tiktokshop.com', 'developers.mercadolivre.com.br', 'associados.amazon.com.br', 'www.magazinevoce.com.br', 'www.parceiromagalu.com.br', 'www.tiktok.com', 'seller-br.tiktok.com', 'www.mercadolivre.com.br']);
   for (const connector of connectorCatalog) {
     assert.ok(connector.documentation.length > 0);
     for (const doc of [...connector.documentation, {url: connector.portalUrl}, {url: connector.affiliationUrl}]) {

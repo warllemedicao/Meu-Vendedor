@@ -12,7 +12,7 @@
 | 🔌 Depende de API externa | Exige credenciais, permissões ou aprovação de terceiros |
 
 **Estado atual: frontend público no Cloudflare e base Supabase ativada.**
-Cadastro/login, perfil e links manuais estão implementados. A migração foi aplicada no projeto `meu-vendedor` e login, persistência e isolamento foram verificados na API hospedada com duas contas temporárias removidas ao final. A entrega de e-mails ainda precisa ser validada. APIs das lojas, IA e automações não estão implementadas.
+Cadastro/login, perfil e links manuais estão implementados. A migração foi aplicada no projeto `meu-vendedor` e login, persistência e isolamento foram verificados na API hospedada com duas contas temporárias removidas ao final. A entrega de e-mails ainda precisa ser validada. O primeiro conector Shopee foi implementado, condicionado à validação de credenciais reais da conta. Outras APIs de lojas, IA e automações comerciais não estão implementadas.
 
 A situação atual da base está em [`SUPABASE.md`](./SUPABASE.md). A seção 11 registra a ativação; as seções de etapas anteriores preservam o histórico.
 
@@ -365,3 +365,13 @@ Serão necessárias estruturas para conexões por usuário, credenciais cifradas
 O backend fará assinatura de requisições, normalização, paginação, controle de limites, atualização periódica e tratamento de falhas. A interface mostrará estados de primeira sincronização, última atualização, autorização expirada e erro, sem apresentar dados antigos como atuais. As próximas plataformas seguirão o mesmo padrão visual e funcional, com diferenças técnicas encapsuladas nos conectores.
 
 Nesta atualização foi alterada somente a arquitetura. Não foram implementadas novas chamadas a APIs de lojas, conexões, rankings, vitrines ou publicação automática.
+
+## 14. Implementação do primeiro conector — Shopee
+
+A primeira integração comercial foi implementada no código e o backend foi publicado na função Supabase `marketplace`. Foram adicionados armazenamento cifrado de credenciais com AES-256-GCM, metadados de conexão, catálogo por usuário, histórico de sincronização, bloqueio de operações e geração de link atômica com salvamento em Meus links. A migração `20261104000200` foi aplicada no projeto correto.
+
+O frontend apresenta conexão por App ID/Secret, produtos com ficha e geração/cópia/compartilhamento de links. Não recebe senha da loja e não simula login delegado. O Worker ganha cron de 30 minutos para processar, inicialmente, até duas contas validadas por execução. O contrato consulta até 60 ofertas, não o catálogo inteiro ou o ranking global.
+
+As regras de RLS e RPCs impedem usuários de ler credenciais, alterar o estado da conexão ou acessar produtos de outros usuários. Toda operação privada valida a sessão com Supabase Auth; o agendador usa segredo próprio. Nenhum segredo comercial é incluído no frontend.
+
+A implementação continua condicionada a credenciais e liberação reais da Open API. Não foi comprovada uma conexão de conta Shopee real nesta execução; testes controlados não são dados de produção. TikTok, Mercado Livre, Amazon e Magazine Luiza permanecem em preparação por requisitos específicos de API/aplicativo. Limites, fontes, segurança e verificações em `CONECTORES.md`.

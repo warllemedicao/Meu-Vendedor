@@ -3,20 +3,22 @@
 App web de gerenciamento de afiliados com **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**.
 O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afiliação, e pode organizar seus links na sua conta do Meu Vendedor.
 
-**Estado atual:** frontend público no Cloudflare e base Supabase ativada no projeto `meu-vendedor`. Migração e autenticação configuradas; login, perfil, CRUD e isolamento entre usuários testados na API hospedada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. Não há APIs de lojas, IA ou automações ativas. O dashboard original mantém dados demonstrativos rotulados.
+**Estado atual:** frontend público no Cloudflare e base Supabase ativada no projeto `meu-vendedor`. Migração e autenticação configuradas; login, perfil, CRUD e isolamento entre usuários testados na API hospedada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. O conector Shopee para ofertas e links está implementado e exige validação de credenciais reais. Outras plataformas, IA e automações comerciais permanecem em preparação. O dashboard original mantém dados demonstrativos rotulados.
 
 ## Documentos
 
 - [ARQUITETURA.md](./ARQUITETURA.md): intenção do produto, arquitetura e histórico.
 - [ESCOPO.md](./ESCOPO.md): páginas e sequência de desenvolvimento.
 - [SUPABASE.md](./SUPABASE.md): banco, autenticação, políticas e ativação.
+- [CONECTORES.md](./CONECTORES.md): conector Shopee, segurança, limites e pendências por plataforma.
 - [INTEGRACOES.md](./INTEGRACOES.md): requisitos das plataformas.
 - [CLOUDFLARE.md](./CLOUDFLARE.md) e [PUBLICACAO.md](./PUBLICACAO.md): hospedagem e verificações.
 
 ## O que está implementado no código
 
 - Navegação responsiva e tema claro/escuro.
-- Catálogo das cinco plataformas com links oficiais externos; nenhuma conexão de loja é simulada.
+- Catálogo das cinco plataformas; conexão Shopee por credenciais oficiais, sem sucesso simulado.
+- Produtos sincronizados com ficha, comissão estimada e geração/compartilhamento de link pela API Shopee, quando a conta possui acesso válido.
 - Cadastro, login e recuperação da senha do próprio Meu Vendedor via Supabase Auth.
 - Perfil com nome de exibição.
 - Gerenciamento de links manuais: criar, listar, editar, excluir e filtrar por plataforma, com campanha e observações.
@@ -48,6 +50,7 @@ Sem essas variáveis, é possível explorar o catálogo e o dashboard; a interfa
 npm test                 # catálogo, validação e PostgreSQL/RLS local
 npm run lint
 npm run typecheck
+npm run typecheck:edge    # backend Supabase e agendador Cloudflare
 npm run build:pages      # exportação estática com Webpack; saída out/
 npm run build            # build Next.js normal
 npm run start            # serve o build normal (não a exportação estática)
@@ -63,3 +66,7 @@ Nunca commitar senha, `service_role`, `sb_secret_*`, token de gerenciamento ou c
 ## Próximas etapas
 
 Validar a entrega de e-mails de confirmação e recuperação e configurar SMTP próprio quando necessário. Evoluir cada integração de loja somente conforme disponibilidade oficial e autorização específica, sem presumir suporte universal.
+
+## Conectar a Shopee
+
+Entre no app, abra Contas Conectadas e use Conectar Shopee. Informe App ID e Secret da Open API oficial, não a senha da loja. O backend valida antes de registrar a conexão. Produtos fica vazio até haver uma sincronização autorizada. Não envie credenciais pelo chat. Consulte `CONECTORES.md` antes de operar ou rotacionar segredos.

@@ -1,7 +1,7 @@
 # Integrações — Meu Vendedor
 
 Etapa 2: preparação visual e contratos TypeScript. Referências consultadas em **04/11/2026**.
-Não existem conexões, autenticação externa, chamadas de API, tokens ou sincronização implementados.
+O primeiro conector Shopee para ofertas e links foi implementado; sua ativação por conta exige credenciais reais validadas pela API. As demais integrações comerciais ainda não estão implementadas. Detalhes atuais em `CONECTORES.md`.
 A existência de uma API na plataforma não significa que esteja liberada para este projeto.
 
 ## Shopee
@@ -95,4 +95,4 @@ A proposta é uma API interna unificada do Meu Vendedor, com um adaptador por pl
 
 Fluxos oficiais diferentes já foram identificados: TikTok Shop documenta autorização de criadores por app e escopos ([guia](https://partner.tiktokshop.com/docv2/page/678e3a362dccb8030ea6f98c)); Amazon documenta Creators API com credenciais e acesso ao catálogo ([introdução](https://affiliate-program.amazon.com/creatorsapi/docs/en-us/introduction)). Esses recursos não comprovam acesso a todas as métricas de cada programa. A API de marketplace Magalu não comprova acesso aos resultados de Influenciador Magalu.
 
-Plano: conectar individualmente cada conta pelo mecanismo oficial; guardar tokens/segredos somente no servidor; validar uma primeira leitura; persistir somente os dados permitidos; mostrar horário, origem e falhas de sincronização; renovar autorização quando o mecanismo permitir. Não solicitar senha das lojas nem automatizar o login por captura de sessão. Novos endpoints, funções e tabelas de sincronização ainda não foram implementados por esta análise.
+Plano: conectar individualmente cada conta pelo mecanismo oficial; guardar tokens/segredos somente no servidor; validar uma primeira leitura; persistir somente os dados permitidos; mostrar horário, origem e falhas de sincronização; renovar autorização quando o mecanismo permitir. Não solicitar senha das lojas nem automatizar o login por captura de sessão. A análise foi seguida pela implementação Shopee documentada em `CONECTORES.md`; a cobertura não foi estendida às outras quatro plataformas.

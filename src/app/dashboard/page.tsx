@@ -19,7 +19,7 @@ export default function DashboardPage() {
         <FlaskConical className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden />
         <p className="text-sm">
           <strong className="font-semibold">Dados demonstrativos.</strong> Todos os números e produtos desta página são
-          fictícios e servem só para mostrar o layout. Nenhuma plataforma está conectada.
+          fictícios e servem só para mostrar o layout. Estes indicadores não representam resultados reais das contas conectadas.
         </p>
       </div>
 

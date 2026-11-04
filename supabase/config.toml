@@ -11,3 +11,8 @@ minimum_password_length = 8
 enabled = true
 double_confirm_changes = true
 enable_confirmations = true
+
+[functions.marketplace]
+# A função verifica o JWT com Supabase Auth em toda chamada de usuário.
+# O cron utiliza um segredo próprio validado no handler, nunca a chave pública.
+verify_jwt = false

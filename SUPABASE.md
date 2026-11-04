@@ -71,3 +71,7 @@ Em 04/11/2026 foram executadas verificações no Supabase hospedado:
 - As duas contas temporárias foram removidas ao final, sem deixar links/perfis de teste.
 
 As chaves administrativas foram obtidas e usadas somente em memória pelo teste. Cadastro com confirmação por e-mail e recuperação dependem da entrega de mensagens, que ainda precisa ser validada no ambiente real. Esses testes de e-mail não foram simulados como concluídos.
+
+## Conector Shopee
+
+A migração `20261104000200` adiciona conexões, credenciais cifradas, produtos, sincronizações e links gerados. As tabelas são isoladas por RLS e a escrita é exclusiva do backend. A função `marketplace` valida sessões via Supabase Auth em toda operação de usuário; o cron usa segredo próprio. `verify_jwt=false` permite o fluxo de cron, sem eliminar a validação explícita do handler. Os segredos de cifragem e agendamento foram registrados fora do repositório. Ver `CONECTORES.md` para operação e limites.

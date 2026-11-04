@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "incremental": false,
+    "plugins": [],
+    "paths": { "npm:@supabase/supabase-js@2.119.0": ["./node_modules/@supabase/supabase-js/dist/index.d.mts"] }
+  },
+  "include": ["supabase/functions/**/*.ts", "worker/**/*.ts"],
+  "exclude": ["node_modules"]
+}
