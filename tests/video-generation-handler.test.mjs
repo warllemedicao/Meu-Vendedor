@@ -39,7 +39,7 @@ const scriptConfiguration = {
 const jobRequest = {
   templateId: 'wearing-product',
   scenePresetId: 'fashion-studio',
-  durationSeconds: 8,
+  durationSeconds: 6,
   format: '9:16',
   presenterId: 'ana',
   voiceGender: 'feminina',
@@ -58,7 +58,13 @@ const jobRequest = {
     features: 'tecido de linho',
     clothingSize: '',
     imageStoragePath: 'user-id/inputs/photo.webp',
+    aiReferenceStoragePath: 'user-id/inputs/product-reference.jpg',
+    aiReferenceWidth: 512,
+    aiReferenceHeight: 384,
   },
+  presenterReferenceStoragePath: 'user-id/inputs/presenter-reference.jpg',
+  presenterReferenceWidth: 410,
+  presenterReferenceHeight: 512,
 };
 
 test('backend exige autenticação e informa capacidades sem revelar configuração sensível', async () => {
@@ -132,6 +138,7 @@ test('cliente Gemini usa endpoint fixo, header e resposta sanitizada sem chamada
 
 test('fila exige flag, imagem privada do usuário e chave idempotente', async () => {
   let enqueues = 0;
+  let kicks = 0;
   const disabled = createVideoGenerationHandler(defaultDependencies({
     enqueueJob: async () => { enqueues += 1; return {}; },
   }));
@@ -141,6 +148,7 @@ test('fila exige flag, imagem privada do usuário e chave idempotente', async ()
   const enabled = createVideoGenerationHandler(defaultDependencies({
     videoJobsEnabled: () => true,
     videoProcessorAvailable: () => true,
+    kickProcessor: () => { kicks += 1; },
     enqueueJob: async (userId, projectId, key, data) => {
       enqueues += 1;
       assert.equal(userId, 'user-id');
@@ -154,6 +162,7 @@ test('fila exige flag, imagem privada do usuário e chave idempotente', async ()
   assert.equal(accepted.status, 202);
   assert.deepEqual((await accepted.json()).job, { id: 'job-id', status: 'queued' });
   assert.equal(enqueues, 1);
+  assert.equal(kicks, 1);
   const wrongOwnerPath = await enabled(request({
     action: 'enqueue-job',
     idempotencyKey: 'request-key-00000002',

@@ -24,9 +24,12 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { Card } from "@/components/ui/Card";
 import { getSupabase } from "@/lib/supabase/client";
 import {
+  createVideoPresenterAIReference,
+  createVideoProductAIReference,
   createVideoAssetUrl,
   MAX_VIDEO_IMAGE_BYTES,
   MAX_VIDEO_DEMO_BYTES,
+  MAX_VIDEO_RESULT_BYTES,
   uploadVideoProductImage,
   uploadVideoResult,
 } from "@/lib/video-assets";
@@ -112,6 +115,8 @@ interface VideoProjectRow {
 interface VideoJobRow {
   id: string;
   status: "queued" | "processing" | "completed" | "failed" | "cancelled";
+  stage: string;
+  stage_message: string | null;
   progress: number;
   created_at: string;
   updated_at: string;
@@ -178,6 +183,23 @@ const jobStatusLabels: Record<VideoJobRow["status"], string> = {
   completed: "Concluído",
   failed: "Falhou",
   cancelled: "Cancelado",
+};
+
+const jobStageLabels: Record<string, string> = {
+  queued: "Aguardando processamento",
+  image_generating: "Gerando imagem de referência",
+  image_ready: "Preparando vídeo",
+  video_submitting: "Enviando ao provedor de vídeo",
+  video_processing: "Gerando vídeo",
+  validating: "Validando resultado",
+  awaiting_authorization: "Aguardando créditos ou autorização",
+  uncertain: "Verificação necessária",
+  completed: "Vídeo concluído",
+  failed: "Erro na geração",
+  cancelled: "Cancelado",
+  trying_another_provider: "Tentando outro provedor",
+  cancel_requested_remote_continues: "Cancelamento solicitado; provedor finalizando",
+  cancel_retry_pending: "Tentando cancelar no provedor",
 };
 
 const storedDurations = [6, 7, 8, 10, 15, 20, 30, 45, 60] as const;
@@ -316,7 +338,7 @@ export function VideoStudio() {
   const [advertisingStyleId, setAdvertisingStyleId] = useState<AdvertisingStyleId>("tradicional");
   const [narrationMode, setNarrationMode] = useState<NarrationMode>("voiceover");
   const [motionMode, setMotionMode] = useState<MotionMode>("poses");
-  const [durationSeconds, setDurationSeconds] = useState<VideoDuration>(8);
+  const [durationSeconds, setDurationSeconds] = useState<VideoDuration>(6);
   const format: VideoFormat = "9:16";
   const [mode, setMode] = useState<GenerationMode>("ai-video");
   const [targetAudience, setTargetAudience] = useState("");
@@ -329,6 +351,7 @@ export function VideoStudio() {
   const [videoProcessorAvailableForUser, setVideoProcessorAvailable] = useState(false);
   const [capabilityUserId, setCapabilityUserId] = useState<string | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
+  const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null);
   const [enqueueingJob, setEnqueueingJob] = useState(false);
   const [demoVideoFile, setDemoVideoFile] = useState<File | null>(null);
   const [validatingDemoVideo, setValidatingDemoVideo] = useState(false);
@@ -355,6 +378,11 @@ export function VideoStudio() {
   const [libraryLoading, setLibraryLoading] = useState(true);
   const generationLock = useRef(false);
   const enqueueIdempotency = useRef<{ fingerprint: string; key: string } | null>(null);
+  const aiReferenceCache = useRef<{
+    key: string;
+    product: { path: string; width: number; height: number };
+    presenter: { path: string; width: number; height: number };
+  } | null>(null);
   const demoVideoInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -368,6 +396,7 @@ export function VideoStudio() {
   const visibleJobsError = userId ? jobsError : "";
   const visibleJobsLoading = Boolean(userId && jobsLoadedForUser !== userId);
   const hasActiveJobs = jobs.some((job) => job.status === "queued" || job.status === "processing");
+  const hasCompletedJobResults = jobs.some((job) => job.status === "completed" && job.result_object_path);
   const selectedSignedResult = userId && signedResult?.userId === userId && signedResult.recordId === selectedRecordId ? signedResult : null;
   const presenter = virtualPresenters.find((item) => item.id === presenterId) ?? virtualPresenters[0];
   const imagePreview = useMemo(() => productImage ? URL.createObjectURL(productImage) : userId && uploadedImagePreview?.userId === userId && uploadedImagePreview.path === product.imageStoragePath ? uploadedImagePreview.url : product.imageUrl || "", [productImage, product.imageStoragePath, product.imageUrl, uploadedImagePreview, userId]);
@@ -507,7 +536,7 @@ export function VideoStudio() {
     let active = true;
     const refreshJobs = async () => {
       const { data, error: loadError } = await client.from("mv_video_jobs")
-        .select("id,status,progress,created_at,updated_at,completed_at,error_code,result_object_path")
+        .select("id,status,stage,stage_message,progress,created_at,updated_at,completed_at,error_code,result_object_path")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -548,6 +577,12 @@ export function VideoStudio() {
     }
     return () => { active = false; };
   }, [jobs, jobResultUrls, userId]);
+
+  useEffect(() => {
+    if (!userId || !hasCompletedJobResults) return;
+    const timer = window.setInterval(() => setJobResultUrls({}), 240_000);
+    return () => window.clearInterval(timer);
+  }, [hasCompletedJobResults, userId]);
 
   function updateProduct<K extends keyof VideoProductInput>(field: K, value: VideoProductInput[K]) {
     setProduct((current) => ({ ...current, [field]: value }));
@@ -664,6 +699,30 @@ export function VideoStudio() {
     }
   }
 
+  async function downloadVideoJob(jobId: string) {
+    const url = jobResultUrls[jobId]?.userId === userId ? jobResultUrls[jobId]?.url : undefined;
+    if (!url || downloadingJobId) return;
+    setDownloadingJobId(jobId);
+    try {
+      const result = await fetch(url, { credentials: "omit", redirect: "error" });
+      if (!result.ok) throw new Error("Não foi possível baixar o MP4.");
+      const file = await result.blob();
+      if (file.type !== "video/mp4" || file.size === 0 || file.size > MAX_VIDEO_RESULT_BYTES) {
+        throw new Error("O arquivo baixado não corresponde a um MP4 válido.");
+      }
+      const objectUrl = URL.createObjectURL(file);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `meu-vendedor-${jobId}.mp4`;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (downloadError) {
+      setJobsError(downloadError instanceof Error ? downloadError.message : "Não foi possível baixar o MP4.");
+    } finally {
+      setDownloadingJobId(null);
+    }
+  }
+
   async function enqueueVideoJob() {
     const client = getSupabase();
     if (!user || !client || !queueAvailable || enqueueingJob) return;
@@ -673,6 +732,10 @@ export function VideoStudio() {
     }
     if (!product.imageStoragePath) {
       setError("Salve primeiro uma imagem do produto no armazenamento privado.");
+      return;
+    }
+    if (durationSeconds !== 6) {
+      setError("A geração de vídeo atualmente aceita somente 6 segundos.");
       return;
     }
     const invalid = validateVideoConfiguration(configuration, effectiveScript);
@@ -685,6 +748,22 @@ export function VideoStudio() {
     setError("");
     setNotice("");
     try {
+      const referenceKey = `${user.id}:${product.imageStoragePath}:${presenterId}`;
+      let references = aiReferenceCache.current?.key === referenceKey ? aiReferenceCache.current : null;
+      if (!references) {
+        const clientPresenter = presenter.image;
+        if (!clientPresenter) throw new Error("A referência visual deste personagem ainda não está disponível.");
+        const [productReference, presenterReference] = await Promise.all([
+          createVideoProductAIReference(client, user.id, product.imageStoragePath),
+          createVideoPresenterAIReference(client, user.id, clientPresenter),
+        ]);
+        references = {
+          key: referenceKey,
+          product: productReference,
+          presenter: presenterReference,
+        };
+        aiReferenceCache.current = references;
+      }
       const request = {
         templateId,
         scenePresetId,
@@ -707,7 +786,13 @@ export function VideoStudio() {
           features: product.features,
           clothingSize: product.clothingSize ?? "",
           imageStoragePath: product.imageStoragePath,
+          aiReferenceStoragePath: references.product.path,
+          aiReferenceWidth: references.product.width,
+          aiReferenceHeight: references.product.height,
         },
+        presenterReferenceStoragePath: references.presenter.path,
+        presenterReferenceWidth: references.presenter.width,
+        presenterReferenceHeight: references.presenter.height,
       };
       const fingerprint = JSON.stringify(request);
       const idempotencyKey = enqueueIdempotency.current?.fingerprint === fingerprint
@@ -729,7 +814,7 @@ export function VideoStudio() {
       const queuedJob = data.job as VideoJobRow;
       setJobs((current) => [queuedJob, ...current.filter((job) => job.id !== queuedJob.id)].slice(0, 20));
       enqueueIdempotency.current = null;
-      setNotice("Tarefa registrada. O estado será atualizado pela fila; nenhum processador pago foi iniciado pelo Estúdio.");
+      setNotice("Tarefa registrada. A fila atualiza o andamento automaticamente; provedores pagos só são usados com autorização e orçamento válidos.");
     } catch (enqueueError) {
       setError(enqueueError instanceof Error ? enqueueError.message : "Não foi possível registrar a tarefa na fila.");
     } finally {
@@ -1196,9 +1281,10 @@ export function VideoStudio() {
             <button type="button" disabled={busy || !!validationError} onClick={() => void simulateGeneration()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
               {busy ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />{statusLabels[status]}…</> : <><Play className="size-4" aria-hidden />Simular geração sem créditos</>}
             </button>
-            <button type="button" disabled={!queueAvailable || enqueueingJob || busy || !!validationError} onClick={() => void enqueueVideoJob()} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" disabled={!queueAvailable || enqueueingJob || busy || !!validationError || durationSeconds !== 6} onClick={() => void enqueueVideoJob()} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">
               {enqueueingJob ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Enfileirando…</> : "Enfileirar geração real"}
             </button>
+            {durationSeconds !== 6 && <p className="mt-2 text-xs text-muted">A geração real está limitada a 6 segundos.</p>}
             {!queueAvailable && <p className="mt-2 text-xs text-muted">Fila indisponível: os flags e o processador permanecem desativados até validação e autorização.</p>}
             <button type="button" disabled className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold opacity-50">
               <WandSparkles className="size-4" aria-hidden />Gerar com Google · aguardando API
@@ -1232,7 +1318,7 @@ export function VideoStudio() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Fila e histórico de tarefas</h2>
-            <p className="mt-1 text-sm text-muted">Fila e acompanhamento integrados; sem processador validado, o backend mantém a fila bloqueada.</p>
+            <p className="mt-1 text-sm text-muted">O andamento é recuperado do Supabase após atualizar a página.</p>
           </div>
           <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">{visibleJobs.length} tarefa(s)</span>
         </div>
@@ -1245,7 +1331,7 @@ export function VideoStudio() {
             {visibleJobs.map((job) => (
               <li key={job.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
                 <div>
-                  <p className="font-medium">{jobStatusLabels[job.status]}</p>
+                  <p className="font-medium">{jobStageLabels[job.stage_message ?? job.stage] ?? jobStatusLabels[job.status]}</p>
                   <p className="text-xs text-muted">{new Date(job.created_at).toLocaleString("pt-BR")}{job.error_code ? ` · ${job.error_code}` : ""}</p>
                 </div>
                 <div className="min-w-28 text-right text-xs text-muted">
@@ -1257,7 +1343,12 @@ export function VideoStudio() {
                   </button>
                 )}
                 {job.status === "completed" && job.result_object_path && jobResultUrls[job.id]?.userId === userId && jobResultUrls[job.id]?.url && (
-                  <video controls preload="metadata" src={jobResultUrls[job.id].url} className="mt-2 w-full rounded-lg bg-black" aria-label="Resultado MP4 da tarefa" />
+                  <div className="w-full">
+                    <video controls preload="metadata" src={jobResultUrls[job.id].url} className="mt-2 w-full rounded-lg bg-black" aria-label="Resultado MP4 da tarefa" />
+                    <button type="button" disabled={downloadingJobId !== null} onClick={() => void downloadVideoJob(job.id)} className="mt-2 inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs disabled:opacity-50">
+                      <Download className="size-3" aria-hidden />Baixar MP4
+                    </button>
+                  </div>
                 )}
                 {jobResultUrls[job.id]?.error && <p role="alert" className="w-full text-xs text-danger">{jobResultUrls[job.id].error}</p>}
               </li>

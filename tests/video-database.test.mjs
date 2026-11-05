@@ -10,7 +10,7 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
   const product = JSON.stringify({ name: 'Blusa feminina', description: '', price: '', features: '', affiliateLink: '', imageUrl: '', imageName: '' });
   try {
     await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema storage;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon,service_role;grant execute on function auth.uid() to authenticated,anon,service_role;create table storage.buckets(id text primary key,name text not null,public boolean not null,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text not null,name text not null);alter table storage.objects enable row level security;create function storage.foldername(name text) returns text[] language sql immutable as $$select coalesce((string_to_array(name,'/'))[1:array_length(string_to_array(name,'/'),1)-1],array[]::text[])$$;grant usage on schema storage to authenticated,service_role;grant select,insert,update,delete on storage.objects to authenticated,service_role;`);
-    for (const file of ['20261104000100_affiliate_base.sql', '20261104000200_marketplace_connections.sql', '20261105151156_video_generator.sql', '20261105172000_video_workflow.sql']) {
+    for (const file of ['20261104000100_affiliate_base.sql', '20261104000200_marketplace_connections.sql', '20261105151156_video_generator.sql', '20261105172000_video_workflow.sql', '20261105225000_video_ai_processor.sql']) {
       await db.exec(await readFile(new URL('../supabase/migrations/' + file, import.meta.url), 'utf8'));
     }
     const bucketRows = await db.query("select id,public,file_size_limit from storage.buckets order by id");
@@ -39,7 +39,15 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
       scenePresetId: 'fashion-studio',
       durationSeconds: 8,
       format: '9:16',
-      product: { imageStoragePath: `${alice}/inputs/photo.jpg` },
+      product: {
+        imageStoragePath: `${alice}/inputs/photo.jpg`,
+        aiReferenceStoragePath: `${alice}/inputs/product-reference.jpg`,
+        aiReferenceWidth: 512,
+        aiReferenceHeight: 384,
+      },
+      presenterReferenceStoragePath: `${alice}/inputs/presenter-reference.jpg`,
+      presenterReferenceWidth: 410,
+      presenterReferenceHeight: 512,
     };
     await db.exec('set role service_role');
     const enqueue = async (key, data = requestData, projectId = first.id) => db.query(
@@ -50,6 +58,10 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
     const duplicate = (await enqueue('request-key-00000001')).rows[0].result;
     assert.equal(duplicate.id, job.id);
     await assert.rejects(enqueue('request-key-00000001', { ...requestData, durationSeconds: 7 }), /idempotency_key_conflict/);
+    await assert.rejects(enqueue('request-key-00000004', {
+      ...requestData,
+      presenterReferenceStoragePath: `${bob}/inputs/presenter-reference.jpg`,
+    }, null), /invalid_video_ai_reference/);
     const secondJob = (await enqueue('request-key-00000002', requestData, version.id)).rows[0].result;
     await assert.rejects(enqueue('request-key-00000003', requestData, null), /video_concurrency_limit/);
 
@@ -82,6 +94,52 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
       db.query("select public.mv_transition_video_job($1,'completed',100,'modal',null,null,null)", [thirdJob.id]),
       /invalid_video_job_transition|video_result_required/,
     );
+    const claimed = (await db.query('select public.mv_claim_video_job(90) as job')).rows[0].job;
+    assert.equal(claimed.id, thirdJob.id);
+    assert.equal(claimed.status, 'processing');
+    await assert.rejects(
+      db.query('select public.mv_advance_video_job($1,$2,$3,30)', [thirdJob.id, '00000000-0000-4000-8000-000000000000', 'image_ready']),
+      /video_job_lease_lost/,
+    );
+    assert.equal((await db.query(
+      'select public.mv_reserve_video_ai_budget($1,$2,$3,$4,$5,$6) as reserved',
+      [thirdJob.id, 'image', 'cloudflare-workers-ai', 0.1, 1, 1],
+    )).rows[0].reserved, true);
+    assert.equal((await db.query(
+      'select public.mv_reserve_video_ai_budget($1,$2,$3,$4,$5,$6) as reserved',
+      [thirdJob.id, 'video', 'replicate', 0.95, 1, 1],
+    )).rows[0].reserved, false);
+    await db.query(
+      'select public.mv_settle_video_ai_budget($1,$2,$3,$4,false)',
+      [thirdJob.id, 'image', 'cloudflare-workers-ai', 0.08],
+    );
+    assert.equal((await db.query(
+      'select public.mv_reserve_video_ai_budget($1,$2,$3,$4,$5,$6) as reserved',
+      [thirdJob.id, 'video', 'replicate', 0.5, 1, 1],
+    )).rows[0].reserved, true);
+    assert.equal((await db.query(
+      'select public.mv_settle_video_ai_budget($1,$2,$3,$4,false) as settled',
+      [thirdJob.id, 'video', 'replicate', 0.6],
+    )).rows[0].settled, false);
+    assert.equal((await db.query(
+      'select public.mv_reserve_video_ai_budget($1,$2,$3,$4,$5,$6) as reserved',
+      [thirdJob.id, 'video', 'magic-hour', 0.4, 1, 1],
+    )).rows[0].reserved, false);
+    await db.query(
+      "select public.mv_record_video_ai_attempt($1,'image','cloudflare-workers-ai','@cf/black-forest-labs/flux-2-dev','succeeded',null,0.1)",
+      [thirdJob.id],
+    );
+    await db.query(
+      "update public.mv_video_jobs set stage='video_submitting',lease_expires_at=now()-interval '1 second' where id=$1",
+      [thirdJob.id],
+    );
+    assert.equal((await db.query('select public.mv_claim_video_job(90) as job')).rows[0].job, null);
+    const interrupted = await db.query('select status,stage,error_code from public.mv_video_jobs where id=$1', [thirdJob.id]);
+    assert.deepEqual(interrupted.rows[0], {
+      status: 'failed',
+      stage: 'uncertain',
+      error_code: 'provider_submission_uncertain',
+    });
 
     await db.exec('set role authenticated');
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [bob]);

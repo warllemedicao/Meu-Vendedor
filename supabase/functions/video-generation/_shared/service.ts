@@ -27,8 +27,10 @@ export interface VideoGenerationDependencies {
   geminiScriptEnabled(): boolean;
   videoJobsEnabled(): boolean;
   videoProcessorAvailable(): boolean;
+  videoProviders?(): readonly { id: string; model: string; configured: boolean }[];
   generateScript(input: GeminiScriptInput, apiKey: string): Promise<string>;
   enqueueJob(userId: string, projectId: string | null, idempotencyKey: string, requestData: Record<string, unknown>): Promise<unknown>;
+  kickProcessor?(): void;
   getJob(userId: string, jobId: string): Promise<unknown | null>;
   cancelJob(userId: string, jobId: string): Promise<unknown | null>;
   saveDemoResult(userId: string, resultStoragePath: string): Promise<unknown>;
@@ -130,6 +132,8 @@ function validateGeminiScriptInput(value: unknown): GeminiScriptInput | null {
 function validateJobRequest(value: unknown, userId: string): Record<string, unknown> | null {
   if (!isRecord(value) || !isRecord(value.product)) return null;
   const imagePath = value.product.imageStoragePath;
+  const aiReferencePath = value.product.aiReferenceStoragePath;
+  const presenterReferencePath = value.presenterReferenceStoragePath;
   const product = value.product;
   const clothingSize = product.clothingSize === undefined ? "" : product.clothingSize;
   const sceneTemplates: Record<string, string> = {
@@ -141,13 +145,13 @@ function validateJobRequest(value: unknown, userId: string): Record<string, unkn
     "cleaning-kitchen": "demonstrating-product",
     "bathroom-counter": "demonstrating-product",
   };
-  if ((value.durationSeconds !== 6 && value.durationSeconds !== 7 && value.durationSeconds !== 8) ||
+  if (value.durationSeconds !== 6 ||
     value.format !== "9:16" ||
     typeof value.templateId !== "string" ||
     typeof value.scenePresetId !== "string" ||
     sceneTemplates[value.scenePresetId] !== value.templateId ||
     typeof value.presenterId !== "string" ||
-    !["ana", "lucas", "carla", "rafael"].includes(value.presenterId) ||
+    !["ana", "lucas"].includes(value.presenterId) ||
     !["feminina", "masculina"].includes(String(value.voiceGender)) ||
     !["jovem-adulta", "adulta", "grave", "suave", "energetica", "natural", "profissional"].includes(String(value.voiceProfileId)) ||
     !["alegre", "engracado", "serio", "emotivo", "enfatico", "calmo", "promocao", "persuasivo"].includes(String(value.emotionalToneId)) ||
@@ -159,6 +163,14 @@ function validateJobRequest(value: unknown, userId: string): Record<string, unkn
     !validString(value.script, 4000) || value.script.trim().length < 20 ||
     typeof imagePath !== "string" ||
     !new RegExp(`^${userId}/inputs/[A-Za-z0-9._-]+$`).test(imagePath) ||
+    typeof aiReferencePath !== "string" ||
+    !new RegExp(`^${userId}/inputs/[A-Za-z0-9._-]+\\.jpg$`).test(aiReferencePath) ||
+    typeof presenterReferencePath !== "string" ||
+    !new RegExp(`^${userId}/inputs/[A-Za-z0-9._-]+\\.jpg$`).test(presenterReferencePath) ||
+    !Number.isInteger(product.aiReferenceWidth) || (product.aiReferenceWidth as number) < 1 || (product.aiReferenceWidth as number) > 512 ||
+    !Number.isInteger(product.aiReferenceHeight) || (product.aiReferenceHeight as number) < 1 || (product.aiReferenceHeight as number) > 512 ||
+    !Number.isInteger(value.presenterReferenceWidth) || (value.presenterReferenceWidth as number) < 1 || (value.presenterReferenceWidth as number) > 512 ||
+    !Number.isInteger(value.presenterReferenceHeight) || (value.presenterReferenceHeight as number) < 1 || (value.presenterReferenceHeight as number) > 512 ||
     !validString(product.name, 160) || product.name.trim().length < 2 ||
     !validString(product.description, 1200) || !validString(product.price, 80) ||
     !validString(product.features, 1000) || !validString(clothingSize, 40)) return null;
@@ -185,7 +197,13 @@ function validateJobRequest(value: unknown, userId: string): Record<string, unkn
       features: product.features,
       clothingSize,
       imageStoragePath: imagePath,
+      aiReferenceStoragePath: aiReferencePath,
+      aiReferenceWidth: product.aiReferenceWidth,
+      aiReferenceHeight: product.aiReferenceHeight,
     },
+    presenterReferenceStoragePath: presenterReferencePath,
+    presenterReferenceWidth: value.presenterReferenceWidth,
+    presenterReferenceHeight: value.presenterReferenceHeight,
   };
 }
 
@@ -262,8 +280,17 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
       const enabled = dependencies.geminiScriptEnabled();
       return response({
         script: { provider: "google-gemini", model, configured, enabled, available: configured && enabled },
-        video: { available: false, reason: "A geração e renderização de vídeo ainda não estão implementadas." },
-        jobs: { enabled: dependencies.videoJobsEnabled(), processorAvailable: dependencies.videoProcessorAvailable() },
+        video: {
+          available: dependencies.videoProcessorAvailable(),
+          providers: dependencies.videoProviders?.() ?? [],
+          reason: dependencies.videoProcessorAvailable()
+            ? null
+            : "A geração real exige processador, limites de custo e autorização explícita.",
+        },
+        jobs: {
+          enabled: dependencies.videoJobsEnabled(),
+          processorAvailable: dependencies.videoProcessorAvailable(),
+        },
       }, 200, cors);
     }
 
@@ -315,6 +342,7 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
       }
       try {
         const job = await dependencies.enqueueJob(userId, projectId, idempotencyKey, jobRequest);
+        dependencies.kickProcessor?.();
         return response({ job }, 202, cors);
       } catch (error) {
         if (error instanceof VideoJobError) {
@@ -344,7 +372,7 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
     }
 
     if (["generate", "status", "result"].includes(body.action)) {
-      return response({ error: { code: "video_provider_unavailable", message: "A geração real de vídeo ainda não está implementada." } }, 501, cors);
+      return response({ error: { code: "video_provider_unavailable", message: "Use a fila autenticada de tarefas para solicitar e acompanhar vídeos." } }, 501, cors);
     }
     return response({ error: { code: "invalid_action", message: "Ação inválida." } }, 400, cors);
   };

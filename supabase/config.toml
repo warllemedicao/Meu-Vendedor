@@ -29,3 +29,7 @@ verify_jwt = false
 # A função continua validando a sessão no handler. A geração real exige também
 # GEMINI_API_KEY e MV_GEMINI_SCRIPT_ENABLED=true para roteiros.
 verify_jwt = true
+
+[functions.video-generation-worker]
+# O worker valida MV_VIDEO_WORKER_SECRET em todas as chamadas.
+verify_jwt = false

@@ -5,6 +5,8 @@ import {
   VideoJobError,
 } from "./_shared/service.ts";
 
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -21,7 +23,7 @@ function publicJob(value: unknown): Record<string, unknown> | null {
   const row = value as Record<string, unknown>;
   const fields = [
     "id", "project_id", "status", "provider", "provider_job_id", "attempt_count",
-    "progress", "estimated_cost_usd", "result_object_path", "error_code",
+    "progress", "estimated_cost_usd", "result_object_path", "error_code", "stage", "stage_message",
     "cancel_requested_at", "created_at", "updated_at", "started_at", "completed_at",
   ];
   return Object.fromEntries(fields.filter((field) => field in row).map((field) => [field, row[field]]));
@@ -56,6 +58,33 @@ function jobError(error: { message: string }): VideoJobError {
   return new VideoJobError(known[code].status, code, known[code].message);
 }
 
+function configuredProviders() {
+  const allowed = new Set((Deno.env.get("MV_AI_ALLOWED_PROVIDERS") ?? "").split(",").map((id) => id.trim()));
+  const magicHourCreditUsd = Number(Deno.env.get("MV_MAGIC_HOUR_CREDIT_USD"));
+  return [
+    { id: "magic-hour", model: "ltx-2.5", configured: Boolean(Deno.env.get("MAGIC_HOUR_API_KEY") && Number.isFinite(magicHourCreditUsd) && magicHourCreditUsd > 0 && allowed.has("magic-hour")) },
+    { id: "replicate", model: "alibaba/happyhorse-1.0", configured: Boolean(Deno.env.get("REPLICATE_API_TOKEN") && allowed.has("replicate")) },
+  ];
+}
+
+function processorAvailable() {
+  const allowed = new Set((Deno.env.get("MV_AI_ALLOWED_PROVIDERS") ?? "").split(",").map((id) => id.trim()));
+  return Boolean(
+    admin &&
+    (Deno.env.get("MV_VIDEO_WORKER_SECRET") ?? "").length >= 32 &&
+    Deno.env.get("MV_VIDEO_PROCESSOR_ENABLED") === "true" &&
+    Deno.env.get("MV_VIDEO_JOBS_ENABLED") === "true" &&
+    Deno.env.get("MV_AI_ALLOW_PAID_GENERATION") === "true" &&
+    Deno.env.get("MV_AI_COMMERCIAL_USE_CONFIRMED") === "true" &&
+    Deno.env.get("CLOUDFLARE_ACCOUNT_ID") &&
+    Deno.env.get("CLOUDFLARE_AI_API_TOKEN") &&
+    allowed.has("cloudflare-workers-ai") &&
+    configuredProviders().some((provider) => provider.configured) &&
+    Number(Deno.env.get("MV_AI_MAX_COST_PER_JOB_USD")) > 0 &&
+    Number(Deno.env.get("MV_AI_DAILY_BUDGET_USD")) > 0,
+  );
+}
+
 Deno.serve(createVideoGenerationHandler({
   authenticate: async (token) => {
     const { data: { user }, error } = await auth.auth.getUser(token);
@@ -64,7 +93,8 @@ Deno.serve(createVideoGenerationHandler({
   geminiApiKey: () => Deno.env.get("GEMINI_API_KEY"),
   geminiScriptEnabled: () => Deno.env.get("MV_GEMINI_SCRIPT_ENABLED") === "true",
   videoJobsEnabled: () => Boolean(admin) && Deno.env.get("MV_VIDEO_JOBS_ENABLED") === "true",
-  videoProcessorAvailable: () => false,
+  videoProcessorAvailable: processorAvailable,
+  videoProviders: configuredProviders,
   generateScript: (input, apiKey) => requestGeminiScript(input, apiKey),
   enqueueJob: async (userId, projectId, idempotencyKey, requestData) => {
     if (!admin) throw new VideoJobError(503, "job_queue_unavailable", "A persistência da fila não está configurada.");
@@ -79,10 +109,27 @@ Deno.serve(createVideoGenerationHandler({
     if (!job) throw new VideoJobError(503, "job_queue_unavailable", "Não foi possível registrar a solicitação na fila.");
     return job;
   },
+  kickProcessor: () => {
+    const workerUrl = `${supabaseUrl}/functions/v1/video-generation-worker`;
+    const kick = fetch(workerUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: anonKey,
+        "x-worker-secret": Deno.env.get("MV_VIDEO_WORKER_SECRET") ?? "",
+      },
+      body: "{}",
+    }).then((result) => {
+      if (!result.ok) console.error("video-worker-kick-failed");
+    }).catch(() => {
+      console.error("video-worker-kick-failed");
+    });
+    EdgeRuntime.waitUntil(kick);
+  },
   getJob: async (userId, jobId) => {
     if (!admin) throw new VideoJobError(503, "job_queue_unavailable", "A persistência da fila não está configurada.");
     const { data, error } = await admin.from("mv_video_jobs")
-      .select("id,project_id,status,provider,provider_job_id,attempt_count,progress,estimated_cost_usd,result_object_path,error_code,cancel_requested_at,created_at,updated_at,started_at,completed_at")
+      .select("id,project_id,status,provider,provider_job_id,attempt_count,progress,estimated_cost_usd,result_object_path,error_code,stage,stage_message,cancel_requested_at,created_at,updated_at,started_at,completed_at")
       .eq("user_id", userId)
       .eq("id", jobId)
       .maybeSingle();
