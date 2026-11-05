@@ -4,6 +4,8 @@
 
 Projeto hospedado **meu-vendedor**, referência `jzchlrvxdaffnrgbvabv`, autorizado e configurado. As migrações `20261104000100`, `20261104000200` e `20261105151156` estão aplicadas e registradas no histórico remoto. As tabelas de dados do usuário, incluindo a biblioteca de vídeos, usam RLS.
 
+Revalidação em 05/11/2026: dez tabelas `mv_*` estão presentes com RLS habilitada. As funções `marketplace` versão 2, `catalog` versão 1, `catalog-public` versão 1 e `video-generation` versão 1 estão `ACTIVE`. O advisor de saúde não retornou alertas.
+
 A URL pública do Supabase e a chave publicável foram obtidas do projeto correto e configuradas no build via `.env.local`, ignorado pelo Git. Nenhuma chave administrativa foi inserida no frontend ou no repositório. A configuração foi validada por testes de login e persistência na API hospedada.
 
 Site URL, retornos de cadastro/recuperação e senha mínima de 8 caracteres foram aplicados. Confirmação de e-mail permanece habilitada. As opções remotas não declaradas no arquivo local foram preservadas. Entrega de e-mail e SMTP personalizado não foram testados/configurados nesta execução.
@@ -48,11 +50,11 @@ Não incluir `service_role`, `sb_secret_*`, senha do banco ou token de gerenciam
 
 O cliente oficial usa PKCE e renova a sessão do próprio Meu Vendedor. A sessão do app é persistida pelo SDK no navegador para manter o login; isso não armazena senhas nem credenciais das lojas. A autorização de dados é validada no Supabase a cada consulta via JWT/RLS, não pelo estado visual da interface. O logout local remove a sessão deste navegador. Uma futura versão com SSR poderá usar cookies e cliente de servidor; não tratar controles de UI como barreira de segurança.
 
-Nenhum token externo de Shopee, TikTok, Mercado Livre, Amazon ou Magalu é armazenado nesta etapa. Não foram criadas funções de API comercial, monitoramento, publicação ou automação.
+Credenciais Shopee podem ser armazenadas somente após validação, cifradas pelo backend e isoladas do cliente. As funções `marketplace`, `catalog`, `catalog-public` e `video-generation` estão publicadas. Não há credenciais comerciais reais registradas nesta documentação, publicação automática em redes sociais ou geração paga de vídeo habilitada.
 
 ## Testes
 
-`npm test` usa PostgreSQL local via PGlite para executar a migração e validar RLS, perfis, acesso anônimo, adulteração de proprietário, edição/exclusão autorizadas e bloqueio entre usuários. Também verifica links inseguros, catálogo e mensagens de erro. Não depende de credenciais reais e não substitui testes no Supabase hospedado.
+`npm test` usa PostgreSQL local via PGlite para executar as migrações e validar RLS, perfis, acesso anônimo, adulteração de proprietário, edição/exclusão autorizadas e bloqueio entre usuários. Também verifica conectores, catálogo, biblioteca e backend de vídeos. A suíte atual possui 41 testes. Não depende de credenciais reais e não substitui testes comerciais no ambiente hospedado.
 
 Executar `npm run lint`, `npm run typecheck` e `npm run build:pages`. O Worker pode servir o frontend estático porque autenticação e banco são acessados pelo cliente oficial. Nunca implantar credenciais administrativas para isso.
 
@@ -81,3 +83,14 @@ A migração `20261104000200` adiciona conexões, credenciais cifradas, produtos
 A migração `20261105151156` cria `mv_video_projects` para guardar configurações, roteiros, estados e versões. A tabela tem RLS habilitada e forçada, quatro políticas por proprietário e chaves compostas para impedir que uma versão referencie projeto de outro usuário. A verificação remota confirmou RLS forçada e quatro políticas.
 
 A Edge Function `video-generation` está `ACTIVE` na versão 1 com `verify_jwt=true`; a chamada sem sessão retorna HTTP 401. Mesmo autenticada, a geração real permanece bloqueada no código. Não há segredo Google configurado nem chamada paga executada. O contrato e a ativação futura estão em [`VIDEOS_IA.md`](./VIDEOS_IA.md).
+
+## Advisors e compatibilidade da CLI
+
+Verificação em 05/11/2026:
+
+- Saúde: nenhum alerta.
+- Segurança: a proteção contra senhas vazadas do Supabase Auth continua desativada e deve ser habilitada no painel. [Orientação oficial](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+- Segurança informativa: `mv_connection_secrets` e `mv_connector_locks` não têm políticas de cliente intencionalmente; privilégios foram revogados e o acesso é exclusivo do backend.
+- Performance: seis chaves estrangeiras antigas continuam sem índice cobridor. Os índices novos de produto pai/origem da biblioteca ainda aparecem como não usados porque a tabela está vazia; não devem ser removidos apenas por esse resultado inicial.
+
+O changelog de 04/11/2026 informa que a Supabase CLI v3 passou a operar localmente por padrão e solicita confirmação para mudanças hospedadas. Os procedimentos deste repositório devem fixar a versão usada, consultar `--help` e indicar explicitamente o alvo remoto. [Breaking change da CLI v3](https://supabase.com/changelog/supabase-cli-v3).

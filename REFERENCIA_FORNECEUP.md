@@ -20,19 +20,19 @@ Não foram acessados checkout, compra, área de assinantes ou catálogo interno.
 encontrados remetem às três páginas acima e às seções da página inicial. Sitemap e robots não ficaram acessíveis
 pela ferramenta de pesquisa; a análise não afirma cobrir todo o domínio ou o produto autenticado.
 
-## Adaptação proposta para o Meu Vendedor — ainda não implementada
+## Adaptação ao Meu Vendedor — estado atual
 
-| Área | Proposta para manter o foco em afiliados |
-| --- | --- |
-| Página pública | Apresentar o produto, explicar o fluxo e dar acesso ao painel |
-| Catálogo | Produtos organizados por plataforma e categoria, quando houver fonte autorizada |
-| Favoritos | Organização pessoal de oportunidades |
-| Plataformas | Preservar os requisitos e estados honestos de `/contas` |
-| Links | Cadastro e organização dos links do próprio afiliado em etapa própria |
-| Ajuda | Guias originais sobre o uso do Meu Vendedor |
+| Área | Direção para manter o foco em afiliados | Estado em 05/11/2026 |
+| --- | --- | --- |
+| Página pública | Apresentar oportunidades e dar acesso ao painel | Vitrine pública implementada; fontes comerciais ainda sem configuração |
+| Catálogo | Produtos organizados por plataforma, quando houver fonte autorizada | Adaptadores implementados; sucesso comercial real pendente |
+| Favoritos | Organização pessoal de oportunidades | Não implementado |
+| Plataformas | Preservar requisitos e estados honestos de `/contas` | Implementado; somente Shopee possui conector de conta |
+| Links | Cadastro e organização dos links do próprio afiliado | CRUD Supabase implementado |
+| Vídeos | Preparar anúncios sem prometer geração inexistente | Modo demonstração implementado; geração Google bloqueada |
+| Ajuda | Guias originais sobre o uso do Meu Vendedor | Sem rota dedicada |
 
-Estas são decisões de produto sugeridas, não funcionalidades internas verificadas da referência.
-Visual e estrutura podem servir de inspiração, mantendo nome, textos e identidade próprios do Meu Vendedor.
+As decisões implementadas pertencem ao Meu Vendedor e não afirmam reproduzir funcionalidades internas da referência. Visual e estrutura servem apenas de inspiração, mantendo nome, textos e identidade próprios.
 Não adicionar selos de fornecedores verificados, integrações ativas, cursos, preços ou resultados sem suporte real.
 
 ## Direção confirmada pelo responsável

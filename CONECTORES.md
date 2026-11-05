@@ -2,6 +2,8 @@
 
 ## Entrega atual
 
+Revisão documental em 05/11/2026: o conector e suas limitações permanecem iguais. A entrega mais recente adicionou o gerador de vídeos sem alterar credenciais, contratos ou comportamento das integrações de marketplace.
+
 Primeiro conector implementado: **Shopee Affiliate Open API Brasil**. O usuário entra no Meu Vendedor e configura App ID e Secret da API em `/contas`. A senha da conta Shopee não é solicitada. A conexão só é salva como válida após uma consulta autorizada; falhas não criam produtos nem simulam sucesso.
 
 O backend está na função Supabase `marketplace`. Ele valida a sessão com Supabase Auth em toda chamada de usuário, filtra os registros pelo usuário validado e usa credenciais cifradas no servidor. O JWT do Meu Vendedor não autoriza a conta Shopee automaticamente.
@@ -58,6 +60,8 @@ Essas quatro conexões não foram implementadas nem apresentadas como ativas. Ne
 ## Verificação
 
 Testes locais cobrem assinatura, preservação de Int64, paginação limitada, normalização, falha parcial, URLs, erros sanitizados, AES-GCM, concorrência e RLS. Backend e Worker têm verificação TypeScript própria (`npm run typecheck:edge`).
+
+A suíte completa atual possui 41 testes aprovados, incluindo os testes anteriores dos conectores e os novos testes do módulo de vídeos. Esse total não representa uma chamada comercial real à Shopee.
 
 Os testes remotos do endpoint e do banco usaram duas contas temporárias do Meu Vendedor, sem envio de mensagens, removidas ao final. Confirmaram autenticação obrigatória, bloqueio de origem não permitida, acesso negado às credenciais/RPCs, isolamento entre usuários e ausência de conexão fictícia.
 

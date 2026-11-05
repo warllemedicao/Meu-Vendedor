@@ -1,6 +1,6 @@
 # Escopo do produto e das páginas — Meu Vendedor
 
-Definição confirmada pelo responsável em 04/11/2026. Documento de produto; funcionalidades futuras não devem ser apresentadas como implementadas.
+Definição confirmada pelo responsável em 04/11/2026 e estado técnico revisado em 05/11/2026. Documento de produto; funcionalidades futuras não devem ser apresentadas como implementadas. Os planos antigos são mantidos como histórico, mas o quadro abaixo representa a situação atual.
 
 Atualização do catálogo: o responsável acrescentou SHEIN e AliExpress à pesquisa e à página inicial de produtos. A rota `/` agora tem catálogo no código, sem redirecionamento ao dashboard. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram implementadas na função `catalog`, condicionadas à publicação/configuração por usuário e validação real; Magalu/SHEIN ainda sem contrato de afiliados confirmado. O CRUD de links continua com as cinco plataformas originais. Situação atual em `CATALOGO_APIS.md`; a tabela e os planos antigos abaixo preservam o escopo anterior.
 
@@ -12,21 +12,22 @@ Construir um app web central de interação e gerenciamento de programas de afil
 
 Plataformas do escopo básico atual: **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**. A inclusão de outras plataformas fica para evolução posterior. TikTok Shop será tratado dentro do planejamento TikTok quando necessário, preservando as autorizações específicas de cada produto. A cobertura será ampliada por conectores independentes. Suporte automático depende da existência de recursos oficiais adequados e da autorização concedida à conta.
 
-A referência ForneceUp orienta a apresentação e a organização visual. O foco confirmado do Meu Vendedor é gerenciamento de afiliados. IA, vídeos e automações continuam como possibilidades posteriores; a prioridade é consolidar o gerenciamento e as integrações.
+A referência ForneceUp orienta a apresentação e a organização visual. O foco confirmado do Meu Vendedor é gerenciamento de afiliados. O gerador de vídeos já funciona em modo demonstração; geração audiovisual real, publicação e automações continuam dependentes de integrações posteriores.
 
 ## Escopo das páginas
 
 | Página | Finalidade planejada | Situação real |
 | --- | --- | --- |
-| Apresentação pública | Explicar o produto, plataformas contempladas e acesso ao app; ajuda e dúvidas frequentes | Planejada; `/` atualmente redireciona para o dashboard |
-| Dashboard | Resumo de contas, produtos, links e resultados; filtros por plataforma e período | Existe com dados demonstrativos |
-| Contas Conectadas | Mostrar plataformas, requisitos, capacidades, autorizações e erros; conectar e revogar quando houver fluxo real | Catálogo informativo de quatro plataformas; sem autorização real |
-| Produtos | Reunir produtos de fontes autorizadas; pesquisa, categoria, plataforma e favoritos | Página de apresentação; operações futuras |
+| Apresentação pública | Explicar o produto, plataformas contempladas e acesso ao app; ajuda e dúvidas frequentes | `/` exibe a vitrine pública de três lojas; fontes comerciais ainda não configuradas |
+| Dashboard | Resumo de contas, produtos, links e resultados; filtros por plataforma e período | Reutiliza a vitrine pública; métricas agregadas reais ainda pendentes |
+| Contas Conectadas | Mostrar plataformas, requisitos, capacidades, autorizações e erros; conectar e revogar quando houver fluxo real | Cinco plataformas no catálogo; conector Shopee implementado, sem credencial real validada |
+| Produtos | Reunir produtos de fontes autorizadas; pesquisa, categoria, plataforma e favoritos | Catálogo Shopee sincronizado quando houver conexão válida; demais fontes privadas dependem de credenciais |
 | Afiliados / Meus links | Cadastrar links próprios, associar produto, plataforma e campanha; editar e arquivar | CRUD manual implementado com Supabase e RLS |
 | Relatórios | Exibir métricas disponíveis por origem e período, com data de atualização | Página de apresentação; sem métricas reais |
 | Configurações | Perfil, preferências e gestão das permissões do usuário | Perfil implementado com Supabase Auth e RLS |
 | Ajuda | Instruções originais para configurar e usar o Meu Vendedor | Planejada; sem rota criada |
-| Tendências, Top 10, Vídeos, Publicações, Automações | Evolução posterior, após a base de gerenciamento | Rotas existentes; funcionalidades não implementadas |
+| Vídeos IA | Preparar e gerar anúncios de produto | Demonstração completa, biblioteca Supabase e backend bloqueado; geração Google real pendente |
+| Tendências, Top 10, Publicações, Automações | Evolução posterior, após a base de gerenciamento | Rotas existentes; funcionalidades reais ainda não implementadas |
 
 Não publicar planos, preços, cursos ou promessas de resultados sem uma definição comercial própria.
 
@@ -40,14 +41,14 @@ Antes de haver conector real, o catálogo deverá continuar informando a ausênc
 
 O responsável definiu que contas de afiliado previamente aprovadas não são requisito para construir ou usar o catálogo básico. O app deverá oferecer links oficiais para entrar na plataforma ou solicitar afiliação, quando os respectivos endereços forem verificados. Esse redirecionamento não conecta a conta ao Meu Vendedor nem comprova aprovação; o cadastro acontece na própria plataforma. A aprovação e o acesso à API serão exigidos somente quando uma operação integrada realmente depender deles.
 
-1. **Base interna:** API backend FastAPI, PostgreSQL e migrações, autenticação do Meu Vendedor e isolamento dos dados por usuário. Nenhuma destas peças existe hoje.
-2. **Gerenciamento próprio:** contas, links e campanhas persistidos; validação de entrada e autorização por proprietário. Ainda sem depender de APIs de terceiros.
-3. **Segurança de integrações:** segredos somente no servidor, tokens cifrados, auditoria sanitizada, callback seguro e renovação/revogação conforme o provedor.
-4. **Primeira plataforma:** escolher conforme conta aprovada e acesso oficial disponível; confirmar documentação, papel da conta, região, escopos e limites antes de implementar o adaptador.
-5. **Primeira operação:** executar uma leitura autorizada de escopo reduzido, tratar erros reais e exibir origem e horário de atualização; sem simular dados ou autorização.
+1. **Base interna — concluída:** Supabase Auth, PostgreSQL, migrações e isolamento por RLS. FastAPI deixou de ser pré-requisito e permanece opcional para processamento especializado.
+2. **Gerenciamento próprio — concluído para links e perfil:** contas do Meu Vendedor, perfil, links e biblioteca de vídeos persistidos com validação por proprietário.
+3. **Segurança de integrações — implementada para Shopee:** segredos no servidor, AES-GCM, erros sanitizados, concorrência e revogação local; falta validar credencial comercial real.
+4. **Primeira plataforma — implementada no código:** adaptador Shopee conforme contrato oficial; ativação real depende da conta aprovada e de uma chamada autorizada bem-sucedida.
+5. **Primeira operação — pendente em produção:** executar leitura com credencial Shopee real, confirmar campos e limites e registrar o resultado sem simulação.
 6. **Expansão:** adicionar as próximas plataformas após testes do primeiro fluxo completo. Cada recurso será habilitado separadamente; uma conexão não habilita todas as capacidades.
 
-Os passos acima são planejamento. Este documento não cria backend, credenciais, OAuth ou chamadas externas e não inicia automaticamente novas etapas.
+Os itens marcados como concluídos refletem código e verificações já entregues. As etapas pendentes não autorizam criação de credenciais, faturamento ou chamadas externas por conta própria.
 
 ## Critérios para considerar uma integração entregue
 
@@ -64,4 +65,4 @@ O objetivo de reunir todas as plataformas é uma direção de expansão, não um
 
 ## Preparação do Supabase
 
-O projeto `meu-vendedor` (`jzchlrvxdaffnrgbvabv`) foi autorizado e configurado com migração e RLS aplicadas. Auth, perfil e CRUD de links foram verificados na API hospedada. A hospedagem pública do frontend está no Cloudflare Workers. O endereço do site não concede acesso administrativo ao banco. A entrega de e-mails de confirmação/recuperação permanece a validar.
+O projeto `meu-vendedor` (`jzchlrvxdaffnrgbvabv`) foi autorizado e configurado com três migrações aplicadas. Auth, perfil e CRUD de links foram verificados na API hospedada; conexões, produtos e vídeos têm tabelas com RLS. A função `video-generation` está ativa com JWT obrigatório e geração real bloqueada. A hospedagem pública do frontend está no Cloudflare Workers. O endereço do site não concede acesso administrativo ao banco. A entrega de e-mails de confirmação/recuperação permanece a validar.

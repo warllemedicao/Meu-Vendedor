@@ -9,6 +9,8 @@
 - Build: `npm run build:pages`.
 - Build e deploy: `npm run deploy:cloudflare`, com Wrangler autorizado na conta correta.
 - Node.js: `24`, declarado em `.node-version`.
+- Versão ativa verificada em 05/11/2026: `7f135c6e-69b7-4fbc-a459-82bdcf34f30e`.
+- `/videos` e os quatro retratos dos apresentadores estão publicados; a rota foi confirmada com HTTP 200.
 
 O build normal do Next.js foi preservado; o comando específico gera exportação estática com Webpack. Não é necessário criar outro projeto Pages para usar esta hospedagem. O nome histórico `build:pages` identifica o build estático, que também pode ser servido pelo Worker.
 
@@ -26,6 +28,6 @@ Para futura vinculação no painel, usar o Worker existente, autorizar apenas o 
 
 ## Verificação
 
-As páginas e os recursos públicos foram testados por HTTP, e login/CRUD/RLS foram verificados na API Supabase com duas contas temporárias removidas ao final. A entrega de e-mails permanece a validar. Histórico, versões e limites em `PUBLICACAO.md`.
+As páginas e os recursos públicos foram testados por HTTP. Login/CRUD/RLS foram verificados anteriormente com duas contas temporárias removidas ao final; a biblioteca de vídeos foi verificada por migração, políticas e testes locais. A entrega de e-mails permanece a validar. O build final gerou 17 rotas, e a sessão OAuth temporária usada na publicação foi encerrada depois do deploy. Histórico, versões e limites em `PUBLICACAO.md`.
 
 Referências: [Static Assets](https://developers.cloudflare.com/workers/static-assets/get-started/) e [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/).

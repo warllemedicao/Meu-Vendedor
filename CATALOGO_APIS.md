@@ -1,5 +1,7 @@
 # Catálogo inicial: ofertas e mais vendidos
 
+> Estado geral atualizado em 05/11/2026: o catálogo descrito aqui permanece publicado, mas o Worker recebeu depois o gerador de vídeos e está atualmente na versão `7f135c6e-69b7-4fbc-a459-82bdcf34f30e`. Essa publicação posterior não configurou `MV_PUBLIC_CATALOG_CONFIG` nem transformou os testes controlados em acesso comercial real.
+
 ## Vitrine pública de três lojas — prioridade atual
 
 Por orientação do responsável, `/` e `/dashboard` passam a usar apenas Shopee, Amazon e TikTok Shop. A vitrine deixou de usar `RemoteCatalog`/`ProductCatalog` pessoais e não exige login no Meu Vendedor nem conexão com lojas. Os conectores privados das demais páginas continuam separados.

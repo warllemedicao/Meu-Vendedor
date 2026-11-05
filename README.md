@@ -3,7 +3,7 @@
 App web de gerenciamento de afiliados com **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**.
 O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afiliação, e pode organizar seus links na sua conta do Meu Vendedor.
 
-**Estado atual:** frontend público no Cloudflare e base Supabase ativada no projeto `meu-vendedor`. Migração e autenticação configuradas; login, perfil, CRUD e isolamento entre usuários testados na API hospedada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. O conector Shopee para ofertas e links está implementado e exige validação de credenciais reais. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram adicionadas ao catálogo inicial e publicadas com o frontend/backend; configuração por usuário e testes comerciais reais continuam pendentes. Magalu/SHEIN, IA e automações permanecem em preparação. O dashboard original mantém dados demonstrativos rotulados.
+**Estado atual em 05/11/2026:** frontend público no Cloudflare, versão `7f135c6e-69b7-4fbc-a459-82bdcf34f30e`, e base Supabase ativada no projeto `meu-vendedor`. As três migrações estão aplicadas; login, perfil, links, conexões, produtos e biblioteca de vídeos usam políticas de acesso por usuário. O gerador de vídeos funciona em modo demonstração e a geração Google permanece bloqueada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. O conector Shopee exige credenciais comerciais reais; Amazon, Mercado Livre, TikTok Shop e AliExpress têm adaptadores de catálogo sem teste comercial autenticado. Magalu/SHEIN e automações permanecem pendentes. Dados demonstrativos continuam rotulados.
 
 ## Documentos
 
@@ -29,7 +29,7 @@ O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afilia
 - Migração PostgreSQL e RLS para isolamento dos dados por usuário.
 - Estado informativo quando Supabase não estiver configurado, sem apresentar operações falsas.
 
-A migração já foi aplicada no projeto hospedado. Em outros ambientes, as telas de autenticação e persistência só ficam disponíveis após fornecer a configuração Supabase e aplicar a mesma migração.
+As três migrações versionadas já foram aplicadas no projeto hospedado. Em outros ambientes, as telas de autenticação e persistência só ficam disponíveis após fornecer a configuração Supabase e aplicar as migrações na ordem registrada.
 
 ## Tecnologias
 
@@ -61,7 +61,7 @@ npm run start            # serve o build normal (não a exportação estática)
 npm run deploy:cloudflare # gera a exportação e publica com Wrangler autorizado
 ```
 
-O build padrão com Turbopack encontrou restrições deste ambiente em verificações anteriores. O comando estático usa Webpack.
+O build padrão com Turbopack encontrou restrições deste ambiente em verificações anteriores. O comando estático usa Webpack. Na última entrega, 41 testes, lint, TypeScript do frontend e das Edge Functions e o build estático de 17 rotas foram aprovados.
 
 ## Segurança
 

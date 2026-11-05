@@ -1,6 +1,6 @@
 # Integrações — Meu Vendedor
 
-Etapa 2: preparação visual e contratos TypeScript. Referências consultadas em **04/11/2026**.
+Etapa 2: preparação visual e contratos TypeScript. Referências consultadas em **04/11/2026**; estado técnico revisado em **05/11/2026**.
 O conector Shopee para ofertas e links foi implementado; sua ativação por conta exige credenciais reais validadas pela API. Foram adicionadas consultas de catálogo Amazon, Mercado Livre, TikTok Shop e AliExpress, ainda sem teste de sucesso com credenciais reais. Magalu/SHEIN continuam sem contrato de catálogo de afiliados confirmado. Detalhes atuais em `CONECTORES.md` e `CATALOGO_APIS.md`; as seções da Etapa 2 abaixo preservam o histórico.
 A existência de uma API na plataforma não significa que esteja liberada para este projeto.
 
@@ -47,15 +47,18 @@ Revisão ampliada em 04/11/2026 após indicação do responsável.
 
 ## Contratos e organização técnica
 
-- `src/types/connectors.ts`: identificação, capacidades, autorização, sincronização, erros tipados, metadados e interface de futuro adaptador de servidor.
-- `src/lib/connectors/catalog.ts`: catálogo público e estado local explicitamente não configurado; não é um provider e não faz requisições.
+- `src/types/connectors.ts`: identificação, capacidades, autorização, sincronização, erros tipados e metadados comuns.
+- `src/lib/connectors/catalog.ts`: catálogo público e estados de disponibilidade usados pela interface.
 - `src/components/integrations/IntegrationCard.tsx`: requisitos e referências de cada plataforma em `/contas`.
-- `evidence` distingue documentação de pendências de validação; `available` representa disponibilidade **no Meu Vendedor** e permanece `false` para todos os recursos.
-- A interface `PlatformConnector` descreve leitura de estado/capacidades e revogação futura. Não tem implementação nem sucesso simulado. OAuth e sincronização reais exigirão contratos adicionais adequados a cada provider.
+- `supabase/functions/marketplace`: conector Shopee com autenticação, credenciais cifradas, sincronização e geração de link.
+- `supabase/functions/catalog`: adaptadores de consulta para Amazon, Mercado Livre, TikTok Shop e AliExpress, condicionados a credenciais reais.
+- `evidence` distingue documentação de pendências de validação; disponibilidade visual não equivale a uma conta comercial autorizada.
 - Erros retornam `ConnectorResult<T>`: sucesso com dados ou falha com código, mensagem sanitizada e indicação de repetição. Limite de taxa admite espera orientada pelo provedor; autorização expirada exige renovação segura ou novo consentimento. Não repetir automaticamente falhas permanentes ou operações comerciais.
-- Metadados públicos não incluem tokens. As datas de conexão/sincronização só serão preenchidas a partir de fatos persistidos pelo futuro backend.
+- Metadados públicos não incluem tokens. Datas de conexão e sincronização são preenchidas somente a partir de fatos persistidos pelo backend.
 
-## Segurança futura — desenho, ainda não implementado
+## Segurança das integrações
+
+O armazenamento cifrado, a validação de sessão, o isolamento por usuário e os erros sanitizados estão implementados para o conector Shopee. Os itens abaixo continuam sendo regras obrigatórias para novos conectores e para futuros fluxos OAuth:
 
 1. **OAuth:** quando suportado pelo provedor, usar Authorization Code no backend, PKCE quando suportado/exigido, `state` aleatório de uso único, validade curta e vínculo com sessão e usuário. Validar callback e redirect URI exatos; rejeitar state ausente, divergente ou reutilizado. Cada integração seguirá seu mecanismo oficial, sem presumir OAuth para Shopee.
 2. **Credenciais:** segredos da aplicação em gerenciador de segredos ou variáveis apenas do servidor; tokens por conta cifrados em banco, com chave separada e rotação. Não usar `NEXT_PUBLIC_*`, localStorage, sessionStorage ou cookies legíveis por JavaScript para credenciais. Cookies de sessão próprios deverão ser HttpOnly, Secure e SameSite apropriado.
@@ -68,18 +71,13 @@ Não solicitar senhas das plataformas. Não criar campos para segredos no navega
 
 ## Validação e próximo trabalho
 
-`npm test` verifica ausência de capacidades ativas/conexões falsas e domínios oficiais do catálogo. Executar também `npm run lint`, `npm run typecheck` e `npm run build`.
+`npm test` verifica contratos, assinaturas, ausência de conexões falsas, autenticação, concorrência, RLS e os módulos do gerador de vídeos. Executar também `npm run lint`, `npm run typecheck`, `npm run typecheck:edge` e `npm run build:pages`.
 
-Não há testes reais de API: não há credenciais nem adaptadores. Antes de conectar qualquer serviço, implementar backend, persistência cifrada e autorização por usuário, confirmar acesso da conta e definir testes de contrato/sandbox. A próxima etapa depende de instrução explícita; esta entrega não inicia Etapa 3.
+Há adaptadores implementados, mas ainda não houve teste comercial bem-sucedido com credenciais reais de marketplace. Antes de declarar uma plataforma ativa, confirmar o acesso da conta e executar uma chamada de escopo reduzido. Backend, persistência cifrada e autorização por usuário já existem para Shopee.
 
 ## Resultado da verificação desta entrega
 
-Em 04/11/2026: `npm test` (3 testes), `npm run lint` e `npm run typecheck` passaram.
-O build de produção passou com `npm run build -- --webpack`, gerando todas as rotas estáticas.
-O build padrão com Turbopack foi tentado, inclusive com permissão ampliada, mas o ambiente bloqueou a abertura de uma porta local usada no processamento de CSS (`Operation not permitted`). Não foi alterado o compilador padrão do projeto.
-Foi conferido também o HTML de `/contas`: as quatro plataformas e o aviso de ausência de conexão estão presentes, sem formulário de credenciais.
-A revisão dos arquivos e a busca por padrões de credenciais não identificaram segredos na entrega; `.env.example` contém apenas comentários.
-Não havia suíte de testes anterior na Etapa 1; os testes do catálogo foram adicionados nesta etapa.
+Em 05/11/2026: `npm test` aprovou 41 testes; lint, TypeScript do frontend e das Edge Functions e o build estático com 17 rotas também passaram. O Worker e as funções foram verificados separadamente. Testes controlados comprovam o comportamento do código, não a liberação comercial das contas.
 
 ## Catálogo básico atual e Supabase
 

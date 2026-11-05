@@ -22,6 +22,8 @@ Documento atualizado em 05/11/2026. A implementação atual funciona em modo de 
 
 Em 05/11/2026, a migração `20261105151156` e a Edge Function `video-generation` versão 1 foram publicadas no Supabase. A tabela `mv_video_projects` tem RLS forçada e quatro políticas; a função exige JWT e respondeu 401 sem sessão. O frontend foi publicado no Cloudflare na versão `7f135c6e-69b7-4fbc-a459-82bdcf34f30e` e `/videos` respondeu HTTP 200. Nenhuma credencial Google foi configurada e nenhuma geração paga foi iniciada.
 
+A última validação aprovou 41 testes, lint, TypeScript do frontend e das Edge Functions e o build estático com 17 rotas. Os quatro retratos estão publicados em WebP; nenhuma imagem de produto enviada pelo usuário é persistida automaticamente.
+
 O botão de geração Google permanece desativado. A função de backend também recusa geração real até receber credencial, flag de ativação e a implementação final revisada.
 
 ## Serviço oficial identificado

@@ -17,10 +17,10 @@ Prioridade atual: vitrine pública apenas de Shopee, Amazon e TikTok Shop, separ
 
 **Correção de requisito confirmada pelo responsável:** o catálogo deve ser consultável antes de conectar a conta de qualquer loja. Descoberta de produtos e vinculação do perfil de afiliado são fluxos independentes. O visitante não deverá precisar de App ID/Secret para navegar. O Meu Vendedor deverá obter/configurar seus próprios acessos de catálogo no servidor, somente onde a licença permitir sua exibição aos usuários; a página pública da loja, por si só, não comprova esse direito/API. A vinculação do afiliado deverá usar redirecionamento e consentimento oficial quando disponível. O formulário técnico Shopee atual não atende à experiência desejada e não comprova um fluxo de consentimento para afiliados. OAuth de vendedor não deve ser usado como substituto. O catálogo atual autenticado e condicionado a credenciais por usuário ainda não implementa essa separação.
 
-Correção de publicação concluída: backend `catalog` publicado na versão 1 (OPTIONS 204, POST sem sessão 401) e frontend publicado no Cloudflare na versão `29c743ed-e672-4e98-b059-0213bd9a0ec8`. `/dashboard` apresenta o mesmo catálogo de `/`, confirmado por HTTP 200 e conteúdo público. Credenciais comerciais e testes reais das novas fontes continuam pendentes. Detalhes em `PUBLICACAO.md`.
+Publicação atual: backend `catalog` na versão 1 e frontend no Cloudflare na versão `7f135c6e-69b7-4fbc-a459-82bdcf34f30e`. `/dashboard` apresenta o mesmo catálogo de `/`, e `/videos` contém o gerador em modo demonstração. As rotas foram confirmadas por HTTP. Credenciais comerciais e testes reais das fontes continuam pendentes. Detalhes em `PUBLICACAO.md`.
 
 Atualização do catálogo inicial no código: `/` apresenta oportunidades com seleção de Amazon, Mercado Livre, TikTok Shop, Magalu, Shopee, SHEIN e AliExpress. Reutiliza os produtos Shopee sincronizados e adiciona consultas sob demanda de Amazon, Mercado Livre, TikTok Shop e AliExpress na função `catalog`, já publicadas com o frontend; configuração por usuário e validação comercial real ainda pendentes. Magalu/SHEIN seguem sem contrato de catálogo de afiliados confirmado. Pesquisa oficial e dependências em `CATALOGO_APIS.md`. A inclusão das duas novas plataformas neste catálogo não amplia automaticamente o CRUD de links ou os conectores existentes.
-Cadastro/login, perfil e links manuais estão implementados. A migração foi aplicada no projeto `meu-vendedor` e login, persistência e isolamento foram verificados na API hospedada com duas contas temporárias removidas ao final. A entrega de e-mails ainda precisa ser validada. O primeiro conector Shopee foi implementado, condicionado à validação de credenciais reais da conta. As novas consultas de catálogo estão descritas acima; IA e automações comerciais não estão implementadas.
+Cadastro/login, perfil, links manuais e biblioteca de vídeos estão implementados. Três migrações foram aplicadas no projeto `meu-vendedor`; login, persistência e isolamento foram verificados. A entrega de e-mails ainda precisa ser validada. O primeiro conector Shopee foi implementado, condicionado à validação de credenciais reais da conta. O gerador publicitário funciona em demonstração; geração audiovisual real e automações comerciais não estão habilitadas.
 
 Atualização do módulo de vídeos: `/videos` agora oferece um gerador publicitário completo em modo demonstração, com cadastro/seleção de produto, quatro apresentadores virtuais originais, voz, emoção, estilo, duração, formato, roteiro editável, prévia estática e biblioteca. O mock percorre os estados de geração sem criar MP4 fictício nem consumir créditos. A integração futura foi isolada atrás de um contrato de provedor e de uma Edge Function autenticada; chamadas Google continuam bloqueadas. Contrato atual e fontes oficiais em `VIDEOS_IA.md`.
 
@@ -58,9 +58,9 @@ Produto (marketplace) → Conteúdo do afiliado → Link rastreável → Compra 
 
 ---
 
-## 2. Funcionalidades futuras (módulos)
+## 2. Módulos do produto
 
-Todos os módulos abaixo têm rota e navegação. Na Etapa 2, `/contas` recebeu um catálogo informativo com requisitos e documentação oficial; conexões e operações nas lojas continuam planejadas. A conta do Meu Vendedor, perfil e links manuais já usam Supabase.
+Todos os módulos abaixo têm rota e navegação. Conta, perfil, links, conexão Shopee e biblioteca de vídeos usam Supabase. As integrações comerciais permanecem condicionadas às permissões e credenciais de cada plataforma.
 
 | # | Módulo | Rota | Descrição | Depende de API externa? |
 | --- | --- | --- | --- | --- |
@@ -104,14 +104,14 @@ Todos os módulos abaixo têm rota e navegação. Na Etapa 2, `/contas` recebeu 
 │ FRONTEND  Next.js + React + TypeScript + Tailwind  ✅       │
 │ Layout, rotas, componentes, tema claro/escuro              │
 └──────────────────────────────┬─────────────────────────────┘
-                               │ REST/JSON  🟡
+                               │ REST/JSON  ✅
 ┌──────────────────────────────▼─────────────────────────────┐
-│ BACKEND  Python + FastAPI  🟡                              │
-│ Regras de negócio, autenticação, filas de tarefas          │
+│ BACKEND  Supabase Edge Functions + Worker  ✅              │
+│ Auth, conectores, catálogo e contratos de vídeo            │
 ├───────────────┬───────────────────────┬────────────────────┤
 │ Banco         │ Processamento de IA   │ Integrações        │
-│ PostgreSQL 🟡 │ Roteiro, ranking,     │ Shopee, ML, TikTok │
-│               │ análise, vídeo 🟡🔌   │ (providers) 🟡🔌   │
+│ PostgreSQL ✅ │ Roteiro local ✅      │ Shopee ✅/🔌       │
+│ RLS e dados   │ vídeo real 🔌         │ outros 🔌          │
 └───────────────┴───────────────────────┴────────────────────┘
 ```
 
@@ -125,14 +125,14 @@ Todos os módulos abaixo têm rota e navegação. Na Etapa 2, `/contas` recebeu 
 | Preparação das integrações | ✅ Implementado | Catálogo público, contratos TypeScript, testes e INTEGRACOES.md |
 | Dashboard com dados demonstrativos | ✅ Implementado | Dados fictícios, rotulados como tal |
 | Autenticação e perfil de usuário | ✅ Implementado | Supabase Auth e perfil protegido por RLS |
-| API backend (FastAPI) | 🟡 Planejado | Não existe código de backend |
-| Banco PostgreSQL e migrações | ✅ Implementado | Supabase; plataformas, perfis e links manuais com RLS |
-| Fila e agendador de tarefas | 🟡 Planejado | Necessário para automações e publicações |
-| Provider Shopee | 🔌 Depende de API externa | Requer programa de afiliados/API oficial |
+| Backend | ✅ Implementado parcialmente | Supabase Edge Functions para marketplace, catálogos e vídeo; FastAPI não é requisito atual |
+| Banco PostgreSQL e migrações | ✅ Implementado | Supabase; três migrações, tabelas privadas e RLS |
+| Agendador de tarefas | ✅ Implementado parcialmente | Cron Cloudflare para Shopee; fila geral ainda planejada |
+| Provider Shopee | ✅ Implementado / 🔌 ativação | Código publicado; requer credencial real aprovada para sucesso comercial |
 | Provider Mercado Livre | 🔌 Depende de API externa | Requer app registrado e credenciais |
 | Provider TikTok / TikTok Shop | 🔌 Depende de API externa | Acesso sujeito a aprovação e escopos |
 | Análise com IA (ranking, tendências) | 🔌 Depende de API externa | Modelo local ou serviço de terceiros |
-| Geração de vídeo com IA | 🔌 Depende de API externa | Modelo local (exige GPU) ou serviço |
+| Gerador de vídeos | ✅ Demonstração / 🔌 geração real | Interface, mock, biblioteca e contrato Google prontos; chamadas reais bloqueadas |
 | Publicação em redes sociais | 🔌 Depende de API externa | Apenas por integrações oficiais e autorizadas |
 
 ### 3.4 Frontend
@@ -143,30 +143,24 @@ Todos os módulos abaixo têm rota e navegação. Na Etapa 2, `/contas` recebeu 
 - **Navegação** definida em um único arquivo (`src/lib/navigation.ts`), usado pelo menu lateral e pelas páginas.
 - **Dados demonstrativos** isolados em `src/lib/demo-data.ts`. Quando houver API real, só esse ponto muda.
 
-### 3.5 Backend (futuro)
+### 3.5 Backend
 
-- API REST em FastAPI, documentada automaticamente (OpenAPI).
-- Módulos espelhando os módulos de produto (`produtos`, `tendencias`, `ranking`, `videos`, `afiliados`,
-  `publicacoes`, `automacoes`, `relatorios`, `contas`).
-- Tarefas longas (coleta, análise, geração de vídeo) executadas em segundo plano por uma fila.
+- Supabase Edge Functions implementam marketplace, catálogos e o contrato autenticado de geração de vídeo.
+- O Cloudflare Worker serve os assets e executa o cron de sincronização Shopee.
+- FastAPI permanece opcional para processamento especializado futuro.
+- Tarefas longas de geração real ainda exigirão acompanhamento assíncrono e controle de idempotência no provedor.
 
 ### 3.6 Banco de dados
 
-PostgreSQL no Supabase com migração versionada e aplicada: `mv_platforms`, `mv_profiles` e `mv_affiliate_links`. Os dados privados são protegidos por RLS. Entidades previstas: usuário, conta conectada, produto, snapshot de
-preço, tendência, ranking diário, roteiro, vídeo, link de afiliado, publicação, automação, execução e métrica.
-Tokens de acesso de terceiros devem ser armazenados **criptografados**.
+PostgreSQL no Supabase com três migrações versionadas e aplicadas. Além de plataformas, perfis e links, existem conexões e segredos cifrados, produtos, sincronizações, links gerados, bloqueios e projetos de vídeo. Os dados privados são protegidos por RLS; credenciais externas ficam cifradas e acessíveis somente pelo backend.
 
-### 3.7 Processamento de IA (futuro)
+### 3.7 Processamento de IA
 
-Camada separada do backend, com interface única (`gerar_roteiro`, `pontuar_produto`, `analisar_video`...).
-Permite usar modelos open source locais ou serviços externos sem alterar o restante do sistema.
+O roteiro publicitário local e o provedor simulado estão implementados. A geração audiovisual usa uma interface desacoplada, com adaptador Google preparado e bloqueado. Ranking, tendências e análise de vídeo continuam futuros. Serviços externos poderão ser adicionados sem alterar o fluxo principal.
 
-### 3.8 Integrações externas — preparação implementada, providers futuros
+### 3.8 Integrações externas
 
-`src/types/connectors.ts` define plataforma, capacidades, autorização, sincronização, erros sanitizados,
-metadados sem segredos e o contrato `PlatformConnector`. `src/lib/connectors/catalog.ts` registra as quatro
-plataformas e o estado não configurado. `/contas` apresenta requisitos e links oficiais; nenhum adaptador,
-OAuth, chamada externa ou sincronização foi implementado.
+`src/types/connectors.ts` define plataforma, capacidades, autorização, sincronização e erros sanitizados. O conector Shopee e os adaptadores de catálogo estão implementados no backend. `/contas` apresenta requisitos e estados reais; nenhuma integração aparece conectada sem validação do provedor.
 
 `INTEGRACOES.md` diferencia capacidades documentadas de recursos não confirmados e detalha o desenho
 futuro de OAuth, tokens cifrados no servidor, renovação, revogação e checagem de permissões.
@@ -184,10 +178,9 @@ tratamento de erros e testes de contrato. O frontend nunca armazenará credencia
 | **TypeScript** | ✅ Adotado | Segurança de tipos; reduz erros conforme o projeto cresce. |
 | **Tailwind CSS** | ✅ Adotado | Estilização rápida e consistente; tema claro/escuro simples. |
 | **Python + FastAPI** | 🟡 Recomendado para o backend | Ecossistema forte em IA e dados; tipagem e documentação automática. Não instalado na Etapa 1. |
-| **PostgreSQL** | 🟡 Recomendado para persistência | Robusto, open source, tem planos gratuitos limitados em vários provedores. Não instalado na Etapa 1. |
+| **PostgreSQL** | ✅ Adotado via Supabase | Migrações, RLS, autenticação e persistência em produção. |
 
-**Nesta etapa foi configurado apenas o necessário para o site:** Next.js, React, TypeScript, Tailwind CSS,
-ESLint. Ícones: `lucide-react` (open source). Fontes: pilha de fontes do sistema (sem dependência externa).
+O projeto também usa Supabase JS, Edge Functions, PostgreSQL/RLS, Wrangler, testes Node.js e PGlite. Ícones: `lucide-react` (open source). Fontes: pilha de fontes do sistema.
 
 ---
 
@@ -243,9 +236,9 @@ ESLint. Ícones: `lucide-react` (open source). Fontes: pilha de fontes do sistem
 | --- | --- | --- |
 | **1** | Estrutura do site, navegação, dashboard demonstrativo, documentação | ✅ Concluída |
 | **2** | Preparação das integrações: Contas Conectadas, contratos TypeScript e documentação de segurança | ✅ Concluída |
-| **Base futura** | Backend FastAPI, PostgreSQL, autenticação e armazenamento seguro para conexões | 🟡 Planejada; pré-requisito para integrações reais |
-| **3** | Módulo Afiliados (links próprios, sem API externa) com persistência real | 🟡 Planejada |
-| **4** | Primeiro provider de produtos (Mercado Livre ou Shopee), conforme credenciais disponíveis | 🟡🔌 Planejada |
+| **Base** | Supabase Auth, PostgreSQL, RLS, Edge Functions e armazenamento seguro | ✅ Concluída; FastAPI opcional |
+| **3** | Módulo Afiliados (links próprios, sem API externa) com persistência real | ✅ Concluída |
+| **4** | Primeiro provider de produtos: Shopee | ✅ Código publicado; 🔌 validação comercial pendente |
 | **5** | Monitoramento de produtos: histórico de preço e coleta agendada | 🟡🔌 Planejada |
 | **6** | Ranking Top 10 com IA (pontuação e justificativa) | 🟡🔌 Planejada |
 | **7** | Radar de tendências (TikTok, conforme acesso à API) | 🟡🔌 Planejada |
@@ -255,7 +248,7 @@ ESLint. Ícones: `lucide-react` (open source). Fontes: pilha de fontes do sistem
 | **11** | Relatórios de cliques, vendas e comissões | 🟡🔌 Planejada |
 | **12** | Automações configuráveis | 🟡 Planejada |
 
-A Etapa 2 foi redefinida por instrução do responsável para preparação das integrações; backend e banco continuam futuros. A Etapa 3 não foi iniciada.
+As etapas 3 e 4 avançaram por instruções posteriores. O roadmap registra o estado técnico atual; ativações comerciais continuam dependentes de autorização externa.
 
 A ordem pode mudar conforme as credenciais e permissões forem sendo obtidas.
 
@@ -270,11 +263,15 @@ A ordem pode mudar conforme as credenciais e permissões forem sendo obtidas.
 - Antes de concluir: `npm run lint`, `npm run typecheck` e `npm run build` devem passar.
 - Não commite segredos. Não sobrescreva trabalho existente.
 
-## 9. Registro da Etapa 2
+## 9. Registro histórico da Etapa 2
+
+> Esta seção retrata o encerramento da Etapa 2 em 04/11/2026. Afirmações como “sem backend” ou “sem vídeos” descrevem aquele momento e foram superadas pelas seções atuais no início do documento.
 
 Implementados o catálogo das quatro plataformas em `/contas`, contratos públicos de conectores, testes de invariantes e `INTEGRACOES.md`. Preservados layout, tema, dashboard demonstrativo e demais módulos. Sem login externo, consultas de API, monitoramento, vídeos ou automações. Validação da entrega: 3 testes do catálogo, ESLint e TypeScript aprovados; build de produção aprovado com `npm run build -- --webpack`. O Turbopack encontrou bloqueio de porta local pelo ambiente. Detalhes em `INTEGRACOES.md`.
 
-## 10. Intenção confirmada e preparação do primeiro ciclo de APIs
+## 10. Registro histórico da preparação do primeiro ciclo de APIs
+
+> Os itens desta seção registram decisões anteriores à ativação do Supabase, dos conectores e do gerador de vídeos. O estado vigente está nas seções 1 a 7 e nos documentos especializados.
 
 Em 04/11/2026, o responsável confirmou que o produto deve centralizar o gerenciamento de afiliados de Mercado Livre, TikTok/TikTok Shop, Shopee, Magazine Luiza e outras plataformas. O escopo de cada página foi consolidado em `ESCOPO.md`. Magazine Luiza está planejada; o catálogo TypeScript e `/contas` continuam com as quatro plataformas da Etapa 2.
 
@@ -304,23 +301,23 @@ Após autorização OAuth do responsável, foi localizado o Worker existente `me
 
 ## 11. Base Supabase e catálogo básico
 
-Implementados o cliente oficial Supabase, telas de conta e recuperação de senha, perfil e CRUD de links manuais. O catálogo agora tem somente Shopee, TikTok (com orientação TikTok Shop), Mercado Livre, Amazon e Magazine Luiza, com redirecionamento oficial para acesso/afiliação. Não existe login nas lojas dentro do aplicativo.
+Implementados o cliente oficial Supabase, telas de conta e recuperação de senha, perfil, CRUD de links manuais, conexão Shopee e biblioteca de vídeos. O catálogo informativo cobre as plataformas do escopo; a vitrine pública prioriza Shopee, Amazon e TikTok Shop. O aplicativo não solicita a senha das lojas.
 
 A arquitetura desta base é navegador/Next.js → Supabase Auth e Data API → PostgreSQL com RLS. Projeto autorizado: `meu-vendedor` (`jzchlrvxdaffnrgbvabv`). O frontend continua publicável no Worker existente com exportação estática. FastAPI não é requisito para este CRUD; permanece uma possibilidade futura para processamento especializado. O arquivo `wrangler.jsonc` descreve o Worker e seus assets, sem credenciais.
 
-A migração cria `mv_platforms`, `mv_profiles` e `mv_affiliate_links`, com isolamento por usuário e privilégios limitados por coluna. Foi testada em PostgreSQL local via PGlite, incluindo bloqueio de acessos indevidos. As chaves administrativas e futuras credenciais de lojas não passam pelo cliente. A sessão do próprio app é gerida pelo SDK Supabase.
+Três migrações criam a base de afiliados, conexões/segredos/produtos e projetos de vídeo. O isolamento por usuário e os privilégios foram testados em PostgreSQL local via PGlite. Chaves administrativas e credenciais de lojas não passam pelo cliente. A sessão do próprio app é gerida pelo SDK Supabase.
 
-Ativação remota concluída: migração `20261104000100` aplicada e registrada; URLs de Auth e senha mínima configuradas. Login, perfis e CRUD foram testados por API com duas contas temporárias e isolamento entre usuários. As contas de teste foram removidas. Confirmação/recuperação de e-mail têm fluxo implementado, mas a entrega de mensagens não foi testada. Procedimento e limites em `SUPABASE.md`.
+Ativação remota concluída: migrações `20261104000100`, `20261104000200` e `20261105151156` aplicadas e registradas; URLs de Auth e senha mínima configuradas. Login, perfis e CRUD foram testados por API com duas contas temporárias e isolamento entre usuários. As contas de teste foram removidas. Confirmação/recuperação de e-mail têm fluxo implementado, mas a entrega de mensagens não foi testada. Procedimento e limites em `SUPABASE.md`.
 
 ## 12. Experiência unificada de conexão e sincronização
 
 O objetivo confirmado é o usuário conectar cada plataforma ao Meu Vendedor e consultar seus dados no painel, sem precisar abrir a loja para cada consulta. Os acessos externos atuais são apenas a etapa básica de cadastro/afiliação. O login do Meu Vendedor não autoriza as lojas automaticamente.
 
-A arquitetura deverá expor uma API interna única, implementada por adaptadores próprios de cada plataforma. Cada adaptador define autorização oficial, capacidades, consultas, limites, erros e revogação. OAuth deve ser usado onde estiver oficialmente disponível; credenciais específicas são necessárias onde esse for o contrato. Uma integração só aparecerá conectada depois de validação real, e só exibirá os dados permitidos por sua API.
+A arquitetura expõe contratos internos implementados por adaptadores próprios de cada plataforma. Cada adaptador define autorização oficial, capacidades, consultas, limites, erros e revogação. OAuth deve ser usado onde estiver oficialmente disponível; credenciais específicas são necessárias onde esse for o contrato. Uma integração só aparece conectada depois de validação real e só exibe os dados permitidos por sua API.
 
-O Explorer oficial brasileiro Shopee foi confirmado e os resultados estão em `INTEGRACOES.md`. Ainda não foi comprovado OAuth delegado para o afiliado Shopee nem um provedor externo universal que cubra as cinco lojas com todos os dados. A análise não implementou conexão comercial nem mudou o estado das contas para conectado.
+O Explorer oficial brasileiro Shopee foi confirmado e o conector correspondente foi implementado. Ainda não foi comprovado OAuth delegado para o afiliado Shopee nem um provedor externo universal que cubra as cinco lojas com todos os dados. Sem credencial real validada, nenhuma conta é apresentada como conectada.
 
-Antes da primeira conexão real: adicionar backend de integração (por exemplo, função Supabase ou Worker com runtime de servidor), armazenamento cifrado de credenciais com chave fora das tabelas públicas e checagem de usuário/capacidades em cada operação. O frontend estático nunca assinará requisições com segredos. O banco atual atende contas do Meu Vendedor e links manuais; tabelas de conexões, sincronizações e métricas serão criadas na etapa correspondente.
+Antes da primeira conexão comercial real: fornecer credenciais oficiais pelo fluxo seguro, executar uma consulta autorizada e validar permissões e limites da conta. O backend, o armazenamento cifrado e a checagem de usuário já estão implementados. O frontend estático nunca assina requisições com segredos.
 
 ## 13. Definição de produto: central única de operação de afiliados
 

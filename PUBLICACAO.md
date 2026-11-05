@@ -8,6 +8,8 @@ A rota `/videos` e o retrato público de Ana responderam HTTP 200; o HTML public
 
 No Supabase, a migração `20261105151156` está no histórico, `mv_video_projects` tem RLS forçada e quatro políticas, e a função `video-generation` está `ACTIVE` na versão 1 com JWT obrigatório. A requisição sem sessão retornou 401. Nenhuma credencial Google foi configurada e nenhuma chamada de vídeo paga foi executada.
 
+O código correspondente foi enviado para `origin/main` no commit `f42c516`. Em 05/11/2026, a documentação foi revalidada contra três migrações, dez tabelas `mv_*`, quatro Edge Functions ativas e os advisors do Supabase. O histórico abaixo descreve entregas anteriores e não substitui este estado mais recente.
+
 ## Vitrine pública de Shopee, Amazon e TikTok — fonte ainda pendente
 
 Em 04/11/2026 foi publicada a versão Cloudflare `9d080273-301c-4e59-b025-be17d3e1b5ea`, com somente Shopee, Amazon e TikTok Shop na vitrine de `/` e `/dashboard`. A vitrine não exige login nem conexão pessoal. Os formulários de conta e os acessos privados continuam nas páginas próprias. O cron existente foi preservado.
