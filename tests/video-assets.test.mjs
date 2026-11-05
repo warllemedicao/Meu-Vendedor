@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import {
   createVideoAssetUrl,
   MAX_VIDEO_IMAGE_BYTES,
+  MAX_VIDEO_DEMO_BYTES,
+  MAX_VIDEO_RESULT_BYTES,
   uploadVideoProductImage,
+  uploadVideoResult,
   VIDEO_ASSET_BUCKET,
 } from '../src/lib/video-assets.ts';
 
@@ -39,11 +42,25 @@ test('imagem de produto usa bucket privado, caminho do usuário e sem sobrescrit
   assert.equal(client.calls[0].options.contentType, 'image/webp');
 });
 
+test('resultado MP4 usa pasta privada do usuário e tipo de conteúdo correto', async () => {
+  const client = fakeClient();
+  const path = await uploadVideoResult(client, userId, { type: 'video/mp4', size: 1024, name: 'demo.mp4' });
+  assert.match(path, new RegExp(`^${userId}/outputs/[0-9a-f-]+\\.mp4$`));
+  assert.equal(client.calls[0].bucket, VIDEO_ASSET_BUCKET);
+  assert.equal(client.calls[0].options.upsert, false);
+  assert.equal(client.calls[0].options.contentType, 'video/mp4');
+  assert.equal(MAX_VIDEO_RESULT_BYTES, 100 * 1024 * 1024);
+  assert.equal(MAX_VIDEO_DEMO_BYTES, 10 * 1024 * 1024);
+});
+
 test('upload valida MIME, tamanho e identidade antes de acessar Storage', async () => {
   const client = fakeClient();
   await assert.rejects(uploadVideoProductImage(client, userId, { type: 'image/gif', size: 100 }), /PNG, JPEG ou WebP/);
   await assert.rejects(uploadVideoProductImage(client, userId, { type: 'image/png', size: MAX_VIDEO_IMAGE_BYTES + 1 }), /10 MB/);
   await assert.rejects(uploadVideoProductImage(client, 'bad-user', { type: 'image/png', size: 100 }), /conta autenticada/);
+  await assert.rejects(uploadVideoResult(client, userId, { type: 'video/webm', size: 100 }), /arquivo MP4/);
+  await assert.rejects(uploadVideoResult(client, userId, { type: 'video/mp4', size: 0 }), /entre 1 byte/);
+  await assert.rejects(uploadVideoResult(client, userId, { type: 'video/mp4', size: MAX_VIDEO_RESULT_BYTES + 1 }), /100 MB/);
   assert.equal(client.calls.length, 0);
 });
 

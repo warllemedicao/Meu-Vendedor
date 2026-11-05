@@ -23,7 +23,13 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Card } from "@/components/ui/Card";
 import { getSupabase } from "@/lib/supabase/client";
-import { createVideoAssetUrl, MAX_VIDEO_IMAGE_BYTES, uploadVideoProductImage } from "@/lib/video-assets";
+import {
+  createVideoAssetUrl,
+  MAX_VIDEO_IMAGE_BYTES,
+  MAX_VIDEO_DEMO_BYTES,
+  uploadVideoProductImage,
+  uploadVideoResult,
+} from "@/lib/video-assets";
 import { mockVideoProvider } from "@/lib/video-provider";
 import {
   advertisingStyles,
@@ -111,6 +117,34 @@ interface VideoJobRow {
   updated_at: string;
   completed_at: string | null;
   error_code: string | null;
+  result_object_path: string | null;
+}
+
+async function inspectTechnicalDemo(file: File): Promise<string | null> {
+  const marker = new TextDecoder().decode(await file.slice(0, 1024 * 1024).arrayBuffer());
+  if (!marker.includes("Still image of Ana; no AI video generation")) {
+    return "O arquivo não contém o marcador do renderizador técnico local.";
+  }
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      if (!Number.isFinite(video.duration) || Math.abs(video.duration - 6) > 0.1) {
+        resolve("O MP4 deve ter exatamente 6 segundos.");
+      } else if (video.videoWidth <= 0 || video.videoHeight <= 0 || Math.abs(video.videoWidth / video.videoHeight - 9 / 16) > 0.002) {
+        resolve("O MP4 deve estar no formato vertical 9:16.");
+      } else {
+        resolve(null);
+      }
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve("Não foi possível ler os metadados do MP4.");
+    };
+    video.src = url;
+  });
 }
 
 const emptyProduct: VideoProductInput = {
@@ -292,7 +326,15 @@ export function VideoStudio() {
   const [geminiCapabilityMessage, setGeminiCapabilityMessage] = useState("Verificando disponibilidade após entrar.");
   const [generatingScript, setGeneratingScript] = useState(false);
   const [jobManagementEnabledForUser, setJobManagementAvailable] = useState(false);
+  const [videoProcessorAvailableForUser, setVideoProcessorAvailable] = useState(false);
+  const [capabilityUserId, setCapabilityUserId] = useState<string | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
+  const [enqueueingJob, setEnqueueingJob] = useState(false);
+  const [demoVideoFile, setDemoVideoFile] = useState<File | null>(null);
+  const [validatingDemoVideo, setValidatingDemoVideo] = useState(false);
+  const [savingDemoVideo, setSavingDemoVideo] = useState(false);
+  const [pendingDemoPath, setPendingDemoPath] = useState<string | null>(null);
+  const [jobResultUrls, setJobResultUrls] = useState<Record<string, { userId: string; url?: string; error?: string }>>({});
   const [generationStatus, setStatus] = useState<VideoGenerationStatus>("awaiting_configuration");
   const [productImage, setProductImage] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -312,16 +354,20 @@ export function VideoStudio() {
   const [notice, setNotice] = useState("");
   const [libraryLoading, setLibraryLoading] = useState(true);
   const generationLock = useRef(false);
+  const enqueueIdempotency = useRef<{ fingerprint: string; key: string } | null>(null);
+  const demoVideoInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const libraryKey = `${LIBRARY_PREFIX}:${user?.id ?? "guest"}`;
   const userId = user?.id;
-  const geminiScriptAvailable = Boolean(userId && geminiScriptEnabledForUser);
-  const jobManagementAvailable = Boolean(userId && jobManagementEnabledForUser);
+  const geminiScriptAvailable = Boolean(userId && capabilityUserId === userId && geminiScriptEnabledForUser);
+  const jobManagementAvailable = Boolean(userId && capabilityUserId === userId && jobManagementEnabledForUser);
+  const queueAvailable = Boolean(userId && capabilityUserId === userId && jobManagementEnabledForUser && videoProcessorAvailableForUser);
   const geminiCapabilityNotice = userId ? geminiCapabilityMessage : "Entre na sua conta para verificar o provedor.";
   const visibleJobs = userId ? jobs : [];
   const visibleJobsError = userId ? jobsError : "";
   const visibleJobsLoading = Boolean(userId && jobsLoadedForUser !== userId);
+  const hasActiveJobs = jobs.some((job) => job.status === "queued" || job.status === "processing");
   const selectedSignedResult = userId && signedResult?.userId === userId && signedResult.recordId === selectedRecordId ? signedResult : null;
   const presenter = virtualPresenters.find((item) => item.id === presenterId) ?? virtualPresenters[0];
   const imagePreview = useMemo(() => productImage ? URL.createObjectURL(productImage) : userId && uploadedImagePreview?.userId === userId && uploadedImagePreview.path === product.imageStoragePath ? uploadedImagePreview.url : product.imageUrl || "", [productImage, product.imageStoragePath, product.imageUrl, uploadedImagePreview, userId]);
@@ -426,21 +472,29 @@ export function VideoStudio() {
       .then(({ data, error: invokeError }) => {
         if (!active) return;
         if (invokeError) {
+          setCapabilityUserId(null);
           setGeminiScriptAvailable(false);
+          setJobManagementAvailable(false);
+          setVideoProcessorAvailable(false);
           setGeminiCapabilityMessage("Não foi possível verificar o backend Gemini.");
           return;
         }
         const scriptCapability = data?.script;
         const available = scriptCapability?.available === true;
+        setCapabilityUserId(userId);
         setGeminiScriptAvailable(available);
         setJobManagementAvailable(data?.jobs?.enabled === true);
+        setVideoProcessorAvailable(data?.jobs?.processorAvailable === true);
         setGeminiCapabilityMessage(available
           ? "Gemini habilitado no backend; a chamada de roteiro pode consumir créditos."
           : "Gemini não está habilitado para roteiros. Nenhuma chamada foi feita.");
       })
       .catch(() => {
         if (active) {
+          setCapabilityUserId(null);
           setGeminiScriptAvailable(false);
+          setJobManagementAvailable(false);
+          setVideoProcessorAvailable(false);
           setGeminiCapabilityMessage("Não foi possível verificar o backend Gemini.");
         }
       });
@@ -451,23 +505,49 @@ export function VideoStudio() {
     const client = getSupabase();
     if (!userId || !client) return;
     let active = true;
-    void client.from("mv_video_jobs")
-      .select("id,status,progress,created_at,updated_at,completed_at,error_code")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .then(({ data, error: loadError }) => {
-        if (!active) return;
-        if (loadError) {
-          setJobsError("Não foi possível carregar o histórico de tarefas. A migração local pode ainda não estar aplicada.");
-        } else {
-          setJobs((data as VideoJobRow[] | null) ?? []);
-          setJobsError("");
-        }
-        setJobsLoadedForUser(userId);
-      });
+    const refreshJobs = async () => {
+      const { data, error: loadError } = await client.from("mv_video_jobs")
+        .select("id,status,progress,created_at,updated_at,completed_at,error_code,result_object_path")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (!active) return;
+      if (loadError) {
+        setJobsError("Não foi possível carregar o histórico de tarefas. A migração local pode ainda não estar aplicada.");
+      } else {
+        setJobs((data as VideoJobRow[] | null) ?? []);
+        setJobsError("");
+      }
+      setJobsLoadedForUser(userId);
+    };
+    void refreshJobs();
+    const timer = hasActiveJobs ? window.setInterval(() => void refreshJobs(), 3000) : null;
+    return () => {
+      active = false;
+      if (timer !== null) window.clearInterval(timer);
+    };
+  }, [userId, hasActiveJobs]);
+
+  useEffect(() => {
+    const client = getSupabase();
+    if (!userId || !client) return;
+    let active = true;
+    for (const job of jobs) {
+      if (job.status !== "completed" || !job.result_object_path ||
+        (jobResultUrls[job.id]?.userId === userId && jobResultUrls[job.id]?.url)) continue;
+      void createVideoAssetUrl(client, userId, job.result_object_path)
+        .then((url) => {
+          if (active) setJobResultUrls((current) => ({ ...current, [job.id]: { userId, url } }));
+        })
+        .catch((assetError: unknown) => {
+          if (active) setJobResultUrls((current) => ({
+            ...current,
+            [job.id]: { userId, error: assetError instanceof Error ? assetError.message : "Não foi possível acessar o vídeo privado." },
+          }));
+        });
+    }
     return () => { active = false; };
-  }, [userId]);
+  }, [jobs, jobResultUrls, userId]);
 
   function updateProduct<K extends keyof VideoProductInput>(field: K, value: VideoProductInput[K]) {
     setProduct((current) => ({ ...current, [field]: value }));
@@ -581,6 +661,153 @@ export function VideoStudio() {
       setJobsError(cancelError instanceof Error ? cancelError.message : "Não foi possível cancelar a tarefa.");
     } finally {
       setCancellingJobId(null);
+    }
+  }
+
+  async function enqueueVideoJob() {
+    const client = getSupabase();
+    if (!user || !client || !queueAvailable || enqueueingJob) return;
+    if (presenter.referenceStatus !== "ready") {
+      setError(`A referência visual de ${presenter.name} ainda não está aprovada para processamento.`);
+      return;
+    }
+    if (!product.imageStoragePath) {
+      setError("Salve primeiro uma imagem do produto no armazenamento privado.");
+      return;
+    }
+    const invalid = validateVideoConfiguration(configuration, effectiveScript);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+
+    setEnqueueingJob(true);
+    setError("");
+    setNotice("");
+    try {
+      const request = {
+        templateId,
+        scenePresetId,
+        durationSeconds,
+        format,
+        presenterId,
+        voiceGender,
+        voiceProfileId,
+        emotionalToneId,
+        advertisingStyleId,
+        narrationMode,
+        motionMode,
+        mode,
+        targetAudience,
+        script: effectiveScript,
+        product: {
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          features: product.features,
+          clothingSize: product.clothingSize ?? "",
+          imageStoragePath: product.imageStoragePath,
+        },
+      };
+      const fingerprint = JSON.stringify(request);
+      const idempotencyKey = enqueueIdempotency.current?.fingerprint === fingerprint
+        ? enqueueIdempotency.current.key
+        : crypto.randomUUID();
+      enqueueIdempotency.current = { fingerprint, key: idempotencyKey };
+      const { data, error: invokeError } = await client.functions.invoke("video-generation", {
+        body: {
+          action: "enqueue-job",
+          idempotencyKey,
+          projectId: null,
+          request,
+        },
+      });
+      if (invokeError || !data?.job) {
+        const message = typeof data?.error?.message === "string" ? data.error.message : "Não foi possível registrar a tarefa na fila.";
+        throw new Error(message);
+      }
+      const queuedJob = data.job as VideoJobRow;
+      setJobs((current) => [queuedJob, ...current.filter((job) => job.id !== queuedJob.id)].slice(0, 20));
+      enqueueIdempotency.current = null;
+      setNotice("Tarefa registrada. O estado será atualizado pela fila; nenhum processador pago foi iniciado pelo Estúdio.");
+    } catch (enqueueError) {
+      setError(enqueueError instanceof Error ? enqueueError.message : "Não foi possível registrar a tarefa na fila.");
+    } finally {
+      setEnqueueingJob(false);
+    }
+  }
+
+  async function chooseTechnicalDemoFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setDemoVideoFile(null);
+    setPendingDemoPath(null);
+    setError("");
+    if (!file) return;
+    if (file.type !== "video/mp4") {
+      setError("Use um arquivo MP4.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size === 0 || file.size > MAX_VIDEO_DEMO_BYTES) {
+      setError("O teste técnico deve ter entre 1 byte e 10 MB.");
+      event.target.value = "";
+      return;
+    }
+    setValidatingDemoVideo(true);
+    try {
+      const validation = await inspectTechnicalDemo(file);
+      if (validation) {
+        setError(validation);
+        event.target.value = "";
+        return;
+      }
+      setDemoVideoFile(file);
+      setNotice("MP4 validado: 6 segundos, 9:16. A biblioteca o identificará como teste técnico sem IA.");
+    } catch (validationError) {
+      setError(validationError instanceof Error ? validationError.message : "Não foi possível validar o MP4.");
+    } finally {
+      setValidatingDemoVideo(false);
+    }
+  }
+
+  async function saveTechnicalDemo() {
+    const client = getSupabase();
+    if (!user || !client) {
+      setError("Entre na sua conta para salvar o MP4 na área privada.");
+      return;
+    }
+    if (!pendingDemoPath && !demoVideoFile) {
+      setError("Selecione primeiro o MP4 técnico local.");
+      return;
+    }
+    setSavingDemoVideo(true);
+    setError("");
+    setNotice("");
+    try {
+      const resultStoragePath = pendingDemoPath ?? await uploadVideoResult(client, user.id, demoVideoFile!);
+      setPendingDemoPath(resultStoragePath);
+      const { data, error: invokeError } = await client.functions.invoke("video-generation", {
+        body: { action: "save-demo-result", resultStoragePath },
+      });
+      if (invokeError || !data?.project) {
+        const message = typeof data?.error?.message === "string"
+          ? data.error.message
+          : "O MP4 foi enviado para a área privada, mas não foi registrado na biblioteca. Tente novamente.";
+        throw new Error(message);
+      }
+      const record = fromDatabaseRow(data.project as VideoProjectRow);
+      const next = [record, ...library.filter((item) => item.id !== record.id)].slice(0, 50);
+      setLibrary(next);
+      writeLocalLibrary(libraryKey, next);
+      setSelectedRecordId(record.id);
+      setPendingDemoPath(null);
+      setDemoVideoFile(null);
+      if (demoVideoInputRef.current) demoVideoInputRef.current.value = "";
+      setNotice("Teste técnico salvo na biblioteca e no Storage privado. É uma imagem fixa convertida em MP4, sem geração por IA.");
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar o teste técnico.");
+    } finally {
+      setSavingDemoVideo(false);
     }
   }
 
@@ -969,6 +1196,10 @@ export function VideoStudio() {
             <button type="button" disabled={busy || !!validationError} onClick={() => void simulateGeneration()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
               {busy ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />{statusLabels[status]}…</> : <><Play className="size-4" aria-hidden />Simular geração sem créditos</>}
             </button>
+            <button type="button" disabled={!queueAvailable || enqueueingJob || busy || !!validationError} onClick={() => void enqueueVideoJob()} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">
+              {enqueueingJob ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Enfileirando…</> : "Enfileirar geração real"}
+            </button>
+            {!queueAvailable && <p className="mt-2 text-xs text-muted">Fila indisponível: os flags e o processador permanecem desativados até validação e autorização.</p>}
             <button type="button" disabled className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold opacity-50">
               <WandSparkles className="size-4" aria-hidden />Gerar com Google · aguardando API
             </button>
@@ -1001,9 +1232,9 @@ export function VideoStudio() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Fila e histórico de tarefas</h2>
-            <p className="mt-1 text-sm text-muted">Estados persistentes prontos para o processador de vídeo. Nenhuma tarefa real é iniciada nesta etapa.</p>
+            <p className="mt-1 text-sm text-muted">Fila e acompanhamento integrados; sem processador validado, o backend mantém a fila bloqueada.</p>
           </div>
-          <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">{jobs.length} tarefa(s)</span>
+          <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">{visibleJobs.length} tarefa(s)</span>
         </div>
         {visibleJobsLoading ? <p role="status" className="mt-4 text-sm text-muted">Carregando tarefas…</p> : visibleJobsError ? (
           <p role="alert" className="mt-4 rounded-lg bg-danger-soft p-3 text-sm text-danger">{visibleJobsError}</p>
@@ -1025,6 +1256,10 @@ export function VideoStudio() {
                     {cancellingJobId === job.id ? "Cancelando…" : "Cancelar"}
                   </button>
                 )}
+                {job.status === "completed" && job.result_object_path && jobResultUrls[job.id]?.userId === userId && jobResultUrls[job.id]?.url && (
+                  <video controls preload="metadata" src={jobResultUrls[job.id].url} className="mt-2 w-full rounded-lg bg-black" aria-label="Resultado MP4 da tarefa" />
+                )}
+                {jobResultUrls[job.id]?.error && <p role="alert" className="w-full text-xs text-danger">{jobResultUrls[job.id].error}</p>}
               </li>
             ))}
           </ul>
@@ -1035,9 +1270,28 @@ export function VideoStudio() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold"><Library className="size-5 text-primary" aria-hidden />Biblioteca de vídeos</h2>
-            <p className="mt-1 text-sm text-muted">Projetos simulados, roteiros e configurações reutilizáveis. MP4 só aparecerá após uma geração real autorizada.</p>
+            <p className="mt-1 text-sm text-muted">Projetos simulados, testes técnicos MP4, roteiros e configurações reutilizáveis. Testes técnicos não são vídeos gerados por IA.</p>
           </div>
           <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">{library.length} projeto(s)</span>
+        </div>
+        <div className="mt-5 rounded-xl border border-dashed border-border bg-background p-4">
+          <h3 className="font-semibold">Importar teste técnico local · sem IA</h3>
+          <p className="mt-1 text-sm text-muted">
+            Gere um MP4 com <code>npm run video:demo -- /caminho/video.mp4</code> e selecione-o aqui.
+            O render usa somente a imagem autorizada de Ana, sem produto, áudio ou geração audiovisual.
+          </p>
+          <p className="mt-1 text-xs text-muted">O envio é manual e usa a cota existente do Supabase Storage; nenhum vídeo é enviado automaticamente.</p>
+          <label className="mt-3 block text-sm font-medium">
+            MP4 técnico (6 segundos, 9:16, até 10 MB)
+            <input ref={demoVideoInputRef} type="file" accept="video/mp4,.mp4" onChange={(event) => void chooseTechnicalDemoFile(event)} className="mt-2 block w-full text-sm" aria-label="Selecionar MP4 de teste técnico" />
+          </label>
+          {validatingDemoVideo && <p role="status" className="mt-2 text-xs text-muted">Validando duração e proporção…</p>}
+          {demoVideoFile && <p className="mt-2 text-xs text-muted">Arquivo validado: {demoVideoFile.name}</p>}
+          {pendingDemoPath && <p role="status" className="mt-2 text-xs text-muted">MP4 já enviado. O registro da biblioteca pode ser repetido sem reenviar o arquivo.</p>}
+          <button type="button" disabled={!user || savingDemoVideo || validatingDemoVideo || (!demoVideoFile && !pendingDemoPath)} onClick={() => void saveTechnicalDemo()} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">
+            {savingDemoVideo ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Salvando teste…</> : <><Upload className="size-4" aria-hidden />Salvar MP4 no Storage privado</>}
+          </button>
+          {!user && <p className="mt-2 text-xs text-muted">Entre na sua conta para guardar o arquivo de forma privada.</p>}
         </div>
         {libraryLoading ? <p role="status" className="mt-5 text-sm text-muted">Carregando biblioteca…</p> : library.length === 0 ? (
           <div className="mt-5 rounded-xl border border-dashed border-border p-8 text-center">
@@ -1061,7 +1315,7 @@ export function VideoStudio() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <div><h3 className="truncate font-semibold">{record.product.name}</h3><p className="mt-1 text-xs text-muted">{character.name} · {videoTemplates.find((item) => item.id === record.templateId)?.name ?? "Template antigo"} · {record.durationSeconds}s · {record.format}</p></div>
-                      <span className="shrink-0 rounded-full bg-surface-muted px-2 py-1 text-[10px] font-semibold">{statusLabels[record.status]}</span>
+                      <span className="shrink-0 rounded-full bg-surface-muted px-2 py-1 text-[10px] font-semibold">{record.provider === "mock" && record.resultStoragePath ? "Teste técnico · sem IA" : statusLabels[record.status]}</span>
                     </div>
                     <p className="mt-2 text-xs text-muted">{new Date(record.createdAt).toLocaleString("pt-BR")}{record.parentId ? " · nova versão" : ""}</p>
                   </div>

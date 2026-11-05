@@ -23,6 +23,7 @@ const defaultDependencies = (overrides = {}) => ({
   enqueueJob: async () => ({ id: 'job-id', status: 'queued' }),
   getJob: async () => ({ id: 'job-id', status: 'processing' }),
   cancelJob: async () => ({ id: 'job-id', status: 'cancelled' }),
+  saveDemoResult: async (_userId, resultStoragePath) => ({ id: 'demo-project', result_storage_path: resultStoragePath }),
   ...overrides,
 });
 
@@ -55,6 +56,7 @@ const jobRequest = {
     description: 'Blusa leve',
     price: 'R$ 89,90',
     features: 'tecido de linho',
+    clothingSize: '',
     imageStoragePath: 'user-id/inputs/photo.webp',
   },
 };
@@ -180,6 +182,30 @@ test('consulta e cancelamento de jobs usam o usuário autenticado', async () => 
   const cancelled = await handler(request({ action: 'cancel-job', jobId: '11111111-1111-4111-8111-111111111111' }));
   assert.equal(cancelled.status, 200);
   assert.deepEqual(seenUsers, ['user-id', 'user-id']);
+});
+
+test('salvar MP4 de teste exige autenticação e caminho privado da própria conta', async () => {
+  let savedPath = '';
+  const handler = createVideoGenerationHandler(defaultDependencies({
+    saveDemoResult: async (userId, resultStoragePath) => {
+      assert.equal(userId, 'user-id');
+      savedPath = resultStoragePath;
+      return { id: 'demo-project', result_storage_path: resultStoragePath };
+    },
+  }));
+  const ownPath = 'user-id/outputs/test.mp4';
+  const response = await handler(request({ action: 'save-demo-result', resultStoragePath: ownPath }));
+  assert.equal(response.status, 201);
+  assert.equal(savedPath, ownPath);
+  assert.deepEqual((await response.json()).project, {
+    id: 'demo-project',
+    result_storage_path: ownPath,
+  });
+  const wrongOwner = await handler(request({
+    action: 'save-demo-result',
+    resultStoragePath: 'another-user/outputs/test.mp4',
+  }));
+  assert.equal(wrongOwner.status, 400);
 });
 
 test('geração real de vídeo continua bloqueada e handler rejeita origem, método e corpo inválidos', async () => {

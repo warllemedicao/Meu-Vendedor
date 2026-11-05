@@ -31,6 +31,7 @@ export interface VideoGenerationDependencies {
   enqueueJob(userId: string, projectId: string | null, idempotencyKey: string, requestData: Record<string, unknown>): Promise<unknown>;
   getJob(userId: string, jobId: string): Promise<unknown | null>;
   cancelJob(userId: string, jobId: string): Promise<unknown | null>;
+  saveDemoResult(userId: string, resultStoragePath: string): Promise<unknown>;
 }
 
 export class GeminiScriptError extends Error {
@@ -130,6 +131,7 @@ function validateJobRequest(value: unknown, userId: string): Record<string, unkn
   if (!isRecord(value) || !isRecord(value.product)) return null;
   const imagePath = value.product.imageStoragePath;
   const product = value.product;
+  const clothingSize = product.clothingSize === undefined ? "" : product.clothingSize;
   const sceneTemplates: Record<string, string> = {
     "fashion-studio": "wearing-product",
     "everyday-outfit": "wearing-product",
@@ -158,7 +160,8 @@ function validateJobRequest(value: unknown, userId: string): Record<string, unkn
     typeof imagePath !== "string" ||
     !new RegExp(`^${userId}/inputs/[A-Za-z0-9._-]+$`).test(imagePath) ||
     !validString(product.name, 160) || product.name.trim().length < 2 ||
-    !validString(product.description, 1200) || !validString(product.price, 80) || !validString(product.features, 1000)) return null;
+    !validString(product.description, 1200) || !validString(product.price, 80) ||
+    !validString(product.features, 1000) || !validString(clothingSize, 40)) return null;
 
   return {
     templateId: value.templateId,
@@ -180,6 +183,7 @@ function validateJobRequest(value: unknown, userId: string): Record<string, unkn
       description: product.description,
       price: product.price,
       features: product.features,
+      clothingSize,
       imageStoragePath: imagePath,
     },
   };
@@ -278,6 +282,23 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
           return response({ error: { code: error.code, message: error.message } }, error.status, cors);
         }
         return response({ error: { code: "gemini_unavailable", message: "O serviço Gemini não respondeu. Tente novamente mais tarde." } }, 502, cors);
+      }
+    }
+
+    if (body.action === "save-demo-result") {
+      const resultStoragePath = body.resultStoragePath;
+      if (typeof resultStoragePath !== "string" ||
+        !new RegExp(`^${userId}/outputs/[A-Za-z0-9._-]+\\.mp4$`).test(resultStoragePath)) {
+        return response({ error: { code: "invalid_request", message: "O caminho do vídeo de teste não é válido para esta conta." } }, 400, cors);
+      }
+      try {
+        const project = await dependencies.saveDemoResult(userId, resultStoragePath);
+        return response({ project }, 201, cors);
+      } catch (error) {
+        if (error instanceof VideoJobError) {
+          return response({ error: { code: error.code, message: error.message } }, error.status, cors);
+        }
+        return response({ error: { code: "demo_result_unavailable", message: "Não foi possível registrar o teste técnico na biblioteca." } }, 503, cors);
       }
     }
 

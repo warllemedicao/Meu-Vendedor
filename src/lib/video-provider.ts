@@ -23,6 +23,29 @@ export interface VideoGenerationJob {
   status: VideoGenerationStatus;
   resultUrl: string | null;
   simulated: boolean;
+  progress?: number | null;
+  resultStoragePath?: string | null;
+  errorCode?: string | null;
+}
+
+export interface AsyncVideoProcessorRequest {
+  jobId: string;
+  userId: string;
+  requestData: Record<string, unknown>;
+}
+
+export interface AsyncVideoProcessorStatus {
+  status: "queued" | "processing" | "completed" | "failed" | "cancelled";
+  progress: number;
+  providerJobId: string;
+  resultObjectPath?: string | null;
+  errorCode?: string | null;
+}
+
+export interface AsyncVideoProcessor {
+  submit(request: AsyncVideoProcessorRequest): Promise<{ providerJobId: string }>;
+  status(providerJobId: string): Promise<AsyncVideoProcessorStatus>;
+  cancel(providerJobId: string): Promise<void>;
 }
 
 export interface VideoGenerationProvider {

@@ -15,8 +15,11 @@ A interface e o fluxo de preparação estão publicados no Cloudflare. A renderi
 - Migração para metadados de cenas, armazenamento privado, RLS, controle de estados e jobs com chave idempotente, limite diário e limite de concorrência. A consulta `supabase migration list` confirmou `20261105172000` aplicada em produção, com o mesmo identificador local e remoto.
 - Biblioteca local para visitantes e sincronização no Supabase para usuários autenticados. Vídeos em Storage são acessados por URL temporária.
 - Edge Function `video-generation` autenticada; respostas de jobs não expõem dados internos do provedor nem Secrets.
+- O Estúdio consulta a fila autenticada, atualiza estados de tarefas ativas, permite cancelamento quando a fila estiver habilitada e reproduz resultados por URL assinada. O botão de enfileiramento só habilita quando o backend informa fila **e** processador disponíveis; a Edge Function atual ainda informa processador indisponível e a fila segue desativada.
+- O comando local `npm run video:demo -- /caminho/video.mp4` requer o binário `ffmpeg` no `PATH` e usa somente `public/presenters/ana.webp` para produzir um MP4 técnico de 6 segundos, 1080x1920, sem áudio, produto ou IA. O Estúdio valida o marcador, duração e proporção; pode enviar manualmente o arquivo (até 10 MB) para `mv-video-assets/{userId}/outputs/` sob as políticas existentes e registrá-lo como `mock`/`simulation_completed`, com etiqueta **Teste técnico · sem IA**.
+- O contrato `AsyncVideoProcessor` define submissão, consulta e cancelamento assíncronos para um adaptador futuro (por exemplo, Modal). Nenhum adaptador remoto foi implementado ou ativado.
 
-Os presets de cena ainda são metadados sem mídia-base. O botão de demonstração não chama provedores e não cria MP4 fictício. O endpoint de roteiro não foi chamado durante os testes.
+Os presets de cena ainda são metadados sem mídia-base. O botão “Simular geração sem créditos” não chama provedores e não cria MP4 fictício. O endpoint de roteiro não foi chamado durante os testes. O MP4 local é uma imagem estática de Ana, não um anúncio, try-on, demonstração de produto nem geração audiovisual por IA.
 
 Na exportação estática do Cloudflare, `next/image` precisa usar os caminhos públicos sem o endpoint de otimização do Next.js. A configuração de exportação agora desativa a otimização automática para essas imagens; os arquivos continuam em `public/presenters/` e não dependem do Supabase Storage. A origem do problema era a exportação gerar URLs `/_next/image` que não existem no Worker estático.
 
@@ -30,7 +33,9 @@ As referências pendentes são exatamente `public/presenters/carla.webp` e `publ
 
 Nenhum Secret/flag foi alterado. O endpoint Gemini não foi chamado, e não houve geração paga nem uso de GPU.
 
-A fila está bloqueada enquanto não existir um processador validado. Não há integração de renderização, composição de cenas, try-on, sincronização labial ou worker de vídeo; por isso não é possível gerar nem baixar MP4 real nesta etapa. O bucket privado de saída e a coluna de caminho do resultado estão preparados no SQL local, mas ainda não existem remotamente.
+A fila continua bloqueada: `videoProcessorAvailable` permanece `false`, e nenhum flag foi ativado. O fluxo de render local pode ser testado sem fila ou GPU; upload e registro no Storage exigem uma conta autenticada e uma Edge Function implantada com service role configurado. Essas operações remotas não foram executadas nesta implementação.
+
+Ainda não há integração de renderização de anúncios, composição de cenas, try-on, sincronização labial ou worker de vídeo. Carla e Rafael continuam sem referências aprovadas e não podem ser usados neste teste técnico; o MP4 é restrito à referência existente de Ana. O teste não altera o conteúdo nem os identificadores dos quatro personagens.
 
 ## Serviço oficial identificado
 

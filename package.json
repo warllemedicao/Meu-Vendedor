@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test --test-isolation=none tests/*.test.mjs",
+    "video:demo": "node scripts/generate-video-demo.mjs",
     "build:pages": "MEU_VENDEDOR_STATIC_EXPORT=1 next build --webpack",
     "deploy:cloudflare": "npm run build:pages && wrangler deploy",
     "typecheck:edge": "tsc --noEmit -p tsconfig.edge.json"

@@ -28,6 +28,7 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
     assert.equal(version.parent_id, first.id);
     await assert.rejects(db.query("update public.mv_video_projects set status='completed' where id=$1", [first.id]), /permission denied/);
     await db.query("insert into storage.objects(bucket_id,name) values('mv-video-assets',$1)", [`${alice}/inputs/owned.webp`]);
+    await db.query("insert into storage.objects(bucket_id,name) values('mv-video-assets',$1)", [`${alice}/outputs/demo.mp4`]);
     await assert.rejects(db.query("insert into public.mv_video_projects(product_data,presenter_id,voice_gender,voice_profile,emotional_tone,advertising_style,duration_seconds,aspect_ratio,generation_mode,target_audience,script,prompt,provider,status,result_url) values($1::jsonb,'ana','feminina','natural','alegre','tradicional',15,'9:16','ai-video','','roteiro seguro com conteúdo suficiente','prompt seguro com conteúdo suficiente','mock','completed','http://unsafe.test/video.mp4')", [product]), /check constraint|row-level security/);
 
     await db.query("insert into storage.objects(bucket_id,name) values('mv-video-assets',$1)", [`${alice}/inputs/photo.jpg`]);

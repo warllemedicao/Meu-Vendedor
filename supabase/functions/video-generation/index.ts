@@ -8,6 +8,7 @@ import {
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const videoAssetBucket = "mv-video-assets";
 const admin = serviceRoleKey
   ? createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
   : null;
@@ -22,6 +23,20 @@ function publicJob(value: unknown): Record<string, unknown> | null {
     "id", "project_id", "status", "provider", "provider_job_id", "attempt_count",
     "progress", "estimated_cost_usd", "result_object_path", "error_code",
     "cancel_requested_at", "created_at", "updated_at", "started_at", "completed_at",
+  ];
+  return Object.fromEntries(fields.filter((field) => field in row).map((field) => [field, row[field]]));
+}
+
+function publicProject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const fields = [
+    "id", "source_product_id", "parent_id", "product_data", "template_id",
+    "scene_preset_id", "presenter_id", "voice_gender", "voice_profile",
+    "emotional_tone", "advertising_style", "narration_mode", "motion_mode",
+    "duration_seconds", "aspect_ratio", "generation_mode", "target_audience",
+    "script", "prompt", "provider", "provider_job_id", "status", "result_url",
+    "result_storage_path", "created_at", "updated_at",
   ];
   return Object.fromEntries(fields.filter((field) => field in row).map((field) => [field, row[field]]));
 }
@@ -82,5 +97,79 @@ Deno.serve(createVideoGenerationHandler({
     });
     if (error) throw new VideoJobError(503, "job_storage_unavailable", "Não foi possível cancelar a tarefa.");
     return data ? publicJob(data) : null;
+  },
+  saveDemoResult: async (userId, resultStoragePath) => {
+    if (!admin) throw new VideoJobError(503, "demo_result_unavailable", "O armazenamento privado não está configurado.");
+
+    const fileName = resultStoragePath.split("/").at(-1)!;
+    const { data: files, error: storageError } = await admin.storage.from(videoAssetBucket)
+      .list(`${userId}/outputs`, { limit: 1, search: fileName });
+    if (storageError) throw new VideoJobError(503, "demo_storage_unavailable", "Não foi possível validar o MP4 no armazenamento privado.");
+    const storedFile = files?.find((file) => file.name === fileName);
+    if (!storedFile || storedFile.metadata?.mimetype !== "video/mp4") {
+      throw new VideoJobError(422, "demo_result_not_found", "O MP4 não foi encontrado no armazenamento privado desta conta.");
+    }
+    const fileSize = Number(storedFile.metadata?.size);
+    if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > 10 * 1024 * 1024) {
+      throw new VideoJobError(422, "demo_result_invalid", "O MP4 de teste excede o limite de 10 MB ou está vazio.");
+    }
+    const { data: demoFile, error: downloadError } = await admin.storage.from(videoAssetBucket).download(resultStoragePath);
+    if (downloadError || !demoFile) {
+      throw new VideoJobError(503, "demo_storage_unavailable", "Não foi possível validar o MP4 no armazenamento privado.");
+    }
+    if (demoFile.type !== "video/mp4" ||
+      !((await demoFile.slice(0, 1024 * 1024).text()).includes("Still image of Ana; no AI video generation"))) {
+      throw new VideoJobError(422, "demo_result_invalid", "O arquivo não corresponde ao teste técnico local aprovado.");
+    }
+
+    const { data: existing, error: lookupError } = await admin.from("mv_video_projects")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("result_storage_path", resultStoragePath)
+      .maybeSingle();
+    if (lookupError) throw new VideoJobError(503, "demo_result_unavailable", "Não foi possível consultar a biblioteca.");
+    if (existing) {
+      const project = publicProject(existing);
+      if (project) return project;
+      throw new VideoJobError(503, "demo_result_unavailable", "Não foi possível consultar a biblioteca.");
+    }
+
+    const { data, error } = await admin.from("mv_video_projects").insert({
+      user_id: userId,
+      product_data: {
+        name: "Teste técnico local",
+        description: "Imagem estática autorizada de Ana; sem visualização de produto e sem geração por IA.",
+        price: "",
+        features: "",
+        affiliateLink: "",
+        imageUrl: "",
+        imageName: "",
+        imageStoragePath: "",
+        clothingSize: "",
+      },
+      template_id: "presenting-product",
+      scene_preset_id: "neutral-product-table",
+      presenter_id: "ana",
+      voice_gender: "feminina",
+      voice_profile: "natural",
+      emotional_tone: "calmo",
+      advertising_style: "profissional",
+      narration_mode: "voiceover",
+      motion_mode: "poses",
+      duration_seconds: 6,
+      aspect_ratio: "9:16",
+      generation_mode: "economy",
+      target_audience: "",
+      script: "Teste de codificação local com imagem fixa autorizada. Nenhum roteiro publicitário ou vídeo de IA foi gerado.",
+      prompt: "TESTE TÉCNICO LOCAL: imagem estática autorizada de Ana convertida em MP4; sem IA, áudio, produto ou try-on.",
+      provider: "mock",
+      status: "simulation_completed",
+      result_url: null,
+      result_storage_path: resultStoragePath,
+    }).select("*").single();
+    if (error) throw new VideoJobError(503, "demo_result_unavailable", "Não foi possível salvar o teste técnico na biblioteca.");
+    const project = publicProject(data);
+    if (!project) throw new VideoJobError(503, "demo_result_unavailable", "Não foi possível salvar o teste técnico na biblioteca.");
+    return project;
   },
 }));
