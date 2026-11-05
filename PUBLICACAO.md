@@ -1,5 +1,13 @@
 # Publicações — Meu Vendedor
 
+## Correção das imagens e perfis do Estúdio — publicada
+
+Em 05/11/2026 às 19:52 UTC, o Worker `meu-vendedor` foi atualizado para a versão `56fa55d6-831b-475d-aa63-088ad2926b64`, com 100% do tráfego. A causa dos espaços vazios era o `next/image` gerar URLs `/_next/image` na exportação estática; o endpoint não existe no Worker e respondia 404. O build estático agora desativa a otimização automática e referencia os assets públicos diretamente.
+
+Verificações após publicação: `/videos` retornou HTTP 200; Ana, Lucas, Carla e Rafael retornaram HTTP 200 com `image/webp`; o HTML público referencia diretamente os retratos disponíveis e não contém URLs `/_next/image`. Os arquivos de Carla e Rafael permanecem guardados, mas seus cartões mostram a referência como pendente porque as imagens anteriores não representam claramente os perfis plus size. Não foram geradas imagens novas, alterados dados do Supabase ou executadas migrações.
+
+O commit `44dbac3` foi implantado a partir do checkout local. O push para GitHub não foi concluído porque não há sessão GitHub autenticada neste Codespace.
+
 ## Gerador de vídeos IA — publicação confirmada
 
 Em 05/11/2026 foi publicado no Worker existente o gerador completo em modo demonstração. Versão Cloudflare `7f135c6e-69b7-4fbc-a459-82bdcf34f30e`, URL pública [Meu Vendedor — Vídeos IA](https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev/videos). O cron de 30 minutos foi preservado.

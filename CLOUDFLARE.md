@@ -9,7 +9,7 @@
 - Build: `npm run build:pages`.
 - Build e deploy: `npm run deploy:cloudflare`, com Wrangler autorizado na conta correta.
 - Node.js: `24`, declarado em `.node-version`.
-- Versão ativa verificada em 05/11/2026: `7f135c6e-69b7-4fbc-a459-82bdcf34f30e`.
+- Versão ativa verificada em 05/11/2026: `56fa55d6-831b-475d-aa63-088ad2926b64`.
 - `/videos` está publicado e os arquivos em `public/presenters/` são servidos como WebP. A exportação estática usa as URLs diretas dos assets, sem depender do endpoint de otimização `/_next/image`. As referências de Carla e Rafael permanecem pendentes; detalhes em `VIDEOS_IA.md`.
 
 O build normal do Next.js foi preservado; o comando específico gera exportação estática com Webpack. Não é necessário criar outro projeto Pages para usar esta hospedagem. O nome histórico `build:pages` identifica o build estático, que também pode ser servido pelo Worker.

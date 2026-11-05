@@ -24,7 +24,7 @@ As referências pendentes são exatamente `public/presenters/carla.webp` e `publ
 
 ## Estado remoto e limites desta etapa
 
-**Cloudflare:** o Worker `meu-vendedor` está com 100% do tráfego na versão `097e7f47-6233-4195-88ba-b310ede53e95`, publicada em 05/11/2026 às 17:59 UTC. `/videos` respondeu HTTP 200; o bundle remoto da página é idêntico ao bundle do build local recuperado. Não foi necessário repetir o deploy.
+**Cloudflare:** o Worker `meu-vendedor` está com 100% do tráfego na versão `56fa55d6-831b-475d-aa63-088ad2926b64`, publicada em 05/11/2026 às 19:52 UTC. `/videos` e os quatro arquivos `.webp` responderam HTTP 200; as imagens retornam `image/webp` e o HTML publicado usa caminhos diretos `/presenters/*.webp`.
 
 **Supabase:** a migração `20261105172000` e as três migrações anteriores constam no histórico remoto de produção. `video-generation` está ACTIVE na versão 12, com JWT obrigatório. O Secret `GEMINI_API_KEY` está configurado; `MV_GEMINI_SCRIPT_ENABLED` e `MV_VIDEO_JOBS_ENABLED` não aparecem na listagem de nomes. Não validei a chave nem chamei o Gemini; sem as flags explícitas, o código mantém roteiro Gemini e fila de jobs desativados. A migração e a função não foram reaplicadas nesta recuperação.
 
