@@ -16,12 +16,14 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  Upload,
   WandSparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Card } from "@/components/ui/Card";
 import { getSupabase } from "@/lib/supabase/client";
+import { createVideoAssetUrl, MAX_VIDEO_IMAGE_BYTES, uploadVideoProductImage } from "@/lib/video-assets";
 import { mockVideoProvider } from "@/lib/video-provider";
 import {
   advertisingStyles,
@@ -31,19 +33,25 @@ import {
   emotionalTones,
   estimateSceneCount,
   generationModes,
+  motionModes,
+  narrationModes,
   validateVideoConfiguration,
+  videoScenePresets,
+  videoTemplates,
   videoDurations,
-  videoFormats,
   virtualPresenters,
   voiceGenders,
   voiceProfiles,
   type AdvertisingStyleId,
   type EmotionalToneId,
   type GenerationMode,
+  type MotionMode,
   type PresenterId,
+  type NarrationMode,
   type VideoConfiguration,
   type VideoDuration,
   type VideoFormat,
+  type VideoTemplateId,
   type VideoGenerationStatus,
   type VideoLibraryRecord,
   type VideoProductInput,
@@ -53,7 +61,6 @@ import {
 
 const FLOW_URL = "https://labs.google/fx/tools/flow";
 const LIBRARY_PREFIX = "mv-video-library-v2";
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft disabled:opacity-50";
 
@@ -72,23 +79,38 @@ interface VideoProjectRow {
   source_product_id: string | null;
   parent_id: string | null;
   product_data: VideoProductInput;
+  template_id: VideoTemplateId;
+  scene_preset_id: string;
   presenter_id: PresenterId;
   voice_gender: VoiceGender;
   voice_profile: VoiceProfileId;
   emotional_tone: EmotionalToneId;
   advertising_style: AdvertisingStyleId;
-  duration_seconds: VideoDuration;
+  narration_mode: NarrationMode;
+  motion_mode: MotionMode;
+  duration_seconds: number;
   aspect_ratio: VideoFormat;
   generation_mode: GenerationMode;
   target_audience: string;
   script: string;
   prompt: string;
-  provider: "mock" | "google-gemini";
+  provider: "mock" | "google-gemini" | "huggingface" | "modal";
   provider_job_id: string | null;
   status: VideoGenerationStatus;
   result_url: string | null;
+  result_storage_path: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface VideoJobRow {
+  id: string;
+  status: "queued" | "processing" | "completed" | "failed" | "cancelled";
+  progress: number;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  error_code: string | null;
 }
 
 const emptyProduct: VideoProductInput = {
@@ -100,6 +122,7 @@ const emptyProduct: VideoProductInput = {
   affiliateLink: "",
   imageUrl: "",
   imageName: "",
+  imageStoragePath: "",
 };
 
 const statusLabels: Record<VideoGenerationStatus, string> = {
@@ -110,21 +133,59 @@ const statusLabels: Record<VideoGenerationStatus, string> = {
   processing: "Processando",
   completed: "Concluído",
   simulation_completed: "Simulação concluída",
+  cancelled: "Cancelado",
   failed: "Falha na geração",
 };
 
-function isLibraryRecord(value: unknown): value is VideoLibraryRecord {
-  if (!value || typeof value !== "object") return false;
+const jobStatusLabels: Record<VideoJobRow["status"], string> = {
+  queued: "Na fila",
+  processing: "Processando",
+  completed: "Concluído",
+  failed: "Falhou",
+  cancelled: "Cancelado",
+};
+
+const storedDurations = [6, 7, 8, 10, 15, 20, 30, 45, 60] as const;
+type StoredDuration = (typeof storedDurations)[number];
+
+function isStoredDuration(value: unknown): value is StoredDuration {
+  return typeof value === "number" && (storedDurations as readonly number[]).includes(value);
+}
+
+function normalizeLibraryRecord(value: unknown): VideoLibraryRecord | null {
+  if (!value || typeof value !== "object") return null;
   const row = value as Partial<VideoLibraryRecord>;
-  return typeof row.id === "string" && typeof row.script === "string" && typeof row.prompt === "string" &&
-    typeof row.createdAt === "string" && !!row.product && typeof row.product.name === "string" &&
-    virtualPresenters.some((item) => item.id === row.presenterId);
+  if (typeof row.id !== "string" || typeof row.script !== "string" || typeof row.prompt !== "string" ||
+    typeof row.createdAt !== "string" || !row.product || typeof row.product.name !== "string" ||
+    !virtualPresenters.some((item) => item.id === row.presenterId)) return null;
+
+  const templateId = videoTemplates.some((template) => template.id === row.templateId)
+    ? row.templateId!
+    : "presenting-product";
+  const scenePresetId = videoScenePresets.some((scene) => scene.id === row.scenePresetId && scene.templateId === templateId)
+    ? row.scenePresetId!
+    : videoScenePresets.find((scene) => scene.templateId === templateId)!.id;
+  const durationSeconds = isStoredDuration(row.durationSeconds) ? row.durationSeconds : 8;
+  const format = row.format === "1:1" || row.format === "16:9" ? row.format : "9:16";
+  const narrationMode = narrationModes.some((option) => option.id === row.narrationMode) ? row.narrationMode! : "voiceover";
+  const motionMode = motionModes.some((option) => option.id === row.motionMode) ? row.motionMode! : "poses";
+  return {
+    ...row as VideoLibraryRecord,
+    templateId,
+    scenePresetId,
+    narrationMode,
+    motionMode,
+    durationSeconds,
+    format,
+    resultStoragePath: typeof row.resultStoragePath === "string" ? row.resultStoragePath : null,
+    product: { ...row.product, imageStoragePath: row.product.imageStoragePath ?? "" },
+  };
 }
 
 function readLocalLibrary(key: string): VideoLibraryRecord[] {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(key) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter(isLibraryRecord).slice(0, 50) : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeLibraryRecord).filter((record): record is VideoLibraryRecord => record !== null).slice(0, 50) : [];
   } catch {
     return [];
   }
@@ -135,15 +196,19 @@ function writeLocalLibrary(key: string, records: VideoLibraryRecord[]) {
 }
 
 function fromDatabaseRow(row: VideoProjectRow): VideoLibraryRecord {
-  return {
+  const record = normalizeLibraryRecord({
     id: row.id,
     parentId: row.parent_id,
     product: { ...row.product_data, sourceProductId: row.source_product_id },
+    templateId: row.template_id,
+    scenePresetId: row.scene_preset_id,
     presenterId: row.presenter_id,
     voiceGender: row.voice_gender,
     voiceProfileId: row.voice_profile,
     emotionalToneId: row.emotional_tone,
     advertisingStyleId: row.advertising_style,
+    narrationMode: row.narration_mode,
+    motionMode: row.motion_mode,
     durationSeconds: row.duration_seconds,
     format: row.aspect_ratio,
     mode: row.generation_mode,
@@ -154,9 +219,12 @@ function fromDatabaseRow(row: VideoProjectRow): VideoLibraryRecord {
     providerJobId: row.provider_job_id,
     status: row.status,
     resultUrl: row.result_url,
+    resultStoragePath: row.result_storage_path,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
+  if (!record) throw new Error("O projeto de vídeo salvo tem dados inválidos.");
+  return record;
 }
 
 function toDatabaseRow(record: VideoLibraryRecord) {
@@ -172,12 +240,17 @@ function toDatabaseRow(record: VideoLibraryRecord) {
       affiliateLink: record.product.affiliateLink,
       imageUrl: record.product.imageUrl || "",
       imageName: record.product.imageName || "",
+      imageStoragePath: record.product.imageStoragePath || "",
     },
+    template_id: record.templateId,
+    scene_preset_id: record.scenePresetId,
     presenter_id: record.presenterId,
     voice_gender: record.voiceGender,
     voice_profile: record.voiceProfileId,
     emotional_tone: record.emotionalToneId,
     advertising_style: record.advertisingStyleId,
+    narration_mode: record.narrationMode,
+    motion_mode: record.motionMode,
     duration_seconds: record.durationSeconds,
     aspect_ratio: record.format,
     generation_mode: record.mode,
@@ -194,23 +267,38 @@ function toDatabaseRow(record: VideoLibraryRecord) {
 export function VideoStudio() {
   const { user, configured, loading: authLoading } = useAuth();
   const [product, setProduct] = useState<VideoProductInput>(emptyProduct);
+  const [templateId, setTemplateId] = useState<VideoTemplateId>("presenting-product");
+  const [scenePresetId, setScenePresetId] = useState("beauty-counter");
   const [presenterId, setPresenterId] = useState<PresenterId>("ana");
   const [voiceGender, setVoiceGender] = useState<VoiceGender>("feminina");
   const [voiceProfileId, setVoiceProfileId] = useState<VoiceProfileId>("natural");
   const [emotionalToneId, setEmotionalToneId] = useState<EmotionalToneId>("alegre");
   const [advertisingStyleId, setAdvertisingStyleId] = useState<AdvertisingStyleId>("tradicional");
-  const [durationSeconds, setDurationSeconds] = useState<VideoDuration>(15);
-  const [format, setFormat] = useState<VideoFormat>("9:16");
+  const [narrationMode, setNarrationMode] = useState<NarrationMode>("voiceover");
+  const [motionMode, setMotionMode] = useState<MotionMode>("poses");
+  const [durationSeconds, setDurationSeconds] = useState<VideoDuration>(8);
+  const format: VideoFormat = "9:16";
   const [mode, setMode] = useState<GenerationMode>("ai-video");
   const [targetAudience, setTargetAudience] = useState("");
   const [script, setScript] = useState("");
   const [scriptEdited, setScriptEdited] = useState(false);
+  const [geminiScriptEnabledForUser, setGeminiScriptAvailable] = useState(false);
+  const [geminiCapabilityMessage, setGeminiCapabilityMessage] = useState("Verificando disponibilidade após entrar.");
+  const [generatingScript, setGeneratingScript] = useState(false);
+  const [jobManagementEnabledForUser, setJobManagementAvailable] = useState(false);
+  const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
   const [generationStatus, setStatus] = useState<VideoGenerationStatus>("awaiting_configuration");
   const [productImage, setProductImage] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadedImagePreview, setUploadedImagePreview] = useState<{ userId: string; path: string; url: string } | null>(null);
   const [imageError, setImageError] = useState("");
   const [existingProducts, setExistingProducts] = useState<ExistingProduct[]>([]);
   const [library, setLibrary] = useState<VideoLibraryRecord[]>([]);
+  const [jobs, setJobs] = useState<VideoJobRow[]>([]);
+  const [jobsLoadedForUser, setJobsLoadedForUser] = useState<string | null>(null);
+  const [jobsError, setJobsError] = useState("");
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [signedResult, setSignedResult] = useState<{ userId: string; recordId: string; url?: string; error?: string } | null>(null);
   const [expandedScriptId, setExpandedScriptId] = useState<string | null>(null);
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [parentId, setParentId] = useState<string | null>(null);
@@ -221,20 +309,32 @@ export function VideoStudio() {
   const previewRef = useRef<HTMLDivElement>(null);
 
   const libraryKey = `${LIBRARY_PREFIX}:${user?.id ?? "guest"}`;
+  const userId = user?.id;
+  const geminiScriptAvailable = Boolean(userId && geminiScriptEnabledForUser);
+  const jobManagementAvailable = Boolean(userId && jobManagementEnabledForUser);
+  const geminiCapabilityNotice = userId ? geminiCapabilityMessage : "Entre na sua conta para verificar o provedor.";
+  const visibleJobs = userId ? jobs : [];
+  const visibleJobsError = userId ? jobsError : "";
+  const visibleJobsLoading = Boolean(userId && jobsLoadedForUser !== userId);
+  const selectedSignedResult = userId && signedResult?.userId === userId && signedResult.recordId === selectedRecordId ? signedResult : null;
   const presenter = virtualPresenters.find((item) => item.id === presenterId) ?? virtualPresenters[0];
-  const imagePreview = useMemo(() => productImage ? URL.createObjectURL(productImage) : product.imageUrl || "", [productImage, product.imageUrl]);
+  const imagePreview = useMemo(() => productImage ? URL.createObjectURL(productImage) : userId && uploadedImagePreview?.userId === userId && uploadedImagePreview.path === product.imageStoragePath ? uploadedImagePreview.url : product.imageUrl || "", [productImage, product.imageStoragePath, product.imageUrl, uploadedImagePreview, userId]);
   const configuration = useMemo<VideoConfiguration>(() => ({
     product,
+    templateId,
+    scenePresetId,
     presenterId,
     voiceGender,
     voiceProfileId,
     emotionalToneId,
     advertisingStyleId,
+    narrationMode,
+    motionMode,
     durationSeconds,
     format,
     mode,
     targetAudience,
-  }), [product, presenterId, voiceGender, voiceProfileId, emotionalToneId, advertisingStyleId, durationSeconds, format, mode, targetAudience]);
+  }), [product, templateId, scenePresetId, presenterId, voiceGender, voiceProfileId, emotionalToneId, advertisingStyleId, narrationMode, motionMode, durationSeconds, mode, targetAudience]);
   const suggestedScript = useMemo(() => buildAdvertisingScript(configuration), [configuration]);
   const effectiveScript = scriptEdited ? script : suggestedScript;
   const prompt = useMemo(() => buildVideoPrompt(configuration, effectiveScript), [configuration, effectiveScript]);
@@ -244,6 +344,33 @@ export function VideoStudio() {
   useEffect(() => () => {
     if (productImage && imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
   }, [imagePreview, productImage]);
+
+  useEffect(() => {
+    const client = getSupabase();
+    const path = product.imageStoragePath;
+    if (!userId || !client || !path || productImage) return;
+    let active = true;
+    void createVideoAssetUrl(client, userId, path)
+      .then((url) => { if (active) setUploadedImagePreview({ userId, path, url }); })
+      .catch((uploadError: unknown) => {
+        if (active) setImageError(uploadError instanceof Error ? uploadError.message : "Não foi possível acessar a imagem privada.");
+      });
+    return () => { active = false; };
+  }, [product.imageStoragePath, productImage, userId]);
+
+  useEffect(() => {
+    const record = library.find((item) => item.id === selectedRecordId);
+    if (!record || record.resultUrl || !record.resultStoragePath || !userId) return;
+    const client = getSupabase();
+    if (!client) return;
+    let active = true;
+    void createVideoAssetUrl(client, userId, record.resultStoragePath)
+      .then((url) => { if (active) setSignedResult({ userId, recordId: record.id, url }); })
+      .catch((assetError: unknown) => {
+        if (active) setSignedResult({ userId, recordId: record.id, error: assetError instanceof Error ? assetError.message : "Não foi possível acessar o vídeo privado." });
+      });
+    return () => { active = false; };
+  }, [library, selectedRecordId, userId]);
 
   useEffect(() => {
     let active = true;
@@ -285,6 +412,57 @@ export function VideoStudio() {
     return () => { active = false; };
   }, [user]);
 
+  useEffect(() => {
+    const client = getSupabase();
+    if (!userId || !client) return;
+    let active = true;
+    void client.functions.invoke("video-generation", { body: { action: "capabilities" } })
+      .then(({ data, error: invokeError }) => {
+        if (!active) return;
+        if (invokeError) {
+          setGeminiScriptAvailable(false);
+          setGeminiCapabilityMessage("Não foi possível verificar o backend Gemini.");
+          return;
+        }
+        const scriptCapability = data?.script;
+        const available = scriptCapability?.available === true;
+        setGeminiScriptAvailable(available);
+        setJobManagementAvailable(data?.jobs?.enabled === true);
+        setGeminiCapabilityMessage(available
+          ? "Gemini habilitado no backend; a chamada de roteiro pode consumir créditos."
+          : "Gemini não está habilitado para roteiros. Nenhuma chamada foi feita.");
+      })
+      .catch(() => {
+        if (active) {
+          setGeminiScriptAvailable(false);
+          setGeminiCapabilityMessage("Não foi possível verificar o backend Gemini.");
+        }
+      });
+    return () => { active = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    const client = getSupabase();
+    if (!userId || !client) return;
+    let active = true;
+    void client.from("mv_video_jobs")
+      .select("id,status,progress,created_at,updated_at,completed_at,error_code")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data, error: loadError }) => {
+        if (!active) return;
+        if (loadError) {
+          setJobsError("Não foi possível carregar o histórico de tarefas. A migração local pode ainda não estar aplicada.");
+        } else {
+          setJobs((data as VideoJobRow[] | null) ?? []);
+          setJobsError("");
+        }
+        setJobsLoadedForUser(userId);
+      });
+    return () => { active = false; };
+  }, [userId]);
+
   function updateProduct<K extends keyof VideoProductInput>(field: K, value: VideoProductInput[K]) {
     setProduct((current) => ({ ...current, [field]: value }));
     setError("");
@@ -309,6 +487,7 @@ export function VideoStudio() {
       affiliateLink: selected.product_url,
       imageUrl: selected.image_url || "",
       imageName: "",
+      imageStoragePath: "",
     });
     setProductImage(null);
     setScriptEdited(false);
@@ -323,7 +502,7 @@ export function VideoStudio() {
       event.target.value = "";
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
+    if (file.size > MAX_VIDEO_IMAGE_BYTES) {
       setImageError("A imagem deve ter no máximo 10 MB.");
       event.target.value = "";
       return;
@@ -331,6 +510,78 @@ export function VideoStudio() {
     setProductImage(file);
     updateProduct("imageName", file.name);
     updateProduct("imageUrl", "");
+    updateProduct("imageStoragePath", "");
+    setUploadedImagePreview(null);
+  }
+
+  async function uploadProductImage() {
+    const client = getSupabase();
+    if (!user || !client || !productImage) {
+      setError("Entre na sua conta e selecione uma imagem para salvá-la no armazenamento privado.");
+      return;
+    }
+    setUploadingImage(true);
+    setError("");
+    try {
+      const path = await uploadVideoProductImage(client, user.id, productImage);
+      updateProduct("imageStoragePath", path);
+      setNotice("Imagem salva no armazenamento privado da sua conta.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Não foi possível salvar a imagem.");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  async function generateGeminiScript() {
+    const client = getSupabase();
+    if (!user || !client || !geminiScriptAvailable || generatingScript) return;
+    setGeneratingScript(true);
+    setError("");
+    setNotice("");
+    try {
+      const { data, error: invokeError } = await client.functions.invoke("video-generation", {
+        body: { action: "generate-script", configuration },
+      });
+      if (invokeError) throw new Error("Não foi possível gerar o roteiro no Gemini.");
+      if (!data || typeof data.script !== "string") {
+        const message = typeof data?.error?.message === "string" ? data.error.message : "O backend não retornou um roteiro válido.";
+        throw new Error(message);
+      }
+      setScript(data.script);
+      setScriptEdited(true);
+      setNotice("Roteiro gerado pelo Gemini. Revise antes de usar.");
+    } catch (scriptError) {
+      setError(scriptError instanceof Error ? scriptError.message : "Não foi possível gerar o roteiro.");
+    } finally {
+      setGeneratingScript(false);
+    }
+  }
+
+  async function cancelVideoJob(jobId: string) {
+    const client = getSupabase();
+    if (!user || !client || !jobManagementAvailable || cancellingJobId) return;
+    setCancellingJobId(jobId);
+    setJobsError("");
+    try {
+      const { data, error: invokeError } = await client.functions.invoke("video-generation", {
+        body: { action: "cancel-job", jobId },
+      });
+      if (invokeError || !data?.job) throw new Error("Não foi possível solicitar o cancelamento da tarefa.");
+      const updated = data.job as VideoJobRow;
+      setJobs((current) => current.map((job) => job.id === jobId ? { ...job, ...updated } : job));
+    } catch (cancelError) {
+      setJobsError(cancelError instanceof Error ? cancelError.message : "Não foi possível cancelar a tarefa.");
+    } finally {
+      setCancellingJobId(null);
+    }
+  }
+
+  function chooseTemplate(id: VideoTemplateId) {
+    setTemplateId(id);
+    const firstScene = videoScenePresets.find((scene) => scene.templateId === id);
+    if (firstScene) setScenePresetId(firstScene.id);
+    setScriptEdited(false);
   }
 
   function choosePresenter(id: PresenterId) {
@@ -403,13 +654,16 @@ export function VideoStudio() {
   function loadRecord(record: VideoLibraryRecord, newVersion: boolean) {
     setProduct({ ...record.product });
     setProductImage(null);
+    setTemplateId(record.templateId);
+    setScenePresetId(record.scenePresetId);
     setPresenterId(record.presenterId);
     setVoiceGender(record.voiceGender);
     setVoiceProfileId(record.voiceProfileId);
     setEmotionalToneId(record.emotionalToneId);
     setAdvertisingStyleId(record.advertisingStyleId);
-    setDurationSeconds(record.durationSeconds);
-    setFormat(record.format);
+    setNarrationMode(record.narrationMode);
+    setMotionMode(record.motionMode);
+    setDurationSeconds(videoDurations.find((seconds) => seconds === record.durationSeconds) ?? 8);
     setMode(record.mode);
     setTargetAudience(record.targetAudience);
     setScript(record.script);
@@ -431,7 +685,7 @@ export function VideoStudio() {
     setNotice("Projeto removido da biblioteca.");
   }
 
-  const previewRatio = format === "9:16" ? "aspect-[9/16] max-h-[34rem]" : format === "1:1" ? "aspect-square" : "aspect-video";
+  const previewRatio = "aspect-[9/16] max-h-[34rem]";
   const busy = status === "generating" || status === "processing";
 
   return (
@@ -450,8 +704,8 @@ export function VideoStudio() {
             <p className="mt-1 text-xs text-muted">Modelo preparado: Gemini Omni 1.1 Flash. Nenhuma chave, cobrança ou geração real nesta etapa.</p>
           </div>
         </div>
-        <ol className="grid grid-cols-2 border-t border-border text-xs sm:grid-cols-5">
-          {["Produto", "Personagem", "Voz e emoção", "Formato", "Roteiro"].map((step, index) => (
+        <ol className="grid grid-cols-2 border-t border-border text-xs sm:grid-cols-6">
+          {["Produto", "Template e cenário", "Personagem", "Voz e movimento", "Formato", "Roteiro"].map((step, index) => (
             <li key={step} className="flex items-center gap-2 border-b border-r border-border px-3 py-3 last:border-r-0 sm:border-b-0">
               <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-bold text-background">{index + 1}</span>
               <span className="font-medium">{step}</span>
@@ -498,14 +752,45 @@ export function VideoStudio() {
                   <img src={imagePreview} alt="Prévia do produto" className="mb-3 max-h-52 max-w-full rounded-lg object-contain" />
                 ) : <ImagePlus className="mb-2 size-8 text-primary" aria-hidden />}
                 <span className="text-sm font-semibold">{product.imageName || (product.imageUrl ? "Imagem do produto sincronizado" : "Adicionar imagem do produto")}</span>
-                <span className="mt-1 text-xs text-muted">PNG, JPEG ou WebP · até 10 MB · prévia local</span>
+                <span className="mt-1 text-xs text-muted">PNG, JPEG ou WebP · até 10 MB · prévia local até salvar no armazenamento privado</span>
                 <input type="file" accept="image/png,image/jpeg,image/webp" onChange={chooseProductImage} className="sr-only" aria-label="Adicionar imagem do produto" />
               </label>
             </div>
+            {productImage && user && (
+              <button type="button" disabled={uploadingImage} onClick={() => void uploadProductImage()} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold disabled:opacity-50">
+                {uploadingImage ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Upload className="size-4" aria-hidden />}
+                {uploadingImage ? "Salvando imagem…" : "Salvar imagem na área privada"}
+              </button>
+            )}
             {imageError && <p role="alert" className="mt-3 rounded-lg bg-danger-soft p-3 text-sm text-danger">{imageError}</p>}
           </Card>
 
-          <Card titulo="2. Escolha o personagem virtual">
+          <Card titulo="2. Escolha um template e cenário">
+            <div className="grid gap-3 md:grid-cols-3">
+              {videoTemplates.map((template) => (
+                <button
+                  type="button"
+                  key={template.id}
+                  aria-pressed={templateId === template.id}
+                  onClick={() => chooseTemplate(template.id)}
+                  className={`rounded-xl border p-4 text-left ${templateId === template.id ? "border-primary bg-primary-soft" : "border-border"}`}
+                >
+                  <span className="block text-sm font-semibold">{template.name}</span>
+                  <span className="mt-1 block text-xs text-muted">{template.description}</span>
+                </button>
+              ))}
+            </div>
+            <label className="mt-4 block text-sm font-medium">Cenário desejado
+              <select value={scenePresetId} onChange={(event) => setScenePresetId(event.target.value)} className={inputClass}>
+                {videoScenePresets.filter((scene) => scene.templateId === templateId).map((scene) => (
+                  <option key={scene.id} value={scene.id}>{scene.name} · {scene.category}</option>
+                ))}
+              </select>
+            </label>
+            <p className="mt-2 text-xs text-muted">Os cenários são preferências do briefing. A biblioteca ainda não contém cenas-base prontas; a simulação não gera try-on, composição ou vídeo.</p>
+          </Card>
+
+          <Card titulo="3. Escolha o personagem virtual">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {virtualPresenters.map((character) => (
                 <button
@@ -529,7 +814,7 @@ export function VideoStudio() {
             <p className="mt-3 text-xs text-muted">As imagens são referências originais. A consistência depende do suporte do modelo e não pode ser garantida apenas por prompt.</p>
           </Card>
 
-          <Card titulo="3. Defina voz e emoção">
+          <Card titulo="4. Defina voz, narração e movimento">
             <div className="grid gap-4 sm:grid-cols-2">
               <fieldset>
                 <legend className="text-sm font-medium">Tipo de voz</legend>
@@ -547,11 +832,21 @@ export function VideoStudio() {
                   {emotionalTones.map((tone) => <option key={tone.id} value={tone.id}>{tone.label}</option>)}
                 </select>
               </label>
+              <label className="block text-sm font-medium">Modo de narração
+                <select value={narrationMode} onChange={(event) => setNarrationMode(event.target.value as NarrationMode)} className={inputClass}>
+                  {narrationModes.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-medium">Movimento
+                <select value={motionMode} onChange={(event) => setMotionMode(event.target.value as MotionMode)} className={inputClass}>
+                  {motionModes.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                </select>
+              </label>
             </div>
-            <p className="mt-3 text-xs text-muted">Essas opções viram instruções de interpretação. Uma voz específica ou sincronização labial só será habilitada quando a API confirmar suporte.</p>
+            <p className="mt-3 text-xs text-muted">Essas opções são instruções de briefing; não geram áudio nem garantem sincronização labial ou movimento real nesta etapa.</p>
           </Card>
 
-          <Card titulo="4. Escolha o estilo, duração e formato">
+          <Card titulo="5. Escolha o estilo, duração e formato">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-medium sm:col-span-2">Estilo do anúncio
                 <select value={advertisingStyleId} onChange={(event) => setAdvertisingStyleId(event.target.value as AdvertisingStyleId)} className={inputClass}>
@@ -564,11 +859,9 @@ export function VideoStudio() {
                 </select>
                 <span className="mt-1 block text-xs font-normal text-muted">Plano estimado: {estimateSceneCount(durationSeconds)} cena(s) de até 8s.</span>
               </label>
-              <label className="block text-sm font-medium">Formato
-                <select value={format} onChange={(event) => setFormat(event.target.value as VideoFormat)} className={inputClass}>
-                  {videoFormats.map((option) => <option key={option.id} value={option.id}>{option.label} · {option.use}</option>)}
-                </select>
-              </label>
+              <div className="block text-sm font-medium">Formato
+                <p className={`${inputClass} cursor-not-allowed text-muted`} aria-label="Formato do vídeo">Vertical 9:16 · Reels, TikTok e Shorts</p>
+              </div>
             </div>
             <fieldset className="mt-4">
               <legend className="text-sm font-medium">Estratégia de produção</legend>
@@ -578,11 +871,18 @@ export function VideoStudio() {
             </fieldset>
           </Card>
 
-          <Card titulo="5. Gere e edite o roteiro">
+          <Card titulo="6. Gere e edite o roteiro">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-muted">O roteiro usa somente as informações preenchidas acima.</p>
-              <button type="button" onClick={() => { setScript(suggestedScript); setScriptEdited(false); }} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold"><RefreshCw className="size-3.5" aria-hidden />Gerar novamente</button>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => { setScript(suggestedScript); setScriptEdited(false); }} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold"><RefreshCw className="size-3.5" aria-hidden />Roteiro local</button>
+                <button type="button" disabled={!geminiScriptAvailable || generatingScript} onClick={() => void generateGeminiScript()} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50">
+                  {generatingScript ? <LoaderCircle className="size-3.5 animate-spin" aria-hidden /> : <WandSparkles className="size-3.5" aria-hidden />}
+                  {generatingScript ? "Gerando…" : "Gerar com Gemini"}
+                </button>
+              </div>
             </div>
+            <p className="mb-3 text-xs text-muted">{geminiCapabilityNotice} A geração fica bloqueada até a flag segura do backend ser habilitada.</p>
             <textarea value={effectiveScript} onChange={(event) => { setScript(event.target.value); setScriptEdited(true); }} maxLength={4000} rows={9} className={inputClass} aria-label="Roteiro editável" />
             <div className="mt-4 rounded-xl border border-border bg-background p-4">
               <div className="flex items-center justify-between gap-3">
@@ -659,6 +959,40 @@ export function VideoStudio() {
       )}
 
       <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Fila e histórico de tarefas</h2>
+            <p className="mt-1 text-sm text-muted">Estados persistentes prontos para o processador de vídeo. Nenhuma tarefa real é iniciada nesta etapa.</p>
+          </div>
+          <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">{jobs.length} tarefa(s)</span>
+        </div>
+        {visibleJobsLoading ? <p role="status" className="mt-4 text-sm text-muted">Carregando tarefas…</p> : visibleJobsError ? (
+          <p role="alert" className="mt-4 rounded-lg bg-danger-soft p-3 text-sm text-danger">{visibleJobsError}</p>
+        ) : visibleJobs.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">Nenhuma tarefa foi enfileirada.</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-border">
+            {visibleJobs.map((job) => (
+              <li key={job.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                <div>
+                  <p className="font-medium">{jobStatusLabels[job.status]}</p>
+                  <p className="text-xs text-muted">{new Date(job.created_at).toLocaleString("pt-BR")}{job.error_code ? ` · ${job.error_code}` : ""}</p>
+                </div>
+                <div className="min-w-28 text-right text-xs text-muted">
+                  {job.status === "processing" ? `${job.progress}%` : job.completed_at ? "Finalizada" : "Aguardando"}
+                </div>
+                {jobManagementAvailable && (job.status === "queued" || job.status === "processing") && (
+                  <button type="button" disabled={cancellingJobId !== null} onClick={() => void cancelVideoJob(job.id)} className="rounded-lg border border-border px-2.5 py-1.5 text-xs disabled:opacity-50">
+                    {cancellingJobId === job.id ? "Cancelando…" : "Cancelar"}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold"><Library className="size-5 text-primary" aria-hidden />Biblioteca de vídeos</h2>
@@ -681,14 +1015,14 @@ export function VideoStudio() {
                   <Image src={character.image} alt="" width={64} height={80} className="h-20 w-16 rounded-lg object-cover" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <div><h3 className="truncate font-semibold">{record.product.name}</h3><p className="mt-1 text-xs text-muted">{character.name} · {record.durationSeconds}s · {record.format} · {record.mode === "economy" ? "Econômico" : "IA"}</p></div>
+                      <div><h3 className="truncate font-semibold">{record.product.name}</h3><p className="mt-1 text-xs text-muted">{character.name} · {videoTemplates.find((item) => item.id === record.templateId)?.name ?? "Template antigo"} · {record.durationSeconds}s · {record.format}</p></div>
                       <span className="shrink-0 rounded-full bg-surface-muted px-2 py-1 text-[10px] font-semibold">{statusLabels[record.status]}</span>
                     </div>
                     <p className="mt-2 text-xs text-muted">{new Date(record.createdAt).toLocaleString("pt-BR")}{record.parentId ? " · nova versão" : ""}</p>
                   </div>
                 </div>
-                {selectedRecordId === record.id && record.resultUrl && (
-                  <video controls preload="metadata" src={record.resultUrl} className="mt-3 w-full rounded-lg bg-black" aria-label={`Vídeo de ${record.product.name}`} />
+                {selectedRecordId === record.id && (record.resultUrl || selectedSignedResult?.url) && (
+                  <video controls preload="metadata" src={record.resultUrl || selectedSignedResult?.url} className="mt-3 w-full rounded-lg bg-black" aria-label={`Vídeo de ${record.product.name}`} />
                 )}
                 {expandedScriptId === record.id && <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-3 text-xs leading-relaxed">{record.script}</pre>}
                 <div className="mt-4 flex flex-wrap gap-2 text-xs">
@@ -696,8 +1030,8 @@ export function VideoStudio() {
                   <button type="button" onClick={() => setExpandedScriptId((current) => current === record.id ? null : record.id)} className="rounded-lg border border-border px-2.5 py-1.5">Roteiro</button>
                   <button type="button" onClick={() => loadRecord(record, false)} className="rounded-lg border border-border px-2.5 py-1.5">Reutilizar</button>
                   <button type="button" onClick={() => loadRecord(record, true)} className="rounded-lg border border-border px-2.5 py-1.5">Nova versão</button>
-                  {record.resultUrl ? (
-                    <a href={record.resultUrl} download className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5"><Download className="size-3" aria-hidden />MP4</a>
+                  {record.resultUrl || (selectedRecordId === record.id && selectedSignedResult?.url) ? (
+                    <a href={record.resultUrl || selectedSignedResult?.url} download className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5"><Download className="size-3" aria-hidden />MP4</a>
                   ) : (
                     <button type="button" disabled title="MP4 indisponível no modo demonstração" className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 opacity-40"><Download className="size-3" aria-hidden />MP4</button>
                   )}
@@ -707,6 +1041,7 @@ export function VideoStudio() {
             })}
           </ul>
         )}
+        {selectedSignedResult?.error && <p role="alert" className="mt-4 rounded-lg bg-danger-soft p-3 text-sm text-danger">{selectedSignedResult.error}</p>}
       </section>
     </div>
   );

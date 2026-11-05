@@ -7,9 +7,13 @@ import {
   createVideoLibraryRecord,
   emotionalTones,
   estimateSceneCount,
+  motionModes,
+  narrationModes,
   validateVideoConfiguration,
   validateVideoProduct,
   videoDurations,
+  videoScenePresets,
+  videoTemplates,
   virtualPresenters,
   voiceProfiles,
 } from '../src/lib/video-studio.ts';
@@ -25,12 +29,16 @@ const configuration = {
     imageUrl: '',
     imageName: 'blusa.webp',
   },
+  templateId: 'wearing-product',
+  scenePresetId: 'fashion-studio',
   presenterId: 'ana',
   voiceGender: 'feminina',
   voiceProfileId: 'natural',
   emotionalToneId: 'alegre',
   advertisingStyleId: 'tradicional',
-  durationSeconds: 15,
+  narrationMode: 'voiceover',
+  motionMode: 'poses',
+  durationSeconds: 8,
   format: '9:16',
   mode: 'ai-video',
   targetAudience: 'pessoas que procuram roupas leves',
@@ -41,7 +49,11 @@ test('catálogos do estúdio oferecem apresentadores, vozes, emoções, estilos 
   assert.equal(voiceProfiles.length, 7);
   assert.equal(emotionalTones.length, 8);
   assert.equal(advertisingStyles.length, 6);
-  assert.deepEqual(videoDurations, [10, 15, 20, 30, 45, 60]);
+  assert.equal(videoTemplates.length, 3);
+  assert.ok(videoScenePresets.every(scene => videoTemplates.some(template => template.id === scene.templateId)));
+  assert.deepEqual(narrationModes.map(option => option.id), ['character-speech', 'voiceover']);
+  assert.deepEqual(motionModes.map(option => option.id), ['poses', 'continuous']);
+  assert.deepEqual(videoDurations, [6, 7, 8]);
   assert.ok(virtualPresenters.every(item => item.image.startsWith('/presenters/')));
 });
 
@@ -64,9 +76,20 @@ test('roteiro e prompt usam somente dados informados e preservam personagem e pr
   assert.match(prompt, /Preserve rosto, cabelo, roupa/);
   assert.match(prompt, /Preserve cor, estampa, formato, embalagem/);
   assert.match(prompt, /Não invente desconto, preço, benefício/);
-  assert.match(prompt, /2 cena\(s\)/);
-  assert.equal(estimateSceneCount(60), 8);
+  assert.match(prompt, /Personagem vestindo a roupa/);
+  assert.match(prompt, /Cenário desejado: Estúdio de moda/);
+  assert.match(prompt, /narração externa/i);
+  assert.match(prompt, /Planeje 1 cena\(s\)/);
+  assert.equal(estimateSceneCount(8), 1);
+  assert.equal(estimateSceneCount(6), 1);
   assert.throws(() => estimateSceneCount(10, 0), RangeError);
+});
+
+test('configuração exige vertical 9:16 e cenário compatível com template', () => {
+  const script = 'roteiro válido com conteúdo suficiente';
+  assert.equal(validateVideoConfiguration(configuration, script), null);
+  assert.match(validateVideoConfiguration({ ...configuration, format: '1:1' }, script), /9:16/);
+  assert.match(validateVideoConfiguration({ ...configuration, templateId: 'demonstrating-product' }, script), /cenário compatível/);
 });
 
 test('registro de demonstração nunca afirma que existe um vídeo real', () => {

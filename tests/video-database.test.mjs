@@ -9,10 +9,15 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
   const bob = '22222222-2222-4222-8222-222222222222';
   const product = JSON.stringify({ name: 'Blusa feminina', description: '', price: '', features: '', affiliateLink: '', imageUrl: '', imageName: '' });
   try {
-    await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon,service_role;grant execute on function auth.uid() to authenticated,anon,service_role;`);
-    for (const file of ['20261104000100_affiliate_base.sql', '20261104000200_marketplace_connections.sql', '20261105151156_video_generator.sql']) {
+    await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema storage;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon,service_role;grant execute on function auth.uid() to authenticated,anon,service_role;create table storage.buckets(id text primary key,name text not null,public boolean not null,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text not null,name text not null);alter table storage.objects enable row level security;create function storage.foldername(name text) returns text[] language sql immutable as $$select coalesce((string_to_array(name,'/'))[1:array_length(string_to_array(name,'/'),1)-1],array[]::text[])$$;grant usage on schema storage to authenticated,service_role;grant select,insert,update,delete on storage.objects to authenticated,service_role;`);
+    for (const file of ['20261104000100_affiliate_base.sql', '20261104000200_marketplace_connections.sql', '20261105151156_video_generator.sql', '20261105172000_video_workflow.sql']) {
       await db.exec(await readFile(new URL('../supabase/migrations/' + file, import.meta.url), 'utf8'));
     }
+    const bucketRows = await db.query("select id,public,file_size_limit from storage.buckets order by id");
+    assert.deepEqual(bucketRows.rows, [
+      { id: 'mv-video-assets', public: false, file_size_limit: 104857600 },
+      { id: 'mv-video-scenes', public: false, file_size_limit: 104857600 },
+    ]);
     await db.query('insert into auth.users(id) values($1),($2)', [alice, bob]);
     await db.exec('set role authenticated');
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [alice]);
@@ -21,9 +26,74 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
     assert.equal(first.user_id, alice);
     const version = (await insert(first.id)).rows[0];
     assert.equal(version.parent_id, first.id);
-    await assert.rejects(db.query("insert into public.mv_video_projects(product_data,presenter_id,voice_gender,voice_profile,emotional_tone,advertising_style,duration_seconds,aspect_ratio,generation_mode,target_audience,script,prompt,provider,status,result_url) values($1::jsonb,'ana','feminina','natural','alegre','tradicional',15,'9:16','ai-video','','roteiro seguro com conteúdo suficiente','prompt seguro com conteúdo suficiente','mock','completed','http://unsafe.test/video.mp4')", [product]), /check constraint/);
+    await assert.rejects(db.query("update public.mv_video_projects set status='completed' where id=$1", [first.id]), /permission denied/);
+    await db.query("insert into storage.objects(bucket_id,name) values('mv-video-assets',$1)", [`${alice}/inputs/owned.webp`]);
+    await assert.rejects(db.query("insert into public.mv_video_projects(product_data,presenter_id,voice_gender,voice_profile,emotional_tone,advertising_style,duration_seconds,aspect_ratio,generation_mode,target_audience,script,prompt,provider,status,result_url) values($1::jsonb,'ana','feminina','natural','alegre','tradicional',15,'9:16','ai-video','','roteiro seguro com conteúdo suficiente','prompt seguro com conteúdo suficiente','mock','completed','http://unsafe.test/video.mp4')", [product]), /check constraint|row-level security/);
+
+    await db.query("insert into storage.objects(bucket_id,name) values('mv-video-assets',$1)", [`${alice}/inputs/photo.jpg`]);
+    assert.equal((await db.query("select id from public.mv_video_scenes where template_id='wearing-product'")).rows.length, 2);
+
+    const requestData = {
+      templateId: 'wearing-product',
+      scenePresetId: 'fashion-studio',
+      durationSeconds: 8,
+      format: '9:16',
+      product: { imageStoragePath: `${alice}/inputs/photo.jpg` },
+    };
+    await db.exec('set role service_role');
+    const enqueue = async (key, data = requestData, projectId = first.id) => db.query(
+      'select public.mv_enqueue_video_job($1,$2,$3,$4::jsonb) as result',
+      [alice, projectId, key, JSON.stringify(data)],
+    );
+    const job = (await enqueue('request-key-00000001')).rows[0].result;
+    const duplicate = (await enqueue('request-key-00000001')).rows[0].result;
+    assert.equal(duplicate.id, job.id);
+    await assert.rejects(enqueue('request-key-00000001', { ...requestData, durationSeconds: 7 }), /idempotency_key_conflict/);
+    const secondJob = (await enqueue('request-key-00000002', requestData, version.id)).rows[0].result;
+    await assert.rejects(enqueue('request-key-00000003', requestData, null), /video_concurrency_limit/);
+
+    await db.query(
+      "select public.mv_transition_video_job($1,'processing',25,'modal','provider-job-1',null,null)",
+      [job.id],
+    );
+    await assert.rejects(
+      db.query("select public.mv_transition_video_job($1,'completed',100,'modal','provider-job-1',null,null)", [job.id]),
+      /video_result_required/,
+    );
+    await db.query(
+      "select public.mv_transition_video_job($1,'completed',100,'modal','provider-job-1',$2,null)",
+      [job.id, `${alice}/outputs/generated.mp4`],
+    );
+    const completedProject = await db.query(
+      'select status,provider,result_storage_path from public.mv_video_projects where id=$1',
+      [first.id],
+    );
+    assert.deepEqual(completedProject.rows[0], {
+      status: 'completed',
+      provider: 'modal',
+      result_storage_path: `${alice}/outputs/generated.mp4`,
+    });
+    const thirdProject = (await insert(first.id)).rows[0];
+    const thirdJob = (await enqueue('request-key-00000003', requestData, thirdProject.id)).rows[0].result;
+    await db.query('select public.mv_cancel_video_job($1,$2)', [alice, secondJob.id]);
+    assert.equal((await db.query('select status from public.mv_video_projects where id=$1', [version.id])).rows[0].status, 'cancelled');
+    await assert.rejects(
+      db.query("select public.mv_transition_video_job($1,'completed',100,'modal',null,null,null)", [thirdJob.id]),
+      /invalid_video_job_transition|video_result_required/,
+    );
+
+    await db.exec('set role authenticated');
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [bob]);
     assert.equal((await db.query('select * from public.mv_video_projects')).rows.length, 0);
+    assert.equal((await db.query('select * from public.mv_video_jobs')).rows.length, 0);
+    assert.equal((await db.query('select * from storage.objects where bucket_id=$1', ['mv-video-assets'])).rows.length, 0);
+    await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('mv-video-assets',$1)", [`${alice}/inputs/other.jpg`]), /row-level security/);
+    await assert.rejects(db.query(
+      "select public.mv_enqueue_video_job($1,null,'request-key-00000004',$2::jsonb)",
+      [bob, JSON.stringify({ ...requestData, product: { imageStoragePath: `${alice}/inputs/photo.jpg` } })],
+    ), /permission denied/);
+
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)", [bob]);
     await assert.rejects(insert(first.id), /row-level security|violates foreign key/);
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [alice]);
     await db.query('delete from public.mv_video_projects where id=$1', [first.id]);

@@ -1,30 +1,31 @@
 # Gerador de vídeos IA — estado e integração futura
 
-Documento atualizado em 05/11/2026. A implementação atual funciona em modo de demonstração e não executa chamadas pagas.
+A interface e o fluxo de preparação estão publicados no Cloudflare. A renderização e a geração de vídeo reais continuam desativadas; não aplique migrações em produção nem habilite Secrets/flags sem verificar o estado remoto e obter autorização.
 
-## O que está implementado
+## Implementado localmente
 
 - Cadastro manual de produto e seleção de produtos Shopee já sincronizados na conta.
-- Imagem local do produto para pré-visualização, sem upload automático.
+- Upload explícito de imagens PNG/JPEG/WebP para o bucket privado `mv-video-assets`, em pasta por usuário; URLs temporárias são usadas para pré-visualização.
+- Três templates: personagem vestindo roupa, apresentando produto e demonstrando produto, com presets de cena compatíveis.
 - Quatro apresentadores virtuais originais: Ana, Lucas, Carla e Rafael.
 - Tipo e característica de voz, oito tons emocionais e seis estilos de anúncio.
-- Durações finais de 10, 15, 20, 30, 45 e 60 segundos.
-- Formatos 9:16, 1:1 e 16:9.
-- Roteiro automático local, editável e limitado às informações fornecidas pelo usuário.
-- Instruções de geração com preservação de personagem e produto.
-- Modo econômico baseado em imagem, movimento, narração, legendas e transições.
-- Prévia estática sem consumo de créditos.
-- Provedor mock que simula `generating` e `processing`, sem criar MP4 fictício.
-- Biblioteca local para visitantes e sincronização no Supabase para usuários autenticados.
-- Camada de provedor desacoplada e Edge Function `video-generation` autenticada.
+- Novos projetos limitados a 6, 7 ou 8 segundos e formato vertical 9:16. Projetos antigos mantêm seus valores legados.
+- Roteiro local editável e limitado às informações fornecidas pelo usuário. A rota Gemini usa o Secret de backend `GEMINI_API_KEY` e exige `MV_GEMINI_SCRIPT_ENABLED=true`.
+- Migração para metadados de cenas, armazenamento privado, RLS, controle de estados e jobs com chave idempotente, limite diário e limite de concorrência. A consulta `supabase migration list` confirmou `20261105172000` aplicada em produção, com o mesmo identificador local e remoto.
+- Biblioteca local para visitantes e sincronização no Supabase para usuários autenticados. Vídeos em Storage são acessados por URL temporária.
+- Edge Function `video-generation` autenticada; respostas de jobs não expõem dados internos do provedor nem Secrets.
 
-## Estado publicado
+Os presets de cena ainda são metadados sem mídia-base. O botão de demonstração não chama provedores e não cria MP4 fictício. O endpoint de roteiro não foi chamado durante os testes.
 
-Em 05/11/2026, a migração `20261105151156` e a Edge Function `video-generation` versão 1 foram publicadas no Supabase. A tabela `mv_video_projects` tem RLS forçada e quatro políticas; a função exige JWT e respondeu 401 sem sessão. O frontend foi publicado no Cloudflare na versão `7f135c6e-69b7-4fbc-a459-82bdcf34f30e` e `/videos` respondeu HTTP 200. Nenhuma credencial Google foi configurada e nenhuma geração paga foi iniciada.
+## Estado remoto e limites desta etapa
 
-A última validação aprovou 41 testes, lint, TypeScript do frontend e das Edge Functions e o build estático com 17 rotas. Os quatro retratos estão publicados em WebP; nenhuma imagem de produto enviada pelo usuário é persistida automaticamente.
+**Cloudflare:** o Worker `meu-vendedor` está com 100% do tráfego na versão `097e7f47-6233-4195-88ba-b310ede53e95`, publicada em 05/11/2026 às 17:59 UTC. `/videos` respondeu HTTP 200; o bundle remoto da página é idêntico ao bundle do build local recuperado. Não foi necessário repetir o deploy.
 
-O botão de geração Google permanece desativado. A função de backend também recusa geração real até receber credencial, flag de ativação e a implementação final revisada.
+**Supabase:** a migração `20261105172000` e as três migrações anteriores constam no histórico remoto de produção. `video-generation` está ACTIVE na versão 12, com JWT obrigatório. O Secret `GEMINI_API_KEY` está configurado; `MV_GEMINI_SCRIPT_ENABLED` e `MV_VIDEO_JOBS_ENABLED` não aparecem na listagem de nomes. Não validei a chave nem chamei o Gemini; sem as flags explícitas, o código mantém roteiro Gemini e fila de jobs desativados. A migração e a função não foram reaplicadas nesta recuperação.
+
+Nenhum Secret/flag foi alterado. O endpoint Gemini não foi chamado, e não houve geração paga nem uso de GPU.
+
+A fila está bloqueada enquanto não existir um processador validado. Não há integração de renderização, composição de cenas, try-on, sincronização labial ou worker de vídeo; por isso não é possível gerar nem baixar MP4 real nesta etapa. O bucket privado de saída e a coluna de caminho do resultado estão preparados no SQL local, mas ainda não existem remotamente.
 
 ## Serviço oficial identificado
 
@@ -41,13 +42,13 @@ Fontes oficiais:
 - [Vídeo no Gemini Enterprise Agent Platform](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/video/overview)
 - [Autenticação do Google Cloud](https://docs.cloud.google.com/gemini-enterprise-agent-platform/machine-learning/authentication)
 
-## Credencial necessária
+## Credencial e ativação
 
-Para a opção Gemini API, a integração deverá usar uma **Gemini API key** obtida em um projeto Google compatível. Ela deverá ser definida somente no backend como `GOOGLE_GEMINI_API_KEY`. Uma chave do Flow ou uma sessão do navegador não será aceita.
+Para geração de roteiros, o código local espera `GEMINI_API_KEY` somente no backend. A chamada exige também `MV_GEMINI_SCRIPT_ENABLED=true`; a flag não foi habilitada e nenhum teste real foi feito. A geração de vídeo é uma integração separada e permanece bloqueada; não basta configurar uma chave Gemini ou habilitar o flag de roteiro.
 
 Para uma futura opção no ambiente empresarial do Google, a credencial adequada é a identidade de uma conta de serviço/ADC de um projeto Google Cloud com o produto e as permissões corretas. Esse caminho não deve reutilizar automaticamente uma Gemini API key.
 
-Além da credencial, o backend exige `MV_GOOGLE_VIDEO_ENABLED=true`. A flag não será configurada antes da autorização explícita para chamadas reais.
+Nenhum Secret foi alterado ou revelado. Não configure flags ou credenciais de produção como parte desta etapa.
 
 ## Custos e limites confirmados
 
@@ -57,12 +58,10 @@ A documentação também informa limitações regionais para edição/extensão,
 
 ## Próxima etapa da integração
 
-1. Confirmar se a credencial pertence à Gemini API ou ao Google Cloud.
-2. Confirmar faturamento, região e limites antes de qualquer teste pago.
-3. Armazenar a credencial como segredo da Edge Function, nunca no frontend.
-4. Implementar a chamada oficial no adaptador Google.
-5. Iniciar com uma geração curta autorizada, acompanhar estado e custo e baixar o resultado dentro da retenção do provedor.
-6. Guardar o MP4 em armazenamento controlado pelo Meu Vendedor antes de apresentar download permanente.
-7. Habilitar `MV_GOOGLE_VIDEO_ENABLED` somente depois dos testes e da autorização do responsável.
+1. Validar um provedor e sua API de geração, incluindo custos, limites e formatos suportados.
+2. Implementar e revisar o worker de vídeo, a renderização e a persistência do MP4.
+3. Aplicar a migração e configurar buckets/Secrets apenas após autorização explícita.
+4. Fazer testes locais e de integração sem custo antes de um teste pago autorizado.
+5. Habilitar a geração real somente depois dessas validações e da autorização do responsável.
 
 Até essa etapa, projetos concluídos pelo simulador são identificados como **Simulação concluída** e não oferecem download de MP4.
