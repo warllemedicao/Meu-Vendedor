@@ -7,7 +7,8 @@ A interface e o fluxo de preparação estão publicados no Cloudflare. A renderi
 - Cadastro manual de produto e seleção de produtos Shopee já sincronizados na conta.
 - Upload explícito de imagens PNG/JPEG/WebP para o bucket privado `mv-video-assets`, em pasta por usuário; URLs temporárias são usadas para pré-visualização.
 - Três templates: personagem vestindo roupa, apresentando produto e demonstrando produto, com presets de cena compatíveis.
-- Quatro apresentadores virtuais originais: Ana, Lucas, Carla e Rafael.
+- Quatro apresentadores com IDs estáveis: Ana (`ana`) e Lucas (`lucas`) têm referências visuais atribuídas; Carla (`carla`) e Rafael (`rafael`) têm perfis plus size, mas aguardam imagens originais compatíveis. Os arquivos anteriores de Carla e Rafael permanecem no repositório, porém não são associados a esses perfis para evitar uma referência visual incompatível.
+- No template de roupa, o usuário pode informar o tamanho declarado pelo produto (com sugestões como PP, P, M, G, GG e outros valores livres). O tamanho é opcional, fica nos dados do produto, não exige migração e não é inferido a partir do personagem.
 - Tipo e característica de voz, oito tons emocionais e seis estilos de anúncio.
 - Novos projetos limitados a 6, 7 ou 8 segundos e formato vertical 9:16. Projetos antigos mantêm seus valores legados.
 - Roteiro local editável e limitado às informações fornecidas pelo usuário. A rota Gemini usa o Secret de backend `GEMINI_API_KEY` e exige `MV_GEMINI_SCRIPT_ENABLED=true`.
@@ -16,6 +17,10 @@ A interface e o fluxo de preparação estão publicados no Cloudflare. A renderi
 - Edge Function `video-generation` autenticada; respostas de jobs não expõem dados internos do provedor nem Secrets.
 
 Os presets de cena ainda são metadados sem mídia-base. O botão de demonstração não chama provedores e não cria MP4 fictício. O endpoint de roteiro não foi chamado durante os testes.
+
+Na exportação estática do Cloudflare, `next/image` precisa usar os caminhos públicos sem o endpoint de otimização do Next.js. A configuração de exportação agora desativa a otimização automática para essas imagens; os arquivos continuam em `public/presenters/` e não dependem do Supabase Storage. A origem do problema era a exportação gerar URLs `/_next/image` que não existem no Worker estático.
+
+As referências pendentes são exatamente `public/presenters/carla.webp` e `public/presenters/rafael.webp`: as imagens anteriores não demonstram com clareza os perfis plus size definidos. Elas não são exibidas para esses personagens. Não há gerador de imagens gratuito e autorizado disponível neste ambiente; fornecer ou gerar novas referências originais permanece necessário. A geração real de vídeo continua desativada.
 
 ## Estado remoto e limites desta etapa
 

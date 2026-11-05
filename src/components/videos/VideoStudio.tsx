@@ -123,6 +123,7 @@ const emptyProduct: VideoProductInput = {
   imageUrl: "",
   imageName: "",
   imageStoragePath: "",
+  clothingSize: "",
 };
 
 const statusLabels: Record<VideoGenerationStatus, string> = {
@@ -178,7 +179,11 @@ function normalizeLibraryRecord(value: unknown): VideoLibraryRecord | null {
     durationSeconds,
     format,
     resultStoragePath: typeof row.resultStoragePath === "string" ? row.resultStoragePath : null,
-    product: { ...row.product, imageStoragePath: row.product.imageStoragePath ?? "" },
+    product: {
+      ...row.product,
+      imageStoragePath: row.product.imageStoragePath ?? "",
+      clothingSize: row.product.clothingSize ?? "",
+    },
   };
 }
 
@@ -241,6 +246,7 @@ function toDatabaseRow(record: VideoLibraryRecord) {
       imageUrl: record.product.imageUrl || "",
       imageName: record.product.imageName || "",
       imageStoragePath: record.product.imageStoragePath || "",
+      clothingSize: record.product.clothingSize || "",
     },
     template_id: record.templateId,
     scene_preset_id: record.scenePresetId,
@@ -488,6 +494,7 @@ export function VideoStudio() {
       imageUrl: selected.image_url || "",
       imageName: "",
       imageStoragePath: "",
+      clothingSize: "",
     });
     setProductImage(null);
     setScriptEdited(false);
@@ -733,6 +740,22 @@ export function VideoStudio() {
               <label className="block text-sm font-medium">Preço ou oferta informada
                 <input value={product.price} onChange={(event) => updateProduct("price", event.target.value)} maxLength={80} className={inputClass} placeholder="Ex.: R$ 89,90" />
               </label>
+              {templateId === "wearing-product" && (
+                <label className="block text-sm font-medium">Tamanho informado (opcional)
+                  <input
+                    value={product.clothingSize ?? ""}
+                    onChange={(event) => updateProduct("clothingSize", event.target.value)}
+                    maxLength={40}
+                    list="video-clothing-sizes"
+                    className={inputClass}
+                    placeholder="Ex.: P, M, G, GG ou outro"
+                  />
+                  <datalist id="video-clothing-sizes">
+                    {["PP", "P", "M", "G", "GG", "XG", "XGG", "XXG"].map((size) => <option key={size} value={size} />)}
+                  </datalist>
+                  <span className="mt-1 block text-xs font-normal text-muted">Informe apenas o tamanho declarado para o produto; não inferimos medidas pelo personagem.</span>
+                </label>
+              )}
               <label className="block text-sm font-medium">Público-alvo (opcional)
                 <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} maxLength={100} className={inputClass} placeholder="Ex.: pessoas que trabalham em casa" />
               </label>
@@ -801,17 +824,27 @@ export function VideoStudio() {
                   className={`overflow-hidden rounded-2xl border text-left transition ${presenterId === character.id ? "border-primary ring-2 ring-primary-soft" : "border-border hover:border-primary/50"}`}
                 >
                   <div className="relative aspect-[4/5] bg-surface-muted">
-                    <Image src={character.image} alt={`Apresentador virtual ${character.name}`} fill sizes="(max-width: 640px) 50vw, 220px" className="object-cover" />
+                    {character.image ? (
+                      <Image src={character.image} alt={`Apresentador virtual ${character.name}`} fill sizes="(max-width: 640px) 50vw, 220px" className="object-cover" />
+                    ) : (
+                      <div role="img" aria-label={`Imagem de referência de ${character.name} pendente`} className="absolute inset-0 grid place-items-center p-5 text-center text-sm font-medium text-muted">
+                        Imagem de referência original pendente
+                      </div>
+                    )}
                     {presenterId === character.id && <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-primary text-background"><CheckCircle2 className="size-4" aria-hidden /></span>}
                   </div>
                   <div className="p-3">
                     <p className="font-semibold">{character.name}</p>
                     <p className="mt-1 text-xs leading-relaxed text-muted">{character.description}</p>
+                    <span className="mt-2 inline-flex rounded-full bg-surface-muted px-2 py-1 text-xs font-medium">
+                      Biotipo: {character.bodyType === "plus-size" ? "Plus size" : "Esguio"}
+                    </span>
+                    {character.referenceStatus === "pending" && <p className="mt-2 text-xs font-semibold text-muted">Referência visual pendente</p>}
                   </div>
                 </button>
               ))}
             </div>
-            <p className="mt-3 text-xs text-muted">As imagens são referências originais. A consistência depende do suporte do modelo e não pode ser garantida apenas por prompt.</p>
+            <p className="mt-3 text-xs text-muted">Cada personagem mantém seu próprio ID e perfil. As referências pendentes não usam a imagem de outro personagem; a geração audiovisual continua desativada.</p>
           </Card>
 
           <Card titulo="4. Defina voz, narração e movimento">
@@ -898,7 +931,13 @@ export function VideoStudio() {
           <div ref={previewRef}>
             <Card titulo="Pré-visualização estática">
               <div className={`relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface-muted ${previewRatio}`}>
-                <Image src={presenter.image} alt={`Prévia com ${presenter.name}`} fill sizes="380px" className="object-cover" />
+                {presenter.image ? (
+                  <Image src={presenter.image} alt={`Prévia com ${presenter.name}`} fill sizes="380px" className="object-cover" />
+                ) : (
+                  <div role="img" aria-label={`Imagem de referência de ${presenter.name} pendente`} className="absolute inset-0 grid place-items-center p-6 text-center text-sm font-medium text-muted">
+                    Referência visual de {presenter.name} pendente
+                  </div>
+                )}
                 <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/65 to-transparent p-4 text-white">
                   <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide backdrop-blur">Prévia · sem consumo</span>
                 </div>
@@ -1012,7 +1051,13 @@ export function VideoStudio() {
               const character = virtualPresenters.find((item) => item.id === record.presenterId) ?? virtualPresenters[0];
               return <li key={record.id} className={`rounded-xl border p-4 ${selectedRecordId === record.id ? "border-primary bg-primary-soft/40" : "border-border bg-background"}`}>
                 <div className="flex gap-3">
-                  <Image src={character.image} alt="" width={64} height={80} className="h-20 w-16 rounded-lg object-cover" />
+                  {character.image ? (
+                    <Image src={character.image} alt="" width={64} height={80} className="h-20 w-16 rounded-lg object-cover" />
+                  ) : (
+                    <div role="img" aria-label={`Imagem de referência de ${character.name} pendente`} className="grid h-20 w-16 shrink-0 place-items-center rounded-lg bg-surface-muted p-1 text-center text-[10px] text-muted">
+                      Referência pendente
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <div><h3 className="truncate font-semibold">{record.product.name}</h3><p className="mt-1 text-xs text-muted">{character.name} · {videoTemplates.find((item) => item.id === record.templateId)?.name ?? "Template antigo"} · {record.durationSeconds}s · {record.format}</p></div>

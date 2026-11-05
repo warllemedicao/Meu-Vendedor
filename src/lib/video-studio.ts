@@ -119,7 +119,9 @@ export type GenerationMode = (typeof generationModes)[number]["id"];
 export interface VirtualPresenter {
   id: PresenterId;
   name: string;
-  image: string;
+  image: string | null;
+  bodyType: "esguio" | "plus-size";
+  referenceStatus: "ready" | "pending";
   description: string;
   visualIdentity: string;
   defaultVoiceGender: VoiceGender;
@@ -132,8 +134,10 @@ export const virtualPresenters: readonly VirtualPresenter[] = [
     id: "ana",
     name: "Ana",
     image: "/presenters/ana.webp",
-    description: "Apresentadora simpática e comunicativa para roupas, acessórios e produtos variados.",
-    visualIdentity: "mulher adulta brasileira, pele morena clara, cabelo escuro ondulado na altura dos ombros, blusa coral e blazer claro",
+    bodyType: "esguio",
+    referenceStatus: "ready",
+    description: "Mulher adulta de biotipo esguio e proporções naturais, adequada para roupas, acessórios e produtos variados.",
+    visualIdentity: "mulher adulta brasileira de biotipo esguio e proporções naturais, pele morena clara, cabelo escuro ondulado na altura dos ombros, blusa coral e blazer claro, aparência realista",
     defaultVoiceGender: "feminina",
     defaultVoiceProfile: "natural",
     preferences: "apresentação próxima, gestos leves e contato visual com a câmera",
@@ -142,8 +146,10 @@ export const virtualPresenters: readonly VirtualPresenter[] = [
     id: "lucas",
     name: "Lucas",
     image: "/presenters/lucas.webp",
-    description: "Apresentador moderno e descontraído para eletrônicos, acessórios e produtos masculinos.",
-    visualIdentity: "homem adulto brasileiro, pele morena, cabelo preto curto, barba bem aparada, camisa verde-petróleo sobre camiseta clara",
+    bodyType: "esguio",
+    referenceStatus: "ready",
+    description: "Homem adulto de biotipo esguio e proporções naturais, adequado para roupas, eletrônicos e acessórios.",
+    visualIdentity: "homem adulto brasileiro de biotipo esguio e proporções naturais, pele morena, cabelo preto curto, barba bem aparada, camisa verde-petróleo sobre camiseta clara, aparência realista",
     defaultVoiceGender: "masculina",
     defaultVoiceProfile: "jovem-adulta",
     preferences: "ritmo direto, linguagem atual e demonstrações objetivas",
@@ -151,9 +157,11 @@ export const virtualPresenters: readonly VirtualPresenter[] = [
   {
     id: "carla",
     name: "Carla",
-    image: "/presenters/carla.webp",
-    description: "Apresentadora elegante e profissional para moda, beleza e produtos sofisticados.",
-    visualIdentity: "mulher adulta brasileira, pele negra, cabelo cacheado preso de forma elegante, blusa verde-esmeralda e acessórios discretos",
+    image: null,
+    bodyType: "plus-size",
+    referenceStatus: "pending",
+    description: "Mulher adulta plus size, com proporções naturais, adequada para roupas de tamanhos variados, moda e beleza.",
+    visualIdentity: "mulher adulta brasileira plus size, com proporções naturais, pele negra, cabelo cacheado preso de forma elegante, blusa verde-esmeralda e acessórios discretos, aparência realista",
     defaultVoiceGender: "feminina",
     defaultVoiceProfile: "profissional",
     preferences: "movimentos elegantes, dicção clara e composição visual refinada",
@@ -161,9 +169,11 @@ export const virtualPresenters: readonly VirtualPresenter[] = [
   {
     id: "rafael",
     name: "Rafael",
-    image: "/presenters/rafael.webp",
-    description: "Apresentador carismático para demonstrações, promoções e produtos variados.",
-    visualIdentity: "homem adulto brasileiro, pele morena clara, cabelo curto escuro com fios grisalhos, polo terracota",
+    image: null,
+    bodyType: "plus-size",
+    referenceStatus: "pending",
+    description: "Homem adulto plus size, com proporções naturais, adequado para roupas, acessórios e demonstrações de produtos.",
+    visualIdentity: "homem adulto brasileiro plus size, com proporções naturais, pele morena clara, cabelo curto escuro com fios grisalhos, polo terracota, aparência realista",
     defaultVoiceGender: "masculina",
     defaultVoiceProfile: "energetica",
     preferences: "gestos comunicativos, sorriso natural e chamadas para ação claras",
@@ -180,6 +190,7 @@ export interface VideoProductInput {
   imageUrl?: string;
   imageName?: string;
   imageStoragePath?: string;
+  clothingSize?: string;
 }
 
 export interface VideoConfiguration {
@@ -256,6 +267,7 @@ export function validateVideoProduct(product: VideoProductInput): string | null 
   if (product.description.length > 1200) return "A descrição deve ter até 1.200 caracteres.";
   if (product.price.length > 80) return "O preço ou oferta deve ter até 80 caracteres.";
   if (product.features.length > 1000) return "As características devem ter até 1.000 caracteres.";
+  if ((product.clothingSize?.length ?? 0) > 40) return "O tamanho informado deve ter até 40 caracteres.";
   if (product.affiliateLink) {
     if (product.affiliateLink.length > 2048 || /\s/.test(product.affiliateLink)) return "Informe um link de afiliado HTTPS válido.";
     try {
@@ -275,11 +287,12 @@ export function buildAdvertisingScript(configuration: VideoConfiguration): strin
   const detail = shorten(firstUsefulDetail(product), durationSeconds <= 15 ? 90 : 180);
   const priceLine = product.price.trim() ? ` O valor informado é ${shorten(product.price, 80)}.` : "";
   const audience = configuration.targetAudience.trim() ? ` para ${shorten(configuration.targetAudience, 100)}` : "";
+  const clothingSize = product.clothingSize?.trim() ? ` O tamanho informado é ${shorten(product.clothingSize, 40)}.` : "";
 
   return [
     `ABERTURA — ${presenter.name}: “${hooks[configuration.emotionalToneId]}”`,
     `DIREÇÃO — ${template.name}.`,
-    `APRESENTAÇÃO — “Este é o ${shorten(product.name, 160)}${audience}. ${detail}.${priceLine}”`,
+    `APRESENTAÇÃO — “Este é o ${shorten(product.name, 160)}${audience}. ${detail}.${priceLine}${clothingSize}”`,
     "ENCERRAMENTO — “Confira as informações completas e, se fizer sentido para você, acesse o produto.”",
   ].join("\n\n");
 }
@@ -291,6 +304,9 @@ export function buildVideoPrompt(configuration: VideoConfiguration, script: stri
   const style = advertisingStyles.find((item) => item.id === configuration.advertisingStyleId) ?? advertisingStyles[0];
   const template = videoTemplates.find((item) => item.id === configuration.templateId) ?? videoTemplates[1];
   const scene = videoScenePresets.find((item) => item.id === configuration.scenePresetId);
+  const presenterReference = presenter.image
+    ? "Use a imagem de referência cadastrada. Preserve rosto, corpo, cabelo, roupa e identidade entre todas as cenas."
+    : `A imagem de referência original de ${presenter.name} está pendente. Não use a imagem de outro personagem; mantenha a geração real bloqueada até que uma referência aprovada seja fornecida.`;
   const narration = narrationModes.find((item) => item.id === configuration.narrationMode) ?? narrationModes[1];
   const motion = motionModes.find((item) => item.id === configuration.motionMode) ?? motionModes[0];
   const sceneCount = Math.max(1, Math.ceil(configuration.durationSeconds / 8));
@@ -302,8 +318,8 @@ export function buildVideoPrompt(configuration: VideoConfiguration, script: stri
     `Vídeo publicitário de ${configuration.durationSeconds} segundos, formato ${configuration.format}, em português do Brasil.`,
     `Template: ${template.name}. ${template.instruction}`,
     `Cenário desejado: ${scene?.name ?? "não selecionado"}${scene ? ` (${scene.category})` : ""}. O cenário é uma preferência de briefing; não implica disponibilidade de cena pré-armazenada.`,
-    `Apresentador virtual: ${presenter.name}, ${presenter.visualIdentity}. Preserve rosto, cabelo, roupa, idade aparente e identidade entre todas as cenas; use a imagem de referência cadastrada quando o provedor permitir.`,
-    `Produto: ${configuration.product.name}. Use a imagem fornecida como referência principal. Preserve cor, estampa, formato, embalagem, logotipo e detalhes visíveis. Não altere o produto nem invente características.`,
+    `Apresentador virtual: ${presenter.name}, ${presenter.visualIdentity}. ${presenterReference}`,
+    `Produto: ${configuration.product.name}. Use a imagem fornecida como referência principal. Preserve cor, estampa, formato, embalagem, logotipo e detalhes visíveis. Não altere o produto nem invente características.${configuration.product.clothingSize?.trim() ? ` Tamanho informado pelo usuário: ${shorten(configuration.product.clothingSize, 40)}. Não infira medidas nem numeração a partir do biotipo do personagem.` : ""}`,
     `Estilo: ${style.label}; ${style.instruction}. Interpretação ${emotion.instruction}. Voz ${configuration.voiceGender}, ${voice.instruction}. ${narration.instruction}`,
     `${motion.instruction}`,
     modeInstruction,

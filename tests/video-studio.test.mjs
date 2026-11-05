@@ -28,6 +28,7 @@ const configuration = {
     affiliateLink: 'https://example.com/produto',
     imageUrl: '',
     imageName: 'blusa.webp',
+    clothingSize: '',
   },
   templateId: 'wearing-product',
   scenePresetId: 'fashion-studio',
@@ -46,6 +47,9 @@ const configuration = {
 
 test('catálogos do estúdio oferecem apresentadores, vozes, emoções, estilos e durações solicitados', () => {
   assert.deepEqual(virtualPresenters.map(item => item.name), ['Ana', 'Lucas', 'Carla', 'Rafael']);
+  assert.deepEqual(virtualPresenters.map(item => item.id), ['ana', 'lucas', 'carla', 'rafael']);
+  assert.deepEqual(virtualPresenters.map(item => item.bodyType), ['esguio', 'esguio', 'plus-size', 'plus-size']);
+  assert.deepEqual(virtualPresenters.map(item => item.referenceStatus), ['ready', 'ready', 'pending', 'pending']);
   assert.equal(voiceProfiles.length, 7);
   assert.equal(emotionalTones.length, 8);
   assert.equal(advertisingStyles.length, 6);
@@ -54,7 +58,18 @@ test('catálogos do estúdio oferecem apresentadores, vozes, emoções, estilos 
   assert.deepEqual(narrationModes.map(option => option.id), ['character-speech', 'voiceover']);
   assert.deepEqual(motionModes.map(option => option.id), ['poses', 'continuous']);
   assert.deepEqual(videoDurations, [6, 7, 8]);
-  assert.ok(virtualPresenters.every(item => item.image.startsWith('/presenters/')));
+  assert.ok(virtualPresenters.filter(item => item.image).every(item => item.image.startsWith('/presenters/')));
+  for (const template of videoTemplates) {
+    const scenePresetId = videoScenePresets.find(scene => scene.templateId === template.id).id;
+    for (const presenter of virtualPresenters) {
+      assert.equal(validateVideoConfiguration({
+        ...configuration,
+        templateId: template.id,
+        scenePresetId,
+        presenterId: presenter.id,
+      }, 'roteiro válido com conteúdo suficiente'), null);
+    }
+  }
 });
 
 test('produto e configuração rejeitam links inseguros e entradas incompletas', () => {
@@ -62,6 +77,7 @@ test('produto e configuração rejeitam links inseguros e entradas incompletas',
   assert.match(validateVideoProduct({ ...configuration.product, affiliateLink: 'javascript:alert(1)' }), /HTTPS/);
   assert.match(validateVideoProduct({ ...configuration.product, affiliateLink: 'https://user:pass@example.com' }), /credenciais/);
   assert.match(validateVideoProduct({ ...configuration.product, name: '' }), /nome do produto/);
+  assert.match(validateVideoProduct({ ...configuration.product, clothingSize: 'tamanho informado com mais de quarenta caracteres e inválido' }), /tamanho informado/);
   assert.equal(validateVideoConfiguration(configuration, 'roteiro válido com conteúdo suficiente'), null);
   assert.match(validateVideoConfiguration(configuration, 'curto'), /roteiro/);
 });
@@ -73,7 +89,7 @@ test('roteiro e prompt usam somente dados informados e preservam personagem e pr
   assert.match(script, /tecido de linho/);
   assert.match(script, /R\$ 89,90/);
   assert.doesNotMatch(script, /desconto|garantia|comprovado/i);
-  assert.match(prompt, /Preserve rosto, cabelo, roupa/);
+  assert.match(prompt, /Preserve rosto, corpo, cabelo, roupa/);
   assert.match(prompt, /Preserve cor, estampa, formato, embalagem/);
   assert.match(prompt, /Não invente desconto, preço, benefício/);
   assert.match(prompt, /Personagem vestindo a roupa/);
@@ -83,6 +99,23 @@ test('roteiro e prompt usam somente dados informados e preservam personagem e pr
   assert.equal(estimateSceneCount(8), 1);
   assert.equal(estimateSceneCount(6), 1);
   assert.throws(() => estimateSceneCount(10, 0), RangeError);
+});
+
+test('tamanho de roupa informado é preservado sem inferir medidas', () => {
+  const product = { ...configuration.product, clothingSize: 'G (informado pelo fabricante)' };
+  const script = buildAdvertisingScript({ ...configuration, product });
+  const prompt = buildVideoPrompt({ ...configuration, product }, script);
+  assert.match(script, /tamanho informado é G \(informado pelo fabricante\)/);
+  assert.match(prompt, /Tamanho informado pelo usuário: G \(informado pelo fabricante\)/);
+  assert.match(prompt, /Não infira medidas nem numeração a partir do biotipo/);
+});
+
+test('personagem sem referência não recebe imagem de outro personagem no prompt', () => {
+  const carla = virtualPresenters.find(item => item.id === 'carla');
+  assert.equal(carla.image, null);
+  const prompt = buildVideoPrompt({ ...configuration, presenterId: 'carla' }, 'roteiro válido com conteúdo suficiente');
+  assert.match(prompt, /imagem de referência original de Carla está pendente/i);
+  assert.match(prompt, /Não use a imagem de outro personagem/);
 });
 
 test('configuração exige vertical 9:16 e cenário compatível com template', () => {
