@@ -24,3 +24,8 @@ verify_jwt = true
 [functions.catalog-public]
 # A vitrine é pública por definição. Não lê sessões, credenciais ou tabelas pessoais.
 verify_jwt = false
+
+[functions.video-generation]
+# A função continua validando a sessão no handler. A geração real exige também
+# GOOGLE_GEMINI_API_KEY e MV_GOOGLE_VIDEO_ENABLED=true no servidor.
+verify_jwt = true

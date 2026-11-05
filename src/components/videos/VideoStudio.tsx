@@ -1,436 +1,713 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore, type ChangeEvent, type FormEvent, type MouseEvent } from "react";
-import { Check, Copy, ExternalLink, ImagePlus, Info, Sparkles } from "lucide-react";
-import { Card } from "@/components/ui/Card";
+import Image from "next/image";
+import Link from "next/link";
 import {
-  buildFlowPrompt,
-  buildStoryScript,
-  estimateVideoCount,
-  flowCreditCost,
-  flowModels,
-  type StoryKind,
-  type VideoModelId,
+  CheckCircle2,
+  Copy,
+  Download,
+  ExternalLink,
+  Film,
+  ImagePlus,
+  Library,
+  LoaderCircle,
+  Play,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  WandSparkles,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { Card } from "@/components/ui/Card";
+import { getSupabase } from "@/lib/supabase/client";
+import { mockVideoProvider } from "@/lib/video-provider";
+import {
+  advertisingStyles,
+  buildAdvertisingScript,
+  buildVideoPrompt,
+  createVideoLibraryRecord,
+  emotionalTones,
+  estimateSceneCount,
+  generationModes,
+  validateVideoConfiguration,
+  videoDurations,
+  videoFormats,
+  virtualPresenters,
+  voiceGenders,
+  voiceProfiles,
+  type AdvertisingStyleId,
+  type EmotionalToneId,
+  type GenerationMode,
+  type PresenterId,
+  type VideoConfiguration,
+  type VideoDuration,
+  type VideoFormat,
+  type VideoGenerationStatus,
+  type VideoLibraryRecord,
+  type VideoProductInput,
+  type VoiceGender,
+  type VoiceProfileId,
 } from "@/lib/video-studio";
 
 const FLOW_URL = "https://labs.google/fx/tools/flow";
-const STORAGE_KEY = "mv-flow-credit-estimate-v1";
-const STORAGE_EVENT = "mv-flow-credit-estimate-updated";
-const SERVER_SNAPSHOT = "__server_snapshot__";
-const STORAGE_READ_ERROR = "__storage_read_error__";
+const LIBRARY_PREFIX = "mv-video-library-v2";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-const inputClass = "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm";
+const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft disabled:opacity-50";
 
-const characters = [
-  { id: "morango", emoji: "🍓", name: "Mimi Morango", description: "um morango antropomórfico alegre, curioso e expressivo", color: "from-rose-100 to-pink-50" },
-  { id: "banana", emoji: "🍌", name: "Bento Banana", description: "uma banana antropomórfica brincalhona, otimista e um pouco atrapalhada", color: "from-amber-100 to-yellow-50" },
-  { id: "abacaxi", emoji: "🍍", name: "Paco Abacaxi", description: "um abacaxi antropomórfico aventureiro, confiante e acolhedor", color: "from-lime-100 to-yellow-50" },
-  { id: "laranja", emoji: "🍊", name: "Lola Laranja", description: "uma laranja antropomórfica energética, criativa e simpática", color: "from-orange-100 to-amber-50" },
-  { id: "uva", emoji: "🍇", name: "Nina Uva", description: "uma personagem de uva antropomórfica calma, esperta e bem-humorada", color: "from-violet-100 to-fuchsia-50" },
-] as const;
+interface ExistingProduct {
+  id: string;
+  title: string;
+  image_url: string | null;
+  product_url: string;
+  price_min: number | null;
+  price_max: number | null;
+  shop_name: string | null;
+}
 
-const stories: { id: StoryKind; title: string; description: string }[] = [
-  { id: "discovery", title: "Uma descoberta", description: "A personagem encontra o produto e conta o que chamou sua atenção." },
-  { id: "challenge", title: "Desafio divertido", description: "Uma pequena situação divertida apresenta o produto." },
-  { id: "surprise", title: "Surpresa para alguém", description: "A personagem prepara uma surpresa e mostra o produto." },
-  { id: "tutorial", title: "Demonstração rápida", description: "Uma apresentação simples, com o produto em destaque." },
-];
+interface VideoProjectRow {
+  id: string;
+  source_product_id: string | null;
+  parent_id: string | null;
+  product_data: VideoProductInput;
+  presenter_id: PresenterId;
+  voice_gender: VoiceGender;
+  voice_profile: VoiceProfileId;
+  emotional_tone: EmotionalToneId;
+  advertising_style: AdvertisingStyleId;
+  duration_seconds: VideoDuration;
+  aspect_ratio: VideoFormat;
+  generation_mode: GenerationMode;
+  target_audience: string;
+  script: string;
+  prompt: string;
+  provider: "mock" | "google-gemini";
+  provider_job_id: string | null;
+  status: VideoGenerationStatus;
+  result_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
-type UsageEstimate = {
-  creditsRemaining: number | null;
-  generationsRegistered: number;
-  pendingCost: number;
-  updatedAt: string | null;
+const emptyProduct: VideoProductInput = {
+  sourceProductId: null,
+  name: "",
+  description: "",
+  price: "",
+  features: "",
+  affiliateLink: "",
+  imageUrl: "",
+  imageName: "",
 };
 
-const emptyUsage: UsageEstimate = {
-  creditsRemaining: null,
-  generationsRegistered: 0,
-  pendingCost: 0,
-  updatedAt: null,
+const statusLabels: Record<VideoGenerationStatus, string> = {
+  awaiting_configuration: "Aguardando configuração",
+  ready: "Pronto para gerar",
+  awaiting_provider: "Aguardando integração da API",
+  generating: "Gerando",
+  processing: "Processando",
+  completed: "Concluído",
+  simulation_completed: "Simulação concluída",
+  failed: "Falha na geração",
 };
 
-function subscribeToUsage(callback: () => void) {
-  window.addEventListener("storage", callback);
-  window.addEventListener(STORAGE_EVENT, callback);
-  return () => {
-    window.removeEventListener("storage", callback);
-    window.removeEventListener(STORAGE_EVENT, callback);
+function isLibraryRecord(value: unknown): value is VideoLibraryRecord {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Partial<VideoLibraryRecord>;
+  return typeof row.id === "string" && typeof row.script === "string" && typeof row.prompt === "string" &&
+    typeof row.createdAt === "string" && !!row.product && typeof row.product.name === "string" &&
+    virtualPresenters.some((item) => item.id === row.presenterId);
+}
+
+function readLocalLibrary(key: string): VideoLibraryRecord[] {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(key) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter(isLibraryRecord).slice(0, 50) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalLibrary(key: string, records: VideoLibraryRecord[]) {
+  window.localStorage.setItem(key, JSON.stringify(records.slice(0, 50)));
+}
+
+function fromDatabaseRow(row: VideoProjectRow): VideoLibraryRecord {
+  return {
+    id: row.id,
+    parentId: row.parent_id,
+    product: { ...row.product_data, sourceProductId: row.source_product_id },
+    presenterId: row.presenter_id,
+    voiceGender: row.voice_gender,
+    voiceProfileId: row.voice_profile,
+    emotionalToneId: row.emotional_tone,
+    advertisingStyleId: row.advertising_style,
+    durationSeconds: row.duration_seconds,
+    format: row.aspect_ratio,
+    mode: row.generation_mode,
+    targetAudience: row.target_audience,
+    script: row.script,
+    prompt: row.prompt,
+    provider: row.provider,
+    providerJobId: row.provider_job_id,
+    status: row.status,
+    resultUrl: row.result_url,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
-function getUsageSnapshot(): string | null {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return STORAGE_READ_ERROR;
-  }
-}
-
-function isUsageEstimate(value: unknown): value is UsageEstimate {
-  if (!value || typeof value !== "object") return false;
-  const item = value as Record<string, unknown>;
-  return (
-    (item.creditsRemaining === null || (Number.isSafeInteger(item.creditsRemaining) && Number(item.creditsRemaining) >= 0)) &&
-    Number.isSafeInteger(item.generationsRegistered) &&
-    Number(item.generationsRegistered) >= 0 &&
-    Number.isSafeInteger(item.pendingCost) &&
-    Number(item.pendingCost) >= 0 &&
-    (item.updatedAt === null || typeof item.updatedAt === "string")
-  );
+function toDatabaseRow(record: VideoLibraryRecord) {
+  return {
+    id: record.id,
+    source_product_id: record.product.sourceProductId || null,
+    parent_id: record.parentId,
+    product_data: {
+      name: record.product.name,
+      description: record.product.description,
+      price: record.product.price,
+      features: record.product.features,
+      affiliateLink: record.product.affiliateLink,
+      imageUrl: record.product.imageUrl || "",
+      imageName: record.product.imageName || "",
+    },
+    presenter_id: record.presenterId,
+    voice_gender: record.voiceGender,
+    voice_profile: record.voiceProfileId,
+    emotional_tone: record.emotionalToneId,
+    advertising_style: record.advertisingStyleId,
+    duration_seconds: record.durationSeconds,
+    aspect_ratio: record.format,
+    generation_mode: record.mode,
+    target_audience: record.targetAudience,
+    script: record.script,
+    prompt: record.prompt,
+    provider: record.provider,
+    provider_job_id: record.providerJobId,
+    status: record.status,
+    result_url: record.resultUrl,
+  };
 }
 
 export function VideoStudio() {
-  const [characterId, setCharacterId] = useState<(typeof characters)[number]["id"]>("morango");
-  const [storyKind, setStoryKind] = useState<StoryKind>("discovery");
-  const [productName, setProductName] = useState("");
-  const [productBenefit, setProductBenefit] = useState("");
-  const [action, setAction] = useState("apresenta o produto para a câmera");
-  const [mood, setMood] = useState("engraçado e acolhedor");
-  const [voice, setVoice] = useState("feminina, animada e natural");
-  const [model, setModel] = useState<VideoModelId>("omni360");
-  const [duration, setDuration] = useState(8);
-  const [image, setImage] = useState<File | null>(null);
-  const [balanceInput, setBalanceInput] = useState("");
+  const { user, configured, loading: authLoading } = useAuth();
+  const [product, setProduct] = useState<VideoProductInput>(emptyProduct);
+  const [presenterId, setPresenterId] = useState<PresenterId>("ana");
+  const [voiceGender, setVoiceGender] = useState<VoiceGender>("feminina");
+  const [voiceProfileId, setVoiceProfileId] = useState<VoiceProfileId>("natural");
+  const [emotionalToneId, setEmotionalToneId] = useState<EmotionalToneId>("alegre");
+  const [advertisingStyleId, setAdvertisingStyleId] = useState<AdvertisingStyleId>("tradicional");
+  const [durationSeconds, setDurationSeconds] = useState<VideoDuration>(15);
+  const [format, setFormat] = useState<VideoFormat>("9:16");
+  const [mode, setMode] = useState<GenerationMode>("ai-video");
+  const [targetAudience, setTargetAudience] = useState("");
+  const [script, setScript] = useState("");
+  const [scriptEdited, setScriptEdited] = useState(false);
+  const [generationStatus, setStatus] = useState<VideoGenerationStatus>("awaiting_configuration");
+  const [productImage, setProductImage] = useState<File | null>(null);
+  const [imageError, setImageError] = useState("");
+  const [existingProducts, setExistingProducts] = useState<ExistingProduct[]>([]);
+  const [library, setLibrary] = useState<VideoLibraryRecord[]>([]);
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [expandedScriptId, setExpandedScriptId] = useState<string | null>(null);
+  const [removeId, setRemoveId] = useState<string | null>(null);
+  const [parentId, setParentId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const usageSnapshot = useSyncExternalStore(subscribeToUsage, getUsageSnapshot, () => SERVER_SNAPSHOT);
-  const ready = usageSnapshot !== SERVER_SNAPSHOT;
-  const { usage, storageError } = useMemo(() => {
-    if (usageSnapshot === STORAGE_READ_ERROR) {
-      return { usage: emptyUsage, storageError: "Não foi possível ler o controle salvo neste navegador. Atualize o saldo antes de continuar." };
-    }
-    if (!usageSnapshot) return { usage: emptyUsage, storageError: "" };
-    try {
-      const parsed: unknown = JSON.parse(usageSnapshot);
-      if (!isUsageEstimate(parsed)) throw new Error("invalid_usage_estimate");
-      return { usage: parsed, storageError: "" };
-    } catch {
-      return { usage: emptyUsage, storageError: "O controle salvo está inválido. Atualize o saldo antes de continuar." };
-    }
-  }, [usageSnapshot]);
+  const [libraryLoading, setLibraryLoading] = useState(true);
+  const generationLock = useRef(false);
+  const previewRef = useRef<HTMLDivElement>(null);
 
-  const selectedCharacter = characters.find((item) => item.id === characterId) ?? characters[0];
-  const creditCost = flowCreditCost(model, duration);
-  const modelOptions = flowModels.find((item) => item.id === model) ?? flowModels[0];
-  const availableVideos = usage.creditsRemaining === null ? null : estimateVideoCount(usage.creditsRemaining, creditCost);
-  const previewUrl = useMemo(() => image ? URL.createObjectURL(image) : "", [image]);
+  const libraryKey = `${LIBRARY_PREFIX}:${user?.id ?? "guest"}`;
+  const presenter = virtualPresenters.find((item) => item.id === presenterId) ?? virtualPresenters[0];
+  const imagePreview = useMemo(() => productImage ? URL.createObjectURL(productImage) : product.imageUrl || "", [productImage, product.imageUrl]);
+  const configuration = useMemo<VideoConfiguration>(() => ({
+    product,
+    presenterId,
+    voiceGender,
+    voiceProfileId,
+    emotionalToneId,
+    advertisingStyleId,
+    durationSeconds,
+    format,
+    mode,
+    targetAudience,
+  }), [product, presenterId, voiceGender, voiceProfileId, emotionalToneId, advertisingStyleId, durationSeconds, format, mode, targetAudience]);
+  const suggestedScript = useMemo(() => buildAdvertisingScript(configuration), [configuration]);
+  const effectiveScript = scriptEdited ? script : suggestedScript;
+  const prompt = useMemo(() => buildVideoPrompt(configuration, effectiveScript), [configuration, effectiveScript]);
+  const validationError = validateVideoConfiguration(configuration, effectiveScript);
+  const status: VideoGenerationStatus = generationStatus === "awaiting_configuration" && !validationError ? "ready" : generationStatus;
 
-  const storyInput = useMemo(() => ({
-    characterName: selectedCharacter.name,
-    characterDescription: selectedCharacter.description,
-    productName: productName.trim() || "[nome do produto]",
-    productBenefit,
-    storyKind,
-    action,
-    mood,
-    voice,
-    durationSeconds: duration,
-  }), [selectedCharacter, productName, productBenefit, storyKind, action, mood, voice, duration]);
-
-  const storyScript = buildStoryScript(storyInput);
-  const prompt = buildFlowPrompt(storyInput);
+  useEffect(() => () => {
+    if (productImage && imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+  }, [imagePreview, productImage]);
 
   useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
-  function saveUsage(next: UsageEstimate): boolean {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      window.dispatchEvent(new Event(STORAGE_EVENT));
-      setError("");
-      return true;
-    } catch {
-      setError("Não foi possível salvar o controle neste navegador. Verifique o armazenamento local e tente novamente.");
-      return false;
+    let active = true;
+    const local = readLocalLibrary(libraryKey);
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      setLibraryLoading(true);
+      setLibrary(local);
+    });
+    const client = getSupabase();
+    if (!user || !client) {
+      void Promise.resolve().then(() => { if (active) setLibraryLoading(false); });
+      return () => { active = false; };
     }
+    void client.from("mv_video_projects").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50)
+      .then(({ data, error: loadError }) => {
+        if (!active) return;
+        if (!loadError && data) {
+          const remote = (data as VideoProjectRow[]).map(fromDatabaseRow);
+          setLibrary(remote);
+          writeLocalLibrary(libraryKey, remote);
+        }
+        setLibraryLoading(false);
+      });
+    return () => { active = false; };
+  }, [libraryKey, user]);
+
+  useEffect(() => {
+    const client = getSupabase();
+    if (!user || !client) return;
+    let active = true;
+    void client.from("mv_products")
+      .select("id,title,image_url,product_url,price_min,price_max,shop_name")
+      .eq("user_id", user.id)
+      .eq("in_latest_sync", true)
+      .order("synced_at", { ascending: false })
+      .limit(100)
+      .then(({ data }) => { if (active) setExistingProducts((data as ExistingProduct[] | null) ?? []); });
+    return () => { active = false; };
+  }, [user]);
+
+  function updateProduct<K extends keyof VideoProductInput>(field: K, value: VideoProductInput[K]) {
+    setProduct((current) => ({ ...current, [field]: value }));
+    setError("");
   }
 
-  function chooseImage(event: ChangeEvent<HTMLInputElement>) {
-    setError("");
+  function selectExistingProduct(id: string) {
+    const selected = existingProducts.find((item) => item.id === id);
+    if (!selected) {
+      setProduct({ ...emptyProduct });
+      setProductImage(null);
+      return;
+    }
+    const price = selected.price_min === null ? "" : selected.price_max !== null && selected.price_max !== selected.price_min
+      ? `R$ ${selected.price_min.toFixed(2)} a R$ ${selected.price_max.toFixed(2)}`
+      : `R$ ${selected.price_min.toFixed(2)}`;
+    setProduct({
+      sourceProductId: selected.id,
+      name: selected.title,
+      description: selected.shop_name ? `Produto sincronizado da loja ${selected.shop_name}.` : "Produto sincronizado da conta conectada.",
+      price,
+      features: "",
+      affiliateLink: selected.product_url,
+      imageUrl: selected.image_url || "",
+      imageName: "",
+    });
+    setProductImage(null);
+    setScriptEdited(false);
+  }
+
+  function chooseProductImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    setImageError("");
     if (!file) return;
     if (!allowedImageTypes.has(file.type)) {
-      setImage(null);
-      setError("Use uma imagem PNG, JPEG ou WebP.");
+      setImageError("Use uma imagem PNG, JPEG ou WebP.");
       event.target.value = "";
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      setImage(null);
-      setError("A imagem deve ter no máximo 10 MB.");
+      setImageError("A imagem deve ter no máximo 10 MB.");
       event.target.value = "";
       return;
     }
-    setImage(file);
+    setProductImage(file);
+    updateProduct("imageName", file.name);
+    updateProduct("imageUrl", "");
   }
 
-  function saveBalance(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const credits = Number(balanceInput);
-    if (!Number.isSafeInteger(credits) || credits < 0 || credits > 100_000) {
-      setError("Informe o saldo inteiro exibido no Flow, entre 0 e 100.000 créditos.");
-      return;
-    }
-    if (usage.pendingCost > 0) {
-      setError("Conclua ou desfaça a reserva pendente antes de atualizar o saldo.");
-      return;
-    }
-    const next = { ...usage, creditsRemaining: credits, updatedAt: new Date().toISOString() };
-    if (saveUsage(next)) {
-      setBalanceInput("");
-      setNotice("Saldo estimado atualizado. O valor foi salvo somente neste navegador.");
-    }
-  }
-
-  function openFlow(event: MouseEvent<HTMLAnchorElement>) {
-    setError("");
-    setNotice("");
-    if (!ready || !image || !productName.trim()) {
-      event.preventDefault();
-      setError("Adicione uma imagem e informe o nome do produto antes de abrir o Flow.");
-      return;
-    }
-    if (usage.pendingCost > 0) {
-      event.preventDefault();
-      setError("Você já tem uma geração reservada. Conclua ou desfaça essa reserva primeiro.");
-      return;
-    }
-    if (usage.creditsRemaining === null || usage.creditsRemaining < creditCost) {
-      event.preventDefault();
-      setError("Saldo estimado insuficiente. Confira o saldo atual no Flow e atualize o controle.");
-      return;
-    }
-    const next = {
-      ...usage,
-      creditsRemaining: usage.creditsRemaining - creditCost,
-      pendingCost: creditCost,
-      updatedAt: new Date().toISOString(),
-    };
-    if (!saveUsage(next)) event.preventDefault();
-    else setNotice(`${creditCost} créditos reservados como estimativa. No Flow, anexe a foto e escolha uma saída.`);
-  }
-
-  function completeGeneration() {
-    if (usage.pendingCost < 1) return;
-    const next = {
-      ...usage,
-      pendingCost: 0,
-      generationsRegistered: usage.generationsRegistered + 1,
-      updatedAt: new Date().toISOString(),
-    };
-    if (saveUsage(next)) setNotice("Vídeo registrado neste navegador. Confira o saldo real no Flow.");
-  }
-
-  function cancelReservation() {
-    if (usage.pendingCost < 1 || usage.creditsRemaining === null) return;
-    const next = {
-      ...usage,
-      creditsRemaining: usage.creditsRemaining + usage.pendingCost,
-      pendingCost: 0,
-      updatedAt: new Date().toISOString(),
-    };
-    if (saveUsage(next)) setNotice("Reserva desfeita no controle estimado. Confira se o Flow debitou créditos antes de continuar.");
+  function choosePresenter(id: PresenterId) {
+    const selected = virtualPresenters.find((item) => item.id === id) ?? virtualPresenters[0];
+    setPresenterId(id);
+    setVoiceGender(selected.defaultVoiceGender);
+    setVoiceProfileId(selected.defaultVoiceProfile);
   }
 
   async function copyText(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setError("");
       setNotice(`${label} copiado.`);
+      setError("");
     } catch {
-      setError(`Não foi possível copiar automaticamente. Selecione o texto e copie manualmente.`);
+      setError(`Não foi possível copiar ${label.toLowerCase()}. Selecione o texto e copie manualmente.`);
     }
   }
 
+  async function persistRecord(record: VideoLibraryRecord) {
+    const next = [record, ...library.filter((item) => item.id !== record.id)].slice(0, 50);
+    setLibrary(next);
+    writeLocalLibrary(libraryKey, next);
+    const client = getSupabase();
+    if (!user || !client) return { remote: false, error: null };
+    const { error: saveError } = await client.from("mv_video_projects").insert(toDatabaseRow(record));
+    return { remote: !saveError, error: saveError };
+  }
+
+  async function simulateGeneration() {
+    if (generationLock.current) return;
+    const approvedScript = effectiveScript;
+    const invalid = validateVideoConfiguration(configuration, approvedScript) ?? mockVideoProvider.validate({ configuration, script: approvedScript, prompt });
+    if (invalid) {
+      setError(invalid);
+      setStatus("awaiting_configuration");
+      return;
+    }
+    generationLock.current = true;
+    setError("");
+    setNotice("");
+    try {
+      setStatus("generating");
+      const job = await mockVideoProvider.start({ configuration, script: approvedScript, prompt });
+      setStatus("processing");
+      await mockVideoProvider.status(job.id);
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      const now = new Date().toISOString();
+      const record = createVideoLibraryRecord(configuration, approvedScript, prompt, {
+        id: crypto.randomUUID(),
+        now,
+        parentId,
+        providerJobId: job.id,
+      });
+      const saved = await persistRecord(record);
+      setSelectedRecordId(record.id);
+      setParentId(null);
+      setStatus("simulation_completed");
+      setNotice(saved.remote
+        ? "Simulação concluída e projeto salvo na sua biblioteca. Nenhuma chamada de vídeo foi executada."
+        : "Simulação concluída e salva neste navegador. Entre na sua conta para sincronizar a biblioteca.");
+    } catch {
+      setStatus("failed");
+      setError("Não foi possível concluir a simulação. Nenhum crédito foi consumido.");
+    } finally {
+      generationLock.current = false;
+    }
+  }
+
+  function loadRecord(record: VideoLibraryRecord, newVersion: boolean) {
+    setProduct({ ...record.product });
+    setProductImage(null);
+    setPresenterId(record.presenterId);
+    setVoiceGender(record.voiceGender);
+    setVoiceProfileId(record.voiceProfileId);
+    setEmotionalToneId(record.emotionalToneId);
+    setAdvertisingStyleId(record.advertisingStyleId);
+    setDurationSeconds(record.durationSeconds);
+    setFormat(record.format);
+    setMode(record.mode);
+    setTargetAudience(record.targetAudience);
+    setScript(record.script);
+    setScriptEdited(true);
+    setParentId(newVersion ? record.id : record.parentId);
+    setSelectedRecordId(record.id);
+    setNotice(newVersion ? "Configurações carregadas para uma nova versão." : "Configurações reutilizadas.");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function removeRecord(id: string) {
+    const next = library.filter((item) => item.id !== id);
+    setLibrary(next);
+    writeLocalLibrary(libraryKey, next);
+    if (selectedRecordId === id) setSelectedRecordId(null);
+    setRemoveId(null);
+    const client = getSupabase();
+    if (user && client) await client.from("mv_video_projects").delete().eq("id", id).eq("user_id", user.id);
+    setNotice("Projeto removido da biblioteca.");
+  }
+
+  const previewRatio = format === "9:16" ? "aspect-[9/16] max-h-[34rem]" : format === "1:1" ? "aspect-square" : "aspect-video";
+  const busy = status === "generating" || status === "processing";
+
   return (
-    <div className="space-y-5">
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
-        <div className="space-y-5">
-          <Card titulo="1. Escolha o produto e a personagem">
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
-              <div className="space-y-4">
-                <label className="block text-sm font-medium">
-                  Nome do produto
-                  <input value={productName} onChange={(event) => setProductName(event.target.value)} maxLength={100} className={inputClass} placeholder="Ex.: garrafa térmica" />
-                </label>
-                <label className="block text-sm font-medium">
-                  Benefício confirmado (opcional)
-                  <input value={productBenefit} onChange={(event) => setProductBenefit(event.target.value)} maxLength={140} className={inputClass} placeholder="Use apenas uma informação verdadeira" />
-                </label>
-                <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border bg-background p-4 text-center">
-                  {previewUrl ? (
-                    // A imagem é somente pré-visualizada no navegador; o usuário a enviará ao Flow manualmente.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={previewUrl} alt="Prévia do produto escolhido" className="mb-3 max-h-40 max-w-full rounded-lg object-contain" />
-                  ) : <ImagePlus className="mb-2 size-7 text-primary" aria-hidden />}
-                  <span className="text-sm font-medium">{image ? image.name : "Adicionar foto do produto"}</span>
-                  <span className="mt-1 text-xs text-muted">PNG, JPEG ou WebP · até 10 MB · não é enviada pelo Meu Vendedor</span>
-                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={chooseImage} className="sr-only" aria-label="Selecionar foto do produto" />
-                </label>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Personagem de fruta</p>
-                <div className="grid gap-2">
-                  {characters.map((character) => (
-                    <button
-                      key={character.id}
-                      type="button"
-                      aria-pressed={characterId === character.id}
-                      onClick={() => setCharacterId(character.id)}
-                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${characterId === character.id ? "border-primary bg-primary-soft" : "border-border bg-background hover:bg-surface-muted"}`}
-                    >
-                      <span className={`grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-br ${character.color} text-2xl`} aria-hidden>{character.emoji}</span>
-                      <span className="min-w-0"><span className="block text-sm font-semibold">{character.name}</span><span className="block text-xs text-muted">{character.description}</span></span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-2xl border border-border bg-surface">
+        <div className="grid gap-5 bg-gradient-to-br from-primary-soft via-surface to-accent-soft p-5 lg:grid-cols-[1fr_auto] lg:items-center lg:p-7">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/80 px-3 py-1 text-xs font-semibold text-primary">
+              <Sparkles className="size-3.5" aria-hidden /> Estúdio em modo demonstração
             </div>
+            <h2 className="text-xl font-bold sm:text-2xl">Do produto ao anúncio, sem escrever prompts complexos</h2>
+            <p className="mt-2 max-w-3xl text-sm text-muted sm:text-base">Escolha o produto, o apresentador e o estilo. O Meu Vendedor prepara o roteiro, a direção visual e uma simulação segura do fluxo.</p>
+          </div>
+          <div className="rounded-xl border border-border bg-background/85 p-4 text-sm lg:w-72">
+            <p className="flex items-center gap-2 font-semibold"><ShieldCheck className="size-4 text-primary" aria-hidden /> Google API desativada</p>
+            <p className="mt-1 text-xs text-muted">Modelo preparado: Gemini Omni 1.1 Flash. Nenhuma chave, cobrança ou geração real nesta etapa.</p>
+          </div>
+        </div>
+        <ol className="grid grid-cols-2 border-t border-border text-xs sm:grid-cols-5">
+          {["Produto", "Personagem", "Voz e emoção", "Formato", "Roteiro"].map((step, index) => (
+            <li key={step} className="flex items-center gap-2 border-b border-r border-border px-3 py-3 last:border-r-0 sm:border-b-0">
+              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-bold text-background">{index + 1}</span>
+              <span className="font-medium">{step}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(19rem,0.65fr)]">
+        <div className="space-y-6">
+          <Card titulo="1. Selecione ou cadastre o produto">
+            {existingProducts.length > 0 && (
+              <label className="mb-4 block text-sm font-medium">
+                Produto sincronizado no Meu Vendedor
+                <select value={product.sourceProductId ?? ""} onChange={(event) => selectExistingProduct(event.target.value)} className={inputClass}>
+                  <option value="">Cadastrar manualmente</option>
+                  {existingProducts.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+                </select>
+              </label>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium sm:col-span-2">Nome do produto
+                <input value={product.name} onChange={(event) => updateProduct("name", event.target.value)} maxLength={160} className={inputClass} placeholder="Ex.: blusa feminina de linho" />
+              </label>
+              <label className="block text-sm font-medium">Preço ou oferta informada
+                <input value={product.price} onChange={(event) => updateProduct("price", event.target.value)} maxLength={80} className={inputClass} placeholder="Ex.: R$ 89,90" />
+              </label>
+              <label className="block text-sm font-medium">Público-alvo (opcional)
+                <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} maxLength={100} className={inputClass} placeholder="Ex.: pessoas que trabalham em casa" />
+              </label>
+              <label className="block text-sm font-medium sm:col-span-2">Descrição
+                <textarea value={product.description} onChange={(event) => updateProduct("description", event.target.value)} maxLength={1200} rows={3} className={inputClass} placeholder="Descreva somente informações confirmadas." />
+              </label>
+              <label className="block text-sm font-medium sm:col-span-2">Características e diferenciais
+                <textarea value={product.features} onChange={(event) => updateProduct("features", event.target.value)} maxLength={1000} rows={3} className={inputClass} placeholder="Uma característica por linha. Não inclua promessas não comprovadas." />
+              </label>
+              <label className="block text-sm font-medium sm:col-span-2">Link de afiliado (opcional)
+                <input type="url" value={product.affiliateLink} onChange={(event) => updateProduct("affiliateLink", event.target.value)} maxLength={2048} className={inputClass} placeholder="https://…" />
+              </label>
+              <label className="flex min-h-40 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-background p-4 text-center sm:col-span-2">
+                {imagePreview ? (
+                  // A imagem local é usada somente na prévia desta sessão.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imagePreview} alt="Prévia do produto" className="mb-3 max-h-52 max-w-full rounded-lg object-contain" />
+                ) : <ImagePlus className="mb-2 size-8 text-primary" aria-hidden />}
+                <span className="text-sm font-semibold">{product.imageName || (product.imageUrl ? "Imagem do produto sincronizado" : "Adicionar imagem do produto")}</span>
+                <span className="mt-1 text-xs text-muted">PNG, JPEG ou WebP · até 10 MB · prévia local</span>
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={chooseProductImage} className="sr-only" aria-label="Adicionar imagem do produto" />
+              </label>
+            </div>
+            {imageError && <p role="alert" className="mt-3 rounded-lg bg-danger-soft p-3 text-sm text-danger">{imageError}</p>}
           </Card>
 
-          <Card titulo="2. Monte a historinha">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block text-sm font-medium">
-                Ideia da história
-                <select value={storyKind} onChange={(event) => setStoryKind(event.target.value as StoryKind)} className={inputClass}>
-                  {stories.map((story) => <option key={story.id} value={story.id}>{story.title}</option>)}
-                </select>
-                <span className="mt-1 block text-xs font-normal text-muted">{stories.find((item) => item.id === storyKind)?.description}</span>
-              </label>
-              <label className="block text-sm font-medium">
-                O que a personagem faz?
-                <select value={action} onChange={(event) => setAction(event.target.value)} className={inputClass}>
-                  <option value="apresenta o produto para a câmera">Apresenta o produto</option>
-                  <option value="demonstra cuidadosamente como o produto é usado">Demonstra o uso</option>
-                  <option value="abre a embalagem e reage com surpresa">Abre a embalagem</option>
-                  <option value="compartilha o produto com uma amiga">Compartilha com alguém</option>
-                  <option value="mostra o produto em uma cena curta do cotidiano">Mostra no cotidiano</option>
-                </select>
-              </label>
-              <label className="block text-sm font-medium">
-                Humor
-                <select value={mood} onChange={(event) => setMood(event.target.value)} className={inputClass}>
-                  <option value="engraçado e acolhedor">Engraçado</option>
-                  <option value="fofo e carinhoso">Fofo</option>
-                  <option value="animado e energético">Animado</option>
-                  <option value="calmo e elegante">Calmo</option>
-                  <option value="surpreso e curioso">Surpreso</option>
-                </select>
-              </label>
-              <label className="block text-sm font-medium">
-                Voz desejada
-                <select value={voice} onChange={(event) => setVoice(event.target.value)} className={inputClass}>
-                  <option value="feminina, animada e natural">Feminina · animada</option>
-                  <option value="masculina, leve e bem-humorada">Masculina · bem-humorada</option>
-                  <option value="neutra, clara e acolhedora">Neutra · acolhedora</option>
-                  <option value="narrador divertido, com ritmo rápido">Narrador · divertido</option>
-                </select>
-                <span className="mt-1 block text-xs font-normal text-muted">A seleção final de voz é feita manualmente no Flow.</span>
-              </label>
+          <Card titulo="2. Escolha o personagem virtual">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {virtualPresenters.map((character) => (
+                <button
+                  type="button"
+                  key={character.id}
+                  aria-pressed={presenterId === character.id}
+                  onClick={() => choosePresenter(character.id)}
+                  className={`overflow-hidden rounded-2xl border text-left transition ${presenterId === character.id ? "border-primary ring-2 ring-primary-soft" : "border-border hover:border-primary/50"}`}
+                >
+                  <div className="relative aspect-[4/5] bg-surface-muted">
+                    <Image src={character.image} alt={`Apresentador virtual ${character.name}`} fill sizes="(max-width: 640px) 50vw, 220px" className="object-cover" />
+                    {presenterId === character.id && <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-primary text-background"><CheckCircle2 className="size-4" aria-hidden /></span>}
+                  </div>
+                  <div className="p-3">
+                    <p className="font-semibold">{character.name}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted">{character.description}</p>
+                  </div>
+                </button>
+              ))}
             </div>
+            <p className="mt-3 text-xs text-muted">As imagens são referências originais. A consistência depende do suporte do modelo e não pode ser garantida apenas por prompt.</p>
           </Card>
 
-          <Card titulo="3. Roteiro e prompt para o Flow">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <section>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold">Roteiro sugerido</h3>
-                  <button type="button" onClick={() => void copyText(storyScript, "Roteiro")} className="inline-flex items-center gap-1 text-xs text-primary underline"><Copy className="size-3.5" aria-hidden />Copiar</button>
+          <Card titulo="3. Defina voz e emoção">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <fieldset>
+                <legend className="text-sm font-medium">Tipo de voz</legend>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {voiceGenders.map((voice) => <button key={voice.id} type="button" aria-pressed={voiceGender === voice.id} onClick={() => setVoiceGender(voice.id)} className={`rounded-xl border px-3 py-3 text-sm ${voiceGender === voice.id ? "border-primary bg-primary-soft font-semibold" : "border-border"}`}>{voice.label}</button>)}
                 </div>
-                <pre className="min-h-36 whitespace-pre-wrap rounded-lg bg-background p-3 text-sm font-sans leading-relaxed">{storyScript}</pre>
-              </section>
-              <section>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold">Prompt visual</h3>
-                  <button type="button" onClick={() => void copyText(prompt, "Prompt")} className="inline-flex items-center gap-1 text-xs text-primary underline"><Copy className="size-3.5" aria-hidden />Copiar</button>
-                </div>
-                <textarea readOnly value={prompt} rows={7} className="w-full resize-y rounded-lg border border-border bg-background p-3 text-sm leading-relaxed" aria-label="Prompt visual para copiar no Flow" />
-              </section>
+              </fieldset>
+              <label className="block text-sm font-medium">Característica da voz
+                <select value={voiceProfileId} onChange={(event) => setVoiceProfileId(event.target.value as VoiceProfileId)} className={inputClass}>
+                  {voiceProfiles.map((voice) => <option key={voice.id} value={voice.id}>{voice.label}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-medium sm:col-span-2">Tom emocional
+                <select value={emotionalToneId} onChange={(event) => setEmotionalToneId(event.target.value as EmotionalToneId)} className={inputClass}>
+                  {emotionalTones.map((tone) => <option key={tone.id} value={tone.id}>{tone.label}</option>)}
+                </select>
+              </label>
             </div>
-            <p className="mt-3 text-xs text-muted">O roteiro é montado com modelos fixos a partir das suas escolhas; nenhuma IA é chamada pelo Meu Vendedor. O Flow pode alterar detalhes da embalagem ou do produto, então revise o resultado antes de publicar.</p>
+            <p className="mt-3 text-xs text-muted">Essas opções viram instruções de interpretação. Uma voz específica ou sincronização labial só será habilitada quando a API confirmar suporte.</p>
+          </Card>
+
+          <Card titulo="4. Escolha o estilo, duração e formato">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium sm:col-span-2">Estilo do anúncio
+                <select value={advertisingStyleId} onChange={(event) => setAdvertisingStyleId(event.target.value as AdvertisingStyleId)} className={inputClass}>
+                  {advertisingStyles.map((style) => <option key={style.id} value={style.id}>{style.label}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-medium">Duração final
+                <select value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value) as VideoDuration)} className={inputClass}>
+                  {videoDurations.map((seconds) => <option key={seconds} value={seconds}>{seconds} segundos</option>)}
+                </select>
+                <span className="mt-1 block text-xs font-normal text-muted">Plano estimado: {estimateSceneCount(durationSeconds)} cena(s) de até 8s.</span>
+              </label>
+              <label className="block text-sm font-medium">Formato
+                <select value={format} onChange={(event) => setFormat(event.target.value as VideoFormat)} className={inputClass}>
+                  {videoFormats.map((option) => <option key={option.id} value={option.id}>{option.label} · {option.use}</option>)}
+                </select>
+              </label>
+            </div>
+            <fieldset className="mt-4">
+              <legend className="text-sm font-medium">Estratégia de produção</legend>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                {generationModes.map((option) => <button key={option.id} type="button" aria-pressed={mode === option.id} onClick={() => setMode(option.id)} className={`rounded-xl border p-4 text-left ${mode === option.id ? "border-primary bg-primary-soft" : "border-border"}`}><span className="block text-sm font-semibold">{option.label}</span><span className="mt-1 block text-xs text-muted">{option.description}</span></button>)}
+              </div>
+            </fieldset>
+          </Card>
+
+          <Card titulo="5. Gere e edite o roteiro">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted">O roteiro usa somente as informações preenchidas acima.</p>
+              <button type="button" onClick={() => { setScript(suggestedScript); setScriptEdited(false); }} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold"><RefreshCw className="size-3.5" aria-hidden />Gerar novamente</button>
+            </div>
+            <textarea value={effectiveScript} onChange={(event) => { setScript(event.target.value); setScriptEdited(true); }} maxLength={4000} rows={9} className={inputClass} aria-label="Roteiro editável" />
+            <div className="mt-4 rounded-xl border border-border bg-background p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold">Instruções de geração preparadas</h3>
+                <button type="button" onClick={() => void copyText(prompt, "Prompt")} className="inline-flex items-center gap-1 text-xs text-primary underline"><Copy className="size-3.5" aria-hidden />Copiar</button>
+              </div>
+              <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-muted">{prompt}</pre>
+            </div>
           </Card>
         </div>
 
-        <aside className="space-y-5">
-          <Card titulo="Estimativa de créditos do Flow">
-            <div className="rounded-lg border border-border bg-background p-3 text-sm">
-              <p className="font-semibold">Saldo local, não sincronizado</p>
-              <p className="mt-1 text-xs text-muted">O Meu Vendedor não acessa a conta nem o saldo real do Flow. Informe o saldo exibido no Flow e registre aqui cada geração iniciada por este estúdio.</p>
-            </div>
-            <form onSubmit={saveBalance} className="mt-4 space-y-3">
-              <label className="block text-sm font-medium">
-                Créditos restantes exibidos no Flow
-                <input type="number" min="0" max="100000" step="1" value={balanceInput} onChange={(event) => setBalanceInput(event.target.value)} className={inputClass} placeholder="Ex.: 1.050" />
-              </label>
-              <button type="submit" disabled={!ready || usage.pendingCost > 0} className="w-full rounded-lg border border-border px-3 py-2 text-sm font-medium disabled:opacity-50">Atualizar saldo manualmente</button>
-            </form>
-            <div className="mt-4 rounded-lg bg-primary-soft p-3">
-              <p className="text-xs text-muted">Vídeos estimados no modelo selecionado</p>
-              <p className="mt-1 text-2xl font-bold">{availableVideos === null ? "—" : availableVideos}</p>
-              <p className="text-xs text-muted">{availableVideos === null ? "Informe seu saldo atual do Flow." : `${usage.creditsRemaining} créditos ÷ ${creditCost} por saída`}</p>
-            </div>
-            <label className="mt-4 block text-sm font-medium">
-              Modelo e qualidade
-              <select value={model} onChange={(event) => {
-                const nextModel = event.target.value as VideoModelId;
-                setModel(nextModel);
-                const nextOptions = flowModels.find((item) => item.id === nextModel);
-                if (nextOptions && !Object.hasOwn(nextOptions.creditCosts, duration)) setDuration(Number(Object.keys(nextOptions.creditCosts)[0]));
-              }} className={inputClass}>
-                {flowModels.map((option) => <option key={option.id} value={option.id}>{option.name} · {option.resolution}</option>)}
-              </select>
-            </label>
-            <label className="mt-3 block text-sm font-medium">
-              Duração
-              <select value={duration} onChange={(event) => setDuration(Number(event.target.value))} className={inputClass}>
-                {Object.keys(modelOptions.creditCosts).map((seconds) => <option key={seconds} value={seconds}>{seconds} segundos · {modelOptions.creditCosts[Number(seconds)]} créditos</option>)}
-              </select>
-            </label>
-            <p className="mt-3 text-xs text-muted">Custos consultados na documentação do Flow; podem mudar. Uma geração pode criar mais de uma saída. Esta estimativa considera uma saída por vez.</p>
-            <div className="mt-4 flex items-start gap-2 rounded-lg border border-border p-3 text-xs text-muted">
-              <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
-              <p>Referência atual do AI Pro: 50 créditos diários e 1.000 mensais. O app não detecta usos feitos no site Flow ou em outros dispositivos. Confira e atualize o saldo manualmente antes de cada sessão.</p>
-            </div>
-            {usage.updatedAt && <p className="mt-3 text-xs text-muted">Saldo atualizado: {new Date(usage.updatedAt).toLocaleString("pt-BR")} · {usage.generationsRegistered} vídeo(s) registrado(s) neste navegador.</p>}
-          </Card>
-
-          <Card titulo="Pronto para criar?">
-            <p className="text-sm text-muted">Copie o prompt, abra o Flow, anexe a mesma foto do produto e selecione o modelo, duração e voz indicados.</p>
-            <p className="mt-2 text-xs text-muted">A imagem selecionada nesta página fica somente no navegador; ela não é enviada nem anexada automaticamente ao Flow.</p>
-            <a
-              href={FLOW_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={openFlow}
-              aria-disabled={!ready || !image || !productName.trim() || usage.creditsRemaining === null || usage.creditsRemaining < creditCost || usage.pendingCost > 0}
-              className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold ${!ready || !image || !productName.trim() || usage.creditsRemaining === null || usage.creditsRemaining < creditCost || usage.pendingCost > 0 ? "pointer-events-none bg-surface-muted text-muted" : "bg-primary text-background"}`}
-            >
-              <ExternalLink className="size-4" aria-hidden />Abrir Flow e reservar {creditCost} créditos
-            </a>
-            {usage.pendingCost > 0 && (
-              <div className="mt-4 space-y-2 rounded-lg border border-accent bg-accent-soft p-3">
-                <p className="text-sm font-medium">Reserva estimada de {usage.pendingCost} créditos ativa.</p>
-                <button type="button" onClick={completeGeneration} className="w-full rounded-lg bg-primary px-3 py-2 text-sm text-background">Registrei o vídeo no Flow</button>
-                <button type="button" onClick={cancelReservation} className="w-full rounded-lg border border-border px-3 py-2 text-sm">Desfazer reserva</button>
+        <aside className="space-y-6">
+          <div ref={previewRef}>
+            <Card titulo="Pré-visualização estática">
+              <div className={`relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface-muted ${previewRatio}`}>
+                <Image src={presenter.image} alt={`Prévia com ${presenter.name}`} fill sizes="380px" className="object-cover" />
+                <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/65 to-transparent p-4 text-white">
+                  <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide backdrop-blur">Prévia · sem consumo</span>
+                </div>
+                {imagePreview && (
+                  <div className="absolute bottom-24 right-3 size-24 overflow-hidden rounded-xl border-2 border-white bg-white shadow-lg sm:size-28">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={imagePreview} alt="Produto na prévia" className="size-full object-contain" />
+                  </div>
+                )}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-4 pt-16 text-white">
+                  <p className="text-lg font-bold">{product.name || "Seu produto"}</p>
+                  <p className="mt-1 text-xs text-white/80">{presenter.name} · {advertisingStyles.find((item) => item.id === advertisingStyleId)?.label} · {durationSeconds}s</p>
+                </div>
               </div>
-            )}
+              <p className="mt-3 text-xs text-muted">Esta composição serve para revisar escolhas. Ela não é um quadro gerado pela API e não consome créditos.</p>
+            </Card>
+          </div>
+
+          <Card titulo="Status da produção">
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
+              {busy ? <LoaderCircle className="size-5 animate-spin text-primary" aria-hidden /> : status === "simulation_completed" ? <CheckCircle2 className="size-5 text-primary" aria-hidden /> : <Film className="size-5 text-primary" aria-hidden />}
+              <div><p className="text-sm font-semibold">{statusLabels[status]}</p><p className="text-xs text-muted">Provedor: simulador local</p></div>
+            </div>
+            <div className="mt-3 rounded-xl bg-primary-soft p-3 text-xs">
+              <p className="font-semibold">Estimativa desta simulação: sem custo</p>
+              <p className="mt-1 text-muted">O custo real só será mostrado após consultar o provedor configurado. Nenhum valor é presumido pela interface.</p>
+            </div>
+            {validationError && <p className="mt-3 text-xs text-muted">Para liberar a simulação: {validationError}</p>}
+            <button type="button" disabled={busy || !!validationError} onClick={() => void simulateGeneration()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
+              {busy ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />{statusLabels[status]}…</> : <><Play className="size-4" aria-hidden />Simular geração sem créditos</>}
+            </button>
+            <button type="button" disabled className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold opacity-50">
+              <WandSparkles className="size-4" aria-hidden />Gerar com Google · aguardando API
+            </button>
           </Card>
 
-          <div className="flex items-start gap-2 rounded-xl border border-border bg-accent-soft p-4 text-sm">
-            <Sparkles className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <p>Este estúdio prepara a história e acompanha uma estimativa. A geração acontece no site do Google Flow, usando sua conta e os limites definidos pelo Google.</p>
-          </div>
+          <Card titulo="Fluxo manual preservado">
+            <p className="text-sm text-muted">Enquanto a API está desativada, você ainda pode copiar as instruções e trabalhar manualmente no Google Flow. O Flow é um produto separado e pode ter regras e custos próprios.</p>
+            <a href={FLOW_URL} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">
+              <ExternalLink className="size-4" aria-hidden />Abrir Google Flow
+            </a>
+          </Card>
+
+          {!authLoading && !user && configured && (
+            <div className="rounded-xl border border-border bg-accent-soft p-4 text-sm">
+              <p className="font-semibold">Salvamento local ativo</p>
+              <p className="mt-1 text-muted">A biblioteca funciona neste navegador. <Link href="/entrar" className="text-primary underline">Entre na sua conta</Link> para sincronizar projetos no Supabase.</p>
+            </div>
+          )}
         </aside>
       </div>
 
-      {(storageError || error) && <p role="alert" className="rounded-lg border border-danger bg-danger-soft p-3 text-sm">{storageError || error}</p>}
-      {notice && <p role="status" className="rounded-lg border border-border bg-surface p-3 text-sm">{notice}</p>}
-      {ready && usage.pendingCost === 0 && usage.generationsRegistered > 0 && <p className="sr-only" aria-live="polite"><Check aria-hidden /> Gerações registradas: {usage.generationsRegistered}</p>}
+      {(error || notice) && (
+        <div className="space-y-2">
+          {error && <p role="alert" className="rounded-xl border border-danger bg-danger-soft p-4 text-sm text-danger">{error}</p>}
+          {notice && <p role="status" className="rounded-xl border border-border bg-surface p-4 text-sm">{notice}</p>}
+        </div>
+      )}
+
+      <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-semibold"><Library className="size-5 text-primary" aria-hidden />Biblioteca de vídeos</h2>
+            <p className="mt-1 text-sm text-muted">Projetos simulados, roteiros e configurações reutilizáveis. MP4 só aparecerá após uma geração real autorizada.</p>
+          </div>
+          <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">{library.length} projeto(s)</span>
+        </div>
+        {libraryLoading ? <p role="status" className="mt-5 text-sm text-muted">Carregando biblioteca…</p> : library.length === 0 ? (
+          <div className="mt-5 rounded-xl border border-dashed border-border p-8 text-center">
+            <Film className="mx-auto size-8 text-muted" aria-hidden />
+            <p className="mt-3 font-semibold">Sua biblioteca começa com uma simulação</p>
+            <p className="mt-1 text-sm text-muted">Configure o primeiro anúncio e use “Simular geração sem créditos”.</p>
+          </div>
+        ) : (
+          <ul className="mt-5 grid gap-4 lg:grid-cols-2">
+            {library.map((record) => {
+              const character = virtualPresenters.find((item) => item.id === record.presenterId) ?? virtualPresenters[0];
+              return <li key={record.id} className={`rounded-xl border p-4 ${selectedRecordId === record.id ? "border-primary bg-primary-soft/40" : "border-border bg-background"}`}>
+                <div className="flex gap-3">
+                  <Image src={character.image} alt="" width={64} height={80} className="h-20 w-16 rounded-lg object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div><h3 className="truncate font-semibold">{record.product.name}</h3><p className="mt-1 text-xs text-muted">{character.name} · {record.durationSeconds}s · {record.format} · {record.mode === "economy" ? "Econômico" : "IA"}</p></div>
+                      <span className="shrink-0 rounded-full bg-surface-muted px-2 py-1 text-[10px] font-semibold">{statusLabels[record.status]}</span>
+                    </div>
+                    <p className="mt-2 text-xs text-muted">{new Date(record.createdAt).toLocaleString("pt-BR")}{record.parentId ? " · nova versão" : ""}</p>
+                  </div>
+                </div>
+                {selectedRecordId === record.id && record.resultUrl && (
+                  <video controls preload="metadata" src={record.resultUrl} className="mt-3 w-full rounded-lg bg-black" aria-label={`Vídeo de ${record.product.name}`} />
+                )}
+                {expandedScriptId === record.id && <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-3 text-xs leading-relaxed">{record.script}</pre>}
+                <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                  <button type="button" onClick={() => { setSelectedRecordId(record.id); previewRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }} className="rounded-lg border border-border px-2.5 py-1.5">Visualizar</button>
+                  <button type="button" onClick={() => setExpandedScriptId((current) => current === record.id ? null : record.id)} className="rounded-lg border border-border px-2.5 py-1.5">Roteiro</button>
+                  <button type="button" onClick={() => loadRecord(record, false)} className="rounded-lg border border-border px-2.5 py-1.5">Reutilizar</button>
+                  <button type="button" onClick={() => loadRecord(record, true)} className="rounded-lg border border-border px-2.5 py-1.5">Nova versão</button>
+                  {record.resultUrl ? (
+                    <a href={record.resultUrl} download className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5"><Download className="size-3" aria-hidden />MP4</a>
+                  ) : (
+                    <button type="button" disabled title="MP4 indisponível no modo demonstração" className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 opacity-40"><Download className="size-3" aria-hidden />MP4</button>
+                  )}
+                  {removeId === record.id ? <><button type="button" onClick={() => void removeRecord(record.id)} className="rounded-lg bg-danger-soft px-2.5 py-1.5 text-danger">Confirmar exclusão</button><button type="button" onClick={() => setRemoveId(null)} className="rounded-lg border border-border px-2.5 py-1.5">Cancelar</button></> : <button type="button" onClick={() => setRemoveId(record.id)} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-danger"><Trash2 className="size-3" aria-hidden />Excluir</button>}
+                </div>
+              </li>;
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

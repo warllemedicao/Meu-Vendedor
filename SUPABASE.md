@@ -2,7 +2,7 @@
 
 ## Estado desta implementação
 
-Projeto hospedado **meu-vendedor**, referência `jzchlrvxdaffnrgbvabv`, autorizado e configurado. Migração `20261104000100` aplicada e registrada no histórico remoto. As três tabelas estão com RLS habilitada e forçada.
+Projeto hospedado **meu-vendedor**, referência `jzchlrvxdaffnrgbvabv`, autorizado e configurado. As migrações `20261104000100`, `20261104000200` e `20261105151156` estão aplicadas e registradas no histórico remoto. As tabelas de dados do usuário, incluindo a biblioteca de vídeos, usam RLS.
 
 A URL pública do Supabase e a chave publicável foram obtidas do projeto correto e configuradas no build via `.env.local`, ignorado pelo Git. Nenhuma chave administrativa foi inserida no frontend ou no repositório. A configuração foi validada por testes de login e persistência na API hospedada.
 
@@ -75,3 +75,9 @@ As chaves administrativas foram obtidas e usadas somente em memória pelo teste.
 ## Conector Shopee
 
 A migração `20261104000200` adiciona conexões, credenciais cifradas, produtos, sincronizações e links gerados. As tabelas são isoladas por RLS e a escrita é exclusiva do backend. A função `marketplace` valida sessões via Supabase Auth em toda operação de usuário; o cron usa segredo próprio. `verify_jwt=false` permite o fluxo de cron, sem eliminar a validação explícita do handler. Os segredos de cifragem e agendamento foram registrados fora do repositório. Ver `CONECTORES.md` para operação e limites.
+
+## Biblioteca e backend de vídeos
+
+A migração `20261105151156` cria `mv_video_projects` para guardar configurações, roteiros, estados e versões. A tabela tem RLS habilitada e forçada, quatro políticas por proprietário e chaves compostas para impedir que uma versão referencie projeto de outro usuário. A verificação remota confirmou RLS forçada e quatro políticas.
+
+A Edge Function `video-generation` está `ACTIVE` na versão 1 com `verify_jwt=true`; a chamada sem sessão retorna HTTP 401. Mesmo autenticada, a geração real permanece bloqueada no código. Não há segredo Google configurado nem chamada paga executada. O contrato e a ativação futura estão em [`VIDEOS_IA.md`](./VIDEOS_IA.md).

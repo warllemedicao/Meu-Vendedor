@@ -13,6 +13,7 @@ O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afilia
 - [SUPABASE.md](./SUPABASE.md): banco, autenticação, políticas e ativação.
 - [CONECTORES.md](./CONECTORES.md): conector Shopee, segurança, limites e pendências por plataforma.
 - [INTEGRACOES.md](./INTEGRACOES.md): requisitos das plataformas.
+- [VIDEOS_IA.md](./VIDEOS_IA.md): gerador em modo demonstração e contrato oficial preparado para o Google.
 - [CLOUDFLARE.md](./CLOUDFLARE.md) e [PUBLICACAO.md](./PUBLICACAO.md): hospedagem e verificações.
 
 ## O que está implementado no código
@@ -24,7 +25,7 @@ O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afilia
 - Cadastro, login e recuperação da senha do próprio Meu Vendedor via Supabase Auth.
 - Perfil com nome de exibição.
 - Gerenciamento de links manuais: criar, listar, editar, excluir e filtrar por plataforma, com campanha e observações.
-- Estúdio de histórias com personagens originais de frutas, roteiros/prompts copiáveis para o Google Flow e estimativa manual de créditos; a geração de vídeo acontece no Flow, não dentro do app.
+- Gerador de vídeos publicitários em modo demonstração: produto, quatro apresentadores virtuais, voz, emoção, estilo, duração, formato, roteiro editável, prévia e biblioteca. A geração real pela API do Google permanece desativada.
 - Migração PostgreSQL e RLS para isolamento dos dados por usuário.
 - Estado informativo quando Supabase não estiver configurado, sem apresentar operações falsas.
 
@@ -68,7 +69,7 @@ Nunca commitar senha, `service_role`, `sb_secret_*`, token de gerenciamento ou c
 
 ## Próximas etapas
 
-Validar a entrega de e-mails de confirmação e recuperação e configurar SMTP próprio quando necessário. O estúdio de vídeos ainda depende da geração manual no Google Flow; o saldo exibido é local e não sincroniza com a conta Google. Evoluir cada integração de loja somente conforme disponibilidade oficial e autorização específica, sem presumir suporte universal.
+Validar a entrega de e-mails de confirmação e recuperação e configurar SMTP próprio quando necessário. O gerador de vídeos funciona em modo demonstração e preserva o fluxo manual do Google Flow; a integração oficial do Google aguarda credencial compatível, autorização de faturamento e validação final. Evoluir cada integração de loja somente conforme disponibilidade oficial e autorização específica, sem presumir suporte universal.
 
 ## Conectar a Shopee
 

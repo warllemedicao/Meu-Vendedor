@@ -1,5 +1,13 @@
 # Publicações — Meu Vendedor
 
+## Gerador de vídeos IA — publicação confirmada
+
+Em 05/11/2026 foi publicado no Worker existente o gerador completo em modo demonstração. Versão Cloudflare `7f135c6e-69b7-4fbc-a459-82bdcf34f30e`, URL pública [Meu Vendedor — Vídeos IA](https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev/videos). O cron de 30 minutos foi preservado.
+
+A rota `/videos` e o retrato público de Ana responderam HTTP 200; o HTML publicado contém “Gerador de vídeos IA”, “Ana” e “Simular geração sem créditos”. Foram publicados os quatro retratos originais. O build final gerou 17 rotas.
+
+No Supabase, a migração `20261105151156` está no histórico, `mv_video_projects` tem RLS forçada e quatro políticas, e a função `video-generation` está `ACTIVE` na versão 1 com JWT obrigatório. A requisição sem sessão retornou 401. Nenhuma credencial Google foi configurada e nenhuma chamada de vídeo paga foi executada.
+
 ## Vitrine pública de Shopee, Amazon e TikTok — fonte ainda pendente
 
 Em 04/11/2026 foi publicada a versão Cloudflare `9d080273-301c-4e59-b025-be17d3e1b5ea`, com somente Shopee, Amazon e TikTok Shop na vitrine de `/` e `/dashboard`. A vitrine não exige login nem conexão pessoal. Os formulários de conta e os acessos privados continuam nas páginas próprias. O cron existente foi preservado.

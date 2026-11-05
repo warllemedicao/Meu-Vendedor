@@ -22,7 +22,7 @@ Correção de publicação concluída: backend `catalog` publicado na versão 1 
 Atualização do catálogo inicial no código: `/` apresenta oportunidades com seleção de Amazon, Mercado Livre, TikTok Shop, Magalu, Shopee, SHEIN e AliExpress. Reutiliza os produtos Shopee sincronizados e adiciona consultas sob demanda de Amazon, Mercado Livre, TikTok Shop e AliExpress na função `catalog`, já publicadas com o frontend; configuração por usuário e validação comercial real ainda pendentes. Magalu/SHEIN seguem sem contrato de catálogo de afiliados confirmado. Pesquisa oficial e dependências em `CATALOGO_APIS.md`. A inclusão das duas novas plataformas neste catálogo não amplia automaticamente o CRUD de links ou os conectores existentes.
 Cadastro/login, perfil e links manuais estão implementados. A migração foi aplicada no projeto `meu-vendedor` e login, persistência e isolamento foram verificados na API hospedada com duas contas temporárias removidas ao final. A entrega de e-mails ainda precisa ser validada. O primeiro conector Shopee foi implementado, condicionado à validação de credenciais reais da conta. As novas consultas de catálogo estão descritas acima; IA e automações comerciais não estão implementadas.
 
-Atualização do módulo de vídeos: `/videos` agora oferece personagens fictícios de frutas, montagem de historinhas e prompts copiáveis para geração manual no Google Flow. A imagem permanece no navegador e precisa ser anexada manualmente no Flow. O controle de créditos é uma estimativa local, atualizada manualmente pelo usuário; não acessa nem sincroniza a conta Google. Não há API de vídeo nem cobrança iniciada pelo Meu Vendedor nesta etapa.
+Atualização do módulo de vídeos: `/videos` agora oferece um gerador publicitário completo em modo demonstração, com cadastro/seleção de produto, quatro apresentadores virtuais originais, voz, emoção, estilo, duração, formato, roteiro editável, prévia estática e biblioteca. O mock percorre os estados de geração sem criar MP4 fictício nem consumir créditos. A integração futura foi isolada atrás de um contrato de provedor e de uma Edge Function autenticada; chamadas Google continuam bloqueadas. Contrato atual e fontes oficiais em `VIDEOS_IA.md`.
 
 A situação atual da base está em [`SUPABASE.md`](./SUPABASE.md). A seção 11 registra a ativação; as seções de etapas anteriores preservam o histórico.
 
@@ -36,7 +36,7 @@ O **Meu Vendedor** é um **app web central de interação e gerenciamento de pro
 
 O escopo inclui Mercado Livre, Shopee, TikTok/TikTok Shop, **Magazine Luiza** e, progressivamente, outros serviços com programas de afiliados. Cada integração será independente e terá apenas as capacidades oficialmente disponíveis para a conta e região autorizadas. “Todas as plataformas” é a direção de expansão; não significa que exista integração universal ou cobertura automática implementada.
 
-A prioridade atual é o gerenciamento de afiliados e a base das APIs. Inteligência artificial, produção de vídeos e automações permanecem como evolução posterior. A referência ForneceUp serve à apresentação e organização; o produto continua orientado a afiliados.
+A prioridade atual continua sendo o gerenciamento de afiliados e a base das APIs. O gerador publicitário já funciona em modo demonstração; somente a geração audiovisual real e as automações permanecem como evolução dependente de provedores. A referência ForneceUp serve à apresentação e organização; o produto continua orientado a afiliados.
 
 O detalhamento das páginas e o plano do primeiro ciclo de APIs estão em [`ESCOPO.md`](./ESCOPO.md). As decisões e pendências específicas de integração estão em [`INTEGRACOES.md`](./INTEGRACOES.md).
 
@@ -249,8 +249,8 @@ ESLint. Ícones: `lucide-react` (open source). Fontes: pilha de fontes do sistem
 | **5** | Monitoramento de produtos: histórico de preço e coleta agendada | 🟡🔌 Planejada |
 | **6** | Ranking Top 10 com IA (pontuação e justificativa) | 🟡🔌 Planejada |
 | **7** | Radar de tendências (TikTok, conforme acesso à API) | 🟡🔌 Planejada |
-| **8** | Roteiros promocionais com IA | 🟡🔌 Planejada |
-| **9** | Geração e análise de vídeo | 🟡🔌 Planejada |
+| **8** | Roteiros promocionais | ✅ Gerador local editável; IA externa opcional pendente |
+| **9** | Geração e análise de vídeo | 🟢 Demonstração concluída; geração real 🔌 pendente |
 | **10** | Publicações e contas conectadas (OAuth, fila, agendamento) | 🟡🔌 Planejada |
 | **11** | Relatórios de cliques, vendas e comissões | 🟡🔌 Planejada |
 | **12** | Automações configuráveis | 🟡 Planejada |
