@@ -1,5 +1,16 @@
 # Hospedagem do Meu Vendedor no Cloudflare
 
+## Estúdio reorganizado e pipeline revisado — 06/11/2026
+
+- Worker `meu-vendedor` publicado na versão `37c2d501-7ee6-4629-a1a4-8b2c844cd854`, preservando ambos os crons e os Secrets. URL: https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev/videos
+- Supabase: `video-generation` ACTIVE v23 com JWT; `video-generation-worker` ACTIVE v6 com autenticação própria preservada. Migração `20261106022136_video_production_cache.sql` aplicada e confirmada: cache privado e tentativas de finalização, além de ajustes de capacidade da fila.
+- 103 testes aprovados, lint sem alertas de código, TypeScript frontend/Edge e exportação estática das 17 rotas aprovados. Testes focados de finalização foram repetidos após ajuste do tratamento de erro transitório.
+- Navegador Chromium em 1440×1000 e 390×844: etapas, abas e biblioteca navegáveis, sem erros JavaScript ou overflow horizontal. Verificação repetida na URL pública após publicação.
+- SQL confirmou cache com RLS habilitada/forçada, sem leitura para `anon`/`authenticated`; nenhum alerta de FK sem índice. Advisor informa seis tabelas internas sem políticas de cliente intencionalmente, incluindo cache. Proteção Auth contra senhas vazadas continua desativada; [orientação](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+- Credenciais presentes não significam geração operacional. O diagnóstico do runtime confirmou flags de fila/processador/geração paga/licença desligadas, allowlist vazia, orçamentos e conversão Magic Hour sem configuração. Nenhum Secret foi alterado; não foram criados jobs nem consumidos créditos de IA. A revisão não comprova um vídeo real nem 15 vídeos/dia.
+- Interfaces/contratos sem adaptadores, pipeline de áudio, biblioteca de fundos pronta e demais pendências estão enumerados em `VIDEOS_IA.md`. Este registro prevalece sobre estados históricos abaixo.
+
+
 ## Publicação atual
 
 - Tipo: **Cloudflare Worker com Static Assets**, não Pages.

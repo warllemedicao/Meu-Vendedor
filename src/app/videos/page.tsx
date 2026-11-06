@@ -9,7 +9,7 @@ export default function Page() {
     <>
       <PageHeader
         titulo="Gerador de vídeos IA"
-        descricao="Prepare anúncios com produto, apresentador virtual, voz, roteiro e formato — sem consumir créditos no modo demonstração."
+        descricao="Crie seu anúncio em etapas e acompanhe a produção até o vídeo final."
       />
       <VideoStudio />
     </>

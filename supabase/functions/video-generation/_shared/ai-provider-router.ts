@@ -168,8 +168,25 @@ export class AIProviderRouter<Request = unknown, Result = unknown> {
     const candidates = this.providers.filter((provider) => supports(provider.capabilities, requirements));
 
     for (const provider of candidates) {
-      const readiness = await provider.readiness();
-      const estimate = await provider.estimate(request);
+      let readiness: AIProviderReadiness;
+      let estimate: { units: number; usd: number | null };
+      try {
+        readiness = await provider.readiness();
+        estimate = await provider.estimate(request);
+      } catch (error) {
+        // Nenhuma geração foi enviada: falhas de preflight não impedem o fallback.
+        const failure = error instanceof AIProviderFailure ? error : null;
+        const skipped: AIAttemptRecord = {
+          providerId: provider.capabilities.id,
+          model: provider.capabilities.model,
+          status: "skipped",
+          reason: failure?.code ?? "provider_preflight_unavailable",
+        };
+        attempts.push(skipped);
+        await this.attempts.record(skipped);
+        await this.attempts.setCooldown(provider.capabilities.id, this.now() + Math.max(failure?.retryAfterMs ?? 0, 60_000));
+        continue;
+      }
       const ineligible = eligibilityFailure(
         provider.capabilities, readiness, estimate, requirements, this.policy, this.now(),
       );

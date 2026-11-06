@@ -1,5 +1,7 @@
 # Meu Vendedor — Viral Commerce AI
 
+> **Atualização do estúdio — 06/11/2026:** interface em três áreas e etapas; fallback de roteiro Gemini/Groq/OpenRouter; correções de retomada, finalização e fallback de vídeo; cache privado de referências/composição e capacidade técnica acima de 15 entregas/dia. Migração `20261106022136_video_production_cache.sql` aplicada ao Supabase. Runtime confirmou credenciais dos serviços, mas flags de geração, allowlist, limites e conversão Magic Hour estão ausentes/desligados. Geração real ainda não foi executada. Pendências exatas e estado atual em [VIDEOS_IA.md](./VIDEOS_IA.md). Este bloco prevalece sobre o histórico abaixo.
+
 > **Revisão autenticada — 06/11/2026:** Supabase conectado e revalidado nesta sessão: 15 tabelas com RLS, cinco funções ativas e seis migrações aplicadas. A nova migração corrige oito índices ausentes; advisor não aponta mais chaves estrangeiras sem índice. O catálogo real ainda retorna `catalog_not_configured`, inclusive Shopee. Cadastro/login e organização de links estão implementados; catálogo, e-mails e vídeos reais ainda têm dependências externas. Estado atual e instruções em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Este bloco prevalece sobre os registros anteriores de falta de acesso ou versões históricas abaixo.
 
 App web de gerenciamento de afiliados com **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**.

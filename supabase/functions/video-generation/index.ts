@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
+import { productionServiceInventory } from "./_shared/provider-inventory.ts";
+import { routeAdvertisingScript } from "./_shared/script-router.ts";
 import {
   createVideoGenerationHandler,
   requestGeminiScript,
@@ -90,11 +92,18 @@ Deno.serve(createVideoGenerationHandler({
     const { data: { user }, error } = await auth.auth.getUser(token);
     return error ? null : user?.id ?? null;
   },
-  geminiApiKey: () => Deno.env.get("GEMINI_API_KEY"),
-  geminiScriptEnabled: () => Deno.env.get("MV_GEMINI_SCRIPT_ENABLED") === "true",
+  geminiApiKey: () => Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GOOGLE_API_KEY"),
+  geminiScriptEnabled: () => Deno.env.get("MV_AI_SCRIPT_ENABLED") === "true" || Deno.env.get("MV_GEMINI_SCRIPT_ENABLED") === "true",
+  scriptProvidersConfigured: () => Boolean(Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GROQ_API_KEY") || Deno.env.get("OPENROUTER_API_KEY")),
+  generateScriptWithFallback: (input) => routeAdvertisingScript(input, {
+    geminiKey: Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GOOGLE_API_KEY"),
+    groqKey: Deno.env.get("GROQ_API_KEY"),
+    openRouterKey: Deno.env.get("OPENROUTER_API_KEY"),
+  }),
   videoJobsEnabled: () => Boolean(admin) && Deno.env.get("MV_VIDEO_JOBS_ENABLED") === "true",
   videoProcessorAvailable: processorAvailable,
   videoProviders: configuredProviders,
+  productionServices: () => productionServiceInventory((name) => Boolean(Deno.env.get(name))),
   generateScript: (input, apiKey) => requestGeminiScript(input, apiKey),
   enqueueJob: async (userId, projectId, idempotencyKey, requestData) => {
     if (!admin) throw new VideoJobError(503, "job_queue_unavailable", "A persistência da fila não está configurada.");

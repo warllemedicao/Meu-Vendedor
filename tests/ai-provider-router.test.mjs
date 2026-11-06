@@ -61,6 +61,7 @@ function harness(providerDefinitions, policyOverrides = {}) {
   const providers = providerDefinitions.map((definition) => ({
     capabilities: capability(definition.id, definition.task, definition.capabilities),
     async readiness() {
+      if (definition.readinessError) throw definition.readinessError;
       return {
         authenticated: true,
         available: true,
@@ -250,4 +251,16 @@ test('registra provedores pulados e tentativas sem registrar segredos', async ()
   await state.router.generate(requirement, { prompt: 'private prompt' }, 'job-17:video');
   assert.ok(state.records.some((entry) => entry.status === 'skipped' && entry.reason === 'commercial_use_unconfirmed'));
   assert.doesNotMatch(JSON.stringify(state.records), /private prompt|token|secret/i);
+});
+
+
+test('preflight sem créditos ou indisponível avança automaticamente sem enviar geração ao provedor falho', async () => {
+  for (const failure of [new AIProviderFailure('credits_query_failed', 'credits', 'not-started'), new Error('network timeout')]) {
+    const state = harness([{ id: 'primary', readinessError: failure }, { id: 'fallback' }]);
+    const result = await state.router.generate(requirement, {}, 'same-request');
+    assert.equal(result.providerId, 'fallback');
+    assert.equal(state.definitions[0].calls ?? 0, 0);
+    assert.equal(state.cooldowns.length, 1);
+    assert.equal(state.records[0].status, 'skipped');
+  }
 });

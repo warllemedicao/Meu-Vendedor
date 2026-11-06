@@ -28,7 +28,10 @@ export interface VideoGenerationDependencies {
   videoJobsEnabled(): boolean;
   videoProcessorAvailable(): boolean;
   videoProviders?(): readonly { id: string; model: string; configured: boolean }[];
+  productionServices?(): readonly import("./provider-inventory.ts").ProductionService[];
   generateScript(input: GeminiScriptInput, apiKey: string): Promise<string>;
+  generateScriptWithFallback?(input: GeminiScriptInput): Promise<{ script: string; provider: string; model: string }>;
+  scriptProvidersConfigured?(): boolean;
   enqueueJob(userId: string, projectId: string | null, idempotencyKey: string, requestData: Record<string, unknown>): Promise<unknown>;
   kickProcessor?(): void;
   getJob(userId: string, jobId: string): Promise<unknown | null>;
@@ -276,7 +279,7 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
     if (!body || typeof body.action !== "string") return response({ error: { code: "invalid_request", message: "Solicitação inválida." } }, 400, cors);
 
     if (body.action === "capabilities") {
-      const configured = Boolean(dependencies.geminiApiKey());
+      const configured = dependencies.scriptProvidersConfigured?.() ?? Boolean(dependencies.geminiApiKey());
       const enabled = dependencies.geminiScriptEnabled();
       return response({
         script: { provider: "google-gemini", model, configured, enabled, available: configured && enabled },
@@ -291,6 +294,7 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
           enabled: dependencies.videoJobsEnabled(),
           processorAvailable: dependencies.videoProcessorAvailable(),
         },
+        services: dependencies.productionServices?.() ?? [],
       }, 200, cors);
     }
 
@@ -298,11 +302,14 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
       const input = validateGeminiScriptInput(body.configuration);
       if (!input) return response({ error: { code: "invalid_request", message: "Revise os dados do produto, template, cenário e duração." } }, 400, cors);
       const apiKey = dependencies.geminiApiKey();
-      if (!apiKey || !dependencies.geminiScriptEnabled()) {
+      if (!(dependencies.scriptProvidersConfigured?.() ?? Boolean(apiKey)) || !dependencies.geminiScriptEnabled()) {
         return response({ error: { code: "gemini_script_disabled", message: "A geração de roteiro Gemini está desativada no backend." } }, 503, cors);
       }
       try {
-        const script = await dependencies.generateScript(input, apiKey);
+        if (dependencies.generateScriptWithFallback) {
+          return response(await dependencies.generateScriptWithFallback(input), 200, cors);
+        }
+        const script = await dependencies.generateScript(input, apiKey!);
         return response({ script, provider: "google-gemini", model }, 200, cors);
       } catch (error) {
         if (error instanceof GeminiScriptError) {

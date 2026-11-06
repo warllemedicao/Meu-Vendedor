@@ -13,8 +13,6 @@ import {
   LoaderCircle,
   Play,
   RefreshCw,
-  ShieldCheck,
-  Sparkles,
   Trash2,
   Upload,
   WandSparkles,
@@ -40,7 +38,6 @@ import {
   buildVideoPrompt,
   createVideoLibraryRecord,
   emotionalTones,
-  estimateSceneCount,
   generationModes,
   motionModes,
   narrationModes,
@@ -200,7 +197,7 @@ const jobStageLabels: Record<string, string> = {
   video_submitting: "Enviando ao provedor de vídeo",
   video_processing: "Gerando vídeo",
   validating: "Validando resultado",
-  awaiting_authorization: "Aguardando créditos ou autorização",
+  awaiting_authorization: "Aguardando disponibilidade dos serviços",
   uncertain: "Verificação necessária",
   completed: "Vídeo concluído",
   failed: "Erro na geração",
@@ -336,6 +333,8 @@ function toDatabaseRow(record: VideoLibraryRecord) {
 
 export function VideoStudio() {
   const { user, configured, loading: authLoading } = useAuth();
+  const [studioView, setStudioView] = useState<"create" | "queue" | "library">("create");
+  const [studioStep, setStudioStep] = useState(0);
   const [product, setProduct] = useState<VideoProductInput>(emptyProduct);
   const [templateId, setTemplateId] = useState<VideoTemplateId>("presenting-product");
   const [scenePresetId, setScenePresetId] = useState("beauty-counter");
@@ -357,6 +356,7 @@ export function VideoStudio() {
   const [generatingScript, setGeneratingScript] = useState(false);
   const [jobManagementEnabledForUser, setJobManagementAvailable] = useState(false);
   const [videoProcessorAvailableForUser, setVideoProcessorAvailable] = useState(false);
+  const [productionServices, setProductionServices] = useState<{ name: string; configured: boolean; integrated: boolean }[]>([]);
   const [capabilityUserId, setCapabilityUserId] = useState<string | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
   const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null);
@@ -400,7 +400,7 @@ export function VideoStudio() {
   const jobManagementAvailable = Boolean(userId && capabilityUserId === userId && jobManagementEnabledForUser);
   const queueAvailable = Boolean(userId && capabilityUserId === userId && jobManagementEnabledForUser && videoProcessorAvailableForUser);
   const geminiCapabilityNotice = userId ? geminiCapabilityMessage : "Entre na sua conta para verificar o provedor.";
-  const visibleJobs = userId ? jobs : [];
+  const visibleJobs = userId && jobsLoadedForUser === userId ? jobs : [];
   const visibleJobsError = userId ? jobsError : "";
   const visibleJobsLoading = Boolean(userId && jobsLoadedForUser !== userId);
   const hasActiveJobs = jobs.some((job) => job.status === "queued" || job.status === "processing");
@@ -513,9 +513,10 @@ export function VideoStudio() {
           setGeminiScriptAvailable(false);
           setJobManagementAvailable(false);
           setVideoProcessorAvailable(false);
-          setGeminiCapabilityMessage("Não foi possível verificar o backend Gemini.");
+          setGeminiCapabilityMessage("Não foi possível verificar os serviços de roteiro.");
           return;
         }
+        setProductionServices(Array.isArray(data?.services) ? data.services : []);
         const scriptCapability = data?.script;
         const available = scriptCapability?.available === true;
         setCapabilityUserId(userId);
@@ -523,8 +524,8 @@ export function VideoStudio() {
         setJobManagementAvailable(data?.jobs?.enabled === true);
         setVideoProcessorAvailable(data?.jobs?.processorAvailable === true);
         setGeminiCapabilityMessage(available
-          ? "Gemini habilitado no backend; a chamada de roteiro pode consumir créditos."
-          : "Gemini não está habilitado para roteiros. Nenhuma chamada foi feita.");
+          ? "Roteiros disponíveis com seleção automática de serviço."
+          : "Roteiro por IA ainda não habilitado; use a sugestão local.");
       })
       .catch(() => {
         if (active) {
@@ -532,7 +533,7 @@ export function VideoStudio() {
           setGeminiScriptAvailable(false);
           setJobManagementAvailable(false);
           setVideoProcessorAvailable(false);
-          setGeminiCapabilityMessage("Não foi possível verificar o backend Gemini.");
+          setGeminiCapabilityMessage("Não foi possível verificar os serviços de roteiro.");
         }
       });
     return () => { active = false; };
@@ -571,7 +572,7 @@ export function VideoStudio() {
     let active = true;
     for (const job of jobs) {
       if (job.status !== "completed" || !job.result_object_path ||
-        (jobResultUrls[job.id]?.userId === userId && jobResultUrls[job.id]?.url)) continue;
+        (jobResultUrls[job.id]?.userId === userId && (jobResultUrls[job.id]?.url || jobResultUrls[job.id]?.error))) continue;
       void createVideoAssetUrl(client, userId, job.result_object_path)
         .then((url) => {
           if (active) setJobResultUrls((current) => ({ ...current, [job.id]: { userId, url } }));
@@ -673,14 +674,14 @@ export function VideoStudio() {
       const { data, error: invokeError } = await client.functions.invoke("video-generation", {
         body: { action: "generate-script", configuration },
       });
-      if (invokeError) throw new Error("Não foi possível gerar o roteiro no Gemini.");
+      if (invokeError) throw new Error("Não foi possível preparar o roteiro.");
       if (!data || typeof data.script !== "string") {
         const message = typeof data?.error?.message === "string" ? data.error.message : "O backend não retornou um roteiro válido.";
         throw new Error(message);
       }
       setScript(data.script);
       setScriptEdited(true);
-      setNotice("Roteiro gerado pelo Gemini. Revise antes de usar.");
+      setNotice(data.provider === "local" ? "Roteiro preparado localmente; os serviços de IA não responderam. Revise antes de usar." : "Roteiro preparado. Revise antes de usar.");
     } catch (scriptError) {
       setError(scriptError instanceof Error ? scriptError.message : "Não foi possível gerar o roteiro.");
     } finally {
@@ -738,8 +739,8 @@ export function VideoStudio() {
       setError(`A referência visual de ${presenter.name} ainda não está aprovada para processamento.`);
       return;
     }
-    if (!product.imageStoragePath) {
-      setError("Salve primeiro uma imagem do produto no armazenamento privado.");
+    if (!product.imageStoragePath && !productImage) {
+      setError("Selecione uma imagem do produto para gerar o vídeo.");
       return;
     }
     if (durationSeconds !== 6) {
@@ -756,13 +757,15 @@ export function VideoStudio() {
     setError("");
     setNotice("");
     try {
-      const referenceKey = `${user.id}:${product.imageStoragePath}:${presenterId}`;
+      const productPath = product.imageStoragePath || await uploadVideoProductImage(client, user.id, productImage!);
+      if (!product.imageStoragePath) updateProduct("imageStoragePath", productPath);
+      const referenceKey = `${user.id}:${productPath}:${presenterId}`;
       let references = aiReferenceCache.current?.key === referenceKey ? aiReferenceCache.current : null;
       if (!references) {
         const clientPresenter = presenter.image;
         if (!clientPresenter) throw new Error("A referência visual deste personagem ainda não está disponível.");
         const [productReference, presenterReference] = await Promise.all([
-          createVideoProductAIReference(client, user.id, product.imageStoragePath),
+          createVideoProductAIReference(client, user.id, productPath),
           createVideoPresenterAIReference(client, user.id, clientPresenter),
         ]);
         references = {
@@ -793,7 +796,7 @@ export function VideoStudio() {
           price: product.price,
           features: product.features,
           clothingSize: product.clothingSize ?? "",
-          imageStoragePath: product.imageStoragePath,
+          imageStoragePath: productPath,
           aiReferenceStoragePath: references.product.path,
           aiReferenceWidth: references.product.width,
           aiReferenceHeight: references.product.height,
@@ -822,7 +825,8 @@ export function VideoStudio() {
       const queuedJob = data.job as VideoJobRow;
       setJobs((current) => [queuedJob, ...current.filter((job) => job.id !== queuedJob.id)].slice(0, 20));
       enqueueIdempotency.current = null;
-      setNotice("Tarefa registrada. A fila atualiza o andamento automaticamente; provedores pagos só são usados com autorização e orçamento válidos.");
+      setStudioView("queue");
+      setNotice("Produção iniciada. Acompanhe as etapas; a troca entre serviços disponíveis é automática.");
     } catch (enqueueError) {
       setError(enqueueError instanceof Error ? enqueueError.message : "Não foi possível registrar a tarefa na fila.");
     } finally {
@@ -990,13 +994,15 @@ export function VideoStudio() {
     setAdvertisingStyleId(record.advertisingStyleId);
     setNarrationMode(record.narrationMode);
     setMotionMode(record.motionMode);
-    setDurationSeconds(videoDurations.find((seconds) => seconds === record.durationSeconds) ?? 8);
+    setDurationSeconds(6);
     setMode(record.mode);
     setTargetAudience(record.targetAudience);
     setScript(record.script);
     setScriptEdited(true);
     setParentId(newVersion ? record.id : record.parentId);
     setSelectedRecordId(record.id);
+    setStudioView("create");
+    setStudioStep(0);
     setNotice(newVersion ? "Configurações carregadas para uma nova versão." : "Configurações reutilizadas.");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -1012,38 +1018,42 @@ export function VideoStudio() {
     setNotice("Projeto removido da biblioteca.");
   }
 
-  const previewRatio = "aspect-[9/16] max-h-[34rem]";
+  const previewRatio = "aspect-[9/16] max-w-[13rem]";
   const busy = status === "generating" || status === "processing";
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <div className="grid gap-5 bg-gradient-to-br from-primary-soft via-surface to-accent-soft p-5 lg:grid-cols-[1fr_auto] lg:items-center lg:p-7">
+      <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/80 px-3 py-1 text-xs font-semibold text-primary">
-              <Sparkles className="size-3.5" aria-hidden /> Estúdio em modo demonstração
-            </div>
-            <h2 className="text-xl font-bold sm:text-2xl">Do produto ao anúncio, sem escrever prompts complexos</h2>
-            <p className="mt-2 max-w-3xl text-sm text-muted sm:text-base">Escolha o produto, o apresentador e o estilo. O Meu Vendedor prepara o roteiro, a direção visual e uma simulação segura do fluxo.</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary">Estúdio de criação</p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight">Seu próximo vídeo começa aqui</h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted">Prepare o produto e a direção criativa. Acompanhe a produção e encontre seus projetos na biblioteca.</p>
           </div>
-          <div className="rounded-xl border border-border bg-background/85 p-4 text-sm lg:w-72">
-            <p className="flex items-center gap-2 font-semibold"><ShieldCheck className="size-4 text-primary" aria-hidden /> Google API desativada</p>
-            <p className="mt-1 text-xs text-muted">Modelo preparado: Gemini Omni 1.1 Flash. Nenhuma chave, cobrança ou geração real nesta etapa.</p>
-          </div>
+          <span className={`rounded-full px-3 py-2 text-xs font-medium ${queueAvailable ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted"}`}>
+            {queueAvailable ? "Geração disponível" : user ? "Configuração de geração pendente" : "Entre para gerar vídeos"}
+          </span>
         </div>
-        <ol className="grid grid-cols-2 border-t border-border text-xs sm:grid-cols-6">
-          {["Produto", "Template e cenário", "Personagem", "Voz e movimento", "Formato", "Roteiro"].map((step, index) => (
-            <li key={step} className="flex items-center gap-2 border-b border-r border-border px-3 py-3 last:border-r-0 sm:border-b-0">
-              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-bold text-background">{index + 1}</span>
-              <span className="font-medium">{step}</span>
-            </li>
+        <nav aria-label="Áreas do estúdio" className="mt-6 flex gap-1 overflow-x-auto rounded-xl bg-background p-1">
+          {([{ id: "create", label: "Criar vídeo" }, { id: "queue", label: `Em produção (${visibleJobs.filter((job) => job.status === "queued" || job.status === "processing").length})` }, { id: "library", label: "Biblioteca" }] as const).map((item) => (
+            <button key={item.id} type="button" onClick={() => setStudioView(item.id)} aria-current={studioView === item.id ? "page" : undefined}
+              className={`flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-semibold transition ${studioView === item.id ? "bg-surface text-primary shadow-sm" : "text-muted hover:text-foreground"}`}>{item.label}</button>
           ))}
-        </ol>
+        </nav>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(19rem,0.65fr)]">
-        <div className="space-y-6">
-          <Card titulo="1. Selecione ou cadastre o produto">
+      <div className={studioView === "create" ? "grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]" : "hidden"}>
+        <div className="min-w-0 space-y-5">
+          <nav aria-label="Etapas de criação" className="grid grid-cols-3 gap-2">
+            {["Produto", "Direção visual", "Roteiro e revisão"].map((label, index) => (
+              <button key={label} type="button" aria-current={studioStep === index ? "step" : undefined} onClick={() => setStudioStep(index)}
+                className={`rounded-xl border px-2 py-3 text-sm font-medium ${studioStep === index ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface text-muted"}`}>
+                <span className="mr-2 text-xs opacity-70">0{index + 1}</span>{label}
+              </button>
+            ))}
+          </nav>
+          <div hidden={studioStep !== 0}>
+          <Card titulo="Produto do anúncio">
             {existingProducts.length > 0 && (
               <label className="mb-4 block text-sm font-medium">
                 Produto sincronizado no Meu Vendedor
@@ -1108,7 +1118,9 @@ export function VideoStudio() {
             {imageError && <p role="alert" className="mt-3 rounded-lg bg-danger-soft p-3 text-sm text-danger">{imageError}</p>}
           </Card>
 
-          <Card titulo="2. Escolha um template e cenário">
+          </div>
+          <div hidden={studioStep !== 1} className="space-y-5">
+          <Card titulo="Cena e cenário">
             <div className="grid gap-3 md:grid-cols-3">
               {videoTemplates.map((template) => (
                 <button
@@ -1130,10 +1142,10 @@ export function VideoStudio() {
                 ))}
               </select>
             </label>
-            <p className="mt-2 text-xs text-muted">Os cenários são preferências do briefing. A biblioteca ainda não contém cenas-base prontas; a simulação não gera try-on, composição ou vídeo.</p>
+            <p className="mt-2 text-xs text-muted">Escolha a direção do cenário. Composições já produzidas com as mesmas referências podem ser reutilizadas por até 30 dias.</p>
           </Card>
 
-          <Card titulo="3. Escolha o personagem virtual">
+          <Card titulo="Apresentador">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {virtualPresenters.map((character) => (
                 <button
@@ -1141,6 +1153,7 @@ export function VideoStudio() {
                   key={character.id}
                   aria-pressed={presenterId === character.id}
                   onClick={() => choosePresenter(character.id)}
+                  disabled={character.referenceStatus !== "ready"}
                   className={`overflow-hidden rounded-2xl border text-left transition ${presenterId === character.id ? "border-primary ring-2 ring-primary-soft" : "border-border hover:border-primary/50"}`}
                 >
                   <div className="relative aspect-[4/5] bg-surface-muted">
@@ -1164,10 +1177,10 @@ export function VideoStudio() {
                 </button>
               ))}
             </div>
-            <p className="mt-3 text-xs text-muted">Cada personagem mantém seu próprio ID e perfil. As referências pendentes não usam a imagem de outro personagem; a geração audiovisual continua desativada.</p>
+            <p className="mt-3 text-xs text-muted">Escolha um apresentador com referência disponível para gerar seu vídeo.</p>
           </Card>
 
-          <Card titulo="4. Defina voz, narração e movimento">
+          <Card titulo="Preferências de voz e movimento">
             <div className="grid gap-4 sm:grid-cols-2">
               <fieldset>
                 <legend className="text-sm font-medium">Tipo de voz</legend>
@@ -1199,7 +1212,7 @@ export function VideoStudio() {
             <p className="mt-3 text-xs text-muted">Essas opções são instruções de briefing; não geram áudio nem garantem sincronização labial ou movimento real nesta etapa.</p>
           </Card>
 
-          <Card titulo="5. Escolha o estilo, duração e formato">
+          <Card titulo="Estilo e formato">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-medium sm:col-span-2">Estilo do anúncio
                 <select value={advertisingStyleId} onChange={(event) => setAdvertisingStyleId(event.target.value as AdvertisingStyleId)} className={inputClass}>
@@ -1208,9 +1221,9 @@ export function VideoStudio() {
               </label>
               <label className="block text-sm font-medium">Duração final
                 <select value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value) as VideoDuration)} className={inputClass}>
-                  {videoDurations.map((seconds) => <option key={seconds} value={seconds}>{seconds} segundos</option>)}
+                  {videoDurations.map((seconds) => <option key={seconds} value={seconds} disabled={seconds !== 6}>{seconds} segundos{seconds !== 6 ? " · indisponível" : ""}</option>)}
                 </select>
-                <span className="mt-1 block text-xs font-normal text-muted">Plano estimado: {estimateSceneCount(durationSeconds)} cena(s) de até 8s.</span>
+                <span className="mt-1 block text-xs font-normal text-muted">Uma cena de 6 segundos. Durações maiores exigem montagem de cenas, ainda indisponível.</span>
               </label>
               <div className="block text-sm font-medium">Formato
                 <p className={`${inputClass} cursor-not-allowed text-muted`} aria-label="Formato do vídeo">Vertical 9:16 · Reels, TikTok e Shorts</p>
@@ -1224,33 +1237,42 @@ export function VideoStudio() {
             </fieldset>
           </Card>
 
-          <Card titulo="6. Gere e edite o roteiro">
+          </div>
+          <div hidden={studioStep !== 2}>
+          <Card titulo="Roteiro e revisão">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-muted">O roteiro usa somente as informações preenchidas acima.</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => { setScript(suggestedScript); setScriptEdited(false); }} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold"><RefreshCw className="size-3.5" aria-hidden />Roteiro local</button>
                 <button type="button" disabled={!geminiScriptAvailable || generatingScript} onClick={() => void generateGeminiScript()} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50">
                   {generatingScript ? <LoaderCircle className="size-3.5 animate-spin" aria-hidden /> : <WandSparkles className="size-3.5" aria-hidden />}
-                  {generatingScript ? "Gerando…" : "Gerar com Gemini"}
+                  {generatingScript ? "Gerando…" : "Gerar roteiro com IA"}
                 </button>
               </div>
             </div>
-            <p className="mb-3 text-xs text-muted">{geminiCapabilityNotice} A geração fica bloqueada até a flag segura do backend ser habilitada.</p>
+            <p className="mb-3 text-xs text-muted">{geminiCapabilityNotice} O roteiro local permanece disponível.</p>
             <textarea value={effectiveScript} onChange={(event) => { setScript(event.target.value); setScriptEdited(true); }} maxLength={4000} rows={9} className={inputClass} aria-label="Roteiro editável" />
-            <div className="mt-4 rounded-xl border border-border bg-background p-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold">Instruções de geração preparadas</h3>
+            <details className="mt-4 rounded-xl border border-border bg-background p-4">
+              <summary className="cursor-pointer text-sm font-semibold">Ver direção de geração</summary>
+              <div className="mt-3 flex items-center justify-between gap-3">
                 <button type="button" onClick={() => void copyText(prompt, "Prompt")} className="inline-flex items-center gap-1 text-xs text-primary underline"><Copy className="size-3.5" aria-hidden />Copiar</button>
               </div>
               <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-muted">{prompt}</pre>
-            </div>
+            </details>
           </Card>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4">
+            <button type="button" disabled={studioStep === 0} onClick={() => setStudioStep((step) => step - 1)} className="rounded-lg border border-border px-4 py-2 text-sm font-medium disabled:opacity-30">Voltar</button>
+            <span className="text-xs text-muted">Etapa {studioStep + 1} de 3</span>
+            {studioStep < 2 ? <button type="button" onClick={() => setStudioStep((step) => step + 1)} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-background">Continuar</button>
+              : <button type="button" onClick={() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary">Revisar produção</button>}
+          </div>
         </div>
 
-        <aside className="space-y-6">
+        <aside className="space-y-5 xl:sticky xl:top-5">
           <div ref={previewRef}>
             <Card titulo="Pré-visualização estática">
-              <div className={`relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface-muted ${previewRatio}`}>
+              <div className={`relative mx-auto w-full overflow-hidden rounded-2xl border border-border bg-surface-muted ${previewRatio}`}>
                 {presenter.image ? (
                   <Image src={presenter.image} alt={`Prévia com ${presenter.name}`} fill sizes="380px" className="object-cover" />
                 ) : (
@@ -1276,34 +1298,33 @@ export function VideoStudio() {
             </Card>
           </div>
 
-          <Card titulo="Status da produção">
-            <div className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
-              {busy ? <LoaderCircle className="size-5 animate-spin text-primary" aria-hidden /> : status === "simulation_completed" ? <CheckCircle2 className="size-5 text-primary" aria-hidden /> : <Film className="size-5 text-primary" aria-hidden />}
-              <div><p className="text-sm font-semibold">{statusLabels[status]}</p><p className="text-xs text-muted">Provedor: simulador local</p></div>
-            </div>
-            <div className="mt-3 rounded-xl bg-primary-soft p-3 text-xs">
-              <p className="font-semibold">Estimativa desta simulação: sem custo</p>
-              <p className="mt-1 text-muted">O custo real só será mostrado após consultar o provedor configurado. Nenhum valor é presumido pela interface.</p>
-            </div>
-            {validationError && <p className="mt-3 text-xs text-muted">Para liberar a simulação: {validationError}</p>}
-            <button type="button" disabled={busy || !!validationError} onClick={() => void simulateGeneration()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
-              {busy ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />{statusLabels[status]}…</> : <><Play className="size-4" aria-hidden />Simular geração sem créditos</>}
+          <Card titulo="Produzir vídeo">
+            <dl className="grid grid-cols-2 gap-3 text-sm">
+              <div><dt className="text-xs text-muted">Formato</dt><dd className="mt-1 font-semibold">Vertical · 9:16</dd></div>
+              <div><dt className="text-xs text-muted">Duração</dt><dd className="mt-1 font-semibold">6 segundos</dd></div>
+              <div><dt className="text-xs text-muted">Apresentador</dt><dd className="mt-1 font-semibold">{presenter.name}</dd></div>
+              <div><dt className="text-xs text-muted">Cenário</dt><dd className="mt-1 font-semibold">{videoScenePresets.find((scene) => scene.id === scenePresetId)?.name}</dd></div>
+            </dl>
+            {validationError && <p className="mt-4 rounded-lg bg-background p-3 text-xs text-muted">{validationError}</p>}
+            {!product.imageStoragePath && !productImage && <p className="mt-3 text-xs text-muted">Adicione uma imagem do produto para liberar a geração.</p>}
+            <button type="button" disabled={!queueAvailable || enqueueingJob || busy || !!validationError || durationSeconds !== 6 || (!product.imageStoragePath && !productImage) || presenter.referenceStatus !== "ready"} onClick={() => void enqueueVideoJob()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
+              {enqueueingJob ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Preparando produção…</> : <><WandSparkles className="size-4" aria-hidden />Gerar vídeo</>}
             </button>
-            <button type="button" disabled={!queueAvailable || enqueueingJob || busy || !!validationError || durationSeconds !== 6} onClick={() => void enqueueVideoJob()} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">
-              {enqueueingJob ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Enfileirando…</> : "Enfileirar geração real"}
-            </button>
-            {durationSeconds !== 6 && <p className="mt-2 text-xs text-muted">A geração real está limitada a 6 segundos.</p>}
-            {!queueAvailable && <p className="mt-2 text-xs text-muted">Fila indisponível: os flags e o processador permanecem desativados até validação e autorização.</p>}
-            <button type="button" disabled className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold opacity-50">
-              <WandSparkles className="size-4" aria-hidden />Gerar com Google · aguardando API
-            </button>
-          </Card>
-
-          <Card titulo="Fluxo manual preservado">
-            <p className="text-sm text-muted">Enquanto a API está desativada, você ainda pode copiar as instruções e trabalhar manualmente no Google Flow. O Flow é um produto separado e pode ter regras e custos próprios.</p>
-            <a href={FLOW_URL} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold">
-              <ExternalLink className="size-4" aria-hidden />Abrir Google Flow
-            </a>
+            {!queueAvailable && <p className="mt-3 text-xs text-muted">{user ? "A geração ficará disponível quando os serviços de produção estiverem configurados." : "Entre na sua conta para gerar e guardar vídeos."}</p>}
+            <p className="mt-3 text-xs leading-relaxed text-muted">As referências compatíveis são reutilizadas. Se um serviço ficar sem créditos, a produção tenta automaticamente a próxima opção disponível para a mesma etapa.</p>
+            {capabilityUserId === userId && productionServices.length > 0 && <details className="mt-4 border-t border-border pt-3">
+              <summary className="cursor-pointer text-xs font-medium text-muted">Serviços de produção</summary>
+              <ul className="mt-3 space-y-2 text-xs">{productionServices.map((service) => <li key={service.name} className="flex justify-between gap-3"><span>{service.name}</span><span className="text-right text-muted">{!service.configured ? "Sem configuração" : service.integrated ? "Integrado · saldo não verificado" : "Credencial presente · integração pendente"}</span></li>)}</ul>
+            </details>}
+            <details className="mt-4 border-t border-border pt-3">
+              <summary className="cursor-pointer text-xs font-medium text-muted">Testar e exportar briefing</summary>
+              <p className="mt-3 text-xs text-muted">A simulação salva um projeto sem produzir MP4 ou consumir créditos de IA.</p>
+              <button type="button" disabled={busy || !!validationError} onClick={() => void simulateGeneration()} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold disabled:opacity-50">
+                {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Play className="size-4" aria-hidden />}Simular sem créditos
+              </button>
+              <p className="mt-2 text-xs text-muted">{statusLabels[status]}</p>
+              <a href={FLOW_URL} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-2 text-xs text-primary underline"><ExternalLink className="size-3" aria-hidden />Abrir Google Flow</a>
+            </details>
           </Card>
 
           {!authLoading && !user && configured && (
@@ -1322,7 +1343,7 @@ export function VideoStudio() {
         </div>
       )}
 
-      <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+      <section hidden={studioView !== "queue"} className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Fila e histórico de tarefas</h2>
@@ -1369,16 +1390,16 @@ export function VideoStudio() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+      <section hidden={studioView !== "library"} className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold"><Library className="size-5 text-primary" aria-hidden />Biblioteca de vídeos</h2>
-            <p className="mt-1 text-sm text-muted">Projetos simulados, testes técnicos MP4, roteiros e configurações reutilizáveis. Testes técnicos não são vídeos gerados por IA.</p>
+            <p className="mt-1 text-sm text-muted">Roteiros e configurações reutilizáveis. Os vídeos gerados ficam na área Em produção.</p>
           </div>
           <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">{library.length} projeto(s)</span>
         </div>
-        <div className="mt-5 rounded-xl border border-dashed border-border bg-background p-4">
-          <h3 className="font-semibold">Importar teste técnico local · sem IA</h3>
+        <details className="mt-5 rounded-xl border border-dashed border-border bg-background p-4">
+          <summary className="cursor-pointer text-sm font-medium text-muted">Importar teste técnico · sem IA</summary>
           <p className="mt-1 text-sm text-muted">
             Gere um MP4 com <code>npm run video:demo -- /caminho/video.mp4</code> e selecione-o aqui.
             O render usa somente a imagem autorizada de Ana, sem produto, áudio ou geração audiovisual.
@@ -1395,12 +1416,12 @@ export function VideoStudio() {
             {savingDemoVideo ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Salvando teste…</> : <><Upload className="size-4" aria-hidden />Salvar MP4 no Storage privado</>}
           </button>
           {!user && <p className="mt-2 text-xs text-muted">Entre na sua conta para guardar o arquivo de forma privada.</p>}
-        </div>
+        </details>
         {libraryLoading ? <p role="status" className="mt-5 text-sm text-muted">Carregando biblioteca…</p> : library.length === 0 ? (
           <div className="mt-5 rounded-xl border border-dashed border-border p-8 text-center">
             <Film className="mx-auto size-8 text-muted" aria-hidden />
-            <p className="mt-3 font-semibold">Sua biblioteca começa com uma simulação</p>
-            <p className="mt-1 text-sm text-muted">Configure o primeiro anúncio e use “Simular geração sem créditos”.</p>
+            <p className="mt-3 font-semibold">Seus projetos ficam aqui</p>
+            <p className="mt-1 text-sm text-muted">Crie um vídeo ou reutilize um projeto para começar.</p>
           </div>
         ) : (
           <ul className="mt-5 grid gap-4 lg:grid-cols-2">

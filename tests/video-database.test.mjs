@@ -15,6 +15,7 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
     }
     const indexMigration = await readFile(new URL('../supabase/migrations/20261106020118_foreign_key_indexes.sql', import.meta.url), 'utf8');
     await db.exec(indexMigration);
+    await db.exec(await readFile(new URL('../supabase/migrations/20261106022136_video_production_cache.sql', import.meta.url), 'utf8'));
     await db.exec(indexMigration); // Reaplicação não duplica índices nem altera dados.
     const uncovered = await db.query(`select c.conname from pg_constraint c
       where c.contype = 'f' and c.connamespace = 'public'::regnamespace
@@ -73,7 +74,17 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
       presenterReferenceStoragePath: `${bob}/inputs/presenter-reference.jpg`,
     }, null), /invalid_video_ai_reference/);
     const secondJob = (await enqueue('request-key-00000002', requestData, version.id)).rows[0].result;
-    await assert.rejects(enqueue('request-key-00000003', requestData, null), /video_concurrency_limit/);
+    const extraJobs = [];
+    for (let i = 0; i < 3; i++) extraJobs.push((await enqueue(`request-extra-${String(i).padStart(6,'0')}`, requestData, null)).rows[0].result);
+    await assert.rejects(enqueue('request-limit-00000001', requestData, null), /video_concurrency_limit/);
+    for (const extra of extraJobs) await db.query('select public.mv_cancel_video_job($1,$2)', [alice, extra.id]);
+    // A meta de 15 entregas/dia não pode ser bloqueada por tentativas que falharam.
+    for (let i = 0; i < 16; i++) {
+      const extra = (await enqueue(`request-daily-${String(i).padStart(6,'0')}`, requestData, null)).rows[0].result;
+      await db.query("update public.mv_video_jobs set status='failed',stage='failed' where id=$1", [extra.id]);
+    }
+    await db.query("insert into public.mv_video_image_cache(user_id,cache_key,object_path,expires_at) values($1,$2,$3,now()+interval '30 days')", [alice, 'a'.repeat(64), `${alice}/intermediate/frame-reference.jpg`]);
+    await assert.rejects(db.query("insert into public.mv_video_image_cache(user_id,cache_key,object_path,expires_at) values($1,$2,$3,now())", [alice, 'b'.repeat(64), `${bob}/intermediate/private.jpg`]), /check constraint/);
 
     await db.query(
       "select public.mv_transition_video_job($1,'processing',25,'modal','provider-job-1',null,null)",
@@ -157,6 +168,7 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
     assert.equal((await db.query('select * from public.mv_video_jobs')).rows.length, 0);
     assert.equal((await db.query('select * from storage.objects where bucket_id=$1', ['mv-video-assets'])).rows.length, 0);
     await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('mv-video-assets',$1)", [`${alice}/inputs/other.jpg`]), /row-level security/);
+    await assert.rejects(db.query('select * from public.mv_video_image_cache'), /permission denied/);
     await assert.rejects(db.query(
       "select public.mv_enqueue_video_job($1,null,'request-key-00000004',$2::jsonb)",
       [bob, JSON.stringify({ ...requestData, product: { imageStoragePath: `${alice}/inputs/photo.jpg` } })],
@@ -167,6 +179,12 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [alice]);
     await db.query('delete from public.mv_video_projects where id=$1', [first.id]);
     assert.equal((await db.query('select parent_id from public.mv_video_projects where id=$1', [version.id])).rows[0].parent_id, null);
+    await db.exec('reset role;set role service_role');
+    for (let i = 0; i < 16; i++) {
+      const entry = (await enqueue(`request-delivery-${String(i).padStart(6,'0')}`, requestData, null)).rows[0].result;
+      await db.query("update public.mv_video_jobs set status='completed',stage='completed',result_object_path=$2 where id=$1", [entry.id, `${alice}/outputs/${entry.id}.mp4`]);
+    }
+    assert.ok((await db.query("select count(*)::int as count from public.mv_video_jobs where user_id=$1 and status='completed'", [alice])).rows[0].count >= 16);
   } finally {
     await db.close();
   }

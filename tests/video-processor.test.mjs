@@ -234,3 +234,68 @@ test('bloqueia a submissão se a reserva exceder orçamento e pede autorização
   assert.equal(state.calls.replicate, 0);
   assert.equal(state.job.stage_message, 'budget_authorization_required');
 });
+
+
+test('referência em cache pula a geração de imagem e segue para o vídeo', async () => {
+  const path = '22222222-2222-4222-8222-222222222222/intermediate/previous-reference.jpg';
+  const state = harness({}, { findCachedImage: async () => path });
+  assert.equal(await state.processor.processNext(), 'image_ready');
+  assert.equal(state.calls.image, 0);
+  assert.equal(state.job.intermediate_image_path, path);
+  assert.equal(await state.processor.processNext(), 'video_processing');
+});
+
+test('falha ao atualizar o cache não repete uma imagem já produzida', async () => {
+  const state = harness({}, { rememberImage: async () => { throw new Error('cache temporarily unavailable'); } });
+  assert.equal(await state.processor.processNext(), 'image_ready');
+  assert.equal(state.calls.image, 1);
+  assert.equal(await state.processor.processNext(), 'video_processing');
+  assert.equal(state.calls.image, 1);
+});
+
+test('tarefa aguardando configuração retoma automaticamente preservando a referência', async () => {
+  const state = harness({ stage: 'awaiting_authorization', intermediate_image_path: 'private-reference.jpg' });
+  assert.equal(await state.processor.processNext(), 'image_ready');
+  assert.equal(state.calls.image, 0);
+  const initial = harness({ stage: 'awaiting_authorization' });
+  assert.equal(await initial.processor.processNext(), 'queued');
+});
+
+test('provedor preso em processamento termina como incerto sem outra submissão', async () => {
+  const state = harness({ stage: 'video_processing', provider: 'replicate', provider_job_id: 'known-remote-job', status_poll_attempts: 120 }, {
+    videoStatus: async () => ({ status: 'processing', progress: 5 }),
+  });
+  assert.equal(await state.processor.processNext(), 'uncertain');
+  assert.equal(state.calls.replicate, 0);
+  assert.equal(state.calls.magicHour, 0);
+});
+
+
+test('download ou Storage temporariamente indisponível retoma a finalização sem gerar novamente', async () => {
+  let broken = true;
+  const state = harness({ stage: 'validating', provider: 'replicate', provider_job_id: 'finished-video' }, {
+    downloadVideo: async () => { if (broken) throw new AIProviderFailure('replicate_download_unavailable', 'transient', 'accepted'); return makeValidMp4(); },
+  });
+  assert.equal(await state.processor.processNext(), 'validating');
+  broken = false;
+  assert.equal(await state.processor.processNext(), 'completed');
+  assert.equal(state.calls.image, 0);
+  assert.equal(state.calls.replicate, 0);
+});
+
+test('vídeo com formato inválido tenta outro provedor preservando a imagem', async () => {
+  const state = harness({ stage: 'validating', provider: 'magic-hour', provider_job_id: 'invalid-video', intermediate_image_path: 'owned-reference.jpg' }, {
+    downloadVideo: async () => new Uint8Array([0, 1, 2]),
+  });
+  assert.equal(await state.processor.processNext(), 'image_ready');
+  assert.equal(state.job.stage_message, 'trying_another_provider');
+  assert.equal(state.calls.image, 0);
+});
+
+test('falhas persistentes de finalização encerram após o limite de tentativas', async () => {
+  const state = harness({ stage: 'validating', provider: 'replicate', provider_job_id: 'finished-video', finalization_attempts: 10 }, {
+    downloadVideo: async () => { throw new Error('unavailable'); },
+  });
+  assert.equal(await state.processor.processNext(), 'failed');
+  assert.equal(state.calls.replicate, 0);
+});

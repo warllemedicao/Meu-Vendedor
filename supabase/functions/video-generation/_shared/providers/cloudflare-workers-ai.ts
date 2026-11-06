@@ -31,6 +31,7 @@ export interface CloudflareWorkersAIOptions {
   accountId: string;
   apiToken: string;
   readiness(): Promise<AIProviderReadiness>;
+  commercialUseConfirmed?: boolean;
   fetcher?: typeof fetch;
 }
 
@@ -87,7 +88,7 @@ export function createCloudflareWorkersAIProvider(
 ): AIProviderAdapter<CloudflareImageRequest, CloudflareImageResult> {
   const fetcher = options.fetcher ?? fetch;
   return {
-    capabilities: initialProviderCapabilities[0],
+    capabilities: { ...initialProviderCapabilities[0], commercialUse: options.commercialUseConfirmed ? "confirmed" : "not-confirmed" },
     readiness: options.readiness,
     async estimate(request) {
       return estimate(request);

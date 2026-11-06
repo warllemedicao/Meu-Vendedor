@@ -1,5 +1,63 @@
 # Gerador de vídeos IA — estado e implantação
 
+## Revisão do estúdio e pipeline — 06/11/2026
+
+Publicado: Worker `37c2d501-7ee6-4629-a1a4-8b2c844cd854`; `video-generation` v23; `video-generation-worker` v6. Validação: 103 testes, lint, TypeScript frontend/Edge, build estático e navegação Chromium em desktop/celular aprovados. Migração `20261106022136` aplicada; cache privado sem permissões de cliente. Nenhuma geração real executada.
+
+Este bloco substitui o estado anterior de vídeo descrito abaixo. A geração comercial completa ainda não foi comprovada.
+
+### Alterações concluídas
+
+- Estúdio dividido em **Criar vídeo / Em produção / Biblioteca**, com três etapas de criação, prévia vertical, ação principal única e ferramentas de teste recolhidas. Imagem local é salva automaticamente ao iniciar a geração.
+- Roteiro com fallback **Gemini → Groq (`llama-3.3-70b-versatile`) → OpenRouter (`openrouter/free`) → sugestão local identificada**. Ativação por `MV_AI_SCRIPT_ENABLED=true` ou pela flag legada `MV_GEMINI_SCRIPT_ENABLED=true`. Falhas de crédito/serviço não exigem escolher outra IA.
+- Vídeo mantém fallback automático Magic Hour → Replicate após rejeição confirmada, falta de crédito e falha remota confirmada. Falha ao consultar saldo agora também permite avançar. A seleção respeita capacidades e configuração; submissão incerta não é repetida.
+- Adaptador Cloudflare passou a respeitar `MV_AI_COMMERCIAL_USE_CONFIRMED`; antes ele sempre declarava uso comercial não confirmado, bloqueando a imagem mesmo com a flag correta.
+- Cache privado de composição em `mv_video_image_cache`, com RLS forçada e sem acesso de `anon`/`authenticated`. Chave SHA-256 inclui bytes das referências, prompt, modelo, dimensões e steps. A composição guarda produto, personagem e cenário por até 30 dias, por proprietário. Mudanças relevantes invalidam o cache. Não se reutiliza vídeo final como se fosse uma geração nova.
+- Referências JPEG reduzidas têm nomes pelo conteúdo e podem ser reutilizadas após recarregar a página; não são reenviadas com UUID novo em cada produção.
+- Retomada de tarefas aguardando configuração preserva a imagem. Download/Storage têm até dez tentativas de finalização sem gerar outro vídeo. MP4 inválido pode migrar de provedor, preservando a composição. Polling remoto não fica em execução indefinidamente.
+- Follow-up imediato também em validação/conclusão, reduzindo esperas desnecessárias pelo cron.
+- Fila permite até **100 entregas/tarefas ativas por janela de 24h e cinco tarefas simultâneas por conta**; falhas/cancelamentos não consomem essa cota. Teste PostgreSQL confirmou mais de 15 conclusões no mesmo dia. Isso não garante saldo, throughput ou duração de geração das APIs.
+- UI restringe a geração real aos 6 segundos suportados; projetos antigos continuam armazenados. Corrigido loop de erros ao assinar resultados e ocultação de tarefas da conta anterior durante troca de usuário.
+
+### Credenciais observadas e funções reais
+
+Diagnóstico de inicialização lê somente **nomes e presença**; não revela valores e não chama as APIs dos provedores. Foram encontrados nove serviços de IA/execução, além do Cloudflare (Runway identificado no diagnóstico ampliado):
+
+| Serviço | Papel no código atual | Estado verificado |
+| --- | --- | --- |
+| Gemini | Roteiro principal | Credencial presente; saldo não consultado |
+| Groq | Fallback de roteiro | Credencial presente; contrato testado com respostas controladas |
+| OpenRouter | Fallback de roteiro por `openrouter/free` | Credencial presente; contrato testado com respostas controladas |
+| Cloudflare Workers AI | Composição da imagem inicial | Credencial presente; confirmação comercial agora é respeitada |
+| Magic Hour | Vídeo image-to-video | Credencial presente; conversão de crédito não configurada |
+| Replicate | Fallback de vídeo image-to-video | Credencial presente; saldo não consultado |
+| Runway | Vídeo possível, sem adaptador neste pipeline | `RUNWAYML_API_SECRET` presente; integração pendente |
+| Hugging Face | Sem modelo/endpoint definido neste pipeline | `HUGGINGFACE_TOKEN` presente; integração pendente |
+| Modal | Execução de modelo próprio, sem endpoint definido | Duas variáveis presentes; aplicação/modelo não configurados no pipeline |
+| Kaggle | Ambiente de notebooks, sem adaptador de inferência deste app | Credencial presente; não tratado como endpoint de vídeo intercambiável |
+
+Não é necessário chamar todos os serviços em cada vídeo: isso aumentaria custo e tempo. As etapas independentes usam concorrência quando aplicável; vídeo depende da imagem inicial. Não afirmar que as nove IAs estão prontas ou fazem automaticamente todas as funções.
+
+### Bloqueios remotos confirmados
+
+O runtime publicado registrou `processor_available=false` e **todas** as seguintes condições ausentes/desligadas: `MV_VIDEO_JOBS_ENABLED`, `MV_VIDEO_PROCESSOR_ENABLED`, `MV_AI_ALLOW_PAID_GENERATION`, `MV_AI_COMMERCIAL_USE_CONFIRMED`, `MV_AI_ALLOWED_PROVIDERS`, `MV_AI_MAX_COST_PER_JOB_USD`, `MV_AI_DAILY_BUDGET_USD` e conversão `MV_MAGIC_HOUR_CREDIT_USD`.
+
+Não foram alterados valores de Secrets. As ferramentas Supabase conectadas não oferecem gerenciamento de Secrets; autenticação do conector não cria sessão de gerenciamento da CLI. Configuração deve ser aplicada no [gerenciador de Secrets do projeto](https://supabase.com/dashboard/project/jzchlrvxdaffnrgbvabv/functions/secrets), usando os valores reais de financiamento/licença. “Sem limites” expressa a preferência do responsável, mas não configura uma conversão de créditos nem comprova licença comercial.
+
+### Pendências para concluir o vídeo comercial
+
+1. Aplicar configuração operacional no gerenciador de Secrets, com provedores/custos/licenças efetivos. A imagem Cloudflare continua sendo a única opção integrada nessa etapa; falta um segundo adaptador de imagem para fallback completo.
+2. Definir e integrar modelos/endpoints para Hugging Face, Modal, Kaggle e Runway; chave isolada não especifica um contrato de inferência. Não improvisar chamadas a modelos incompatíveis.
+3. Implementar voz em português, áudio/lip sync, montagem de cenas e música quando desejados. Os campos de voz/movimento atuais são briefing; não há pipeline de áudio/montagem que garanta essas preferências no MP4.
+4. Validar um vídeo real completo e depois medir uma jornada de 15 vídeos/dia. Nenhum teste pago, consulta de saldo ou nova geração foi feito nesta revisão; não declarar a meta operacional atingida.
+5. Validar execução real do cron e tempo de cada etapa com provedores habilitados. Revalidar recursos/limites de Storage e das APIs sob a carga esperada.
+6. Ampliar biblioteca de fundos e cenas-base originais. Atualmente há presets e cache de composições geradas; cache vazio não é biblioteca de fundos pronta.
+7. Definir limpeza/retencão dos arquivos privados: 30 dias é a validade do índice de cache, não exclusão automática do Storage. Duas tarefas simultâneas sem cache pronto ainda podem gerar composições iguais; deduplicação distribuída em andamento fica pendente.
+8. Fornecer referências originais compatíveis de Carla/Rafael; UI impede geração com referências pendentes.
+
+Fontes dos novos contratos: [Groq](https://console.groq.com/docs/text-chat), [OpenRouter gratuito](https://openrouter.ai/openrouter/free), [Storage privado](https://supabase.com/docs/guides/storage/buckets/fundamentals). Testes controlados não substituem credenciais, saldo ou teste real.
+
+
 > **Revisão autenticada — 06/11/2026:** Supabase revalidado: `video-generation` ACTIVE v20 e `video-generation-worker` ACTIVE v3, migrações de vídeo confirmadas e fila vazia na consulta. Nenhum job ou geração criado. Flags/Secrets/saldos/licenças não foram consultados. GET sem sessão de `video-generation` retorna 401; GET do worker retorna 405 e não comprova habilitação do processador. O acesso comercial informado agora foi Shopee; não foram fornecidas credenciais/licenças dos provedores de vídeo. Estado atual em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Este bloco prevalece sobre os registros anteriores de falta de acesso ou versões históricas abaixo.
 
 ## Estado confirmado em 06/11/2026

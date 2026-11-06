@@ -45,6 +45,7 @@ export interface VideoProcessingJob {
   cancel_requested_at: string | null;
   progress: number;
   status_poll_attempts: number;
+  finalization_attempts?: number;
 }
 
 export interface VideoProcessorAdvance {
@@ -61,6 +62,8 @@ export interface VideoProcessorAdvance {
 export interface VideoProcessorDependencies {
   claim(): Promise<VideoProcessingJob | null>;
   createImageRequest(job: VideoProcessingJob): Promise<CloudflareImageRequest>;
+  findCachedImage?(job: VideoProcessingJob, request: CloudflareImageRequest): Promise<string | null>;
+  rememberImage?(job: VideoProcessingJob, request: CloudflareImageRequest, path: string): Promise<void>;
   createImageRouter(job: VideoProcessingJob): AIProviderAdapter<CloudflareImageRequest, CloudflareImageResult> & {
     generate(request: CloudflareImageRequest, idempotencyKey: string): Promise<CloudflareImageResult>;
   };
@@ -235,8 +238,22 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
           }
         }
 
+        if (job.stage === "awaiting_authorization") {
+          // Reavaliar a configuração sem descartar uma imagem já produzida.
+          await dependencies.advance(job, {
+            stage: job.intermediate_image_path ? "image_ready" : "queued",
+            progress: job.intermediate_image_path ? 35 : 0,
+          });
+          return job.intermediate_image_path ? "image_ready" : "queued";
+        }
+
         if (job.stage === "queued" || job.stage === "image_generating") {
           const request = await dependencies.createImageRequest(job);
+          const cachedPath = await dependencies.findCachedImage?.(job, request);
+          if (cachedPath) {
+            await dependencies.advance(job, { stage: "image_ready", progress: 35, intermediateImagePath: cachedPath });
+            return "image_ready";
+          }
           const router = dependencies.createImageRouter(job);
           const routed = await new AIProviderRouter<CloudflareImageRequest, CloudflareImageResult>(
             [router],
@@ -249,11 +266,13 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
           );
           const image = routed.result;
           const path = await dependencies.storeIntermediate(job, image.bytes, image.mimeType);
+          // Salvar a etapa antes do índice de cache impede que falhas no cache repitam uma chamada paga.
           await dependencies.advance(job, {
             stage: "image_ready",
             progress: 35,
             intermediateImagePath: path,
           });
+          await dependencies.rememberImage?.(job, request, path).catch(() => undefined);
           return "image_ready";
         }
 
@@ -302,6 +321,9 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
             return "video_processing";
           }
           if (remote.status === "queued" || remote.status === "processing") {
+            if (job.status_poll_attempts >= 120) {
+              throw new AIProviderFailure("remote_video_status_timeout", "uncertain", "accepted");
+            }
             await dependencies.advance(job, {
               stage: "video_processing",
               progress: Math.max(job.progress ?? 0, 55 + Math.min(35, Math.floor(remote.progress * 0.35))),
@@ -353,7 +375,17 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
         throw new Error("video_job_stage_invalid");
       } catch (error) {
         const code = errorCode(error);
-        const stage = code === "provider_submission_uncertain"
+        if (job.stage === "validating" && error instanceof AIProviderFailure && error.category === "incompatible") {
+          await dependencies.recordVideoStatusFailure(job, code);
+          await dependencies.advance(job, { stage: "image_ready", progress: 45, errorCode: "trying_another_provider" });
+          return "image_ready";
+        }
+        if (job.stage === "validating" && (!(error instanceof AIProviderFailure) || error.category === "transient") && (job.finalization_attempts ?? 0) < 10) {
+          // Download e Storage podem ser repetidos sem gerar outro vídeo pago.
+          await dependencies.advance(job, { stage: "validating", progress: 95, errorCode: "retrying_video_finalization", delaySeconds: 30 });
+          return "validating";
+        }
+        const stage = code === "provider_submission_uncertain" || code === "remote_video_status_timeout"
           ? "uncertain"
           : needsAuthorization(error)
             ? "awaiting_authorization"

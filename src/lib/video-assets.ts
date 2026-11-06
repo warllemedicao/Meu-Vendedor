@@ -67,13 +67,31 @@ async function uploadAIReference(
   if (!resized || resized.size === 0 || resized.size > MAX_VIDEO_IMAGE_BYTES) {
     throw new Error("Não foi possível preparar a imagem para a geração.");
   }
-  const path = `${userId}/inputs/${crypto.randomUUID()}.jpg`;
-  const { error } = await client.storage.from(VIDEO_ASSET_BUCKET).upload(path, resized, {
+  const digest = await crypto.subtle.digest("SHA-256", await resized.arrayBuffer());
+  const fingerprint = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const path = `${userId}/inputs/ref-${fingerprint}.jpg`;
+  const storage = client.storage.from(VIDEO_ASSET_BUCKET);
+  const { data: existing } = await storage.download(path);
+  if (existing) {
+    const existingDigest = await crypto.subtle.digest("SHA-256", await existing.arrayBuffer());
+    const existingFingerprint = Array.from(new Uint8Array(existingDigest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    if (existingFingerprint !== fingerprint) throw new Error("A referência armazenada foi alterada. Selecione uma nova imagem.");
+    return { path, width, height };
+  }
+  const { error } = await storage.upload(path, resized, {
     cacheControl: "3600",
     contentType: "image/jpeg",
     upsert: false,
   });
-  if (error) throw new Error("Não foi possível salvar a referência privada para processamento.");
+  if (error) {
+    // Duas abas podem preparar a mesma referência ao mesmo tempo.
+    const { data: concurrent } = await storage.download(path);
+    if (!concurrent || concurrent.size !== resized.size) throw new Error("Não foi possível salvar a referência privada para processamento.");
+    const actual = await crypto.subtle.digest("SHA-256", await concurrent.arrayBuffer());
+    if (Array.from(new Uint8Array(actual), (byte) => byte.toString(16).padStart(2, "0")).join("") !== fingerprint) {
+      throw new Error("Não foi possível validar a referência privada para processamento.");
+    }
+  }
   return { path, width, height };
 }
 
