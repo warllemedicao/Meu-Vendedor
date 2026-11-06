@@ -48,3 +48,10 @@ test('Flow recusa origem externa, métodos e comandos arbitrários antes de abri
  assert.throws(()=>safeLiveView('https://live.browser.run.attacker.example/'));
  assert.equal(new URL(safeLiveView('https://live.browser.run/ui/view?mode=tab')).hostname,'live.browser.run');
 });
+
+test('executor Modal usa sessão própria por usuário, separada do estado legado Browser Run',async()=>{
+ const owners=[];
+ const env={MV_FLOW_EXECUTOR_URL:'https://owner--flow.modal.run/control',MV_SUPABASE_PUBLISHABLE_KEY:'key',GOOGLE_FLOW_SESSIONS:{getByName(name){owners.push(name);return{act:async()=>({state:'disconnected',email:null,credits:null,checkedAt:'now'})};}}};
+ const response=await handleGoogleFlow(request(),env,async()=>Response.json(user));
+ assert.equal(response.status,200);assert.deepEqual(owners,['modal-v1:'+user.id]);
+});

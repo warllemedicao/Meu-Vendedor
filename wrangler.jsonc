@@ -4,6 +4,7 @@
   "compatibility_date": "2026-11-03",
   "workers_dev": true,
   "keep_vars": true,
+  "vars": { "MV_FLOW_EXECUTOR_URL": "https://warllemedicao--meu-vendedor-flow-gateway.us-east.modal.run/control" },
   "assets": {
     "directory": "./out",
     "html_handling": "auto-trailing-slash",

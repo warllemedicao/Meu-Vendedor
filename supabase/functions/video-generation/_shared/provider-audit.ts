@@ -15,6 +15,14 @@ export async function auditProviders(
   const key = (...names: string[]) => names.map(env).find(Boolean) ?? "";
   const account = key("CLOUDFLARE_ACCOUNT_ID");
   const definitions = [
+    { id: "elevenlabs", token: key("ELEVENLABS_API_KEY", "ELEVENLABS_API", "ELEVEN_LABS_API_KEY", "XI_API_KEY"), url: "https://api.elevenlabs.io/v1/user/subscription", elevenlabs: true, summarize: (body: Record<string, unknown>) => ({
+      tier: short(body.tier), subscription_status: short(body.status),
+      character_count: amount(body.character_count), character_limit: amount(body.character_limit),
+      remaining_credits: amount(body.character_count) !== null && amount(body.character_limit) !== null ? Math.max(0, (body.character_limit as number) - (body.character_count as number)) : null,
+      next_reset_unix: amount(body.next_character_count_reset_unix),
+      commercial_use: body.tier === "free" ? "not_included" : "not_verified",
+      quota_verified: false, reason: "free_plan_noncommercial_paid_license_requires_terms_review",
+    }) },
     { id: "cloudflare-workers-ai", token: key("CLOUDFLARE_BILLING_READ_TOKEN"), url: /^[a-f0-9]{32}$/i.test(account) ? `https://api.cloudflare.com/client/v4/accounts/${account}/subscriptions` : "", summarize: (body: Record<string, unknown>) => ({
       subscriptions: Array.isArray(body.result) ? body.result.slice(0, 30).map((item) => {
         const row = record(item); const rate = record(row.rate_plan);
@@ -37,7 +45,7 @@ export async function auditProviders(
     const base = { provider_id: definition.id, checked_at: new Date().toISOString() };
     if (!definition.token || !definition.url) return { ...base, status: "not_configured", report: { quota_verified: false, reason: definition.id === "cloudflare-workers-ai" ? "billing_token_or_account_missing" : "credential_missing" } };
     try {
-      const headers: Record<string, string> = definition.google ? { "x-goog-api-key": definition.token } : { Authorization: `Bearer ${definition.token}` };
+      const headers: Record<string, string> = definition.elevenlabs ? { "xi-api-key": definition.token } : definition.google ? { "x-goog-api-key": definition.token } : { Authorization: `Bearer ${definition.token}` };
       if (definition.id === "runway") headers["X-Runway-Version"] = "2024-11-06";
       const response = await fetcher(definition.url, { method: "GET", headers, redirect: "error", signal: AbortSignal.timeout(10_000) });
       if (!response.ok) {

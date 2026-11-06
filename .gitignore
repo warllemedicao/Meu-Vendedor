@@ -33,3 +33,7 @@ yarn-debug.log*
 .dev.vars.*
 supabase/.temp/
 supabase/.branches/
+
+# caches Python dos executores
+__pycache__/
+*.pyc

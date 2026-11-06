@@ -11,7 +11,7 @@ const videoCron = "* * * * *";
 const videoWorkerUrl = "https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/video-generation-worker";
 
 async function auditBrowserLimits(env: WorkerEnv): Promise<void> {
-  if (!env.BROWSER) return;
+  if (env.MV_FLOW_EXECUTOR_URL || !env.BROWSER) return;
   try {
     const limits = await env.BROWSER.limits();
     console.info(JSON.stringify({ event: "google_flow_browser_limits", activeSessions: limits.activeSessions.length,

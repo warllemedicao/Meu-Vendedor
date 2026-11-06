@@ -9,6 +9,7 @@ type View = { state: "disconnected" | "browser_open" | "login_required" | "accou
 const labels: Record<View["state"], string> = { disconnected: "Desconectado", browser_open: "Navegador aberto · verificando conta", login_required: "Entre no Google no navegador abaixo", account_unverified: "Conta ainda não confirmada", account_mismatch: "Conta diferente", connected: "Conectado ao Flow" };
 const connectionErrors: Record<string, string> = {
   flow_daily_limit: "O tempo diário do navegador remoto foi esgotado na Cloudflare. Aguarde a renovação da cota. Sua conta Google não é a causa desse bloqueio.",
+  flow_executor_rate_limited: "O executor externo limitou a abertura de navegadores. Aguarde antes de tentar novamente.",
   flow_browser_rate_limited: "A Cloudflare limitou a abertura do navegador remoto. Aguarde antes de tentar novamente. Esse limite é separado dos créditos Google.",
   flow_session_busy: "Já existe uma verificação em andamento. Aguarde alguns segundos e tente novamente.",
   flow_session_expired: "A sessão do navegador expirou. Clique em Conectar / reabrir Flow para abrir outra janela.",
@@ -33,7 +34,7 @@ export function GoogleFlowConnection() {
       if (!data.session) throw new Error("unauthorized");
       const response = await fetch(`/api/google-flow/${action}`, { method: "POST", headers: {
         "Content-Type": "application/json", Authorization: `Bearer ${data.session.access_token}`,
-      }, body: "{}", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(45_000) });
+      }, body: "{}", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(action === "start" ? 120_000 : 45_000) });
       if (!response.ok) {
         const failure = await response.json().catch(() => ({})) as { error?: string };
         const code = typeof failure.error === "string" && connectionErrors[failure.error] ? failure.error : "flow_request_failed";
@@ -48,10 +49,10 @@ export function GoogleFlowConnection() {
       const body = await response.json() as View;
       if (body.liveViewUrl) {
         const live = new URL(body.liveViewUrl);
-        if (live.protocol !== "https:" || live.hostname !== "live.browser.run") throw new Error("invalid_live_view");
+        if (live.protocol !== "https:" || !(live.hostname === "live.browser.run" || (live.hostname.endsWith(".modal.host") && live.pathname === "/view" && /^#[A-Za-z0-9_-]{32,128}$/.test(live.hash)))) throw new Error("invalid_live_view");
       }
       setView(previous => ({ ...body, liveViewUrl: body.state === "disconnected" ? undefined : body.liveViewUrl ?? previous?.liveViewUrl }));
-    } catch (failure) { if (!quiet || failure instanceof Error && ["flow_daily_limit", "flow_browser_rate_limited"].includes(failure.message)) setError(failure instanceof Error ? connectionErrors[failure.message] ?? "O navegador remoto está indisponível agora. Tente novamente mais tarde. Nenhuma geração foi enviada." : "Falha de conexão com o navegador remoto. Tente novamente."); }
+    } catch (failure) { if (!quiet || failure instanceof Error && ["flow_daily_limit", "flow_browser_rate_limited", "flow_executor_rate_limited"].includes(failure.message)) setError(failure instanceof Error ? connectionErrors[failure.message] ?? "O navegador remoto está indisponível agora. Tente novamente mais tarde. Nenhuma geração foi enviada." : "Falha de conexão com o navegador remoto. Tente novamente."); }
     finally { activeRequest.current = false; if (!quiet) setBusy(false); }
   }, []);
   const expiresAt = view?.expiresAt;

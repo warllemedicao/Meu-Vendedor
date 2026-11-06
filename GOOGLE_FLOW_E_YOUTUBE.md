@@ -1,22 +1,36 @@
 # Google, Flow e YouTube Create — 06/11/2026
 
-Este registro substitui os estados anteriores de Google/Flow. A integração está parcialmente entregue: conexão experimental do Flow e adaptador oficial de vídeo Google implementados; login real no navegador remoto, automação do Flow e importação do resultado ainda pendentes.
+Este registro substitui os estados anteriores de Google/Flow. A integração está parcialmente entregue: conexão experimental do Flow e adaptador oficial de vídeo Google implementados; executor externo de conexão Modal implantado e testado; login pessoal, automação de geração e importação do resultado ainda pendentes.
 
-## Fechamento, publicação e próximo passo
+## Estado vigente: navegador externo Modal implantado
 
-**Concluído:** código do seletor, validação no backend, adaptação Google à fila, confirmação do cadastro, conexão experimental Flow e correções de cota/expiração. Os arquivos `.md` principais foram atualizados para distinguir publicação de funcionamento validado.
+As credenciais Modal existentes no Supabase foram utilizadas com transferência temporária cifrada, sem valores no chat, Git ou logs. A função temporária de transferência foi desativada, passando a exigir JWT e responder 410. O acesso administrativo funcionou; a pendência de implantação por falta de credenciais registrada anteriormente foi superada.
 
-**Supabase:** funções de vídeo republicadas a partir dos arquivos deste checkout: `video-generation` v35 (JWT obrigatório) e `video-generation-worker` v19 (segredo operacional próprio). A migração Google já consta no histórico remoto; constraints de provedor foram verificadas por SQL, sem reaplicar DDL. Frontend já publicado na versão Cloudflare `62bb0236-24a3-45dd-ae1c-2e1ebcbf4284`. Documentação e código são versionados no GitHub; Supabase recebe somente funções/migrações pertinentes, não os `.md`, frontend ou segredos.
+Aplicativo `meu-vendedor-flow` publicado no Modal. O Worker usa o endpoint privado `/control`, autenticado por segredo próprio, e deriva a identidade do Durable Object do usuário autenticado no Supabase. O navegador nasce sob demanda em sandbox isolado, com duração máxima de dez minutos e timeout de inatividade de dois minutos. Desconexão encerra o sandbox. O controlador escala a zero quando ocioso. O navegador não usa a franquia Browser Run da Cloudflare; o aplicativo e o cofre cifrado continuam na Cloudflare.
 
-**Próximo passo:** obter autenticação de implantação Modal em ambiente seguro, implantar executor sob demanda, validar pessoalmente o login Google, concluir automação e importar um MP4 real para a biblioteca. Não há variáveis `MODAL_*` nem perfil `/home/codespace/.modal.toml` nesta sessão. Não foram extraídos os tokens do runtime Supabase. A conclusão do Flow continua dependente dessa infraestrutura e do teste real; não foi declarada pronta.
+Teste real aprovado: acesso anônimo ao controlador recusado com 401, navegador Chrome aberto, tela Google Flow em português capturada (54.599 bytes), screenshot anônimo recusado, inspeção informou login necessário e sandbox encerrado no finally. Nenhum login Google foi simulado como concluído e nenhum vídeo foi gerado. O teste local do Durable Object confirmou isolamento entre usuários, conta divergente, salvamento cifrado e desconexão; as respostas do provedor nesse teste eram simuladas.
 
-Revisão Supabase: dez avisos informativos de RLS sem políticas em tabelas internas, com acesso de cliente intencionalmente fechado; nenhum erro de RLS novo. Proteção de senhas vazadas desativada continua como aviso prévio, sem alteração nesta entrega. Orientação: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection .
+Cloudflare publicado na versão `36419765-2996-4b5b-b662-07f53b3bb068`. Supabase atualizado com diagnóstico ElevenLabs: `video-generation` v38 e `video-generation-worker` v23. Migração Google permanece aplicada. Documentação de implantação: [executors/google-flow/README.md](./executors/google-flow/README.md).
+
+**Próximo passo:** abrir Conta e conexões → Google e redes → Conectar / reabrir Flow, concluir pessoalmente o login Google e validar conta/sessão. O Google pode recusar o login remoto ou exigir confirmação. Depois, implementar e testar submissão de vídeo, acompanhamento, validação e importação do MP4; essas etapas continuam pendentes e Flow permanece indisponível no seletor de geração. O diagnóstico do executor informa `generationReady: false`. Não há integração automática do YouTube Create móvel.
+
+ElevenLabs: consulta de plano/saldo adicionada sem inferência, mas a chave `ELEVENLABS_API` autenticada: plano Free, uso zero e 10.000 créditos restantes. Plano Free não oferece licença comercial para os anúncios. Detalhes e fontes em [ELEVENLABS.md](./ELEVENLABS.md).
+
+Validação desta entrega: 156 testes Node aprovados, lint e TypeScript aprovados, Python compilado e build estático das 17 rotas concluído. Testes visuais com janela Modal simulada em 1440×900 e 390×844 confirmaram conexão/estados sem reload indevido e sem overflow; a API pública recusou chamada sem sessão com 401. Não confundir esses testes simulados de UI/DO com o teste real separado do navegador Modal nem com um login Google já confirmado.
+
+## Correção da conexão pelo aplicativo
+
+Após o relato de indisponibilidade pelo responsável, o teste do caminho Worker → Durable Object → Modal reproduziu a falha. Causa confirmada: `redirect: "error"` não é aceito no fetch do runtime Cloudflare usado pelo Durable Object. O cliente agora usa `redirect: "manual"` e recusa respostas 3xx, preservando o segredo sem seguir destinos externos. Teste de regressão cobre o bloqueio de redirecionamento.
+
+A chamada real pelo Worker corrigido retornou HTTP 200, estado `browser_open` e host de visualização Modal; a desconexão técnica retornou HTTP 200/`disconnected`. A rota e o método temporários de diagnóstico foram removidos antes da publicação final. Novas sessões usam o nome interno derivado `modal-v1:<user.id>`, separado das sessões legadas Browser Run. Essa migração requer novo login Google; não transfere automaticamente o cofre da sessão experimental anterior.
+
+Commit/push versionam o checkout no GitHub; publicação no Worker é uma operação separada. O erro não era causado por ausência de commit. A mensagem de geração em preparação continua correta: conexão de navegador foi entregue, automação e importação de vídeo ainda não.
 
 ## Seleção de ferramenta e executor sob demanda
 
 A tela de produção agora oferece uma caixa imediatamente acima de Gerar vídeo: Automático, Google Flow, YouTube Create, Google Omni API, Magic Hour e Replicate. O backend informa disponibilidade por credenciais; isso não comprova saldo ou sucesso de geração. A escolha é persistida em request_data.generationTool. Somente Automático permite fallback; seleção explícita filtra os adaptadores inclusive após falhas e retomadas. Pedidos antigos sem seleção mantêm o comportamento automático.
 
-Flow e YouTube Create aparecem indisponíveis. O backend rejeita esses pedidos antes de enfileirar ou consumir geração de imagem. A conexão experimental Flow existente continua no Browser Run; **não foi migrada para Modal**. A implantação do executor externo depende de acesso administrativo utilizável nesta sessão; os tokens detectados no runtime Supabase não equivalem a uma sessão local de implantação. Não foi criado endpoint fictício nem anunciado executor funcionando.
+Flow e YouTube Create aparecem indisponíveis. O backend rejeita esses pedidos antes de enfileirar ou consumir geração de imagem. A conexão foi migrada para o executor Modal descrito acima. O navegador externo funciona; geração automática e importação de vídeos ainda não estão implementadas. Não confundir uma conexão de login com um adaptador de geração pronto.
 
 Plano do executor: iniciar por pedido autenticado, carregar perfil Google isolado por usuário, impedir sessões concorrentes do mesmo perfil, acompanhar geração sem repetir submissão incerta, baixar e validar o MP4, guardar no Storage e biblioteca, então encerrar o navegador em finally. Perfil e artefatos precisam persistir fora do container. É necessário validar login Google e automação reais antes de habilitar Flow na seleção.
 
@@ -52,7 +66,7 @@ A tela **Meu acesso** agora informa confirmação do e-mail e vínculo Google, c
 
 ## Flow: sessão por usuário
 
-**Conta e conexões → Google e redes → Conectar / reabrir Flow** cria um Chrome remoto e uma visualização privada dentro do aplicativo, com opção de ampliar. Cada usuário autenticado tem um Durable Object próprio; o backend valida o JWT no Supabase e deriva o identificador da sessão, sem aceitar IDs, cookies ou comandos de navegador enviados pelo cliente.
+**Conta e conexões → Google e redes → Conectar / reabrir Flow** cria um Chrome remoto no Modal e uma visualização privada dentro do aplicativo, com opção de ampliar. Cada usuário autenticado tem um Durable Object próprio; o backend valida o JWT no Supabase e deriva o identificador da sessão, sem aceitar IDs, cookies ou comandos de navegador enviados pelo cliente.
 
 O usuário conclui pessoalmente o acesso Google e eventuais verificações nesse navegador. Não há contorno de CAPTCHA, bloqueio ou autenticação. O teste ainda precisa confirmar se o Google aceita o login nessa infraestrutura. Se bloquear, registrar o erro e reavaliar o executor; não simular sucesso.
 
@@ -62,8 +76,8 @@ O usuário conclui pessoalmente o acesso Google e eventuais verificações nesse
 - O saldo é mostrado apenas quando um indicador inequívoco de créditos estiver visível. Caso contrário, permanece desconhecido; abrir o menu de perfil do Flow pode ser necessário. Não há sincronização automática de plano ou benefício por OAuth.
 - **Autorizar salvar sessão** cifra os cookies Google no servidor com AES-GCM, vinculados ao objeto do usuário. A chave deriva do segredo operacional existente; sua rotação invalida as sessões salvas. Não há cookies no frontend, Git, logs ou metadados de usuário.
 - A sessão salva tem validade máxima de sete dias e limpeza agendada. O Google pode expirar o acesso antes. Desconectar apaga os cookies locais e encerra o navegador; revogar acessos na conta Google é uma operação separada.
-- Cada navegador fecha após dez minutos, inclusive quando houver interação. Esse limite serve à prova técnica; não é garantia de tempo suficiente para uma geração. A URL privada para iniciar a visualização expira em um minuto e não é persistida. Reabrir emite outra URL.
-- O navegador usa restrições de domínio para recursos Google, sem gravação da sessão. Browser Run respeita os limites/faturamento existentes da Cloudflare; nenhum plano foi contratado ou alterado.
+- Cada navegador fecha após dez minutos, inclusive quando houver interação. Esse limite serve à prova técnica; não é garantia de tempo suficiente para uma geração. A visualização Modal usa token opaco no fragmento da URL, válido somente enquanto o sandbox existir. Esse token permite tela e comandos limitados de teclado/mouse, sem acesso à RPC de cookies. Não é persistido no frontend.
+- O navegador usa restrições de domínio para recursos Google, sem gravação da sessão. A conexão atual consome recursos Modal conforme o plano existente; nenhum plano foi contratado ou alterado. O fallback Browser Run permanece no código para ambientes sem URL do executor, sem troca automática quando Modal falha.
 
 Os benefícios são os da conta autenticada **no Flow**, sujeitos ao plano e saldo reais. Não pertencem à chave Gemini nem à conta do administrador do Meu Vendedor. Ainda falta validar a conta real, persistência/revogação e o saldo nessa interface. Submissão automática, acompanhamento do trabalho, associação ao produto e importação privada do MP4 **não foram implementados nesta etapa**. O pipeline de vídeos continua usando APIs, não o navegador Flow.
 

@@ -513,6 +513,10 @@ async function refreshProviderAudits(): Promise<void> {
   const { data, error } = await admin.rpc("mv_claim_provider_audit");
   if (error || !data) return;
   const reports = await auditProviders((name) => Deno.env.get(name));
+  reports.push({ provider_id: "elevenlabs-config", checked_at: new Date().toISOString(), status: "checked", report: {
+    related_secret_names: Object.keys(Deno.env.toObject()).filter((name) => /eleven|11labs|xi_api/i.test(name)).sort(),
+    quota_verified: false, reason: "names_only_no_secret_values",
+  } });
   const { error: saveError } = await admin.from("mv_ai_provider_audits").upsert(reports);
   if (saveError) console.error("provider-audit-save-failed");
 }

@@ -22,6 +22,7 @@ export function privateJson(value: unknown, status = 200): Response {
 export function flowFailure(error: unknown): { error: string; message: string; status: number; retryAfter?: number } {
   const raw = error !== null && typeof error === "object" ? error as { message?: unknown; status?: unknown; statusCode?: unknown } : {};
   const message = typeof raw.message === "string" ? raw.message : "";
+  if (/flow_executor_rate_limited/.test(message)) return { error: "flow_executor_rate_limited", status: 429, message: "O executor externo limitou a abertura de navegadores. Aguarde e tente novamente. Nenhuma geração foi enviada.", retryAfter: 60 };
   if (/flow_daily_limit|browser time limit|daily.*(quota|limit)|quota.*(day|daily)/i.test(message)) return {
     error: "flow_daily_limit", status: 429, message: "O tempo diário do navegador remoto foi esgotado na Cloudflare. O acesso fica indisponível até a renovação da cota. Sua conta Google não é a causa desse bloqueio.",
   };
@@ -43,6 +44,7 @@ export async function flowBrowserAlive(id: string, getSession: (id: string) => P
 // No user-provided identifiers, URLs, cookies or browser commands are accepted.
 export async function handleGoogleFlow(request: Request, env: {
   MV_SUPABASE_PUBLISHABLE_KEY: string;
+  MV_FLOW_EXECUTOR_URL?: string;
   GOOGLE_FLOW_SESSIONS: { getByName(name: string): { act(action: string, email: string): Promise<FlowSessionView> } };
 }, fetcher: typeof fetch = fetch): Promise<Response> {
   const url = new URL(request.url);
@@ -62,7 +64,7 @@ export async function handleGoogleFlow(request: Request, env: {
   if (!user.id || !user.email || !user.email_confirmed_at) return privateJson({ error: "confirmed_account_required" }, 403);
   const action = url.pathname.split("/").at(-1) ?? "";
   if (!["status", "start", "verify", "save", "disconnect"].includes(action)) return privateJson({ error: "invalid_action" }, 404);
-  try { return privateJson(await env.GOOGLE_FLOW_SESSIONS.getByName(user.id).act(action, user.email)); }
+  try { return privateJson(await env.GOOGLE_FLOW_SESSIONS.getByName(env.MV_FLOW_EXECUTOR_URL ? `modal-v1:${user.id}` : user.id).act(action, user.email)); }
   catch (error) {
     const failure = flowFailure(error);
     console.warn(JSON.stringify({ event: "google_flow_connection_failed", action, code: failure.error }));
@@ -74,7 +76,7 @@ export async function handleGoogleFlow(request: Request, env: {
 
 export function safeLiveView(value: string): string {
   const url = new URL(value);
-  if (url.protocol !== "https:" || url.hostname !== "live.browser.run" || url.username || url.password) throw new Error("invalid_live_view");
+  if (url.protocol !== "https:" || !(url.hostname === "live.browser.run" || (url.hostname.endsWith(".modal.host") && url.pathname === "/view" && /^#[A-Za-z0-9_-]{32,128}$/.test(url.hash))) || url.username || url.password) throw new Error("invalid_live_view");
   return url.href;
 }
 

@@ -44,3 +44,21 @@ test('auditoria tem claim atômico e relatórios privados',async()=>{
   await assert.rejects(db.query('select public.mv_claim_provider_audit()'),/permission denied/);
  }finally{await db.close();}
 });
+
+test('ElevenLabs consulta plano sem inferência e distingue créditos de licença comercial', async () => {
+ const reports=await auditProviders(name=>name==='ELEVENLABS_API_KEY'?'private-eleven-key':undefined,async(url,options)=>{
+  assert.equal(url,'https://api.elevenlabs.io/v1/user/subscription');
+  assert.equal(options.method,'GET');
+  assert.equal(options.headers['xi-api-key'],'private-eleven-key');
+  assert.equal(options.headers.Authorization,undefined);
+  return Response.json({tier:'free',character_count:100,character_limit:10000,status:'active',email:'private@example.com'});
+ });
+ const report=reports.find(r=>r.provider_id==='elevenlabs');
+ assert.equal(report.status,'checked');
+ assert.equal(report.report.remaining_credits,9900);
+ assert.equal(report.report.commercial_use,'not_included');
+ assert.equal(report.report.quota_verified,false);
+ assert.doesNotMatch(JSON.stringify(reports),/private-eleven-key|private@example.com/);
+ const item=productionServiceInventory(name=>name==='ELEVENLABS_API').find(r=>r.id==='elevenlabs');
+ assert.equal(item.stage,'audio');assert.equal(item.configured,true);assert.equal(item.integrated,false);
+});

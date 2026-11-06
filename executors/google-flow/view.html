@@ -1,0 +1,16 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Navegador privado · Google Flow</title>
+<style>body{margin:0;background:#14151a;color:#eee;font:14px system-ui}header{padding:10px;display:flex;gap:8px;flex-wrap:wrap}input{min-width:120px;flex:1}input,button{padding:10px;border-radius:6px;border:1px solid #666}img{display:block;width:100%;max-width:1280px;cursor:crosshair}p{margin:8px 12px}#status{color:#ddd}</style>
+<header><input id="text" type="password" autocomplete="off" placeholder="Clique no campo da tela; digite aqui e envie"><button id="send">Enviar texto</button><button data-key="Enter">Enter</button><button data-key="Tab">Tab</button><button data-key="Backspace">Apagar</button><button data-key="ControlOrMeta+A">Selecionar tudo</button><button id="up">↑</button><button id="down">↓</button></header>
+<p>Conclua pessoalmente o acesso Google. Para digitar, clique no campo da imagem e use a caixa acima. O Google pode solicitar confirmação adicional.</p><p id="status" role="status">Iniciando navegador…</p><img id="screen" alt="Tela do seu navegador privado" draggable="false">
+<script>
+const token=location.hash.slice(1),screen=document.querySelector('#screen'),status=document.querySelector('#status');let stopped=false,prior;
+async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store'});if(!r.ok)throw Error('Sessão indisponível ou expirada. Reabra pelo Meu Vendedor.');return r;}
+async function refresh(){if(stopped)return;try{const r=await api('/screenshot');const next=URL.createObjectURL(await r.blob());screen.src=next;if(prior)URL.revokeObjectURL(prior);prior=next;status.textContent='Navegador ativo · janela limitada a 10 minutos';}catch(e){status.textContent=e.message;stopped=true;}if(!stopped)setTimeout(refresh,1800);}
+async function input(body){try{await api('/input',body);}catch(e){status.textContent=e.message;}}
+screen.addEventListener('click',e=>{const b=screen.getBoundingClientRect();input({kind:'click',x:(e.clientX-b.left)*1280/b.width,y:(e.clientY-b.top)*900/b.height});});
+document.querySelector('#send').onclick=()=>{const field=document.querySelector('#text');const text=field.value;field.value='';if(text)input({kind:'text',text});};
+document.querySelector('#text').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('#send').click();}});
+for(const button of document.querySelectorAll('[data-key]'))button.onclick=()=>input({kind:'key',key:button.dataset.key});
+document.querySelector('#up').onclick=()=>input({kind:'scroll',delta:-600});document.querySelector('#down').onclick=()=>input({kind:'scroll',delta:600});
+if(token.length<32){status.textContent='Reabra esta janela pelo Meu Vendedor.';stopped=true;}else refresh();
+</script></html>

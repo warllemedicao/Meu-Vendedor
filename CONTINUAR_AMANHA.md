@@ -1,26 +1,21 @@
-# Continuidade — estado consolidado em 06/11/2026
+# Continuidade — estado vigente em 06/11/2026
 
-## Entregue e publicado
+## Entregue
 
-- Seletor de ferramenta acima de Gerar vídeo: Automático, Flow, YouTube Create, Google Omni API, Magic Hour e Replicate. Disponibilidade depende da configuração real; Flow/Create permanecem indisponíveis.
-- Escolha persistida no pedido; apenas Automático permite fallback. O backend recusa ferramentas indisponíveis antes de enfileirar e consumir geração de imagem.
-- Adaptador Google Omni integrado à fila, com polling, validação de MP4 e biblioteca privada. Catálogo autenticado; uma geração Google real ainda não foi validada.
-- Central de conta informa confirmação de e-mail e identidade Google. Conexão experimental Flow usa sessão isolada, cookies cifrados com consentimento, expiração e mensagens específicas de erro/cota.
-- Supabase `video-generation` v35 e `video-generation-worker` v19 republicados. Migração `20261106151423_google_video_provider` confirmada no banco. Frontend ativo na versão Cloudflare `62bb0236-24a3-45dd-ae1c-2e1ebcbf4284`.
+- Navegador externo Flow publicado no Modal e conectado ao Worker Cloudflare. Usa as credenciais Modal já cadastradas no Supabase, sem exposição de valores. A pendência de acesso administrativo foi resolvida.
+- Teste real abriu o Google Flow, confirmou tela/inspeção de login necessário e encerrou o container. Controlador e screenshot recusaram chamadas anônimas.
+- Sessão isolada por usuário, duração máxima de dez minutos, timeout de inatividade de dois minutos; cookies somente por consentimento no cofre AES-GCM já existente, com validade máxima de sete dias.
+- Cloudflare `36419765-2996-4b5b-b662-07f53b3bb068`. Supabase `video-generation` v38 e `video-generation-worker` v23, com diagnóstico ElevenLabs. Migração Google aplicada anteriormente.
+- Seletor de ferramenta preserva escolha; somente Automático permite fallback. Nenhuma geração Flow/Create é anunciada pronta.
 
-## Próximo passo obrigatório para concluir o Flow
+## Próximo passo
 
-1. Disponibilizar acesso de implantação ao Modal no ambiente seguro. Não há token Modal em variáveis locais nem perfil de autenticação Modal nesta sessão; os tokens observados no runtime Supabase não foram extraídos. Não enviar segredos pelo chat.
-2. Implantar executor sob demanda com perfil Google persistente e isolado por usuário, exclusão de concorrência e encerramento do navegador após cada trabalho. A conexão atual continua no Cloudflare Browser Run; não houve migração.
-3. Concluir pessoalmente o login Google no navegador e validar a sessão persistida e revogada. OAuth do app e assinatura Flow são acessos diferentes.
-4. Implementar e validar submissão, acompanhamento, download e importação do MP4 real. Não repetir submissões incertas. Somente habilitar Flow no seletor após o teste completo.
-5. YouTube Create depende de aplicativo móvel, sem API pública do editor identificada. Não tratar Google Omni API como integração Create ou transferência de benefícios.
+1. O responsável abre Conta e conexões → Google e redes → Conectar / reabrir Flow e conclui pessoalmente o login Google no novo navegador. Validar conta, créditos quando disponíveis, salvamento autorizado e reabertura da sessão. O login no app não transfere a sessão Google automaticamente.
+2. Implementar e testar submissão, acompanhamento e importação do MP4 gerado pelo Flow. Evitar repetição de submissão incerta. Só então habilitar Flow no seletor de geração. O executor atual informa generationReady=false; conexão não equivale a geração pronta.
+3. ElevenLabs: chave `ELEVENLABS_API` autenticada, plano Free e 10.000 créditos restantes. Consulta adicionada sem inferência. Para anúncios é necessária licença comercial apropriada; não habilitar síntese Free como geração publicitária.
+4. YouTube Create móvel continua sem API pública do editor identificada. Google Omni API é alternativa separada, com faturamento próprio; ainda precisa de geração Google real validada.
 
-## Limites da entrega
-
-O Flow sob demanda **não está concluído**. Falta executor externo e teste real; nenhum endpoint fictício foi adicionado. Nenhum plano ou faturamento foi alterado. A última recusa do navegador Cloudflare foi HTTP 429; a correção de mensagens não devolve a franquia consumida. Não confundir essa cota com a hospedagem do aplicativo.
-
-A fonte de estado detalhado é [GOOGLE_FLOW_E_YOUTUBE.md](./GOOGLE_FLOW_E_YOUTUBE.md). Os registros seguintes são históricos e não substituem este resumo.
+Fontes de estado: [GOOGLE_FLOW_E_YOUTUBE.md](./GOOGLE_FLOW_E_YOUTUBE.md), [ELEVENLABS.md](./ELEVENLABS.md), [executor Modal](./executors/google-flow/README.md). Registros seguintes são históricos.
 
 ---
 

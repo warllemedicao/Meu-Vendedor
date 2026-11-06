@@ -23,6 +23,7 @@ export async function productionServicesWithBalance(
   const services = productionServiceInventory((name) => Boolean(env(name)));
   const reports = await auditProviders(env, fetcher);
   const dashboards: Record<string, [string, string]> = {
+    "elevenlabs": ["Recursos de áudio; plano Free sem licença comercial. Geração não habilitada.", "https://elevenlabs.io/app/subscription"],
     "google-gemini": ["Saldo da API no AI Studio; assinatura do Flow é separada.", "https://aistudio.google.com/billing"],
     "google-video": ["Geração pela API Gemini; usa o projeto do aplicativo. Não usa créditos do Flow ou YouTube Create.", "https://aistudio.google.com/billing"],
     "cloudflare-workers-ai": ["Uso e franquia de Workers AI no painel; saldo não informado nesta consulta.", "https://dash.cloudflare.com/"],
@@ -55,6 +56,7 @@ export async function productionServicesWithBalance(
     const used = wallet?.report.total_usage;
     const hasWallet = typeof total === "number" && typeof used === "number";
     const value = hasWallet ? Math.max(0, total - used)
+      : service.id === "elevenlabs" ? audit.report.remaining_credits
       : service.id === "magic-hour" ? audit.report.total_credits
       : service.id === "runway" ? audit.report.credit_balance
       : service.id === "openrouter" ? audit.report.limit_remaining : null;
@@ -64,6 +66,7 @@ export async function productionServicesWithBalance(
       service.balanceScope = service.id === "openrouter" && !hasWallet ? "key-limit" : "account";
       service.balanceStatus = "verified";
       service.balanceMessage = service.id === "openrouter" ? hasWallet ? "Saldo da conta em dólares; limite da chave pode ser menor." : "Limite restante da chave; não representa saldo total da conta."
+        : service.id === "elevenlabs" ? `Créditos restantes; plano ${audit.report.tier ?? "desconhecido"}. ${audit.report.commercial_use === "not_included" ? "Free sem licença comercial; geração de anúncios não habilitada." : "Licença comercial e integração de áudio ainda precisam de validação."}`
         : service.id === "runway" ? "Créditos do projeto de API; integração de vídeo pendente."
         : "Créditos informados pela API da conta.";
     }
@@ -74,6 +77,7 @@ export async function productionServicesWithBalance(
 // Presença de credencial não equivale a saldo, licença ou adaptador implementado.
 export function productionServiceInventory(has: (name: string) => boolean): ProductionService[] {
   const definitions = [
+    { id: "elevenlabs", name: "ElevenLabs", stage: "audio", keys: ["ELEVENLABS_API_KEY", "ELEVENLABS_API", "ELEVEN_LABS_API_KEY", "XI_API_KEY"], integrated: false },
     { id: "google-gemini", name: "Gemini", stage: "script", keys: ["GEMINI_API_KEY", "GOOGLE_API_KEY"], integrated: true },
     { id: "google-video", name: "Google vídeo — Omni", stage: "video", keys: ["GEMINI_API_KEY", "GOOGLE_API_KEY"], integrated: true },
     { id: "cloudflare-workers-ai", name: "Cloudflare", stage: "image", keys: ["CLOUDFLARE_AI_API_TOKEN"], integrated: true },
