@@ -8,6 +8,16 @@ export interface ProductionReadiness {
   message: string;
 }
 
+// Configuração permite tentar a API; não representa saldo nem gratuidade confirmados.
+export function accountCreditReadiness(configured: (provider: string) => boolean): ProductionReadiness {
+  const imageReady = configured("cloudflare-workers-ai");
+  const videoReady = configured("magic-hour") || configured("replicate");
+  return { ready: imageReady && videoReady, imageReady, videoReady, checkedAt: new Date().toISOString(),
+    message: imageReady && videoReady
+      ? "Serviços configurados para tentar a geração. O fornecedor verifica os créditos; a troca de serviço é automática quando possível."
+      : "Faltam credenciais de imagem ou vídeo. O pedido pode aguardar na fila até a configuração estar disponível." };
+}
+
 // Não retorna saldos, evidências administrativas ou respostas de conta ao cliente.
 export async function productionReadiness(
   configured: (provider: string) => boolean,

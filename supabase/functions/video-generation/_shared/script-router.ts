@@ -3,6 +3,7 @@ import { GROQ_SCRIPT_MODEL } from "./provider-models.ts";
 
 export interface ScriptResult { script: string; provider: string; model: string; }
 interface ScriptOptions {
+  useAccountCredits?: boolean;
   geminiKey?: string;
   groqKey?: string;
   openRouterKey?: string;
@@ -13,9 +14,9 @@ interface ScriptOptions {
 export async function routeAdvertisingScript(input: GeminiScriptInput, options: ScriptOptions): Promise<ScriptResult> {
   const fetcher = options.fetcher ?? fetch;
   const verified = async (id: string, model: string) => {
-    try { return await options.isFreeProvider?.(id, model) === true; } catch { return false; }
+    try { return options.useAccountCredits === true || await options.isFreeProvider?.(id, model) === true; } catch { return false; }
   };
-  if (options.geminiKey && await verified("google-gemini", "gemini-3.8-flash")) {
+  if (!options.useAccountCredits && options.geminiKey && await verified("google-gemini", "gemini-3.8-flash")) {
     try {
       return { script: await requestGeminiScript(input, options.geminiKey, fetcher), provider: "google-gemini", model: "gemini-3.8-flash" };
     } catch { /* Falta de créditos ou indisponibilidade: continuar automaticamente. */ }
@@ -24,9 +25,10 @@ export async function routeAdvertisingScript(input: GeminiScriptInput, options: 
     { provider: "groq", model: GROQ_SCRIPT_MODEL, url: "https://api.groq.com/openai/v1/chat/completions", key: options.groqKey },
     { provider: "openrouter", model: "openrouter/free", url: "https://openrouter.ai/api/v1/chat/completions", key: options.openRouterKey },
   ];
+  if (options.useAccountCredits) candidates.reverse(); // Rota de preço zero antes das contas com saldo próprio.
   for (const candidate of candidates) {
     if (!candidate.key) continue;
-    // Preço zero no OpenRouter é imposto no próprio pedido; outras contas exigem hard stop verificado.
+    // OpenRouter mantém a rota gratuita; o runtime pode usar os créditos das demais contas.
     if (candidate.provider !== "openrouter" && !await verified(candidate.provider, candidate.model)) continue;
     try {
       const result = await fetcher(candidate.url, {
@@ -50,6 +52,11 @@ export async function routeAdvertisingScript(input: GeminiScriptInput, options: 
       if (typeof script !== "string" || script.trim().length < 10 || script.length > 4000) continue;
       return { script: script.trim(), provider: candidate.provider, model: candidate.model };
     } catch { /* Continuar para o próximo provedor; não bloquear a preparação. */ }
+  }
+  if (options.useAccountCredits && options.geminiKey) {
+    try {
+      return { script: await requestGeminiScript(input, options.geminiKey, fetcher), provider: "google-gemini", model: "gemini-3.8-flash" };
+    } catch { /* Sem serviço disponível: sugestão local. */ }
   }
   return {
     script: `Conheça ${input.product.name}. Confira os detalhes e veja se combina com você.`,

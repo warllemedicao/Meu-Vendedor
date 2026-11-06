@@ -23,6 +23,7 @@ export interface GeminiScriptInput {
 
 export interface VideoGenerationDependencies {
   freeOnlyMode?(): boolean;
+  accountCreditsMode?(): boolean;
   productionReadiness?(): Promise<import("./production-readiness.ts").ProductionReadiness>;
   authenticate(token: string): Promise<string | null>;
   geminiApiKey(): string | undefined;
@@ -285,6 +286,7 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
       const enabled = dependencies.geminiScriptEnabled();
       return response({
         ...(dependencies.freeOnlyMode?.() ? { billing: { mode: "free-only", paidGenerationAllowed: false, dailyLimit: null, waitsForCredits: true } } : {}),
+        ...(dependencies.accountCreditsMode?.() ? { billing: { mode: "account-credits", paidGenerationAllowed: true, dailyLimit: null, waitsForCredits: true } } : {}),
         script: { provider: "google-gemini", model, configured, enabled, available: configured && enabled },
         video: {
           ...(dependencies.productionReadiness ? { readiness: await dependencies.productionReadiness() } : {}),
@@ -292,7 +294,7 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
           providers: dependencies.videoProviders?.() ?? [],
           reason: dependencies.videoProcessorAvailable()
             ? null
-            : "A geração real exige processador, limites de custo e autorização explícita.",
+            : "A geração real exige credenciais e um processador configurado.",
         },
         jobs: {
           enabled: dependencies.videoJobsEnabled(),

@@ -105,7 +105,7 @@ export interface VideoGenerationRequest {
 export interface VideoSubmission {
   providerJobId: string;
   creditsCharged?: number;
-  estimatedCostUsd: number;
+  estimatedCostUsd: number | null;
 }
 
 function readUint32(bytes: Uint8Array, offset: number): number {
@@ -380,10 +380,10 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
         throw new Error("video_job_stage_invalid");
       } catch (error) {
         const code = errorCode(error);
-        if (error instanceof AIRoutingError && error.code === "free_resources_unavailable") {
+        if (error instanceof AIRoutingError && ["free_resources_unavailable", "account_resources_unavailable"].includes(error.code)) {
           await dependencies.advance(job, {
             stage: "awaiting_free_credits", progress: job.intermediate_image_path ? 35 : 0,
-            errorCode: "waiting_for_free_resources",
+            errorCode: dependencies.routingPolicy().billingMode === "account-credits" ? "waiting_for_resources" : "waiting_for_free_resources",
             delaySeconds: Math.min(3600, Math.max(60, Math.ceil(error.retryAfterMs / 1000))),
           });
           return "awaiting_free_credits";

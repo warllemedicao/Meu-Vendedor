@@ -16,7 +16,7 @@ export interface MagicHourVideoRequest {
 export interface MagicHourVideoSubmission {
   providerJobId: string;
   creditsCharged: number;
-  estimatedCostUsd: number;
+  estimatedCostUsd: number | null;
 }
 
 export interface MagicHourVideoStatus {
@@ -235,7 +235,7 @@ export function createMagicHourVideoProvider(
         providerJobId: result.id,
         creditsCharged: Number(result.credits_charged),
         estimatedCostUsd: options.freeOnly ? 0 : options.creditUsd === null
-          ? Number.NaN
+          ? null
           : Number(result.credits_charged) * options.creditUsd,
       };
     },

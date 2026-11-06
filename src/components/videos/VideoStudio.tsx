@@ -198,8 +198,9 @@ const jobStageLabels: Record<string, string> = {
   video_submitting: "Enviando ao provedor de vídeo",
   video_processing: "Gerando vídeo",
   validating: "Validando resultado",
-  awaiting_free_credits: "Aguardando recursos gratuitos",
-  waiting_for_free_resources: "Aguardando renovação dos recursos gratuitos",
+  awaiting_free_credits: "Aguardando créditos ou disponibilidade",
+  waiting_for_free_resources: "Aguardando créditos ou disponibilidade",
+  waiting_for_resources: "Aguardando créditos ou disponibilidade",
   awaiting_authorization: "Aguardando disponibilidade dos serviços",
   uncertain: "Verificação necessária",
   completed: "Vídeo concluído",
@@ -537,7 +538,7 @@ export function VideoStudio() {
         setJobManagementAvailable(data?.jobs?.enabled === true);
         setVideoProcessorAvailable(data?.jobs?.processorAvailable === true);
         setGeminiCapabilityMessage(available
-          ? "Modo gratuito: seleção automática de serviço ou sugestão local."
+          ? "Seleção automática de serviço ou sugestão local."
           : "Roteiro por IA ainda não habilitado; use a sugestão local.");
       })
       .catch(() => {
@@ -842,7 +843,7 @@ export function VideoStudio() {
       setJobs((current) => [queuedJob, ...current.filter((job) => job.id !== queuedJob.id)].slice(0, 20));
       enqueueIdempotency.current = null;
       setStudioView("queue");
-      setNotice("Pedido registrado no modo gratuito. A produção troca de serviço automaticamente e aguarda na fila se os recursos gratuitos acabarem.");
+      setNotice("Pedido registrado. A produção usa os créditos da conta, troca de serviço automaticamente e aguarda na fila se não houver opção disponível.");
     } catch (enqueueError) {
       setError(enqueueError instanceof Error ? enqueueError.message : "Não foi possível registrar a tarefa na fila.");
     } finally {
@@ -1047,7 +1048,7 @@ export function VideoStudio() {
             <p className="mt-2 max-w-2xl text-sm text-muted">Prepare o produto e a direção criativa. Acompanhe a produção e encontre seus projetos na biblioteca.</p>
           </div>
           <span className={`rounded-full px-3 py-2 text-xs font-medium ${queueAvailable ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted"}`}>
-            {queueAvailable ? "Modo gratuito · fila ativa" : user ? "Configuração de geração pendente" : "Entre para gerar vídeos"}
+            {queueAvailable ? "Créditos da conta · fila ativa" : user ? "Configuração de geração pendente" : "Entre para gerar vídeos"}
           </span>
         </div>
         <nav aria-label="Áreas do estúdio" className="mt-6 flex gap-1 overflow-x-auto rounded-xl bg-background p-1">
@@ -1318,7 +1319,7 @@ export function VideoStudio() {
             {userId && <div className="mb-4 rounded-xl border border-border bg-background p-3" aria-live="polite">
               <p className="text-sm font-semibold">Disponibilidade para gerar agora</p>
               <p className="mt-2 text-xs leading-relaxed text-muted">{capabilityUserId === userId && productionReadiness ? productionReadiness.message : "Verifique a disponibilidade dos serviços antes de iniciar."}</p>
-              {capabilityUserId === userId && productionReadiness && <p className="mt-2 text-xs text-muted">Imagem: {productionReadiness.imageReady ? "cota liberada" : "aguardando liberação"} · Vídeo: {productionReadiness.videoReady ? "cota liberada" : "aguardando liberação"}</p>}
+              {capabilityUserId === userId && productionReadiness && <p className="mt-2 text-xs text-muted">Imagem: {productionReadiness.imageReady ? "serviço configurado" : "configuração pendente"} · Vídeo: {productionReadiness.videoReady ? "serviço configurado" : "configuração pendente"}</p>}
               <button type="button" disabled={checkingProduction} onClick={() => { setCheckingProduction(true); setCapabilityRefresh((value) => value + 1); }} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-primary disabled:opacity-50">
                 <RefreshCw className={`size-3 ${checkingProduction ? "animate-spin" : ""}`} aria-hidden />{checkingProduction ? "Verificando…" : "Verificar disponibilidade"}
               </button>
@@ -1336,7 +1337,7 @@ export function VideoStudio() {
               {enqueueingJob ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Preparando produção…</> : <><WandSparkles className="size-4" aria-hidden />{capabilityUserId === userId && productionReadiness && !productionReadiness.ready ? "Salvar pedido na fila" : "Gerar vídeo"}</>}
             </button>
             {!queueAvailable && <p className="mt-3 text-xs text-muted">{user ? "A geração ficará disponível quando os serviços de produção estiverem configurados." : "Entre na sua conta para gerar e guardar vídeos."}</p>}
-            <p className="mt-3 text-xs leading-relaxed text-muted">Somente recursos gratuitos, sem cobrança de geração. A troca de serviço é automática. Se todos estiverem indisponíveis, seu pedido aguarda na fila, preservando as etapas prontas.</p>
+            <p className="mt-3 text-xs leading-relaxed text-muted">Usa os créditos disponíveis nas contas e troca de serviço automaticamente quando possível. O fornecedor pode cobrar conforme o plano da conta. Se não houver opção disponível, o pedido aguarda preservando as etapas prontas.</p>
             {capabilityUserId === userId && productionServices.length > 0 && <details className="mt-4 border-t border-border pt-3">
               <summary className="cursor-pointer text-xs font-medium text-muted">Serviços de produção</summary>
               <ul className="mt-3 space-y-2 text-xs">{productionServices.map((service) => <li key={service.name} className="flex justify-between gap-3"><span>{service.name}</span><span className="text-right text-muted">{!service.configured ? "Sem configuração" : service.integrated ? "Integrado · saldo não verificado" : "Credencial presente · integração pendente"}</span></li>)}</ul>
@@ -1392,7 +1393,7 @@ export function VideoStudio() {
                     {job.error_code && job.stage !== "awaiting_free_credits" ? ` · ${job.error_code}` : ""}
                   </p>
                 </div>
-                {job.stage === "awaiting_free_credits" && <p className="w-full text-xs text-muted">Suas etapas prontas foram preservadas. Nova verificação automática{job.next_attempt_at ? ` às ${new Date(job.next_attempt_at).toLocaleTimeString("pt-BR")}` : " em breve"}. Nenhuma cobrança será autorizada.</p>}
+                {job.stage === "awaiting_free_credits" && <p className="w-full text-xs text-muted">Suas etapas prontas foram preservadas. Nova verificação automática{job.next_attempt_at ? ` às ${new Date(job.next_attempt_at).toLocaleTimeString("pt-BR")}` : " em breve"}. O processo será retomado quando houver um serviço disponível.</p>}
                 <div className="min-w-28 text-right text-xs text-muted">
                   {job.status === "processing" ? `${job.progress}%` : job.completed_at ? "Finalizada" : "Aguardando"}
                 </div>

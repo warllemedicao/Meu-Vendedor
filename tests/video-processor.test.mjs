@@ -321,3 +321,17 @@ test('cancelar espera por créditos não volta a consultar o provedor',async()=>
  const state=harness({stage:'awaiting_free_credits',provider:'replicate',provider_job_id:'old-failed-job',cancel_requested_at:'2026-11-06T00:00:00Z'});
  assert.equal(await state.processor.processNext(),'cancelled');assert.equal(state.calls.status.length,0);assert.equal(state.calls.cancel.length,0);
 });
+
+test('créditos da conta aguardam e retomam sem cota gratuita nem perda da imagem',async()=>{
+ let available=false;
+ const state=harness({stage:'image_ready',intermediate_image_path:'owned-reference.jpg'},{
+  routingPolicy:()=>policy({billingMode:'account-credits'}),
+  createVideoRouter:()=>[{...provider('replicate',async()=>({providerJobId:'account-job',estimatedCostUsd:null})),readiness:async()=>({authenticated:true,available,funding:'unknown',balanceUnits:null})}],
+ });
+ assert.equal(await state.processor.processNext(),'awaiting_free_credits');
+ assert.equal(state.job.stage_message,'waiting_for_resources');
+ available=true;
+ assert.equal(await state.processor.processNext(),'image_ready');
+ assert.equal(await state.processor.processNext(),'video_processing');
+ assert.equal(state.job.provider_job_id,'account-job');assert.equal(state.calls.image,0);
+});

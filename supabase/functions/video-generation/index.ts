@@ -1,8 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
-import { verifiedFreeAllowance, type FreeAllowance } from "./_shared/free-only.ts";
 import { productionServiceInventory } from "./_shared/provider-inventory.ts";
 import { routeAdvertisingScript } from "./_shared/script-router.ts";
-import { productionReadiness } from "./_shared/production-readiness.ts";
+import { accountCreditReadiness } from "./_shared/production-readiness.ts";
 import {
   createVideoGenerationHandler,
   requestGeminiScript,
@@ -70,38 +69,27 @@ function configuredProviders() {
 }
 
 function processorAvailable() {
-  // A fila continua disponível durante a espera por cotas gratuitas verificadas.
-  return Boolean(admin && anonKey && (Deno.env.get("MV_VIDEO_WORKER_SECRET") ?? "").length >= 32 && Deno.env.get("MV_AI_FREE_ONLY_ENABLED") !== "false");
+  // Disponibilidade técnica; saldo/limites são decididos pelo fornecedor.
+  return Boolean(admin && anonKey && (Deno.env.get("MV_VIDEO_WORKER_SECRET") ?? "").length >= 32);
 }
 
-async function scriptProviderFree(providerId: string, model: string): Promise<boolean> {
-  if (!admin) return false;
-  const { data, error } = await admin.rpc("mv_refresh_free_allowance", { p_provider_id: providerId, p_model: model });
-  return !error && verifiedFreeAllowance(data as FreeAllowance | null, providerId, model);
-}
 
 Deno.serve(createVideoGenerationHandler({
-  freeOnlyMode: () => true,
-  productionReadiness: () => productionReadiness(
+  accountCreditsMode: () => true,
+  productionReadiness: async () => accountCreditReadiness(
     (provider) => provider === "cloudflare-workers-ai"
       ? Boolean(Deno.env.get("CLOUDFLARE_ACCOUNT_ID") && Deno.env.get("CLOUDFLARE_AI_API_TOKEN"))
       : configuredProviders().some((entry) => entry.id === provider && entry.configured),
-    async (provider, model) => {
-      if (!admin) return null;
-      const { data, error } = await admin.rpc("mv_refresh_free_allowance", { p_provider_id: provider, p_model: model });
-      if (error) throw new Error("free_allowance_unavailable");
-      return data as FreeAllowance | null;
-    },
   ),
   authenticate: async (token) => {
     const { data: { user }, error } = await auth.auth.getUser(token);
     return error ? null : user?.id ?? null;
   },
   geminiApiKey: () => Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GOOGLE_API_KEY"),
-  geminiScriptEnabled: () => Deno.env.get("MV_AI_FREE_ONLY_ENABLED") !== "false",
+  geminiScriptEnabled: () => true,
   scriptProvidersConfigured: () => true, // Sugestão local sempre disponível, mesmo sem provedor gratuito.
   generateScriptWithFallback: (input) => routeAdvertisingScript(input, {
-    isFreeProvider: scriptProviderFree,
+    useAccountCredits: true,
     geminiKey: Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GOOGLE_API_KEY"),
     groqKey: Deno.env.get("GROQ_API_KEY"),
     openRouterKey: Deno.env.get("OPENROUTER_API_KEY"),

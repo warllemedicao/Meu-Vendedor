@@ -1,5 +1,4 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
-import { freeOnlyAdapter, type FreeAllowance } from "../video-generation/_shared/free-only.ts";
 import { imageCacheKey } from "../video-generation/_shared/image-cache.ts";
 import { productionServiceInventory } from "../video-generation/_shared/provider-inventory.ts";
 import { auditProviders } from "../video-generation/_shared/provider-audit.ts";
@@ -40,18 +39,13 @@ const admin = supabaseUrl && serviceRoleKey
   : null;
 
 function workerEnabled(): boolean {
-  return Boolean(admin && anonKey && workerSecret.length >= 32 && Deno.env.get("MV_AI_FREE_ONLY_ENABLED") !== "false");
+  return Boolean(admin && anonKey && workerSecret.length >= 32);
 }
 
 function configuredProviders(): ReadonlySet<string> {
   return new Set(["cloudflare-workers-ai", "magic-hour", "replicate"]);
 }
 
-async function freeAllowance(providerId: string, model: string): Promise<FreeAllowance | null> {
-  const { data, error } = await admin!.rpc("mv_refresh_free_allowance", { p_provider_id: providerId, p_model: model });
-  if (error) throw new Error("free_allowance_unavailable");
-  return data as FreeAllowance | null;
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -127,24 +121,10 @@ function createAttemptStore(
       });
       if (error) throw new Error(`mv_record_video_ai_attempt:${error.code ?? "database_error"}`);
     },
-    async reserve() { return false; }, // Nenhuma reserva em USD neste runtime.
-    async reserveFree(providerId, units) {
-      return await rpcOk<boolean>("mv_reserve_free_video_units", {
-        p_job_id: job.id, p_lease_token: job.lease_token, p_stage: stage,
-        p_provider_id: providerId, p_model: modelFor(providerId), p_units: units,
-      });
-    },
-    async settle(providerId) {
-      const settled = await rpcOk<boolean>("mv_settle_free_video_units", {
-        p_job_id: job.id, p_stage: stage, p_provider_id: providerId, p_model: modelFor(providerId), p_release: false,
-      });
-      if (!settled) throw new Error("free_reservation_missing");
-    },
-    async release(providerId) {
-      await rpcOk<boolean>("mv_settle_free_video_units", {
-        p_job_id: job.id, p_stage: stage, p_provider_id: providerId, p_model: modelFor(providerId), p_release: true,
-      });
-    },
+    // A conta do fornecedor controla o saldo. O registro "started" mantém a lease/idempotência.
+    async reserve() { return true; },
+    async settle() {},
+    async release() {},
     async setCooldown(providerId, until) {
       await rpcOk<void>("mv_set_video_ai_cooldown", {
         p_provider_id: providerId,
@@ -156,7 +136,7 @@ function createAttemptStore(
 }
 
 function routingPolicy(): AIRoutingPolicy {
-  return { billingMode: "free-only", allowPaidGeneration: false, allowUnconfirmedCommercialUse: false,
+  return { billingMode: "account-credits", allowPaidGeneration: true, allowUnconfirmedCommercialUse: true,
     maxCostUsdPerTask: 0, remainingDailyBudgetUsd: 0, paidProviders: new Set() };
 }
 
@@ -196,10 +176,10 @@ function magicHourClient() {
   return createMagicHourVideoProvider({
     apiKey: Deno.env.get("MAGIC_HOUR_API_KEY") ?? "",
     creditUsd: null,
-    freeOnly: true,
+    freeOnly: false,
     commercialUseConfirmed: false,
     freeCreditsConfirmed: false,
-    paidSpendAuthorized: false,
+    paidSpendAuthorized: true,
   });
 }
 
@@ -207,7 +187,7 @@ function replicateClient() {
   return createReplicateVideoProvider({
     apiToken: Deno.env.get("REPLICATE_API_TOKEN") ?? "",
     supabaseUrl,
-    paidSpendAuthorized: false,
+    paidSpendAuthorized: true,
     commercialUseConfirmed: false,
   });
 }
@@ -272,12 +252,12 @@ const processor = admin ? createVideoProcessor({
     return { prompt, references, outputWidth: 512, outputHeight: 910, steps: 25 };
   },
   createImageRouter() {
-    return freeOnlyAdapter(createCloudflareWorkersAIProvider({
+    return createCloudflareWorkersAIProvider({
       accountId: Deno.env.get("CLOUDFLARE_ACCOUNT_ID") ?? "",
       apiToken: Deno.env.get("CLOUDFLARE_AI_API_TOKEN") ?? "",
       readiness: cloudflareReadiness,
       commercialUseConfirmed: false,
-    }), () => freeAllowance("cloudflare-workers-ai", modelFor("cloudflare-workers-ai")));
+    });
   },
   async findCachedImage(job, request) {
     const key = await imageCacheKey(request);
@@ -322,11 +302,11 @@ const processor = admin ? createVideoProcessor({
     return { bytes, mimeType };
   },
   createVideoRouter(_job, _image, excludeProviders) {
-    const providers: AIProviderAdapter<VideoGenerationRequest, { providerJobId: string; estimatedCostUsd: number }>[] = [];
+    const providers: AIProviderAdapter<VideoGenerationRequest, { providerJobId: string; estimatedCostUsd: number | null }>[] = [];
     const key = Deno.env.get("MAGIC_HOUR_API_KEY") ?? "";
     if (key && configuredProviders().has("magic-hour") && !excludeProviders.has("magic-hour")) {
       const magicHour = magicHourClient();
-      providers.push(freeOnlyAdapter({
+      providers.push({
         capabilities: magicHour.capabilities,
         readiness: () => persistentReadiness(
           "magic-hour",
@@ -353,12 +333,12 @@ const processor = admin ? createVideoProcessor({
             estimatedCostUsd: result.estimatedCostUsd,
           };
         },
-      }, () => freeAllowance("magic-hour", modelFor("magic-hour"))));
+      });
     }
     const replicateKey = Deno.env.get("REPLICATE_API_TOKEN") ?? "";
     if (replicateKey && configuredProviders().has("replicate") && !excludeProviders.has("replicate")) {
       const replicate = replicateClient();
-      providers.push(freeOnlyAdapter({
+      providers.push({
         capabilities: replicate.capabilities,
         readiness: () => persistentReadiness(
           "replicate",
@@ -380,7 +360,7 @@ const processor = admin ? createVideoProcessor({
           }, key);
           return { providerJobId: result.providerJobId, estimatedCostUsd: replicateVideoEstimateUsd };
         },
-      }, () => freeAllowance("replicate", modelFor("replicate"))));
+      });
     }
     return providers;
   },
@@ -417,7 +397,7 @@ const processor = admin ? createVideoProcessor({
     await createReplicateVideoProvider({
       apiToken,
       supabaseUrl,
-      paidSpendAuthorized: false,
+      paidSpendAuthorized: true,
       commercialUseConfirmed: false,
     }).cancel(remoteJobId);
   },
@@ -502,8 +482,8 @@ function safeEqual(left: string, right: string): boolean {
 console.info(JSON.stringify({
   event: "video_worker_readiness",
   processor_available: workerEnabled(),
-  billing_mode: "free-only",
-  paid_generation_allowed: false,
+  billing_mode: "account-credits",
+  paid_generation_allowed: true,
   services: productionServiceInventory((name) => Boolean(Deno.env.get(name))),
   credential_names: Object.keys(Deno.env.toObject())
     .filter((name) => /(?:KEY|TOKEN|SECRET)/.test(name) && !name.startsWith("SUPABASE_") && !name.startsWith("MV_"))
