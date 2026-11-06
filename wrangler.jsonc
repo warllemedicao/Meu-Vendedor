@@ -16,7 +16,8 @@
   "main": "worker/index.ts",
   "triggers": {
     "crons": [
-      "*/30 * * * *"
+      "*/30 * * * *",
+      "* * * * *"
     ]
   }
 }

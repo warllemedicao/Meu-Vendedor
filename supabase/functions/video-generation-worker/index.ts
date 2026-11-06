@@ -527,10 +527,10 @@ function safeEqual(left: string, right: string): boolean {
 
 Deno.serve(async (request) => {
   if (request.method !== "POST") return new Response(null, { status: 405 });
-  if (!workerEnabled() || !processor) return Response.json({ error: "processor_disabled" }, { status: 503 });
-  if (!safeEqual(request.headers.get("x-worker-secret") ?? "", workerSecret)) {
+  if (workerSecret.length < 32 || !safeEqual(request.headers.get("x-worker-secret") ?? "", workerSecret)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
+  if (!workerEnabled() || !processor) return Response.json({ error: "processor_disabled" }, { status: 503 });
   const task = processor.processNext().then(async (stage) => {
     if (stage === "image_ready") {
       const kick = fetch(`${supabaseUrl}/functions/v1/video-generation-worker`, {

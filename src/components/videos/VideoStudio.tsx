@@ -115,6 +115,7 @@ interface VideoProjectRow {
 interface VideoJobRow {
   id: string;
   status: "queued" | "processing" | "completed" | "failed" | "cancelled";
+  provider: "pending" | "cloudflare-workers-ai" | "magic-hour" | "replicate";
   stage: string;
   stage_message: string | null;
   progress: number;
@@ -183,6 +184,13 @@ const jobStatusLabels: Record<VideoJobRow["status"], string> = {
   completed: "Concluído",
   failed: "Falhou",
   cancelled: "Cancelado",
+};
+
+const jobProviderLabels: Record<VideoJobRow["provider"], string> = {
+  pending: "Aguardando seleção",
+  "cloudflare-workers-ai": "Cloudflare Workers AI",
+  "magic-hour": "Magic Hour",
+  replicate: "Replicate",
 };
 
 const jobStageLabels: Record<string, string> = {
@@ -536,7 +544,7 @@ export function VideoStudio() {
     let active = true;
     const refreshJobs = async () => {
       const { data, error: loadError } = await client.from("mv_video_jobs")
-        .select("id,status,stage,stage_message,progress,created_at,updated_at,completed_at,error_code,result_object_path")
+        .select("id,status,provider,stage,stage_message,progress,created_at,updated_at,completed_at,error_code,result_object_path")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -1332,7 +1340,11 @@ export function VideoStudio() {
               <li key={job.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
                 <div>
                   <p className="font-medium">{jobStageLabels[job.stage_message ?? job.stage] ?? jobStatusLabels[job.status]}</p>
-                  <p className="text-xs text-muted">{new Date(job.created_at).toLocaleString("pt-BR")}{job.error_code ? ` · ${job.error_code}` : ""}</p>
+                  <p className="text-xs text-muted">
+                    {new Date(job.created_at).toLocaleString("pt-BR")}
+                    {job.provider !== "pending" ? ` · Provedor: ${jobProviderLabels[job.provider]}` : ""}
+                    {job.error_code ? ` · ${job.error_code}` : ""}
+                  </p>
                 </div>
                 <div className="min-w-28 text-right text-xs text-muted">
                   {job.status === "processing" ? `${job.progress}%` : job.completed_at ? "Finalizada" : "Aguardando"}
