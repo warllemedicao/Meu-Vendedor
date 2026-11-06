@@ -1,5 +1,7 @@
 # Gerador de vídeos IA — estado e implantação
 
+> **Política vigente — somente gratuito, 06/11/2026:** modo `free-only` implementado e publicado no Supabase, sem teto diário de pedidos do aplicativo. Fallback automático entre opções compatíveis, reservas atômicas de cotas gratuitas, espera/retomada com etapas preservadas e renovação apenas de franquias periódicas comprovadas. Rotas pagas ou desconhecidas são bloqueadas. As cotas de imagem/vídeo ainda não têm comprovação de gratuidade registrada; pedidos podem aguardar por isso. Instruções e limites reais em [MODO_GRATUITO.md](./MODO_GRATUITO.md). Este bloco substitui as instruções históricas de ativar geração paga abaixo.
+
 ## Revisão do estúdio e pipeline — 06/11/2026
 
 Publicado: Worker `37c2d501-7ee6-4629-a1a4-8b2c844cd854`; `video-generation` v23; `video-generation-worker` v6. Validação: 103 testes, lint, TypeScript frontend/Edge, build estático e navegação Chromium em desktop/celular aprovados. Migração `20261106022136` aplicada; cache privado sem permissões de cliente. Nenhuma geração real executada.

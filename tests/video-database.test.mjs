@@ -16,6 +16,7 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
     const indexMigration = await readFile(new URL('../supabase/migrations/20261106020118_foreign_key_indexes.sql', import.meta.url), 'utf8');
     await db.exec(indexMigration);
     await db.exec(await readFile(new URL('../supabase/migrations/20261106022136_video_production_cache.sql', import.meta.url), 'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/20261106024913_free_only_video_routing.sql', import.meta.url), 'utf8'));
     await db.exec(indexMigration); // Reaplicação não duplica índices nem altera dados.
     const uncovered = await db.query(`select c.conname from pg_constraint c
       where c.contype = 'f' and c.connamespace = 'public'::regnamespace
@@ -76,7 +77,7 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
     const secondJob = (await enqueue('request-key-00000002', requestData, version.id)).rows[0].result;
     const extraJobs = [];
     for (let i = 0; i < 3; i++) extraJobs.push((await enqueue(`request-extra-${String(i).padStart(6,'0')}`, requestData, null)).rows[0].result);
-    await assert.rejects(enqueue('request-limit-00000001', requestData, null), /video_concurrency_limit/);
+    extraJobs.push((await enqueue('request-limit-00000001', requestData, null)).rows[0].result); // Sem limite de admissão por tarefas em espera.
     for (const extra of extraJobs) await db.query('select public.mv_cancel_video_job($1,$2)', [alice, extra.id]);
     // A meta de 15 entregas/dia não pode ser bloqueada por tentativas que falharam.
     for (let i = 0; i < 16; i++) {

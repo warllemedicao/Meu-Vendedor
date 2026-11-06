@@ -32,6 +32,7 @@ export interface MagicHourAccount {
 }
 
 export interface MagicHourOptions {
+  freeOnly?: boolean;
   apiKey: string;
   creditUsd: number | null;
   commercialUseConfirmed: boolean;
@@ -168,7 +169,7 @@ export function createMagicHourVideoProvider(
     async estimate(request) {
       return {
         units: magicHourEstimatedCredits(request.durationSeconds),
-        usd: options.creditUsd === null ? null : magicHourEstimatedCredits(request.durationSeconds) * options.creditUsd,
+        usd: options.freeOnly ? 0 : options.creditUsd === null ? null : magicHourEstimatedCredits(request.durationSeconds) * options.creditUsd,
       };
     },
     async generate(request) {
@@ -233,7 +234,7 @@ export function createMagicHourVideoProvider(
       return {
         providerJobId: result.id,
         creditsCharged: Number(result.credits_charged),
-        estimatedCostUsd: options.creditUsd === null
+        estimatedCostUsd: options.freeOnly ? 0 : options.creditUsd === null
           ? Number.NaN
           : Number(result.credits_charged) * options.creditUsd,
       };

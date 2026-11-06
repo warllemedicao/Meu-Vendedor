@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
+import { verifiedFreeAllowance, type FreeAllowance } from "./_shared/free-only.ts";
 import { productionServiceInventory } from "./_shared/provider-inventory.ts";
 import { routeAdvertisingScript } from "./_shared/script-router.ts";
 import {
@@ -26,7 +27,7 @@ function publicJob(value: unknown): Record<string, unknown> | null {
   const fields = [
     "id", "project_id", "status", "provider", "provider_job_id", "attempt_count",
     "progress", "estimated_cost_usd", "result_object_path", "error_code", "stage", "stage_message",
-    "cancel_requested_at", "created_at", "updated_at", "started_at", "completed_at",
+    "cancel_requested_at", "next_attempt_at", "created_at", "updated_at", "started_at", "completed_at",
   ];
   return Object.fromEntries(fields.filter((field) => field in row).map((field) => [field, row[field]]));
 }
@@ -61,46 +62,39 @@ function jobError(error: { message: string }): VideoJobError {
 }
 
 function configuredProviders() {
-  const allowed = new Set((Deno.env.get("MV_AI_ALLOWED_PROVIDERS") ?? "").split(",").map((id) => id.trim()));
-  const magicHourCreditUsd = Number(Deno.env.get("MV_MAGIC_HOUR_CREDIT_USD"));
   return [
-    { id: "magic-hour", model: "ltx-2.5", configured: Boolean(Deno.env.get("MAGIC_HOUR_API_KEY") && Number.isFinite(magicHourCreditUsd) && magicHourCreditUsd > 0 && allowed.has("magic-hour")) },
-    { id: "replicate", model: "alibaba/happyhorse-1.0", configured: Boolean(Deno.env.get("REPLICATE_API_TOKEN") && allowed.has("replicate")) },
+    { id: "magic-hour", model: "ltx-2.5", configured: Boolean(Deno.env.get("MAGIC_HOUR_API_KEY")) },
+    { id: "replicate", model: "alibaba/happyhorse-1.0", configured: Boolean(Deno.env.get("REPLICATE_API_TOKEN")) },
   ];
 }
 
 function processorAvailable() {
-  const allowed = new Set((Deno.env.get("MV_AI_ALLOWED_PROVIDERS") ?? "").split(",").map((id) => id.trim()));
-  return Boolean(
-    admin &&
-    (Deno.env.get("MV_VIDEO_WORKER_SECRET") ?? "").length >= 32 &&
-    Deno.env.get("MV_VIDEO_PROCESSOR_ENABLED") === "true" &&
-    Deno.env.get("MV_VIDEO_JOBS_ENABLED") === "true" &&
-    Deno.env.get("MV_AI_ALLOW_PAID_GENERATION") === "true" &&
-    Deno.env.get("MV_AI_COMMERCIAL_USE_CONFIRMED") === "true" &&
-    Deno.env.get("CLOUDFLARE_ACCOUNT_ID") &&
-    Deno.env.get("CLOUDFLARE_AI_API_TOKEN") &&
-    allowed.has("cloudflare-workers-ai") &&
-    configuredProviders().some((provider) => provider.configured) &&
-    Number(Deno.env.get("MV_AI_MAX_COST_PER_JOB_USD")) > 0 &&
-    Number(Deno.env.get("MV_AI_DAILY_BUDGET_USD")) > 0,
-  );
+  // A fila continua disponível durante a espera por cotas gratuitas verificadas.
+  return Boolean(admin && anonKey && (Deno.env.get("MV_VIDEO_WORKER_SECRET") ?? "").length >= 32 && Deno.env.get("MV_AI_FREE_ONLY_ENABLED") !== "false");
+}
+
+async function scriptProviderFree(providerId: string, model: string): Promise<boolean> {
+  if (!admin) return false;
+  const { data, error } = await admin.rpc("mv_refresh_free_allowance", { p_provider_id: providerId, p_model: model });
+  return !error && verifiedFreeAllowance(data as FreeAllowance | null, providerId, model);
 }
 
 Deno.serve(createVideoGenerationHandler({
+  freeOnlyMode: () => true,
   authenticate: async (token) => {
     const { data: { user }, error } = await auth.auth.getUser(token);
     return error ? null : user?.id ?? null;
   },
   geminiApiKey: () => Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GOOGLE_API_KEY"),
-  geminiScriptEnabled: () => Deno.env.get("MV_AI_SCRIPT_ENABLED") === "true" || Deno.env.get("MV_GEMINI_SCRIPT_ENABLED") === "true",
-  scriptProvidersConfigured: () => Boolean(Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GROQ_API_KEY") || Deno.env.get("OPENROUTER_API_KEY")),
+  geminiScriptEnabled: () => Deno.env.get("MV_AI_FREE_ONLY_ENABLED") !== "false",
+  scriptProvidersConfigured: () => true, // Sugestão local sempre disponível, mesmo sem provedor gratuito.
   generateScriptWithFallback: (input) => routeAdvertisingScript(input, {
+    isFreeProvider: scriptProviderFree,
     geminiKey: Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GOOGLE_API_KEY"),
     groqKey: Deno.env.get("GROQ_API_KEY"),
     openRouterKey: Deno.env.get("OPENROUTER_API_KEY"),
   }),
-  videoJobsEnabled: () => Boolean(admin) && Deno.env.get("MV_VIDEO_JOBS_ENABLED") === "true",
+  videoJobsEnabled: processorAvailable,
   videoProcessorAvailable: processorAvailable,
   videoProviders: configuredProviders,
   productionServices: () => productionServiceInventory((name) => Boolean(Deno.env.get(name))),
@@ -138,7 +132,7 @@ Deno.serve(createVideoGenerationHandler({
   getJob: async (userId, jobId) => {
     if (!admin) throw new VideoJobError(503, "job_queue_unavailable", "A persistência da fila não está configurada.");
     const { data, error } = await admin.from("mv_video_jobs")
-      .select("id,project_id,status,provider,provider_job_id,attempt_count,progress,estimated_cost_usd,result_object_path,error_code,stage,stage_message,cancel_requested_at,created_at,updated_at,started_at,completed_at")
+      .select("id,project_id,status,provider,provider_job_id,attempt_count,progress,estimated_cost_usd,result_object_path,error_code,stage,stage_message,cancel_requested_at,next_attempt_at,created_at,updated_at,started_at,completed_at")
       .eq("user_id", userId)
       .eq("id", jobId)
       .maybeSingle();

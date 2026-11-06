@@ -34,9 +34,11 @@ export interface AIProviderReadiness {
   funding: "free-confirmed" | "paid-authorized" | "unknown" | "insufficient";
   balanceUnits: number | null;
   cooldownUntil?: number | null;
+  noChargeGuaranteed?: boolean;
 }
 
 export interface AIRoutingPolicy {
+  billingMode?: "free-only";
   allowPaidGeneration: boolean;
   allowUnconfirmedCommercialUse: boolean;
   maxCostUsdPerTask: number;
@@ -60,6 +62,7 @@ export interface AIAttemptRecord {
 }
 
 export interface AIProviderAttemptStore {
+  reserveFree?(providerId: string, units: number): Promise<boolean>;
   record(attempt: AIAttemptRecord): Promise<void>;
   reserve(providerId: string, costUsd: number, maxCostUsd: number, dailyRemainingUsd: number): Promise<boolean>;
   settle(providerId: string, costUsd: number): Promise<void>;
@@ -88,16 +91,19 @@ export class AIProviderFailure extends Error {
 }
 
 export class AIRoutingError extends Error {
-  readonly code: "no_eligible_provider" | "provider_submission_uncertain" | "all_providers_failed";
+  readonly code: "no_eligible_provider" | "provider_submission_uncertain" | "all_providers_failed" | "free_resources_unavailable";
   readonly attempts: readonly AIAttemptRecord[];
+  readonly retryAfterMs: number;
 
   constructor(
-    code: "no_eligible_provider" | "provider_submission_uncertain" | "all_providers_failed",
+    code: "no_eligible_provider" | "provider_submission_uncertain" | "all_providers_failed" | "free_resources_unavailable",
     attempts: readonly AIAttemptRecord[],
+    retryAfterMs = 900_000,
   ) {
     super(code);
     this.code = code;
     this.attempts = attempts;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
@@ -125,6 +131,12 @@ function eligibilityFailure(
   if ((readiness.cooldownUntil ?? 0) > now) return "provider_cooldown";
   if (requirements.commercialUse && capabilities.commercialUse !== "confirmed" &&
     !policy.allowUnconfirmedCommercialUse) return "commercial_use_unconfirmed";
+  if (policy.billingMode === "free-only") {
+    if (capabilities.freeTier !== "confirmed" || readiness.funding !== "free-confirmed" || readiness.noChargeGuaranteed !== true) return "free_billing_not_verified";
+    if (!Number.isFinite(estimate.units) || estimate.units <= 0) return "invalid_free_unit_estimate";
+    if (readiness.balanceUnits === null || estimate.units > readiness.balanceUnits) return "insufficient_free_credits";
+    return null;
+  }
   if (capabilities.freeTier === "unavailable" && !policy.allowPaidGeneration) return "paid_provider_disabled";
   if (readiness.funding === "insufficient") return "insufficient_credits";
   if (readiness.funding === "unknown") return "funding_unverified";
@@ -165,6 +177,8 @@ export class AIProviderRouter<Request = unknown, Result = unknown> {
     idempotencyKey: string,
   ): Promise<{ providerId: string; model: string; result: Result }> {
     const attempts: AIAttemptRecord[] = [];
+    const freeOnly = this.policy.billingMode === "free-only";
+    let retryAfterMs = 900_000;
     const candidates = this.providers.filter((provider) => supports(provider.capabilities, requirements));
 
     for (const provider of candidates) {
@@ -190,20 +204,25 @@ export class AIProviderRouter<Request = unknown, Result = unknown> {
       const ineligible = eligibilityFailure(
         provider.capabilities, readiness, estimate, requirements, this.policy, this.now(),
       );
+      if (readiness.cooldownUntil && readiness.cooldownUntil > this.now()) {
+        retryAfterMs = Math.min(retryAfterMs, readiness.cooldownUntil - this.now());
+      }
       if (ineligible) {
         const skipped = {
           providerId: provider.capabilities.id,
           model: provider.capabilities.model,
           status: "skipped" as const,
           reason: ineligible,
-          estimatedCostUsd: estimate.usd,
+          estimatedCostUsd: freeOnly ? 0 : estimate.usd,
         };
         attempts.push(skipped);
         await this.attempts.record(skipped);
         continue;
       }
 
-      const reserved = await this.attempts.reserve(
+      const reserved = freeOnly
+        ? await this.attempts.reserveFree?.(provider.capabilities.id, estimate.units) === true
+        : await this.attempts.reserve(
         provider.capabilities.id,
         estimate.usd!,
         this.policy.maxCostUsdPerTask,
@@ -214,8 +233,8 @@ export class AIProviderRouter<Request = unknown, Result = unknown> {
           providerId: provider.capabilities.id,
           model: provider.capabilities.model,
           status: "skipped" as const,
-          reason: "budget_reservation_failed",
-          estimatedCostUsd: estimate.usd,
+          reason: freeOnly ? "free_quota_reservation_failed" : "budget_reservation_failed",
+          estimatedCostUsd: freeOnly ? 0 : estimate.usd,
         };
         attempts.push(skipped);
         await this.attempts.record(skipped);
@@ -226,7 +245,7 @@ export class AIProviderRouter<Request = unknown, Result = unknown> {
         providerId: provider.capabilities.id,
         model: provider.capabilities.model,
         status: "started" as const,
-        estimatedCostUsd: estimate.usd,
+        estimatedCostUsd: freeOnly ? 0 : estimate.usd,
       };
       attempts.push(started);
       try {
@@ -244,7 +263,7 @@ export class AIProviderRouter<Request = unknown, Result = unknown> {
           ? error
           : new AIProviderFailure("provider_error", "uncertain", "unknown");
         if (failure.submission === "unknown" || failure.submission === "accepted" || failure.category === "uncertain") {
-          await this.attempts.settle(provider.capabilities.id, estimate.usd!);
+          await this.attempts.settle(provider.capabilities.id, freeOnly ? 0 : estimate.usd!);
           const uncertain = { ...started, status: "uncertain" as const, reason: failure.code };
           attempts.push(uncertain);
           await this.attempts.record(uncertain);
@@ -258,12 +277,13 @@ export class AIProviderRouter<Request = unknown, Result = unknown> {
 
         if (failure.category === "auth" || failure.category === "credits" || failure.category === "rate-limit") {
           const until = this.now() + Math.max(failure.retryAfterMs, 60_000);
+          retryAfterMs = Math.min(retryAfterMs, until - this.now());
           await this.attempts.setCooldown(provider.capabilities.id, until);
         }
         continue;
       }
 
-      const reportedCost = result !== null && typeof result === "object" &&
+      const reportedCost = freeOnly ? 0 : result !== null && typeof result === "object" &&
         "estimatedCostUsd" in result
         ? result.estimatedCostUsd
         : estimate.usd;
@@ -291,7 +311,7 @@ export class AIProviderRouter<Request = unknown, Result = unknown> {
       };
     }
 
-    throw new AIRoutingError(candidates.length ? "all_providers_failed" : "no_eligible_provider", attempts);
+    throw new AIRoutingError(freeOnly ? "free_resources_unavailable" : candidates.length ? "all_providers_failed" : "no_eligible_provider", attempts, retryAfterMs);
   }
 }
 

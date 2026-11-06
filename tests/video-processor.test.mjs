@@ -4,6 +4,7 @@ import {
   AIProviderFailure,
   initialProviderCapabilities,
 } from '../supabase/functions/video-generation/_shared/ai-provider-router.ts';
+import { freeOnlyAdapter } from '../supabase/functions/video-generation/_shared/free-only.ts';
 import { createVideoProcessor } from '../supabase/functions/video-generation/_shared/processor.ts';
 
 function uint32(value) {
@@ -298,4 +299,25 @@ test('falhas persistentes de finalização encerram após o limite de tentativas
   });
   assert.equal(await state.processor.processNext(), 'failed');
   assert.equal(state.calls.replicate, 0);
+});
+
+
+test('modo gratuito aguarda saldo e retoma automaticamente a mesma etapa sem recriar imagem',async()=>{
+ let units=0;
+ const state=harness({stage:'image_ready',intermediate_image_path:'owned-reference.jpg'},{
+  routingPolicy:()=>policy({billingMode:'free-only',allowPaidGeneration:false,maxCostUsdPerTask:0,remainingDailyBudgetUsd:0}),
+  createVideoRouter:()=>[freeOnlyAdapter(provider('replicate',async()=>({providerJobId:'free-remote-job',estimatedCostUsd:0.84})),async()=>({provider_id:'replicate',model:'alibaba/happyhorse-1.0',enabled:true,billing_guard:'free-plan-hard-stop',remaining_units:units,valid_until:new Date(Date.now()+86400000).toISOString(),commercial_use_confirmed:true}))],
+ });
+ state.dependencies.createAttemptStore().reserveFree=async()=>true;
+ assert.equal(await state.processor.processNext(),'awaiting_free_credits');
+ assert.equal(state.calls.image,0);
+ units=100;
+ assert.equal(await state.processor.processNext(),'image_ready');
+ assert.equal(await state.processor.processNext(),'video_processing');
+ assert.equal(state.job.provider_job_id,'free-remote-job');assert.equal(state.calls.image,0);
+});
+
+test('cancelar espera por créditos não volta a consultar o provedor',async()=>{
+ const state=harness({stage:'awaiting_free_credits',provider:'replicate',provider_job_id:'old-failed-job',cancel_requested_at:'2026-11-06T00:00:00Z'});
+ assert.equal(await state.processor.processNext(),'cancelled');assert.equal(state.calls.status.length,0);assert.equal(state.calls.cancel.length,0);
 });

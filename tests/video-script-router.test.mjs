@@ -6,7 +6,7 @@ const configuration = { templateId: 'presenting-product', scenePresetId: 'neutra
 
 test('roteiro troca Gemini sem créditos por Groq automaticamente e informa provedor verdadeiro', async () => {
   const calls=[];
-  const result=await routeAdvertisingScript(configuration, { geminiKey:'private-gemini', groqKey:'private-groq', fetcher:async(url,init)=>{
+  const result=await routeAdvertisingScript(configuration, { geminiKey:'private-gemini', groqKey:'private-groq', isFreeProvider:async()=>true, fetcher:async(url,init)=>{
     calls.push(String(url));
     if(String(url).includes('googleapis')) return new Response('{}',{status:429});
     const body=JSON.parse(init.body);
@@ -20,7 +20,7 @@ test('roteiro troca Gemini sem créditos por Groq automaticamente e informa prov
 });
 
 test('roteiro usa OpenRouter gratuito e depois sugestão local se todos falharem', async () => {
-  const opts={groqKey:'groq',openRouterKey:'router',fetcher:async(url,init)=>{
+  const opts={groqKey:'groq',openRouterKey:'router',isFreeProvider:async()=>true,fetcher:async(url,init)=>{
     if(String(url).includes('groq')) return new Response('{}',{status:402});
     assert.equal(JSON.parse(init.body).model,'openrouter/free');
     return Response.json({choices:[{message:{content:'Confira a blusa de linho e veja os detalhes.'}}]});
@@ -36,4 +36,18 @@ test('handler permite fallback de roteiro com chave Groq e sem chave Gemini', as
   const response=await handler(new Request('https://example.test/video-generation',{method:'POST',headers:{Authorization:'Bearer user-session','Content-Type':'application/json'},body:JSON.stringify({action:'generate-script',configuration})}));
   assert.equal(response.status,200);
   assert.equal((await response.json()).provider,'groq');
+});
+
+
+test('chaves cadastradas sem prova de plano gratuito nunca acionam Gemini/Groq', async () => {
+ const calls=[];
+ const result=await routeAdvertisingScript(configuration,{geminiKey:'could-be-paid',groqKey:'could-be-paid',openRouterKey:'router',fetcher:async(url,init)=>{
+  calls.push(String(url));
+  const body=JSON.parse(init.body);
+  assert.equal(body.model,'openrouter/free');
+  assert.deepEqual(body.provider.max_price,{prompt:0,completion:0,request:0,image:0});
+  return new Response('{}',{status:429});
+ }});
+ assert.deepEqual(calls,['https://openrouter.ai/api/v1/chat/completions']);
+ assert.equal(result.provider,'local');
 });

@@ -26,6 +26,7 @@ export type VideoJobStage =
   | "video_processing"
   | "validating"
   | "awaiting_authorization"
+  | "awaiting_free_credits"
   | "uncertain"
   | "completed"
   | "failed"
@@ -217,6 +218,10 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
 
       try {
         if (job.cancel_requested_at) {
+          if (["queued", "image_ready", "awaiting_free_credits", "awaiting_authorization"].includes(job.stage)) {
+            await dependencies.advance(job, { stage: "cancelled", progress: job.progress ?? 0 });
+            return "cancelled";
+          }
           if (job.provider === "replicate" && job.provider_job_id) {
             try {
               await dependencies.cancelVideo(job.provider, job.provider_job_id);
@@ -238,7 +243,7 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
           }
         }
 
-        if (job.stage === "awaiting_authorization") {
+        if (job.stage === "awaiting_authorization" || job.stage === "awaiting_free_credits") {
           // Reavaliar a configuração sem descartar uma imagem já produzida.
           await dependencies.advance(job, {
             stage: job.intermediate_image_path ? "image_ready" : "queued",
@@ -375,6 +380,14 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
         throw new Error("video_job_stage_invalid");
       } catch (error) {
         const code = errorCode(error);
+        if (error instanceof AIRoutingError && error.code === "free_resources_unavailable") {
+          await dependencies.advance(job, {
+            stage: "awaiting_free_credits", progress: job.intermediate_image_path ? 35 : 0,
+            errorCode: "waiting_for_free_resources",
+            delaySeconds: Math.min(3600, Math.max(60, Math.ceil(error.retryAfterMs / 1000))),
+          });
+          return "awaiting_free_credits";
+        }
         if (job.stage === "validating" && error instanceof AIProviderFailure && error.category === "incompatible") {
           await dependencies.recordVideoStatusFailure(job, code);
           await dependencies.advance(job, { stage: "image_ready", progress: 45, errorCode: "trying_another_provider" });

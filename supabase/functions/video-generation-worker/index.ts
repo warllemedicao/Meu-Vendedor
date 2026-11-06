@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
+import { freeOnlyAdapter, type FreeAllowance } from "../video-generation/_shared/free-only.ts";
 import { imageCacheKey } from "../video-generation/_shared/image-cache.ts";
 import { productionServiceInventory } from "../video-generation/_shared/provider-inventory.ts";
 import {
@@ -37,52 +38,18 @@ const admin = supabaseUrl && serviceRoleKey
   ? createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
   : null;
 
-function positiveNumber(name: string): number {
-  const parsed = Number(Deno.env.get(name));
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+function workerEnabled(): boolean {
+  return Boolean(admin && anonKey && workerSecret.length >= 32 && Deno.env.get("MV_AI_FREE_ONLY_ENABLED") !== "false");
 }
 
 function configuredProviders(): ReadonlySet<string> {
-  return new Set((Deno.env.get("MV_AI_ALLOWED_PROVIDERS") ?? "")
-    .split(",").map((provider) => provider.trim()).filter(Boolean));
+  return new Set(["cloudflare-workers-ai", "magic-hour", "replicate"]);
 }
 
-function paidAuthorized(providerId: string): boolean {
-  return Deno.env.get("MV_AI_ALLOW_PAID_GENERATION") === "true" &&
-    configuredProviders().has(providerId) &&
-    positiveNumber("MV_AI_MAX_COST_PER_JOB_USD") > 0 &&
-    positiveNumber("MV_AI_DAILY_BUDGET_USD") > 0;
-}
-
-function commercialUseConfirmed(): boolean {
-  return Deno.env.get("MV_AI_COMMERCIAL_USE_CONFIRMED") === "true";
-}
-
-function workerEnabled(): boolean {
-  const paidProviders = configuredProviders();
-  const magicHourAllowed = Boolean(
-    Deno.env.get("MAGIC_HOUR_API_KEY") &&
-    positiveNumber("MV_MAGIC_HOUR_CREDIT_USD") &&
-    paidProviders.has("magic-hour"),
-  );
-  const replicateAllowed = Boolean(Deno.env.get("REPLICATE_API_TOKEN") && paidProviders.has("replicate"));
-  const videoProviderConfigured = magicHourAllowed || replicateAllowed;
-  return Boolean(
-    admin &&
-    anonKey &&
-    workerSecret.length >= 32 &&
-    Deno.env.get("MV_VIDEO_PROCESSOR_ENABLED") === "true" &&
-    Deno.env.get("MV_VIDEO_JOBS_ENABLED") === "true" &&
-    Deno.env.get("MV_AI_ALLOW_PAID_GENERATION") === "true" &&
-    Deno.env.get("MV_AI_COMMERCIAL_USE_CONFIRMED") === "true" &&
-    Deno.env.get("CLOUDFLARE_ACCOUNT_ID") &&
-    Deno.env.get("CLOUDFLARE_AI_API_TOKEN") &&
-    paidProviders.has("cloudflare-workers-ai") &&
-    videoProviderConfigured &&
-    positiveNumber("MV_AI_MAX_COST_PER_JOB_USD") > 0 &&
-    positiveNumber("MV_AI_DAILY_BUDGET_USD") > 0 &&
-    commercialUseConfirmed(),
-  );
+async function freeAllowance(providerId: string, model: string): Promise<FreeAllowance | null> {
+  const { data, error } = await admin!.rpc("mv_refresh_free_allowance", { p_provider_id: providerId, p_model: model });
+  if (error) throw new Error("free_allowance_unavailable");
+  return data as FreeAllowance | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -159,34 +126,22 @@ function createAttemptStore(
       });
       if (error) throw new Error(`mv_record_video_ai_attempt:${error.code ?? "database_error"}`);
     },
-    async reserve(providerId, costUsd, maxCostUsd) {
-      const reserved = await rpcOk<boolean>("mv_reserve_video_ai_budget", {
-        p_job_id: job.id,
-        p_stage: stage,
-        p_provider_id: providerId,
-        p_estimated_usd: costUsd,
-        p_job_budget_usd: Math.min(maxCostUsd, positiveNumber("MV_AI_MAX_COST_PER_JOB_USD")),
-        p_daily_budget_usd: positiveNumber("MV_AI_DAILY_BUDGET_USD"),
+    async reserve() { return false; }, // Nenhuma reserva em USD neste runtime.
+    async reserveFree(providerId, units) {
+      return await rpcOk<boolean>("mv_reserve_free_video_units", {
+        p_job_id: job.id, p_lease_token: job.lease_token, p_stage: stage,
+        p_provider_id: providerId, p_model: modelFor(providerId), p_units: units,
       });
-      return reserved === true;
     },
-    async settle(providerId, costUsd) {
-      const settled = await rpcOk<boolean>("mv_settle_video_ai_budget", {
-        p_job_id: job.id,
-        p_stage: stage,
-        p_provider_id: providerId,
-        p_actual_usd: costUsd,
-        p_release: false,
+    async settle(providerId) {
+      const settled = await rpcOk<boolean>("mv_settle_free_video_units", {
+        p_job_id: job.id, p_stage: stage, p_provider_id: providerId, p_model: modelFor(providerId), p_release: false,
       });
-      if (!settled) throw new Error("video_ai_budget_reservation_missing");
+      if (!settled) throw new Error("free_reservation_missing");
     },
     async release(providerId) {
-      await rpcOk<boolean>("mv_settle_video_ai_budget", {
-        p_job_id: job.id,
-        p_stage: stage,
-        p_provider_id: providerId,
-        p_actual_usd: null,
-        p_release: true,
+      await rpcOk<boolean>("mv_settle_free_video_units", {
+        p_job_id: job.id, p_stage: stage, p_provider_id: providerId, p_model: modelFor(providerId), p_release: true,
       });
     },
     async setCooldown(providerId, until) {
@@ -200,24 +155,15 @@ function createAttemptStore(
 }
 
 function routingPolicy(): AIRoutingPolicy {
-  return {
-    allowPaidGeneration: Deno.env.get("MV_AI_ALLOW_PAID_GENERATION") === "true",
-    allowUnconfirmedCommercialUse: false,
-    maxCostUsdPerTask: positiveNumber("MV_AI_MAX_COST_PER_JOB_USD"),
-    remainingDailyBudgetUsd: positiveNumber("MV_AI_DAILY_BUDGET_USD"),
-    paidProviders: configuredProviders(),
-  };
+  return { billingMode: "free-only", allowPaidGeneration: false, allowUnconfirmedCommercialUse: false,
+    maxCostUsdPerTask: 0, remainingDailyBudgetUsd: 0, paidProviders: new Set() };
 }
 
 function cloudflareReadiness(): Promise<AIProviderReadiness> {
-  const authorized = paidAuthorized("cloudflare-workers-ai");
-  return persistentReadiness("cloudflare-workers-ai", Boolean(
-    Deno.env.get("CLOUDFLARE_ACCOUNT_ID") && Deno.env.get("CLOUDFLARE_AI_API_TOKEN"),
-  ), async () => ({
+  return persistentReadiness("cloudflare-workers-ai", Boolean(Deno.env.get("CLOUDFLARE_ACCOUNT_ID") && Deno.env.get("CLOUDFLARE_AI_API_TOKEN")), async () => ({
     authenticated: Boolean(Deno.env.get("CLOUDFLARE_AI_API_TOKEN")),
     available: Boolean(Deno.env.get("CLOUDFLARE_ACCOUNT_ID") && Deno.env.get("CLOUDFLARE_AI_API_TOKEN")),
-    funding: authorized ? "paid-authorized" : "unknown",
-    balanceUnits: null,
+    funding: "unknown", balanceUnits: null,
   }));
 }
 
@@ -237,7 +183,7 @@ async function persistentReadiness(
     return {
       authenticated: configured,
       available: configured,
-      funding: paidAuthorized(providerId) ? "paid-authorized" : "unknown",
+      funding: "unknown",
       balanceUnits: null,
       cooldownUntil: until,
     };
@@ -248,10 +194,11 @@ async function persistentReadiness(
 function magicHourClient() {
   return createMagicHourVideoProvider({
     apiKey: Deno.env.get("MAGIC_HOUR_API_KEY") ?? "",
-    creditUsd: positiveNumber("MV_MAGIC_HOUR_CREDIT_USD") || null,
-    commercialUseConfirmed: commercialUseConfirmed(),
-    freeCreditsConfirmed: Deno.env.get("MV_MAGIC_HOUR_FREE_CREDITS_CONFIRMED") === "true",
-    paidSpendAuthorized: paidAuthorized("magic-hour"),
+    creditUsd: null,
+    freeOnly: true,
+    commercialUseConfirmed: false,
+    freeCreditsConfirmed: false,
+    paidSpendAuthorized: false,
   });
 }
 
@@ -259,8 +206,8 @@ function replicateClient() {
   return createReplicateVideoProvider({
     apiToken: Deno.env.get("REPLICATE_API_TOKEN") ?? "",
     supabaseUrl,
-    paidSpendAuthorized: paidAuthorized("replicate"),
-    commercialUseConfirmed: commercialUseConfirmed(),
+    paidSpendAuthorized: false,
+    commercialUseConfirmed: false,
   });
 }
 
@@ -324,12 +271,12 @@ const processor = admin ? createVideoProcessor({
     return { prompt, references, outputWidth: 512, outputHeight: 910, steps: 25 };
   },
   createImageRouter() {
-    return createCloudflareWorkersAIProvider({
+    return freeOnlyAdapter(createCloudflareWorkersAIProvider({
       accountId: Deno.env.get("CLOUDFLARE_ACCOUNT_ID") ?? "",
       apiToken: Deno.env.get("CLOUDFLARE_AI_API_TOKEN") ?? "",
       readiness: cloudflareReadiness,
-      commercialUseConfirmed: commercialUseConfirmed(),
-    });
+      commercialUseConfirmed: false,
+    }), () => freeAllowance("cloudflare-workers-ai", modelFor("cloudflare-workers-ai")));
   },
   async findCachedImage(job, request) {
     const key = await imageCacheKey(request);
@@ -378,7 +325,7 @@ const processor = admin ? createVideoProcessor({
     const key = Deno.env.get("MAGIC_HOUR_API_KEY") ?? "";
     if (key && configuredProviders().has("magic-hour") && !excludeProviders.has("magic-hour")) {
       const magicHour = magicHourClient();
-      providers.push({
+      providers.push(freeOnlyAdapter({
         capabilities: magicHour.capabilities,
         readiness: () => persistentReadiness(
           "magic-hour",
@@ -405,12 +352,12 @@ const processor = admin ? createVideoProcessor({
             estimatedCostUsd: result.estimatedCostUsd,
           };
         },
-      });
+      }, () => freeAllowance("magic-hour", modelFor("magic-hour"))));
     }
     const replicateKey = Deno.env.get("REPLICATE_API_TOKEN") ?? "";
     if (replicateKey && configuredProviders().has("replicate") && !excludeProviders.has("replicate")) {
       const replicate = replicateClient();
-      providers.push({
+      providers.push(freeOnlyAdapter({
         capabilities: replicate.capabilities,
         readiness: () => persistentReadiness(
           "replicate",
@@ -432,7 +379,7 @@ const processor = admin ? createVideoProcessor({
           }, key);
           return { providerJobId: result.providerJobId, estimatedCostUsd: replicateVideoEstimateUsd };
         },
-      });
+      }, () => freeAllowance("replicate", modelFor("replicate"))));
     }
     return providers;
   },
@@ -469,8 +416,8 @@ const processor = admin ? createVideoProcessor({
     await createReplicateVideoProvider({
       apiToken,
       supabaseUrl,
-      paidSpendAuthorized: paidAuthorized("replicate"),
-      commercialUseConfirmed: commercialUseConfirmed(),
+      paidSpendAuthorized: false,
+      commercialUseConfirmed: false,
     }).cancel(remoteJobId);
   },
   async downloadVideo(providerId, url) {
@@ -501,12 +448,12 @@ const processor = admin ? createVideoProcessor({
   },
   async triedVideoProviders(jobId) {
     const { data, error } = await admin!.from("mv_video_ai_attempts")
-      .select("provider_id")
+      .select("provider_id,remote_job_id,status")
       .eq("job_id", jobId)
       .eq("stage", "video")
       .in("status", ["started", "succeeded", "failed", "uncertain"]);
     if (error) throw new Error("video_attempts_unavailable");
-    return new Set((data ?? []).map((row) => row.provider_id));
+    return new Set((data ?? []).filter((row) => row.remote_job_id || row.status === "uncertain").map((row) => row.provider_id));
   },
   async recordVideoStatusFailure(job, code) {
     const { error } = await admin!.rpc("mv_record_video_ai_attempt", {
@@ -554,16 +501,8 @@ function safeEqual(left: string, right: string): boolean {
 console.info(JSON.stringify({
   event: "video_worker_readiness",
   processor_available: workerEnabled(),
-  configuration: {
-    jobs_enabled: Deno.env.get("MV_VIDEO_JOBS_ENABLED") === "true",
-    processor_enabled: Deno.env.get("MV_VIDEO_PROCESSOR_ENABLED") === "true",
-    paid_generation_allowed: Deno.env.get("MV_AI_ALLOW_PAID_GENERATION") === "true",
-    commercial_use_confirmed: commercialUseConfirmed(),
-    allowed_providers: [...configuredProviders()],
-    job_budget_configured: positiveNumber("MV_AI_MAX_COST_PER_JOB_USD") > 0,
-    daily_budget_configured: positiveNumber("MV_AI_DAILY_BUDGET_USD") > 0,
-    magic_hour_conversion_configured: positiveNumber("MV_MAGIC_HOUR_CREDIT_USD") > 0,
-  },
+  billing_mode: "free-only",
+  paid_generation_allowed: false,
   services: productionServiceInventory((name) => Boolean(Deno.env.get(name))),
   credential_names: Object.keys(Deno.env.toObject())
     .filter((name) => /(?:KEY|TOKEN|SECRET)/.test(name) && !name.startsWith("SUPABASE_") && !name.startsWith("MV_"))
