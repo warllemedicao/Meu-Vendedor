@@ -1,5 +1,7 @@
 # Publicações — Meu Vendedor
 
+> **Teste no app — 06/11/2026:** diagnóstico autenticado de cotas de imagem/vídeo adicionado ao estúdio, com atualização sem inferência. Sem cota elegível, o botão informa “Salvar pedido na fila”; não indica geração imediata. Nenhuma geração real foi enviada nesta revisão, nenhum teste de API foi concluído e nenhuma cota foi ativada. Guia e impedimentos atuais em [TESTE_NO_APP.md](./TESTE_NO_APP.md). Este registro prevalece sobre instruções históricas abaixo.
+
 > **Auditoria atual — 06/11/2026:** token Cloudflare Billing Read validado; falha real do cron corrigida e execução autenticada confirmada. Auditoria privada e horária das contas implantada. Magic Hour informou plano free e 500 créditos agregados; as franquias gratuitas de imagem/vídeo e o bloqueio de cobrança ainda precisam de comprovação. Nenhum vídeo real foi gerado. Estado completo e pendências em [AUDITORIA_IA.md](./AUDITORIA_IA.md); este registro prevalece sobre estados e versões históricos abaixo.
 
 Publicado em 06/11/2026: Worker `1fb26204-b970-45c3-b285-63365d30be0b`, funções Supabase `video-generation` v24 / `video-generation-worker` v7 e migração `20261106024913`. Diagnóstico remoto: processador disponível, modo gratuito e pagamentos bloqueados. Cotas ainda não verificadas permanecem em espera. Validação: 116 testes, lint, TypeScript e build de 17 rotas aprovados.

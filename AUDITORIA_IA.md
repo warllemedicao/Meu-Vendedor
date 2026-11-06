@@ -1,5 +1,7 @@
 # Auditoria operacional e de contas — 06/11/2026
 
+> **Teste no app — 06/11/2026:** diagnóstico autenticado de cotas de imagem/vídeo adicionado ao estúdio, com atualização sem inferência. Sem cota elegível, o botão informa “Salvar pedido na fila”; não indica geração imediata. Nenhuma geração real foi enviada nesta revisão, nenhum teste de API foi concluído e nenhuma cota foi ativada. Guia e impedimentos atuais em [TESTE_NO_APP.md](./TESTE_NO_APP.md). Este registro prevalece sobre instruções históricas abaixo.
+
 Este é o estado atual e prevalece sobre versões e afirmações históricas nos demais documentos. O projeto continua em modo exclusivamente gratuito. A implantação técnica não comprova uma geração real nem 15 vídeos por dia.
 
 ## Correções publicadas

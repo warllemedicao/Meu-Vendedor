@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { verifiedFreeAllowance, type FreeAllowance } from "./_shared/free-only.ts";
 import { productionServiceInventory } from "./_shared/provider-inventory.ts";
 import { routeAdvertisingScript } from "./_shared/script-router.ts";
+import { productionReadiness } from "./_shared/production-readiness.ts";
 import {
   createVideoGenerationHandler,
   requestGeminiScript,
@@ -81,6 +82,17 @@ async function scriptProviderFree(providerId: string, model: string): Promise<bo
 
 Deno.serve(createVideoGenerationHandler({
   freeOnlyMode: () => true,
+  productionReadiness: () => productionReadiness(
+    (provider) => provider === "cloudflare-workers-ai"
+      ? Boolean(Deno.env.get("CLOUDFLARE_ACCOUNT_ID") && Deno.env.get("CLOUDFLARE_AI_API_TOKEN"))
+      : configuredProviders().some((entry) => entry.id === provider && entry.configured),
+    async (provider, model) => {
+      if (!admin) return null;
+      const { data, error } = await admin.rpc("mv_refresh_free_allowance", { p_provider_id: provider, p_model: model });
+      if (error) throw new Error("free_allowance_unavailable");
+      return data as FreeAllowance | null;
+    },
+  ),
   authenticate: async (token) => {
     const { data: { user }, error } = await auth.auth.getUser(token);
     return error ? null : user?.id ?? null;

@@ -23,6 +23,7 @@ export interface GeminiScriptInput {
 
 export interface VideoGenerationDependencies {
   freeOnlyMode?(): boolean;
+  productionReadiness?(): Promise<import("./production-readiness.ts").ProductionReadiness>;
   authenticate(token: string): Promise<string | null>;
   geminiApiKey(): string | undefined;
   geminiScriptEnabled(): boolean;
@@ -286,6 +287,7 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
         ...(dependencies.freeOnlyMode?.() ? { billing: { mode: "free-only", paidGenerationAllowed: false, dailyLimit: null, waitsForCredits: true } } : {}),
         script: { provider: "google-gemini", model, configured, enabled, available: configured && enabled },
         video: {
+          ...(dependencies.productionReadiness ? { readiness: await dependencies.productionReadiness() } : {}),
           available: dependencies.videoProcessorAvailable(),
           providers: dependencies.videoProviders?.() ?? [],
           reason: dependencies.videoProcessorAvailable()

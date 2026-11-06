@@ -359,6 +359,9 @@ export function VideoStudio() {
   const [generatingScript, setGeneratingScript] = useState(false);
   const [jobManagementEnabledForUser, setJobManagementAvailable] = useState(false);
   const [videoProcessorAvailableForUser, setVideoProcessorAvailable] = useState(false);
+  const [productionReadiness, setProductionReadiness] = useState<{ ready: boolean; imageReady: boolean; videoReady: boolean; checkedAt: string; message: string } | null>(null);
+  const [capabilityRefresh, setCapabilityRefresh] = useState(0);
+  const [checkingProduction, setCheckingProduction] = useState(false);
   const [productionServices, setProductionServices] = useState<{ name: string; configured: boolean; integrated: boolean }[]>([]);
   const [capabilityUserId, setCapabilityUserId] = useState<string | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
@@ -512,7 +515,9 @@ export function VideoStudio() {
     void client.functions.invoke("video-generation", { body: { action: "capabilities" } })
       .then(({ data, error: invokeError }) => {
         if (!active) return;
+        setCheckingProduction(false);
         if (invokeError) {
+          setProductionReadiness(null);
           setCapabilityUserId(null);
           setGeminiScriptAvailable(false);
           setJobManagementAvailable(false);
@@ -521,6 +526,10 @@ export function VideoStudio() {
           return;
         }
         setProductionServices(Array.isArray(data?.services) ? data.services : []);
+        const readiness = data?.video?.readiness;
+        setProductionReadiness(readiness && typeof readiness.message === "string" &&
+          typeof readiness.ready === "boolean" && typeof readiness.imageReady === "boolean" &&
+          typeof readiness.videoReady === "boolean" && typeof readiness.checkedAt === "string" ? readiness : null);
         const scriptCapability = data?.script;
         const available = scriptCapability?.available === true;
         setCapabilityUserId(userId);
@@ -533,6 +542,8 @@ export function VideoStudio() {
       })
       .catch(() => {
         if (active) {
+          setCheckingProduction(false);
+          setProductionReadiness(null);
           setCapabilityUserId(null);
           setGeminiScriptAvailable(false);
           setJobManagementAvailable(false);
@@ -541,7 +552,7 @@ export function VideoStudio() {
         }
       });
     return () => { active = false; };
-  }, [userId]);
+  }, [userId, capabilityRefresh]);
 
   useEffect(() => {
     const client = getSupabase();
@@ -1304,6 +1315,15 @@ export function VideoStudio() {
           </div>
 
           <Card titulo="Produzir vídeo">
+            {userId && <div className="mb-4 rounded-xl border border-border bg-background p-3" aria-live="polite">
+              <p className="text-sm font-semibold">Disponibilidade para gerar agora</p>
+              <p className="mt-2 text-xs leading-relaxed text-muted">{capabilityUserId === userId && productionReadiness ? productionReadiness.message : "Verifique a disponibilidade dos serviços antes de iniciar."}</p>
+              {capabilityUserId === userId && productionReadiness && <p className="mt-2 text-xs text-muted">Imagem: {productionReadiness.imageReady ? "cota liberada" : "aguardando liberação"} · Vídeo: {productionReadiness.videoReady ? "cota liberada" : "aguardando liberação"}</p>}
+              <button type="button" disabled={checkingProduction} onClick={() => { setCheckingProduction(true); setCapabilityRefresh((value) => value + 1); }} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-primary disabled:opacity-50">
+                <RefreshCw className={`size-3 ${checkingProduction ? "animate-spin" : ""}`} aria-hidden />{checkingProduction ? "Verificando…" : "Verificar disponibilidade"}
+              </button>
+              <p className="mt-2 text-xs text-muted">Esta verificação não gera conteúdo nem consome créditos de IA.</p>
+            </div>}
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div><dt className="text-xs text-muted">Formato</dt><dd className="mt-1 font-semibold">Vertical · 9:16</dd></div>
               <div><dt className="text-xs text-muted">Duração</dt><dd className="mt-1 font-semibold">6 segundos</dd></div>
@@ -1313,7 +1333,7 @@ export function VideoStudio() {
             {validationError && <p className="mt-4 rounded-lg bg-background p-3 text-xs text-muted">{validationError}</p>}
             {!product.imageStoragePath && !productImage && <p className="mt-3 text-xs text-muted">Adicione uma imagem do produto para liberar a geração.</p>}
             <button type="button" disabled={!queueAvailable || enqueueingJob || busy || !!validationError || durationSeconds !== 6 || (!product.imageStoragePath && !productImage) || presenter.referenceStatus !== "ready"} onClick={() => void enqueueVideoJob()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
-              {enqueueingJob ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Preparando produção…</> : <><WandSparkles className="size-4" aria-hidden />Gerar vídeo</>}
+              {enqueueingJob ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Preparando produção…</> : <><WandSparkles className="size-4" aria-hidden />{capabilityUserId === userId && productionReadiness && !productionReadiness.ready ? "Salvar pedido na fila" : "Gerar vídeo"}</>}
             </button>
             {!queueAvailable && <p className="mt-3 text-xs text-muted">{user ? "A geração ficará disponível quando os serviços de produção estiverem configurados." : "Entre na sua conta para gerar e guardar vídeos."}</p>}
             <p className="mt-3 text-xs leading-relaxed text-muted">Somente recursos gratuitos, sem cobrança de geração. A troca de serviço é automática. Se todos estiverem indisponíveis, seu pedido aguarda na fila, preservando as etapas prontas.</p>
