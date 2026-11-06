@@ -3,7 +3,7 @@
 App web de gerenciamento de afiliados com **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**.
 O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afiliação, e pode organizar seus links na sua conta do Meu Vendedor.
 
-**Estado atual em 05/11/2026:** frontend público no Cloudflare, versão `7f135c6e-69b7-4fbc-a459-82bdcf34f30e`, e base Supabase ativada no projeto `meu-vendedor`. As três migrações estão aplicadas; login, perfil, links, conexões, produtos e biblioteca de vídeos usam políticas de acesso por usuário. O gerador de vídeos funciona em modo demonstração e a geração Google permanece bloqueada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. O conector Shopee exige credenciais comerciais reais; Amazon, Mercado Livre, TikTok Shop e AliExpress têm adaptadores de catálogo sem teste comercial autenticado. Magalu/SHEIN e automações permanecem pendentes. Dados demonstrativos continuam rotulados.
+**Estado atual em 06/11/2026:** frontend público no Cloudflare, versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`, com `/videos` conectado à configuração pública do Supabase. O Worker mantém o cron do marketplace (`*/30 * * * *`) e chama o processador de vídeo a cada minuto. A autenticação Worker–Supabase foi validada; o processador e a geração paga continuam bloqueados por flags financeiras/comerciais ausentes. Nenhuma geração real foi executada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. O conector Shopee exige credenciais comerciais reais; Amazon, Mercado Livre, TikTok Shop e AliExpress têm adaptadores de catálogo sem teste comercial autenticado. Magalu/SHEIN e automações permanecem pendentes. Dados demonstrativos continuam rotulados.
 
 ## Documentos
 
@@ -25,7 +25,7 @@ O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afilia
 - Cadastro, login e recuperação da senha do próprio Meu Vendedor via Supabase Auth.
 - Perfil com nome de exibição.
 - Gerenciamento de links manuais: criar, listar, editar, excluir e filtrar por plataforma, com campanha e observações.
-- Gerador de vídeos publicitários em modo demonstração: produto, quatro apresentadores virtuais, voz, emoção, estilo, duração, formato, roteiro editável, prévia e biblioteca. A geração real pela API do Google permanece desativada.
+- Estúdio de vídeos com fila privada, presets, roteiros, acompanhamento, reprodução e download. O pipeline Magic Hour/Replicate está implementado, mas não é considerado operacional até autorizar uso comercial, verificar saldo/créditos e definir limites; demonstrações continuam claramente identificadas como sem IA.
 - Migração PostgreSQL e RLS para isolamento dos dados por usuário.
 - Estado informativo quando Supabase não estiver configurado, sem apresentar operações falsas.
 
@@ -61,7 +61,7 @@ npm run start            # serve o build normal (não a exportação estática)
 npm run deploy:cloudflare # gera a exportação e publica com Wrangler autorizado
 ```
 
-O build padrão com Turbopack encontrou restrições deste ambiente em verificações anteriores. O comando estático usa Webpack. Na última entrega, 41 testes, lint, TypeScript do frontend e das Edge Functions e o build estático de 17 rotas foram aprovados.
+O build padrão com Turbopack encontrou restrições deste ambiente em verificações anteriores. O comando estático usa Webpack. Na última entrega, 89 testes, lint, TypeScript do frontend e das Edge Functions e o build estático de 17 rotas foram aprovados.
 
 ## Segurança
 
@@ -69,7 +69,7 @@ Nunca commitar senha, `service_role`, `sb_secret_*`, token de gerenciamento ou c
 
 ## Próximas etapas
 
-Validar a entrega de e-mails de confirmação e recuperação e configurar SMTP próprio quando necessário. O gerador de vídeos funciona em modo demonstração e preserva o fluxo manual do Google Flow; a integração oficial do Google aguarda credencial compatível, autorização de faturamento e validação final. Evoluir cada integração de loja somente conforme disponibilidade oficial e autorização específica, sem presumir suporte universal.
+Validar a entrega de e-mails de confirmação e recuperação e configurar SMTP próprio quando necessário. Para ativar a geração real de vídeos, confirmar a licença comercial aplicável, os créditos/saldo de cada provedor e os limites máximos por tarefa e por dia; não basta possuir uma API key. Evoluir cada integração de loja somente conforme disponibilidade oficial e autorização específica, sem presumir suporte universal.
 
 ## Conectar a Shopee
 
