@@ -3,7 +3,7 @@
 App web de gerenciamento de afiliados com **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**.
 O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afiliação, e pode organizar seus links na sua conta do Meu Vendedor.
 
-**Estado atual em 06/11/2026:** frontend público no Cloudflare, versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`, com `/videos` conectado à configuração pública do Supabase. O Worker mantém o cron do marketplace (`*/30 * * * *`) e chama o processador de vídeo a cada minuto. A autenticação Worker–Supabase foi validada; o processador e a geração paga continuam bloqueados por flags financeiras/comerciais ausentes. Nenhuma geração real foi executada. A entrega dos e-mails de confirmação/recuperação ainda precisa ser validada. O conector Shopee exige credenciais comerciais reais; Amazon, Mercado Livre, TikTok Shop e AliExpress têm adaptadores de catálogo sem teste comercial autenticado. Magalu/SHEIN e automações permanecem pendentes. Dados demonstrativos continuam rotulados.
+**Estado verificado em 06/11/2026:** o Worker `meu-vendedor` está na versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`; `/videos` responde HTTP 200. Os crons remoto de vídeo (`* * * * *`) e marketplace (`*/30 * * * *`) estão configurados. A consulta de invocações agendadas não retornou registros desde a publicação, portanto a execução periódica ainda não está comprovada. A última validação remota registrada do Supabase aceitou o segredo do worker, mas retornou `processor_disabled`; nesta revisão não foi possível revalidar as configurações Supabase. Nenhuma geração real foi executada e nenhum crédito foi consumido. Consulte [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md) e [VIDEOS_IA.md](./VIDEOS_IA.md) antes de qualquer ativação.
 
 ## Documentos
 
@@ -13,7 +13,7 @@ O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afilia
 - [SUPABASE.md](./SUPABASE.md): banco, autenticação, políticas e ativação.
 - [CONECTORES.md](./CONECTORES.md): conector Shopee, segurança, limites e pendências por plataforma.
 - [INTEGRACOES.md](./INTEGRACOES.md): requisitos das plataformas.
-- [VIDEOS_IA.md](./VIDEOS_IA.md): gerador em modo demonstração e contrato oficial preparado para o Google.
+- [VIDEOS_IA.md](./VIDEOS_IA.md): pipeline assíncrono, provedores, proteções e pendências da geração real.
 - [CLOUDFLARE.md](./CLOUDFLARE.md) e [PUBLICACAO.md](./PUBLICACAO.md): hospedagem e verificações.
 
 ## O que está implementado no código
@@ -25,11 +25,11 @@ O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afilia
 - Cadastro, login e recuperação da senha do próprio Meu Vendedor via Supabase Auth.
 - Perfil com nome de exibição.
 - Gerenciamento de links manuais: criar, listar, editar, excluir e filtrar por plataforma, com campanha e observações.
-- Estúdio de vídeos com fila privada, presets, roteiros, acompanhamento, reprodução e download. O pipeline Magic Hour/Replicate está implementado, mas não é considerado operacional até autorizar uso comercial, verificar saldo/créditos e definir limites; demonstrações continuam claramente identificadas como sem IA.
+- Estúdio de vídeos com fila privada, presets, roteiros, acompanhamento, reprodução e download. O pipeline assíncrono Cloudflare Workers AI + Magic Hour/Replicate e seu fallback estão implementados e cobertos por testes simulados; não há validação comercial real nem autorização de geração. Demonstrações continuam claramente identificadas como sem IA.
 - Migração PostgreSQL e RLS para isolamento dos dados por usuário.
 - Estado informativo quando Supabase não estiver configurado, sem apresentar operações falsas.
 
-As três migrações versionadas já foram aplicadas no projeto hospedado. Em outros ambientes, as telas de autenticação e persistência só ficam disponíveis após fornecer a configuração Supabase e aplicar as migrações na ordem registrada.
+Cinco migrações versionadas existem no repositório; as últimas migrações do fluxo de vídeos constam como aplicadas nos registros remotos anteriores, mas não foram revalidadas nesta sessão. Em outros ambientes, as telas de autenticação e persistência só ficam disponíveis após fornecer a configuração Supabase e aplicar as migrações na ordem registrada.
 
 ## Tecnologias
 
@@ -61,7 +61,7 @@ npm run start            # serve o build normal (não a exportação estática)
 npm run deploy:cloudflare # gera a exportação e publica com Wrangler autorizado
 ```
 
-O build padrão com Turbopack encontrou restrições deste ambiente em verificações anteriores. O comando estático usa Webpack. Na última entrega, 89 testes, lint, TypeScript do frontend e das Edge Functions e o build estático de 17 rotas foram aprovados.
+O build padrão com Turbopack encontrou restrições deste ambiente em verificações anteriores. O comando estático usa Webpack. Na verificação de 06/11/2026, 89 testes, lint, TypeScript do frontend e das Edge Functions e o build estático de 17 rotas foram aprovados. Esses testes não comprovam execução comercial dos provedores nem do cron em produção.
 
 ## Segurança
 

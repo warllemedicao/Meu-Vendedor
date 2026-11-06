@@ -1,12 +1,12 @@
 # Gerador de vídeos IA — estado e implantação
 
-## Estado remoto em 06/11/2026
+## Estado confirmado em 06/11/2026
 
-A infraestrutura do agendador foi publicada. O Worker `meu-vendedor` está na versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`, com o cron de vídeos `* * * * *` e o cron existente do marketplace `*/30 * * * *`. A Edge Function `video-generation-worker` está ativa na versão 3, com `verify_jwt=false` e autenticação própria por `MV_VIDEO_WORKER_SECRET`. Um segredo aleatório compartilhado foi configurado no Supabase e no Cloudflare; a chave pública Supabase também foi adicionada ao Worker. O valor do segredo não está no repositório nem nos logs.
+O Worker `meu-vendedor` está publicado na versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`. A API Cloudflare confirmou os crons de vídeo `* * * * *` e marketplace `*/30 * * * *`, e os nomes `MV_SYNC_JOB_TOKEN`, `MV_VIDEO_WORKER_SECRET` e `MV_SUPABASE_PUBLISHABLE_KEY` estão presentes no Worker (valores não foram lidos). `/videos` responde HTTP 200. A consulta de analytics de invocações agendadas retornou zero registros desde a publicação; a execução efetiva do cron, portanto, não está comprovada.
 
-O fluxo foi validado sem criar ou reivindicar tarefas: segredo inválido retorna 401; segredo válido retorna `processor_disabled` (503). As flags de fila, processador, geração paga, licença comercial, allowlist e orçamentos continuam ausentes/desligadas. Portanto o cron não reivindica jobs, não chama provedores e não inicia geração. Nenhum saldo ou crédito foi verificado, nenhuma geração real foi executada e nenhum Secret/API key preexistente foi alterado. O bucket continua privado e a fila estava vazia na última consulta remota anterior à publicação; nenhum teste criou tarefa.
+O último teste remoto Supabase registrado, anterior a esta revisão, retornou 401 para segredo inválido e `processor_disabled` (503) para segredo válido, sem criar ou reivindicar tarefas. Na última leitura registrada, as flags de fila, processador, geração paga, licença comercial, allowlist e orçamentos estavam ausentes/desligadas. **Não foi possível revalidar agora o estado remoto Supabase**: este workspace não tem Supabase CLI, sessão de gerenciamento ou projeto vinculado. Trate o estado de flags e provedores como último estado conhecido, não como leitura atual. A documentação não inclui valores de Secrets.
 
-Antes de qualquer primeiro vídeo, ainda é necessária autorização específica de uso comercial e de gasto, com limites e conversão de créditos Magic Hour confirmados. Não habilite as flags até conhecer esses valores e o financiamento disponível.
+Nenhum crédito/saldo foi consultado, nenhuma tarefa foi criada e nenhuma geração real foi executada. O bucket permanece documentado como privado. Os valores discutidos de US$ 1 por tarefa, US$ 1 diário e conversão Magic Hour em zero não foram confirmados como aplicados nem autorizados. Não habilite geração paga até confirmar licença comercial, custos/financiamento e limites com o responsável.
 
 ## Implementado localmente
 
@@ -24,6 +24,7 @@ Antes de qualquer primeiro vídeo, ainda é necessária autorização específic
 - O Estúdio envia referências privadas reduzidas do produto e de Ana/Lucas, cria uma tarefa idempotente na fila e reidrata o andamento após recarregar a página. O botão real só habilita quando fila, worker, autorização comercial, provedores e limites estão configurados.
 - O comando local `npm run video:demo -- /caminho/video.mp4` requer o binário `ffmpeg` no `PATH` e usa somente `public/presenters/ana.webp` para produzir um MP4 técnico de 6 segundos, 1080x1920, sem áudio, produto ou IA. O Estúdio valida o marcador, duração e proporção; pode enviar manualmente o arquivo (até 10 MB) para `mv-video-assets/{userId}/outputs/` sob as políticas existentes e registrá-lo como `mock`/`simulation_completed`, com etiqueta **Teste técnico · sem IA**.
 - O worker usa Cloudflare Workers AI (`@cf/black-forest-labs/flux-2-dev`) para compor a imagem de referência privada do produto e do personagem e depois tenta Magic Hour (`ltx-2.5`, 480p) e Replicate (`alibaba/happyhorse-1.0`, 720p) por image-to-video. Replicate recebe somente URL assinada e restrita ao bucket privado.
+- **Fallback:** uma rejeição confirmada por falta de créditos pode avançar para o próximo provedor compatível, autorizado e configurado, sujeito a orçamento e licença. Se não houver candidato elegível, o job é bloqueado/falha sem chamada adicional. Timeout ou submissão ambígua não provoca retry nem fallback, para evitar cobrança duplicada. Essa lógica e os casos de falta de créditos foram validados em testes simulados; o fallback não foi testado com contas reais.
 - A fila tem claim atômico, lease, etapas persistidas, retomada segura para polling/validação, cancelamento, histórico de tentativas, reservas atômicas de orçamento, cooldown e proteção contra repetição de submissão ambígua. Uma submissão cujo resultado não pode ser confirmado vai para estado incerto; o worker não a envia novamente.
 - O worker é chamado sem manter aberta a requisição da página durante a geração, processa etapas curtas e usa o cron Cloudflare por minuto para retomar polling de trabalhos remotos. O cron do marketplace permanece separado a cada 30 minutos. O MP4 é validado quanto a duração e proporção antes de ser salvo no bucket privado.
 - A UI mostra as etapas da fila, o provedor selecionado, reproduz o resultado e cria URLs assinadas temporárias; a opção de download usa o MP4 privado. A infraestrutura está publicada, mas a geração continua bloqueada e nenhuma chamada de provedor foi feita.
@@ -38,9 +39,10 @@ As referências pendentes são exatamente `public/presenters/carla.webp` e `publ
 
 - `/videos` respondeu HTTP 200 e os bundles publicados contêm a URL e a chave pública Supabase do projeto, além do rótulo de provedor. Nenhuma chave `service_role` foi fornecida ao build.
 - A API do Cloudflare confirmou os dois crons remotos. A implantação preservou `MV_SYNC_JOB_TOKEN`; os únicos nomes adicionados ao Worker foram `MV_VIDEO_WORKER_SECRET` e `MV_SUPABASE_PUBLISHABLE_KEY`.
-- O primeiro evento agendado não apareceu no curto período de observação após a publicação. A configuração está confirmada remotamente, mas a execução periódica deve ser revalidada depois da propagação, que pode levar até 15 minutos.
+- A consulta de analytics feita em 06/11/2026 não encontrou registros de invocação agendada desde a publicação. A configuração está confirmada remotamente, mas a execução periódica continua sem comprovação.
 - `video-generation-worker` está ACTIVE na versão 3 com JWT do gateway desativado; a autenticação manual foi testada nos dois casos acima. `video-generation` permanece com JWT obrigatório.
 - Testes locais confirmam claim/leases, retomada, storage privado, fallback e bloqueio por orçamento. A fila não foi acionada remotamente durante esses testes.
+- Validação local em 06/11/2026: 89 testes aprovados; lint, typecheck frontend, typecheck Edge e build estático das 17 rotas passaram. Esses resultados não comprovam execução agendada ou chamada real a provedor.
 - A consulta de assinatura da conta Cloudflare retornou 403 por falta de permissão de leitura; nenhum plano foi alterado. A frequência de um minuto é suportada por Cron Triggers; consulte `CLOUDFLARE.md` para limites documentados e a ressalva sobre o plano específico da conta.
 
 Carla e Rafael continuam sem referências aprovadas. O fluxo atual usa Ana ou Lucas, uma imagem composta como quadro inicial e não oferece try-on fiel, áudio ou sincronização labial. A qualidade/continuidade visual e a proporção final precisam ser confirmadas em um teste real autorizado.
@@ -81,6 +83,8 @@ A documentação também informa limitações regionais para edição/extensão,
 - Cloudflare FLUX.2 Dev tem uma estimativa de custo baseada em steps/tiles; o orçamento reserva imagem e vídeo na mesma tarefa. A reserva diária é serializada no banco e inclui reservas ainda abertas.
 - Se custo, saldo/financiamento ou licença comercial não puderem ser confirmados, a tarefa fica bloqueada para autorização. Flags ausentes/desligadas não permitem chamadas pagas.
 
+Para configurar a geração real no Supabase, os nomes de variáveis usados pelo código incluem `MV_VIDEO_WORKER_SECRET`, `MV_VIDEO_JOBS_ENABLED`, `MV_VIDEO_PROCESSOR_ENABLED`, `MV_AI_ALLOW_PAID_GENERATION`, `MV_AI_COMMERCIAL_USE_CONFIRMED`, `MV_AI_ALLOWED_PROVIDERS`, `MV_AI_MAX_COST_PER_JOB_USD`, `MV_AI_DAILY_BUDGET_USD`, `MV_MAGIC_HOUR_CREDIT_USD`, `MAGIC_HOUR_API_KEY`, `REPLICATE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_AI_API_TOKEN`. A função de roteiro usa separadamente `GEMINI_API_KEY` e `MV_GEMINI_SCRIPT_ENABLED`. O Supabase fornece ainda `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` no runtime. Os nomes não indicam que os valores estejam configurados ou válidos.
+
 Checklist antes de um teste real autorizado:
 
 1. **Concluído:** migration `20261105225000_video_ai_processor.sql` aplicada remotamente.
@@ -90,6 +94,6 @@ Checklist antes de um teste real autorizado:
 5. Definir limites positivos e conservadores: `MV_AI_MAX_COST_PER_JOB_USD` deve cobrir a estimativa de imagem mais a do vídeo; `MV_AI_DAILY_BUDGET_USD` limita o consumo diário.
 6. Manter inicialmente `MV_VIDEO_JOBS_ENABLED`, `MV_VIDEO_PROCESSOR_ENABLED`, `MV_AI_ALLOW_PAID_GENERATION` desligados. Antes de ativar, configurar `MV_AI_ALLOWED_PROVIDERS` somente com provedores autorizados e `MV_AI_COMMERCIAL_USE_CONFIRMED=true` somente após confirmação documental.
 7. `MV_MAGIC_HOUR_FREE_CREDITS_CONFIRMED=true` só pode ser usado se a conta realmente confirmar créditos gratuitos e sua elegibilidade para o uso planejado. Não é necessário para uma geração paga explicitamente autorizada.
-8. Testes mockados foram executados. Antes de ativar o processador, obter autorização específica para licença comercial e custo máximo; depois confirmar saldo/financiamento e executar um único teste controlado. Não ativar cobrança automaticamente.
+8. Testes simulados foram executados. Antes de ativar o processador, obter autorização específica para licença comercial e custo máximo; depois confirmar saldo/financiamento e executar um único teste controlado. Não ativar cobrança automaticamente.
 
-O repositório está preparado para a publicação, não publicado. A aplicação estática do Cloudflare por si só não publica Edge Functions nem a migration. O teste técnico estático continua etiquetado como **Teste técnico · sem IA**.
+O frontend e o Worker agendador estão publicados; isso não implica que a fila/provedores estejam habilitados. A aplicação estática do Cloudflare por si só não publica Edge Functions nem migrations. O teste técnico estático continua etiquetado como **Teste técnico · sem IA**.

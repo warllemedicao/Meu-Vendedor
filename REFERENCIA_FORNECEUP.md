@@ -29,10 +29,10 @@ pela ferramenta de pesquisa; a análise não afirma cobrir todo o domínio ou o 
 | Favoritos | Organização pessoal de oportunidades | Não implementado |
 | Plataformas | Preservar requisitos e estados honestos de `/contas` | Implementado; somente Shopee possui conector de conta |
 | Links | Cadastro e organização dos links do próprio afiliado | CRUD Supabase implementado |
-| Vídeos | Preparar anúncios sem prometer geração inexistente | Modo demonstração implementado; geração Google bloqueada |
+| Vídeos | Preparar anúncios sem prometer geração inexistente | Pipeline assíncrono e provedores implementados, mas geração real não autorizada nem validada; detalhes em `VIDEOS_IA.md` |
 | Ajuda | Guias originais sobre o uso do Meu Vendedor | Sem rota dedicada |
 
-As decisões implementadas pertencem ao Meu Vendedor e não afirmam reproduzir funcionalidades internas da referência. Visual e estrutura servem apenas de inspiração, mantendo nome, textos e identidade próprios.
+As decisões implementadas pertencem ao Meu Vendedor e não afirmam reproduzir funcionalidades internas da referência. Visual e estrutura servem apenas de inspiração, mantendo nome, textos e identidade próprios. Revisão de estado do projeto em 06/11/2026; este documento registra somente a pesquisa da referência externa.
 Não adicionar selos de fornecedores verificados, integrações ativas, cursos, preços ou resultados sem suporte real.
 
 ## Direção confirmada pelo responsável

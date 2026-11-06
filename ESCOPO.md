@@ -1,6 +1,6 @@
 # Escopo do produto e das páginas — Meu Vendedor
 
-Definição confirmada pelo responsável em 04/11/2026 e estado técnico revisado em 05/11/2026. Documento de produto; funcionalidades futuras não devem ser apresentadas como implementadas. Os planos antigos são mantidos como histórico, mas o quadro abaixo representa a situação atual.
+Definição confirmada pelo responsável em 04/11/2026 e estado técnico revisado em 06/11/2026. Documento de produto; funcionalidades futuras não devem ser apresentadas como implementadas. Os planos antigos são mantidos como histórico, mas o quadro abaixo representa a situação atual.
 
 Atualização do catálogo: o responsável acrescentou SHEIN e AliExpress à pesquisa e à página inicial de produtos. A rota `/` agora tem catálogo no código, sem redirecionamento ao dashboard. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram implementadas na função `catalog`, condicionadas à publicação/configuração por usuário e validação real; Magalu/SHEIN ainda sem contrato de afiliados confirmado. O CRUD de links continua com as cinco plataformas originais. Situação atual em `CATALOGO_APIS.md`; a tabela e os planos antigos abaixo preservam o escopo anterior.
 
@@ -12,7 +12,7 @@ Construir um app web central de interação e gerenciamento de programas de afil
 
 Plataformas do escopo básico atual: **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**. A inclusão de outras plataformas fica para evolução posterior. TikTok Shop será tratado dentro do planejamento TikTok quando necessário, preservando as autorizações específicas de cada produto. A cobertura será ampliada por conectores independentes. Suporte automático depende da existência de recursos oficiais adequados e da autorização concedida à conta.
 
-A referência ForneceUp orienta a apresentação e a organização visual. O foco confirmado do Meu Vendedor é gerenciamento de afiliados. O gerador de vídeos já funciona em modo demonstração; geração audiovisual real, publicação e automações continuam dependentes de integrações posteriores.
+A referência ForneceUp orienta a apresentação e a organização visual. O foco confirmado do Meu Vendedor é gerenciamento de afiliados. O pipeline de vídeo assíncrono e seus adaptadores estão implementados e cobertos por testes locais; geração paga real permanece bloqueada até confirmar configurações, direitos comerciais, créditos e limites. Publicação e automações continuam dependentes de integrações posteriores.
 
 ## Escopo das páginas
 
@@ -26,7 +26,7 @@ A referência ForneceUp orienta a apresentação e a organização visual. O foc
 | Relatórios | Exibir métricas disponíveis por origem e período, com data de atualização | Página de apresentação; sem métricas reais |
 | Configurações | Perfil, preferências e gestão das permissões do usuário | Perfil implementado com Supabase Auth e RLS |
 | Ajuda | Instruções originais para configurar e usar o Meu Vendedor | Planejada; sem rota criada |
-| Vídeos IA | Preparar e gerar anúncios de produto | Demonstração completa, biblioteca Supabase e backend bloqueado; geração Google real pendente |
+| Vídeos IA | Preparar e gerar anúncios de produto | Estúdio, fila autenticada, worker, polling e adaptadores Cloudflare Workers AI/Magic Hour/Replicate implementados. Geração real não validada nem autorizada; pendem credenciais/configuração, direitos comerciais, saldo e limites. |
 | Tendências, Top 10, Publicações, Automações | Evolução posterior, após a base de gerenciamento | Rotas existentes; funcionalidades reais ainda não implementadas |
 
 Não publicar planos, preços, cursos ou promessas de resultados sem uma definição comercial própria.
@@ -65,4 +65,4 @@ O objetivo de reunir todas as plataformas é uma direção de expansão, não um
 
 ## Preparação do Supabase
 
-O projeto `meu-vendedor` (`jzchlrvxdaffnrgbvabv`) foi autorizado e configurado com três migrações aplicadas. Auth, perfil e CRUD de links foram verificados na API hospedada; conexões, produtos e vídeos têm tabelas com RLS. A função `video-generation` está ativa com JWT obrigatório e geração real bloqueada. A hospedagem pública do frontend está no Cloudflare Workers. O endereço do site não concede acesso administrativo ao banco. A entrega de e-mails de confirmação/recuperação permanece a validar.
+O projeto `meu-vendedor` (`jzchlrvxdaffnrgbvabv`) foi autorizado e configurado. Cinco migrações existem no repositório; as últimas migrações e o worker de vídeo constam como publicados/aplicados nos registros remotos anteriores, sem revalidação Supabase nesta revisão. Auth, perfil e CRUD de links foram verificados na API hospedada; conexões, produtos e vídeos têm tabelas com RLS. A geração paga permanece sem autorização/configuração confirmada. O endereço do site não concede acesso administrativo ao banco. A entrega de e-mails de confirmação/recuperação permanece a validar.

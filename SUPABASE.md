@@ -2,9 +2,11 @@
 
 ## Estado desta implementação
 
-Projeto hospedado **meu-vendedor**, referência `jzchlrvxdaffnrgbvabv`, autorizado e configurado. As migrações `20261104000100`, `20261104000200` e `20261105151156` estão aplicadas e registradas no histórico remoto. As tabelas de dados do usuário, incluindo a biblioteca de vídeos, usam RLS.
+Projeto hospedado **meu-vendedor**, referência `jzchlrvxdaffnrgbvabv`. As migrações `20261104000100`, `20261104000200`, `20261105151156`, `20261105172000` e `20261105225000` constam como aplicadas nos registros anteriores. As tabelas privadas, incluindo fila/biblioteca de vídeos, foram projetadas com RLS.
 
-Revalidação em 05/11/2026: dez tabelas `mv_*` estão presentes com RLS habilitada. As funções `marketplace` versão 2, `catalog` versão 1, `catalog-public` versão 1 e `video-generation` versão 1 estão `ACTIVE`. O advisor de saúde não retornou alertas.
+**Limite de verificação em 06/11/2026:** não foi possível consultar novamente o projeto nesta sessão (Supabase CLI, token de gerenciamento e link local estão ausentes). A última verificação remota documentada em `VIDEOS_IA.md` confirma `video-generation-worker` versão 3 e teste do segredo próprio; chamada autenticada retornou `processor_disabled`. Flags/allowlist/orçamentos estavam ausentes ou desligados naquela verificação. Trate isso como último estado conhecido, não como leitura remota atual. Não foram lidos ou alterados valores de Secrets.
+
+Revalidação histórica em 05/11/2026: dez tabelas `mv_*` estavam presentes com RLS habilitada; `marketplace` versão 2, `catalog` versão 1, `catalog-public` versão 1 e `video-generation` versão 1 estavam `ACTIVE`. Essa lista é histórica e não inclui a publicação posterior do worker de vídeo.
 
 A URL pública do Supabase e a chave publicável foram obtidas do projeto correto e configuradas no build via `.env.local`, ignorado pelo Git. Nenhuma chave administrativa foi inserida no frontend ou no repositório. A configuração foi validada por testes de login e persistência na API hospedada.
 
@@ -54,7 +56,7 @@ Credenciais Shopee podem ser armazenadas somente após validação, cifradas pel
 
 ## Testes
 
-`npm test` usa PostgreSQL local via PGlite para executar as migrações e validar RLS, perfis, acesso anônimo, adulteração de proprietário, edição/exclusão autorizadas e bloqueio entre usuários. Também verifica conectores, catálogo, biblioteca e backend de vídeos. A suíte atual possui 41 testes. Não depende de credenciais reais e não substitui testes comerciais no ambiente hospedado.
+`npm test` usa PostgreSQL local via PGlite para executar as migrações e validar RLS, perfis, acesso anônimo, adulteração de proprietário, edição/exclusão autorizadas e bloqueio entre usuários. Também verifica conectores, catálogo, biblioteca e backend de vídeos. A última execução em 06/11/2026 aprovou 89 testes. Não depende de credenciais reais e não substitui testes comerciais no ambiente hospedado.
 
 Executar `npm run lint`, `npm run typecheck` e `npm run build:pages`. O Worker pode servir o frontend estático porque autenticação e banco são acessados pelo cliente oficial. Nunca implantar credenciais administrativas para isso.
 
@@ -82,7 +84,7 @@ A migração `20261104000200` adiciona conexões, credenciais cifradas, produtos
 
 A migração `20261105151156` cria `mv_video_projects` para guardar configurações, roteiros, estados e versões. A tabela tem RLS habilitada e forçada, quatro políticas por proprietário e chaves compostas para impedir que uma versão referencie projeto de outro usuário. A verificação remota confirmou RLS forçada e quatro políticas.
 
-A Edge Function `video-generation` está `ACTIVE` na versão 1 com `verify_jwt=true`; a chamada sem sessão retorna HTTP 401. Mesmo autenticada, a geração real permanece bloqueada no código. Não há segredo Google configurado nem chamada paga executada. O contrato e a ativação futura estão em [`VIDEOS_IA.md`](./VIDEOS_IA.md).
+A geração usa `video-generation` para operações autenticadas e `video-generation-worker` para processamento interno autenticado por `MV_VIDEO_WORKER_SECRET` (o gateway JWT desta função fica desligado). A última publicação documentada do worker está na versão 3. A geração paga depende de flags comerciais/financeiras, provedores e orçamento; o último teste remoto retornou `processor_disabled`. Não houve chamada paga. Os detalhes do pipeline, fallback e configurações estão em [`VIDEOS_IA.md`](./VIDEOS_IA.md).
 
 ## Advisors e compatibilidade da CLI
 

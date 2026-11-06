@@ -7,24 +7,23 @@
 
 | Status | Significado |
 | --- | --- |
-| ✅ Implementado | Existe no código e foi testado |
+| ✅ Implementado | Existe no código e foi testado localmente; não implica disponibilidade comercial em produção |
 | 🟡 Planejado | Decidido, ainda não escrito |
 | 🔌 Depende de API externa | Exige credenciais, permissões ou aprovação de terceiros |
 
-**Estado atual: frontend público no Cloudflare e base Supabase ativada.**
+**Estado verificado em 06/11/2026:** frontend público e Worker `meu-vendedor` na versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`; crons de vídeo e marketplace configurados. `/videos` retorna HTTP 200. A API de analytics não retornou invocações agendadas desde a publicação, portanto a execução do cron não está comprovada. A última validação remota Supabase registrada informa `video-generation-worker` versão 3 e `processor_disabled` com autenticação válida; não foi possível revalidar flags ou Secrets do Supabase nesta revisão. Nenhuma geração real foi executada. Veja `CONTINUAR_AMANHA.md`.
 
-Prioridade atual: vitrine pública apenas de Shopee, Amazon e TikTok Shop, separada dos dados pessoais. Implementada a função `catalog-public` com configuração central do aplicativo, sem sessão do visitante e sem leitura de dados privados. A função está publicada, mas testes remotos das três fontes retornaram `catalog_not_configured`; o objetivo de mostrar produtos reais ainda não foi atingido. O visitante não fornecerá chaves. Procedimento e limitações em `CATALOGO_APIS.md`.
+O catálogo público `catalog-public` continua dependente de configuração comercial permitida. O último estado remoto registrado retornou `catalog_not_configured`; o Supabase não pôde ser reconsultado nesta revisão. O visitante não deve fornecer chaves. A separação entre descoberta pública e contas privadas permanece requisito de produto. Procedimento e limitações em `CATALOGO_APIS.md`.
 
-**Correção de requisito confirmada pelo responsável:** o catálogo deve ser consultável antes de conectar a conta de qualquer loja. Descoberta de produtos e vinculação do perfil de afiliado são fluxos independentes. O visitante não deverá precisar de App ID/Secret para navegar. O Meu Vendedor deverá obter/configurar seus próprios acessos de catálogo no servidor, somente onde a licença permitir sua exibição aos usuários; a página pública da loja, por si só, não comprova esse direito/API. A vinculação do afiliado deverá usar redirecionamento e consentimento oficial quando disponível. O formulário técnico Shopee atual não atende à experiência desejada e não comprova um fluxo de consentimento para afiliados. OAuth de vendedor não deve ser usado como substituto. O catálogo atual autenticado e condicionado a credenciais por usuário ainda não implementa essa separação.
+**Correção de requisito confirmada pelo responsável:** o catálogo deve ser consultável antes de conectar a conta de qualquer loja. Descoberta de produtos e vinculação do perfil de afiliado são fluxos independentes. O Meu Vendedor deverá obter/configurar seus próprios acessos de catálogo no servidor, somente onde a licença permitir sua exibição aos usuários. OAuth de vendedor não deve ser usado como substituto de autorização de afiliado.
 
-Publicação atual: backend `catalog` na versão 1 e frontend no Cloudflare na versão `7f135c6e-69b7-4fbc-a459-82bdcf34f30e`. `/dashboard` apresenta o mesmo catálogo de `/`, e `/videos` contém o gerador em modo demonstração. As rotas foram confirmadas por HTTP. Credenciais comerciais e testes reais das fontes continuam pendentes. Detalhes em `PUBLICACAO.md`.
+O catálogo em `/` apresenta seleção de Amazon, Mercado Livre, TikTok Shop, Magalu, Shopee, SHEIN e AliExpress. A função `catalog` implementa consultas para Amazon, Mercado Livre, TikTok Shop e AliExpress; configuração por usuário e validação comercial real continuam pendentes. Magalu/SHEIN seguem sem contrato de catálogo de afiliados confirmado. A inclusão no catálogo não amplia automaticamente o CRUD de links ou os conectores existentes.
 
-Atualização do catálogo inicial no código: `/` apresenta oportunidades com seleção de Amazon, Mercado Livre, TikTok Shop, Magalu, Shopee, SHEIN e AliExpress. Reutiliza os produtos Shopee sincronizados e adiciona consultas sob demanda de Amazon, Mercado Livre, TikTok Shop e AliExpress na função `catalog`, já publicadas com o frontend; configuração por usuário e validação comercial real ainda pendentes. Magalu/SHEIN seguem sem contrato de catálogo de afiliados confirmado. Pesquisa oficial e dependências em `CATALOGO_APIS.md`. A inclusão das duas novas plataformas neste catálogo não amplia automaticamente o CRUD de links ou os conectores existentes.
-Cadastro/login, perfil, links manuais e biblioteca de vídeos estão implementados. Três migrações foram aplicadas no projeto `meu-vendedor`; login, persistência e isolamento foram verificados. A entrega de e-mails ainda precisa ser validada. O primeiro conector Shopee foi implementado, condicionado à validação de credenciais reais da conta. O gerador publicitário funciona em demonstração; geração audiovisual real e automações comerciais não estão habilitadas.
+Cadastro/login, perfil, links manuais e biblioteca de vídeos estão implementados. Cinco migrações versionadas existem no repositório; as últimas migrações de vídeo constam como aplicadas nos registros anteriores, sem revalidação Supabase nesta sessão. O conector Shopee requer credenciais comerciais reais. O pipeline de vídeo assíncrono está implementado, mas seu uso pago está bloqueado por autorização/configuração pendente. A entrega de e-mails ainda precisa ser validada.
 
-Atualização do módulo de vídeos: `/videos` agora oferece um gerador publicitário completo em modo demonstração, com cadastro/seleção de produto, quatro apresentadores virtuais originais, voz, emoção, estilo, duração, formato, roteiro editável, prévia estática e biblioteca. O mock percorre os estados de geração sem criar MP4 fictício nem consumir créditos. A integração futura foi isolada atrás de um contrato de provedor e de uma Edge Function autenticada; chamadas Google continuam bloqueadas. Contrato atual e fontes oficiais em `VIDEOS_IA.md`.
+`/videos` oferece configuração de produto, apresentadores, voz, emoção, estilo, duração, formato, roteiro editável, prévia e biblioteca. O pipeline inclui fila, worker, reserva orçamentária, polling, validação e armazenamento privado. Cloudflare Workers AI compõe a imagem de referência; Magic Hour e Replicate são adaptadores image-to-video. Testes simulados cobrem o fallback, mas não comprovam credenciais, saldo, direitos comerciais, qualidade ou execução real. O mock e o MP4 local são demonstrações sem IA. Contratos e bloqueios em `VIDEOS_IA.md`.
 
-A situação atual da base está em [`SUPABASE.md`](./SUPABASE.md). A seção 11 registra a ativação; as seções de etapas anteriores preservam o histórico.
+A situação atual da base está em [`SUPABASE.md`](./SUPABASE.md). Seções antigas abaixo que descrevem etapas anteriores devem ser lidas como histórico, não como estado de produção vigente.
 
 ---
 
@@ -36,7 +35,7 @@ O **Meu Vendedor** é um **app web central de interação e gerenciamento de pro
 
 O escopo inclui Mercado Livre, Shopee, TikTok/TikTok Shop, **Magazine Luiza** e, progressivamente, outros serviços com programas de afiliados. Cada integração será independente e terá apenas as capacidades oficialmente disponíveis para a conta e região autorizadas. “Todas as plataformas” é a direção de expansão; não significa que exista integração universal ou cobertura automática implementada.
 
-A prioridade atual continua sendo o gerenciamento de afiliados e a base das APIs. O gerador publicitário já funciona em modo demonstração; somente a geração audiovisual real e as automações permanecem como evolução dependente de provedores. A referência ForneceUp serve à apresentação e organização; o produto continua orientado a afiliados.
+A prioridade do produto continua sendo o gerenciamento de afiliados e a base das APIs. O pipeline de geração audiovisual está implementado, mas não é operacional para geração paga até revalidar configuração, licenças comerciais, créditos e limites. Automação/publicação em redes sociais permanecem pendentes. A referência ForneceUp serve à apresentação e organização; o produto continua orientado a afiliados.
 
 O detalhamento das páginas e o plano do primeiro ciclo de APIs estão em [`ESCOPO.md`](./ESCOPO.md). As decisões e pendências específicas de integração estão em [`INTEGRACOES.md`](./INTEGRACOES.md).
 
@@ -109,9 +108,9 @@ Todos os módulos abaixo têm rota e navegação. Conta, perfil, links, conexão
 │ BACKEND  Supabase Edge Functions + Worker  ✅              │
 │ Auth, conectores, catálogo e contratos de vídeo            │
 ├───────────────┬───────────────────────┬────────────────────┤
-│ Banco         │ Processamento de IA   │ Integrações        │
-│ PostgreSQL ✅ │ Roteiro local ✅      │ Shopee ✅/🔌       │
-│ RLS e dados   │ vídeo real 🔌         │ outros 🔌          │
+│ Banco         │ Processamento de IA           │ Integrações      │
+│ PostgreSQL ✅ │ fila + worker ✅ / IA real 🔌  │ Shopee ✅/🔌     │
+│ RLS e dados   │ fallback simulado ✅          │ outros 🔌        │
 └───────────────┴───────────────────────┴────────────────────┘
 ```
 
@@ -126,13 +125,13 @@ Todos os módulos abaixo têm rota e navegação. Conta, perfil, links, conexão
 | Dashboard com dados demonstrativos | ✅ Implementado | Dados fictícios, rotulados como tal |
 | Autenticação e perfil de usuário | ✅ Implementado | Supabase Auth e perfil protegido por RLS |
 | Backend | ✅ Implementado parcialmente | Supabase Edge Functions para marketplace, catálogos e vídeo; FastAPI não é requisito atual |
-| Banco PostgreSQL e migrações | ✅ Implementado | Supabase; três migrações, tabelas privadas e RLS |
-| Agendador de tarefas | ✅ Implementado parcialmente | Cron Cloudflare para Shopee; fila geral ainda planejada |
+| Banco PostgreSQL e migrações | ✅ Implementado | Supabase; cinco migrações versionadas no repositório, tabelas privadas e RLS |
+| Agendador de tarefas | ✅ Implementado; execução pendente de observação | Crons Cloudflare de vídeo por minuto e marketplace a cada 30 min; analytics sem registro pós-publicação nesta revisão |
 | Provider Shopee | ✅ Implementado / 🔌 ativação | Código publicado; requer credencial real aprovada para sucesso comercial |
 | Provider Mercado Livre | 🔌 Depende de API externa | Requer app registrado e credenciais |
 | Provider TikTok / TikTok Shop | 🔌 Depende de API externa | Acesso sujeito a aprovação e escopos |
 | Análise com IA (ranking, tendências) | 🔌 Depende de API externa | Modelo local ou serviço de terceiros |
-| Gerador de vídeos | ✅ Demonstração / 🔌 geração real | Interface, mock, biblioteca e contrato Google prontos; chamadas reais bloqueadas |
+| Gerador de vídeos | ✅ Pipeline implementado / 🔌 geração real | Fila, Edge Functions, Cloudflare Workers AI, Magic Hour e Replicate; credenciais, direitos, créditos, limites e execução comercial não confirmados |
 | Publicação em redes sociais | 🔌 Depende de API externa | Apenas por integrações oficiais e autorizadas |
 
 ### 3.4 Frontend
@@ -145,18 +144,18 @@ Todos os módulos abaixo têm rota e navegação. Conta, perfil, links, conexão
 
 ### 3.5 Backend
 
-- Supabase Edge Functions implementam marketplace, catálogos e o contrato autenticado de geração de vídeo.
-- O Cloudflare Worker serve os assets e executa o cron de sincronização Shopee.
+- Supabase Edge Functions implementam marketplace, catálogos e a fila/processador assíncrono de vídeo.
+- O Cloudflare Worker serve os assets e tem crons separados para marketplace e processamento de vídeo.
 - FastAPI permanece opcional para processamento especializado futuro.
-- Tarefas longas de geração real ainda exigirão acompanhamento assíncrono e controle de idempotência no provedor.
+- Jobs usam claim/lease, idempotência, retomada de polling, cancelamento e reservas de orçamento; o scheduler remoto não teve invocações observadas na consulta atual.
 
 ### 3.6 Banco de dados
 
-PostgreSQL no Supabase com três migrações versionadas e aplicadas. Além de plataformas, perfis e links, existem conexões e segredos cifrados, produtos, sincronizações, links gerados, bloqueios e projetos de vídeo. Os dados privados são protegidos por RLS; credenciais externas ficam cifradas e acessíveis somente pelo backend.
+PostgreSQL no Supabase com cinco migrações versionadas no repositório. As últimas migrações de workflow/processor constam como aplicadas em registros remotos anteriores; não houve revalidação do banco nesta sessão. Além de plataformas, perfis e links, existem conexões e segredos cifrados, produtos, sincronizações, links gerados, bloqueios, jobs, tentativas e reservas de orçamento. Os dados privados são protegidos por RLS; credenciais externas ficam no backend.
 
 ### 3.7 Processamento de IA
 
-O roteiro publicitário local e o provedor simulado estão implementados. A geração audiovisual usa uma interface desacoplada, com adaptador Google preparado e bloqueado. Ranking, tendências e análise de vídeo continuam futuros. Serviços externos poderão ser adicionados sem alterar o fluxo principal.
+Roteiro publicitário local, demonstração e pipeline audiovisual desacoplado estão implementados. Workers AI gera a imagem de referência; Magic Hour e Replicate são provedores de vídeo. Gemini é usado separadamente para roteiro. O roteador tenta outro provedor somente após falha confirmada e se ele for compatível, autorizado, configurado e dentro do orçamento; falta de créditos confirmada permite fallback. Submissão ambígua não é repetida. Testes são simulados e não autorizam cobranças. Ranking, tendências e análise de vídeo continuam futuros.
 
 ### 3.8 Integrações externas
 
@@ -305,9 +304,9 @@ Implementados o cliente oficial Supabase, telas de conta e recuperação de senh
 
 A arquitetura desta base é navegador/Next.js → Supabase Auth e Data API → PostgreSQL com RLS. Projeto autorizado: `meu-vendedor` (`jzchlrvxdaffnrgbvabv`). O frontend continua publicável no Worker existente com exportação estática. FastAPI não é requisito para este CRUD; permanece uma possibilidade futura para processamento especializado. O arquivo `wrangler.jsonc` descreve o Worker e seus assets, sem credenciais.
 
-Três migrações criam a base de afiliados, conexões/segredos/produtos e projetos de vídeo. O isolamento por usuário e os privilégios foram testados em PostgreSQL local via PGlite. Chaves administrativas e credenciais de lojas não passam pelo cliente. A sessão do próprio app é gerida pelo SDK Supabase.
+Cinco migrações versionadas criam a base de afiliados, conexões/segredos/produtos, workflow e processamento de vídeo. O isolamento por usuário e os privilégios foram testados em PostgreSQL local via PGlite. Chaves administrativas e credenciais de lojas não passam pelo cliente. A sessão do próprio app é gerida pelo SDK Supabase.
 
-Ativação remota concluída: migrações `20261104000100`, `20261104000200` e `20261105151156` aplicadas e registradas; URLs de Auth e senha mínima configuradas. Login, perfis e CRUD foram testados por API com duas contas temporárias e isolamento entre usuários. As contas de teste foram removidas. Confirmação/recuperação de e-mail têm fluxo implementado, mas a entrega de mensagens não foi testada. Procedimento e limites em `SUPABASE.md`.
+Registros remotos anteriores confirmam as migrações `20261104000100`, `20261104000200`, `20261105151156`, `20261105172000` e `20261105225000`; essa situação não foi revalidada nesta sessão. URLs de Auth e senha mínima foram configuradas anteriormente. Login, perfis e CRUD foram testados por API com duas contas temporárias e isolamento entre usuários; as contas de teste foram removidas. Confirmação/recuperação de e-mail têm fluxo implementado, mas a entrega de mensagens não foi testada. Procedimento e limites em `SUPABASE.md`.
 
 ## 12. Experiência unificada de conexão e sincronização
 

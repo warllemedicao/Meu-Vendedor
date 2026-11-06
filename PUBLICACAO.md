@@ -1,5 +1,11 @@
 # Publicações — Meu Vendedor
 
+## Estado mais recente confirmado — 06/11/2026
+
+O Worker existente `meu-vendedor` está na versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`, com 100% do tráfego conforme a listagem de deployments. A API confirmou os crons `* * * * *` (vídeos) e `*/30 * * * *` (marketplace); `/videos` responde HTTP 200. A consulta de invocações agendadas desde a publicação retornou zero registros, portanto a execução do cron ainda não está comprovada.
+
+O último registro Supabase disponível informa `video-generation-worker` ACTIVE na versão 3 e validação de autenticação própria, com `processor_disabled` para segredo válido. O estado atual do Supabase não foi reconsultado nesta sessão por falta de CLI/sessão de gerenciamento. Não houve geração real, criação de tarefa ou consumo de créditos. As versões anteriores abaixo são histórico; para o estado vigente, use este bloco e `CONTINUAR_AMANHA.md`.
+
 ## Correção das imagens e perfis do Estúdio — publicada
 
 Em 05/11/2026 às 19:52 UTC, o Worker `meu-vendedor` foi atualizado para a versão `56fa55d6-831b-475d-aa63-088ad2926b64`, com 100% do tráfego. A causa dos espaços vazios era o `next/image` gerar URLs `/_next/image` na exportação estática; o endpoint não existe no Worker e respondia 404. O build estático agora desativa a otimização automática e referencia os assets públicos diretamente.

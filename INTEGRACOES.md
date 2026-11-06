@@ -1,8 +1,8 @@
 # Integrações — Meu Vendedor
 
-Etapa 2: preparação visual e contratos TypeScript. Referências consultadas em **04/11/2026**; estado técnico revisado em **05/11/2026**.
+Etapa 2: preparação visual e contratos TypeScript. Referências consultadas em **04/11/2026**; estado técnico revisado em **06/11/2026**.
 O conector Shopee para ofertas e links foi implementado; sua ativação por conta exige credenciais reais validadas pela API. Foram adicionadas consultas de catálogo Amazon, Mercado Livre, TikTok Shop e AliExpress, ainda sem teste de sucesso com credenciais reais. Magalu/SHEIN continuam sem contrato de catálogo de afiliados confirmado. Detalhes atuais em `CONECTORES.md` e `CATALOGO_APIS.md`; as seções da Etapa 2 abaixo preservam o histórico.
-A existência de uma API na plataforma não significa que esteja liberada para este projeto.
+A existência de uma API na plataforma não significa que esteja liberada para este projeto. O pipeline de vídeo assíncrono também está implementado, mas não houve validação comercial real de provedores; estado e pendências em `VIDEOS_IA.md`.
 
 ## Shopee
 
@@ -77,7 +77,7 @@ Há adaptadores implementados, mas ainda não houve teste comercial bem-sucedido
 
 ## Resultado da verificação desta entrega
 
-Em 05/11/2026: `npm test` aprovou 41 testes; lint, TypeScript do frontend e das Edge Functions e o build estático com 17 rotas também passaram. O Worker e as funções foram verificados separadamente. Testes controlados comprovam o comportamento do código, não a liberação comercial das contas.
+Em 06/11/2026: `npm test` aprovou 89 testes; lint, TypeScript do frontend e das Edge Functions e o build estático com 17 rotas também passaram. O Worker e as funções foram verificados separadamente. Testes controlados comprovam o comportamento do código, não a liberação comercial das contas nem a execução do cron em produção.
 
 ## Catálogo básico atual e Supabase
 

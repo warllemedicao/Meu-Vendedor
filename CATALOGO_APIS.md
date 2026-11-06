@@ -1,6 +1,6 @@
 # Catálogo inicial: ofertas e mais vendidos
 
-> Estado geral atualizado em 05/11/2026: o catálogo descrito aqui permanece publicado, mas o Worker recebeu depois o gerador de vídeos e está atualmente na versão `7f135c6e-69b7-4fbc-a459-82bdcf34f30e`. Essa publicação posterior não configurou `MV_PUBLIC_CATALOG_CONFIG` nem transformou os testes controlados em acesso comercial real.
+> Estado geral revisado em 06/11/2026: o Worker `meu-vendedor` está na versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`; esta é a implantação estática mais recente, não uma confirmação de configuração das fontes do catálogo. O último estado remoto registrado para `catalog-public` foi `catalog_not_configured` para as três fontes. O Supabase não pôde ser reconsultado nesta revisão, portanto essa condição é o último estado conhecido, não uma leitura atual. Testes controlados não comprovam acesso comercial real.
 
 ## Vitrine pública de três lojas — prioridade atual
 
