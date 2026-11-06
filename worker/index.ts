@@ -16,7 +16,7 @@ async function syncMarketplace(env: WorkerEnv): Promise<void> {
     headers: { "x-mv-job-token": env.MV_SYNC_JOB_TOKEN, "Content-Type": "application/json" },
     body: "{}",
     signal: AbortSignal.timeout(140_000),
-    redirect: "error",
+    redirect: "manual",
   });
   if (!response.ok) throw new Error(`marketplace_scheduler_http_${response.status}`);
 }
@@ -36,9 +36,13 @@ async function processVideoQueue(env: WorkerEnv): Promise<void> {
       },
       body: "{}",
       signal: AbortSignal.timeout(15_000),
-      redirect: "error",
+      redirect: "manual",
     });
-  } catch {
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "unknown";
+    const sanitized = [env.MV_VIDEO_WORKER_SECRET, env.MV_SUPABASE_PUBLISHABLE_KEY]
+      .filter(Boolean).reduce((message, secret) => message.split(secret).join("[redacted]"), reason);
+    console.error(JSON.stringify({ event: "video_scheduler_fetch_failed", reason: sanitized.slice(0, 300) }));
     throw new Error("video_scheduler_request_failed");
   }
   if (response.status === 503) {

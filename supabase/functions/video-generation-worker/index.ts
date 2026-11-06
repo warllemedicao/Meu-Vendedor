@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { freeOnlyAdapter, type FreeAllowance } from "../video-generation/_shared/free-only.ts";
 import { imageCacheKey } from "../video-generation/_shared/image-cache.ts";
 import { productionServiceInventory } from "../video-generation/_shared/provider-inventory.ts";
+import { auditProviders } from "../video-generation/_shared/provider-audit.ts";
 import {
   AIProviderFailure,
   type AIProviderAdapter,
@@ -509,12 +510,28 @@ console.info(JSON.stringify({
     .sort(),
 }));
 
+async function refreshProviderAudits(): Promise<void> {
+  if (!admin) return;
+  const { data, error } = await admin.rpc("mv_claim_provider_audit");
+  if (error || !data) return;
+  const reports = await auditProviders((name) => Deno.env.get(name));
+  const { error: saveError } = await admin.from("mv_ai_provider_audits").upsert(reports);
+  if (saveError) console.error("provider-audit-save-failed");
+}
+
+// Verificação horária atômica, inclusive com várias instâncias.
+EdgeRuntime.waitUntil(refreshProviderAudits().catch(() => console.error("provider-audit-failed")));
+
 Deno.serve(async (request) => {
   if (request.method !== "POST") return new Response(null, { status: 405 });
   if (workerSecret.length < 32 || !safeEqual(request.headers.get("x-worker-secret") ?? "", workerSecret)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   if (!workerEnabled() || !processor) return Response.json({ error: "processor_disabled" }, { status: 503 });
+  EdgeRuntime.waitUntil(refreshProviderAudits().catch(() => console.error("provider-audit-failed")));
+  EdgeRuntime.waitUntil(Promise.resolve(admin!.from("mv_ai_audit_state").update({ last_worker_request_at: new Date().toISOString() }).eq("id", true)).then(({ error }) => {
+    if (error) console.error("video-worker-heartbeat-failed");
+  }));
   const task = processor.processNext().then(async (stage) => {
     if (stage === "image_ready" || stage === "validating" || stage === "queued" || stage === "completed") {
       const kick = fetch(`${supabaseUrl}/functions/v1/video-generation-worker`, {

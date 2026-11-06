@@ -1,5 +1,7 @@
 # Geração com recursos gratuitos
 
+> **Auditoria atual — 06/11/2026:** token Cloudflare Billing Read validado; falha real do cron corrigida e execução autenticada confirmada. Auditoria privada e horária das contas implantada. Magic Hour informou plano free e 500 créditos agregados; as franquias gratuitas de imagem/vídeo e o bloqueio de cobrança ainda precisam de comprovação. Nenhum vídeo real foi gerado. Estado completo e pendências em [AUDITORIA_IA.md](./AUDITORIA_IA.md); este registro prevalece sobre estados e versões históricos abaixo.
+
 Política solicitada pelo responsável e implementada em 06/11/2026. Este documento prevalece sobre os procedimentos anteriores de ativação de geração paga em `VIDEOS_IA.md` e `CONTINUAR_AMANHA.md`.
 
 ## Comportamento implementado

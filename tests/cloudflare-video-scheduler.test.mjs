@@ -27,6 +27,7 @@ test('marketplace cron invokes only the marketplace endpoint with its existing t
   assert.equal(captured.url, 'https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/marketplace');
   assert.equal(captured.init.headers['x-mv-job-token'], marketplaceSecret);
   assert.equal(captured.init.headers['x-worker-secret'], undefined);
+  assert.equal(captured.init.redirect, 'manual');
 });
 
 test('minute cron invokes only the authenticated video worker endpoint', async () => {
@@ -45,6 +46,21 @@ test('minute cron invokes only the authenticated video worker endpoint', async (
   assert.equal(captured.init.headers['x-worker-secret'], videoSecret);
   assert.equal(captured.init.headers['x-mv-job-token'], undefined);
   assert.equal(captured.init.body, '{}');
+  assert.equal(captured.init.redirect, 'manual');
+});
+
+test('scheduler refuses redirects without following or forwarding credentials', async () => {
+  let calls = 0;
+  globalThis.fetch = async (_url, init) => {
+    calls++;
+    assert.equal(init.redirect, 'manual');
+    return new Response(null, { status: 302, headers: { location: 'https://example.com' } });
+  };
+  try {
+    await assert.rejects(worker.scheduled({ cron: '* * * * *' }, env), /video_scheduler_http_302/);
+    await assert.rejects(worker.scheduled({ cron: '*/30 * * * *' }, env), /marketplace_scheduler_http_302/);
+    assert.equal(calls, 2);
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test('disabled video processor is reported without treating a no-op as a processed job', async () => {

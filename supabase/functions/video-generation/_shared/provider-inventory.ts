@@ -20,5 +20,7 @@ export function productionServiceInventory(has: (name: string) => boolean): Prod
     { id: "huggingface", name: "Hugging Face", stage: "unassigned", keys: ["HUGGINGFACE_API_KEY", "HUGGINGFACE_API_TOKEN", "HUGGINGFACE_TOKEN", "HUGGING_FACE_TOKEN", "HF_TOKEN"], integrated: false },
     { id: "modal", name: "Modal", stage: "unassigned", keys: ["MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"], integrated: false },
   ] as const;
-  return definitions.map(({ keys, ...service }) => ({ ...service, configured: keys.some(has) }));
+  return definitions.map(({ keys, ...service }) => ({ ...service, configured:
+    service.id === "modal" ? keys.every(has) :
+    service.id === "cloudflare-workers-ai" ? keys.some(has) && has("CLOUDFLARE_ACCOUNT_ID") : keys.some(has) }));
 }

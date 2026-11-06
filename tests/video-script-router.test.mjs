@@ -10,7 +10,11 @@ test('roteiro troca Gemini sem créditos por Groq automaticamente e informa prov
     calls.push(String(url));
     if(String(url).includes('googleapis')) return new Response('{}',{status:429});
     const body=JSON.parse(init.body);
-    assert.equal(body.model,'llama-3.3-70b-versatile');
+    assert.equal(body.model,'openai/gpt-oss-20b');
+    assert.equal(body.max_completion_tokens,512);
+    assert.equal(body.include_reasoning,false);
+    assert.equal(body.reasoning_effort,'low');
+    assert.equal(body.reasoning_format,undefined);
     assert.equal(init.headers.Authorization,'Bearer private-groq');
     return Response.json({choices:[{message:{content:'Conheça a blusa de linho e confira os detalhes.'}}]});
   }});
@@ -32,7 +36,7 @@ test('roteiro usa OpenRouter gratuito e depois sugestão local se todos falharem
 });
 
 test('handler permite fallback de roteiro com chave Groq e sem chave Gemini', async () => {
-  const handler=createVideoGenerationHandler({authenticate:async()=> 'user',geminiApiKey:()=>undefined,geminiScriptEnabled:()=>true,scriptProvidersConfigured:()=>true,videoJobsEnabled:()=>false,videoProcessorAvailable:()=>false,generateScript:async()=>{throw new Error('must not use Gemini')},generateScriptWithFallback:async()=>({script:'Roteiro via Groq com fatos informados.',provider:'groq',model:'llama-3.3-70b-versatile'})});
+  const handler=createVideoGenerationHandler({authenticate:async()=> 'user',geminiApiKey:()=>undefined,geminiScriptEnabled:()=>true,scriptProvidersConfigured:()=>true,videoJobsEnabled:()=>false,videoProcessorAvailable:()=>false,generateScript:async()=>{throw new Error('must not use Gemini')},generateScriptWithFallback:async()=>({script:'Roteiro via Groq com fatos informados.',provider:'groq',model:'openai/gpt-oss-20b'})});
   const response=await handler(new Request('https://example.test/video-generation',{method:'POST',headers:{Authorization:'Bearer user-session','Content-Type':'application/json'},body:JSON.stringify({action:'generate-script',configuration})}));
   assert.equal(response.status,200);
   assert.equal((await response.json()).provider,'groq');
