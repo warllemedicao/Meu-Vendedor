@@ -12,7 +12,7 @@ test('auditoria usa apenas GET e não persiste credenciais nem presume gratuidad
   assert.equal(options.method,'GET'); assert.equal(options.redirect,'error');
   return Response.json(url.includes('cloudflare')?{success:true,result:[{state:'active',rate_plan:{id:'workers_free',public_name:'Workers Free'},secret:'private-token'}]}:url.includes('magichour')?{tier:'free',credits:123,subscription:null,email:'private@example.com'}:{data:{is_free_tier:true,limit_remaining:0,secret:'private-token'}});
  });
- assert.equal(calls.length,3);
+ assert.equal(calls.length,4);
  assert.equal(reports.find(x=>x.provider_id==='magic-hour').report.total_credits,123);
  assert.ok(reports.every(x=>x.report.quota_verified===false));
  assert.ok(!JSON.stringify(reports).includes('private-token'));

@@ -24,8 +24,8 @@ export function IntegrationStatus({ integracoes }: { integracoes: IntegrationSta
       </ul>
       <p className="mt-4 text-xs text-muted">
         Gerencie suas conexões e confira os requisitos em{" "}
-        <Link href="/contas" className="font-medium text-primary underline underline-offset-2">
-          Contas Conectadas
+        <Link href="/entrar#lojas" className="font-medium text-primary underline underline-offset-2">
+          Conta e conexões
         </Link>
         .
       </p>

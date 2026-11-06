@@ -215,7 +215,7 @@ export function createMagicHourVideoProvider(
             end_seconds: request.durationSeconds,
             model,
             resolution,
-            audio: false,
+            audio: true,
             style: { prompt: request.prompt },
             assets: { image_file_path: item.file_path },
           }),

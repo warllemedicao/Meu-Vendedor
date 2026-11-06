@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Copy,
   Download,
-  ExternalLink,
   Film,
   ImagePlus,
   Library,
@@ -20,6 +19,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Card } from "@/components/ui/Card";
+import { ProductionServices, type ProductionServiceView } from "@/components/videos/ProductionServices";
 import { getSupabase } from "@/lib/supabase/client";
 import {
   createVideoPresenterAIReference,
@@ -65,7 +65,6 @@ import {
   type VoiceProfileId,
 } from "@/lib/video-studio";
 
-const FLOW_URL = "https://labs.google/fx/tools/flow";
 const LIBRARY_PREFIX = "mv-video-library-v2";
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const inputClass = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-soft disabled:opacity-50";
@@ -363,7 +362,8 @@ export function VideoStudio() {
   const [productionReadiness, setProductionReadiness] = useState<{ ready: boolean; imageReady: boolean; videoReady: boolean; checkedAt: string; message: string } | null>(null);
   const [capabilityRefresh, setCapabilityRefresh] = useState(0);
   const [checkingProduction, setCheckingProduction] = useState(false);
-  const [productionServices, setProductionServices] = useState<{ name: string; configured: boolean; integrated: boolean }[]>([]);
+  const [productionServices, setProductionServices] = useState<ProductionServiceView[]>([]);
+  const lastObservedJobs = useRef<{ userId: string; statuses: Map<string, string> } | null>(null);
   const [capabilityUserId, setCapabilityUserId] = useState<string | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
   const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null);
@@ -569,7 +569,14 @@ export function VideoStudio() {
       if (loadError) {
         setJobsError("Não foi possível carregar o histórico de tarefas. A migração local pode ainda não estar aplicada.");
       } else {
-        setJobs((data as VideoJobRow[] | null) ?? []);
+        const incoming = (data as VideoJobRow[] | null) ?? [];
+        const previous = lastObservedJobs.current;
+        if (previous?.userId === userId && incoming.some((job) => {
+          const old = previous.statuses.get(job.id);
+          return old && old !== job.status && ["completed", "failed", "cancelled"].includes(job.status);
+        })) setCapabilityRefresh((value) => value + 1);
+        lastObservedJobs.current = { userId, statuses: new Map(incoming.map((job) => [job.id, job.status])) };
+        setJobs(incoming);
         setJobsError("");
       }
       setJobsLoadedForUser(userId);
@@ -1226,7 +1233,7 @@ export function VideoStudio() {
                 </select>
               </label>
             </div>
-            <p className="mt-3 text-xs text-muted">Essas opções são instruções de briefing; não geram áudio nem garantem sincronização labial ou movimento real nesta etapa.</p>
+            <p className="mt-3 text-xs text-muted">Magic Hour gera áudio com a cena. Voz, fala em português e sincronização são orientadas pelo roteiro e precisam ser conferidas no resultado. Para 6 segundos, prefira uma frase de até 15 palavras. Outros provedores podem entregar vídeo sem áudio.</p>
           </Card>
 
           <Card titulo="Estilo e formato">
@@ -1289,7 +1296,7 @@ export function VideoStudio() {
         <aside className="space-y-5 xl:sticky xl:top-5">
           <div ref={previewRef}>
             <Card titulo="Pré-visualização estática">
-              <div className={`relative mx-auto w-full overflow-hidden rounded-2xl border border-border bg-surface-muted ${previewRatio}`}>
+              <div className={`relative mx-auto w-full max-w-[240px] overflow-hidden rounded-2xl border border-border bg-surface-muted ${previewRatio}`}>
                 {presenter.image ? (
                   <Image src={presenter.image} alt={`Prévia com ${presenter.name}`} fill sizes="380px" className="object-cover" />
                 ) : (
@@ -1336,12 +1343,14 @@ export function VideoStudio() {
             <button type="button" disabled={!queueAvailable || enqueueingJob || busy || !!validationError || durationSeconds !== 6 || (!product.imageStoragePath && !productImage) || presenter.referenceStatus !== "ready"} onClick={() => void enqueueVideoJob()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
               {enqueueingJob ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Preparando produção…</> : <><WandSparkles className="size-4" aria-hidden />{capabilityUserId === userId && productionReadiness && !productionReadiness.ready ? "Salvar pedido na fila" : "Gerar vídeo"}</>}
             </button>
+            {userId && capabilityUserId === userId && productionServices.length > 0 && <ProductionServices
+              services={productionServices}
+              refreshing={checkingProduction}
+              onRefresh={() => { setCheckingProduction(true); setCapabilityRefresh((value) => value + 1); }}
+            />}
+            <p className="mt-3 text-xs text-muted">Magic Hour LTX-2.5 · 480p · 6s: estimativa de 144 créditos, áudio incluído. O custo final é definido pelo fornecedor. O plano gratuito pode incluir marca d’água.</p>
             {!queueAvailable && <p className="mt-3 text-xs text-muted">{user ? "A geração ficará disponível quando os serviços de produção estiverem configurados." : "Entre na sua conta para gerar e guardar vídeos."}</p>}
             <p className="mt-3 text-xs leading-relaxed text-muted">Usa os créditos disponíveis nas contas e troca de serviço automaticamente quando possível. O fornecedor pode cobrar conforme o plano da conta. Se não houver opção disponível, o pedido aguarda preservando as etapas prontas.</p>
-            {capabilityUserId === userId && productionServices.length > 0 && <details className="mt-4 border-t border-border pt-3">
-              <summary className="cursor-pointer text-xs font-medium text-muted">Serviços de produção</summary>
-              <ul className="mt-3 space-y-2 text-xs">{productionServices.map((service) => <li key={service.name} className="flex justify-between gap-3"><span>{service.name}</span><span className="text-right text-muted">{!service.configured ? "Sem configuração" : service.integrated ? "Integrado · saldo não verificado" : "Credencial presente · integração pendente"}</span></li>)}</ul>
-            </details>}
             <details className="mt-4 border-t border-border pt-3">
               <summary className="cursor-pointer text-xs font-medium text-muted">Testar e exportar briefing</summary>
               <p className="mt-3 text-xs text-muted">A simulação salva um projeto sem produzir MP4 ou consumir créditos de IA.</p>
@@ -1349,7 +1358,6 @@ export function VideoStudio() {
                 {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Play className="size-4" aria-hidden />}Simular sem créditos
               </button>
               <p className="mt-2 text-xs text-muted">{statusLabels[status]}</p>
-              <a href={FLOW_URL} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-2 text-xs text-primary underline"><ExternalLink className="size-3" aria-hidden />Abrir Google Flow</a>
             </details>
           </Card>
 
@@ -1404,7 +1412,7 @@ export function VideoStudio() {
                 )}
                 {job.status === "completed" && job.result_object_path && jobResultUrls[job.id]?.userId === userId && jobResultUrls[job.id]?.url && (
                   <div className="w-full">
-                    <video controls preload="metadata" src={jobResultUrls[job.id].url} className="mt-2 w-full rounded-lg bg-black" aria-label="Resultado MP4 da tarefa" />
+                    <video controls playsInline preload="metadata" src={jobResultUrls[job.id].url} className="mx-auto mt-2 max-h-[min(60dvh,480px)] w-full max-w-[270px] rounded-lg bg-black object-contain" aria-label="Resultado MP4 da tarefa" />
                     <button type="button" disabled={downloadingJobId !== null} onClick={() => void downloadVideoJob(job.id)} className="mt-2 inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs disabled:opacity-50">
                       <Download className="size-3" aria-hidden />Baixar MP4
                     </button>
@@ -1472,7 +1480,7 @@ export function VideoStudio() {
                   </div>
                 </div>
                 {selectedRecordId === record.id && (record.resultUrl || selectedSignedResult?.url) && (
-                  <video controls preload="metadata" src={record.resultUrl || selectedSignedResult?.url} className="mt-3 w-full rounded-lg bg-black" aria-label={`Vídeo de ${record.product.name}`} />
+                  <video controls playsInline preload="metadata" src={record.resultUrl || selectedSignedResult?.url} className="mx-auto mt-3 max-h-[min(60dvh,480px)] w-full max-w-[270px] rounded-lg bg-black object-contain" aria-label={`Vídeo de ${record.product.name}`} />
                 )}
                 {expandedScriptId === record.id && <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-3 text-xs leading-relaxed">{record.script}</pre>}
                 <div className="mt-4 flex flex-wrap gap-2 text-xs">

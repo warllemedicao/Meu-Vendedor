@@ -57,10 +57,12 @@ test('roteiro tenta OpenRouter grátis antes de Groq e habilita a conta sem prov
 });
 
 test('Magic Hour aceita submissão com custo em USD desconhecido sem marcá-la como incerta',async()=>{
- const adapter=createMagicHourVideoProvider({apiKey:'test',creditUsd:null,freeOnly:false,commercialUseConfirmed:false,freeCreditsConfirmed:false,paidSpendAuthorized:true,fetcher:async(url)=>{
+ const adapter=createMagicHourVideoProvider({apiKey:'test',creditUsd:null,freeOnly:false,commercialUseConfirmed:false,freeCreditsConfirmed:false,paidSpendAuthorized:true,fetcher:async(url,init)=>{
   if(String(url).endsWith('/account'))return Response.json({tier:'free',credits:500});
   if(String(url).endsWith('/upload-urls'))return Response.json({items:[{upload_url:'https://videos.magichour.ai/api-assets/input.webp',file_path:'api-assets/input.webp'}]});
   if(String(url).startsWith('https://videos.magichour.ai'))return new Response('',{status:200});
+  const body=JSON.parse(init.body);
+  assert.equal(body.audio,true);assert.equal(body.resolution,'480p');assert.equal(body.model,'ltx-2.5');assert.equal(body.end_seconds,6);
   return Response.json({id:'accepted',credits_charged:144});
  }});
  const state=router([adapter]);

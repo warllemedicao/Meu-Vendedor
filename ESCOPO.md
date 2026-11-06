@@ -1,5 +1,7 @@
 # Escopo do produto e das páginas — Meu Vendedor
 
+> **Conta e estratégia Google — 06/11/2026:** acesso e lojas centralizados em `/entrar`; fluxo OAuth Google implementado, mas provedor remoto ainda desabilitado e dependente de Client ID/Secret. Links externos do Flow removidos do estúdio. Nova direção: geração via navegador no servidor e publicação integrada, ainda não implantadas. Estado vigente e ativação em [CONTA_E_ESTRATEGIA_GOOGLE.md](./CONTA_E_ESTRATEGIA_GOOGLE.md).
+
 Definição confirmada pelo responsável em 04/11/2026 e estado técnico revisado em 06/11/2026. Documento de produto; funcionalidades futuras não devem ser apresentadas como implementadas. Os planos antigos são mantidos como histórico, mas o quadro abaixo representa a situação atual.
 
 Atualização do catálogo: o responsável acrescentou SHEIN e AliExpress à pesquisa e à página inicial de produtos. A rota `/` agora tem catálogo no código, sem redirecionamento ao dashboard. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram implementadas na função `catalog`, condicionadas à publicação/configuração por usuário e validação real; Magalu/SHEIN ainda sem contrato de afiliados confirmado. O CRUD de links continua com as cinco plataformas originais. Situação atual em `CATALOGO_APIS.md`; a tabela e os planos antigos abaixo preservam o escopo anterior.

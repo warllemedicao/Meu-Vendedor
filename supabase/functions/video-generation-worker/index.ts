@@ -371,7 +371,7 @@ const processor = admin ? createVideoProcessor({
     if (error || !data?.signedUrl) throw new Error("video_intermediate_signing_failed");
     const request = job.request_data;
     const product = request.product;
-    const presenter = request.presenterId === "ana" ? "Ana" : "Lucas";
+    const presenter = ({ ana: "Ana", lucas: "Lucas", carla: "Carla", rafael: "Rafael" } as Record<string, string>)[String(request.presenterId)] ?? "Apresentador da referência";
     if (!isRecord(product)) throw new Error("video_product_missing");
     const prompt = [
       "Gere exatamente um vídeo de 6 segundos em formato vertical 9:16, animando a imagem de referência.",
@@ -379,7 +379,12 @@ const processor = admin ? createVideoProcessor({
       `Ação: apresentar visualmente o produto "${String(product.name)}" com gestos suaves, contato visual e movimento de câmera sutil.`,
       "Preserve a identidade visual do personagem, a aparência do produto e a composição da imagem inicial.",
       "Não acrescente texto, preço, logotipo, pessoas adicionais ou afirmações visuais não sustentadas.",
-      `Roteiro apenas como contexto visual: ${String(request.script ?? "").slice(0, 1500)}`,
+      "Gere áudio audível em português do Brasil, com fala clara em primeiro plano, sem música sobre a voz.",
+      request.narrationMode === "character-speech"
+        ? "O personagem fala o roteiro olhando para a câmera, com movimentos labiais sincronizados."
+        : "Use narração externa em português do Brasil; o personagem apresenta o produto sem falar.",
+      `Direção de voz: ${String(request.voiceGender ?? "natural")}, perfil ${String(request.voiceProfileId ?? "natural")}, emoção ${String(request.emotionalToneId ?? "natural")}.`,
+      `Fale somente o roteiro aprovado, sem ler instruções: ${String(request.script ?? "").slice(0, 800)}`,
     ].join("\n");
     return {
       image: image.bytes,

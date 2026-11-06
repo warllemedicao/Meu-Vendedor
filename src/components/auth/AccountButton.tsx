@@ -19,7 +19,7 @@ export function AccountButton() {
   }
   if (loading) return <span className="text-xs text-muted" role="status">Carregando conta…</span>;
   return <div className="flex items-center gap-2 text-sm">
-    {user ? <><span className="hidden max-w-36 truncate text-muted sm:block">{user.email}</span><button type="button" disabled={busy} onClick={logout} className="rounded-lg border border-border px-3 py-2 disabled:opacity-50">{busy ? "Saindo…" : "Sair"}</button></> : <Link href="/entrar" className="rounded-lg bg-primary px-3 py-2 font-medium text-background">Entrar</Link>}
+    {user ? <><Link href="/entrar" className="rounded-lg border border-border px-3 py-2">Minha conta</Link><button type="button" disabled={busy} onClick={logout} className="rounded-lg border border-border px-3 py-2 disabled:opacity-50">{busy ? "Saindo…" : "Sair"}</button></> : <Link href="/entrar" className="rounded-lg bg-primary px-3 py-2 font-medium text-background">Entrar</Link>}
     {error && <span role="alert" className="max-w-40 text-xs text-danger">{error}</span>}
   </div>;
 }

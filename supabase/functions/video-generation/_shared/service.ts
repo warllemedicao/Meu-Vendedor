@@ -31,7 +31,7 @@ export interface VideoGenerationDependencies {
   videoJobsEnabled(): boolean;
   videoProcessorAvailable(): boolean;
   videoProviders?(): readonly { id: string; model: string; configured: boolean }[];
-  productionServices?(): readonly import("./provider-inventory.ts").ProductionService[];
+  productionServices?(): readonly import("./provider-inventory.ts").ProductionService[] | Promise<readonly import("./provider-inventory.ts").ProductionService[]>;
   generateScript(input: GeminiScriptInput, apiKey: string): Promise<string>;
   generateScriptWithFallback?(input: GeminiScriptInput): Promise<{ script: string; provider: string; model: string }>;
   scriptProvidersConfigured?(): boolean;
@@ -300,7 +300,7 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
           enabled: dependencies.videoJobsEnabled(),
           processorAvailable: dependencies.videoProcessorAvailable(),
         },
-        services: dependencies.productionServices?.() ?? [],
+        services: await dependencies.productionServices?.() ?? [],
       }, 200, cors);
     }
 

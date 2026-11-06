@@ -1,5 +1,7 @@
 # Integrações — Meu Vendedor
 
+> **Conta e estratégia Google — 06/11/2026:** acesso e lojas centralizados em `/entrar`; fluxo OAuth Google implementado, mas provedor remoto ainda desabilitado e dependente de Client ID/Secret. Links externos do Flow removidos do estúdio. Nova direção: geração via navegador no servidor e publicação integrada, ainda não implantadas. Estado vigente e ativação em [CONTA_E_ESTRATEGIA_GOOGLE.md](./CONTA_E_ESTRATEGIA_GOOGLE.md).
+
 Etapa 2: preparação visual e contratos TypeScript. Referências consultadas em **04/11/2026**; estado técnico revisado em **06/11/2026**.
 O conector Shopee para ofertas e links foi implementado; sua ativação por conta exige credenciais reais validadas pela API. Foram adicionadas consultas de catálogo Amazon, Mercado Livre, TikTok Shop e AliExpress, ainda sem teste de sucesso com credenciais reais. Magalu/SHEIN continuam sem contrato de catálogo de afiliados confirmado. Detalhes atuais em `CONECTORES.md` e `CATALOGO_APIS.md`; as seções da Etapa 2 abaixo preservam o histórico.
 A existência de uma API na plataforma não significa que esteja liberada para este projeto. O pipeline de vídeo assíncrono também está implementado, mas não houve validação comercial real de provedores; estado e pendências em `VIDEOS_IA.md`.

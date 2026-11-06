@@ -1,5 +1,11 @@
 # Política vigente — créditos das contas
 
+> **Conta e estratégia Google — 06/11/2026:** acesso e lojas centralizados em `/entrar`; fluxo OAuth Google implementado, mas provedor remoto ainda desabilitado e dependente de Client ID/Secret. Links externos do Flow removidos do estúdio. Nova direção: geração via navegador no servidor e publicação integrada, ainda não implantadas. Estado vigente e ativação em [CONTA_E_ESTRATEGIA_GOOGLE.md](./CONTA_E_ESTRATEGIA_GOOGLE.md).
+
+> **Saldos e Google Flow — 06/11/2026:** painel aberto abaixo de Gerar vídeo com consultas oficiais e unidades distintas. Auditoria: Magic Hour 456, Runway API 0, OpenRouter US$ 0 disponível; demais saldos não verificados. Assinatura Plus do Flow não foi conectada à API. Pesquisa, limites e caminho de integração em [SALDOS_E_GOOGLE_FLOW.md](./SALDOS_E_GOOGLE_FLOW.md).
+
+> **Primeiro vídeo confirmado e ajustes — 06/11/2026:** responsável confirmou geração com Carla/produto; banco registra uma tarefa concluída. Correções de áudio, player e saldo Magic Hour em [MAGIC_HOUR_AJUSTES.md](./MAGIC_HOUR_AJUSTES.md). Este registro substitui afirmações históricas de ausência de geração real. A fala após a correção ainda precisa ser conferida em um novo resultado.
+
 Atualização de 06/11/2026 solicitada explicitamente pelo responsável: remover o bloqueio de tentativas pagas e permitir usar os créditos das ferramentas com troca automática. Este documento substitui a antiga exigência `free-only` e as instruções históricas de liberação manual de cotas.
 
 ## Comportamento ativo

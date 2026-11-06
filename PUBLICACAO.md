@@ -1,5 +1,7 @@
 # Publicações — Meu Vendedor
 
+> **Conta e estratégia Google — 06/11/2026:** acesso e lojas centralizados em `/entrar`; fluxo OAuth Google implementado, mas provedor remoto ainda desabilitado e dependente de Client ID/Secret. Links externos do Flow removidos do estúdio. Nova direção: geração via navegador no servidor e publicação integrada, ainda não implantadas. Estado vigente e ativação em [CONTA_E_ESTRATEGIA_GOOGLE.md](./CONTA_E_ESTRATEGIA_GOOGLE.md).
+
 > **Política vigente — créditos da conta, 06/11/2026:** por solicitação explícita do responsável, o runtime não exige comprovação prévia de gratuidade, orçamento local em USD ou ativação de cotas administrativas para tentar as APIs integradas. Usa saldo quando consultável e permite tentativa quando ele é desconhecido, com fallback e espera automática. O fornecedor pode cobrar conforme o plano da conta. Estado e instruções em [CREDITOS_DA_CONTA.md](./CREDITOS_DA_CONTA.md). Este registro substitui as políticas free-only e os bloqueios históricos abaixo.
 
 > **Teste no app — 06/11/2026:** diagnóstico autenticado de cotas de imagem/vídeo adicionado ao estúdio, com atualização sem inferência. Sem cota elegível, o botão informa “Salvar pedido na fila”; não indica geração imediata. Nenhuma geração real foi enviada nesta revisão, nenhum teste de API foi concluído e nenhuma cota foi ativada. Guia e impedimentos atuais em [TESTE_NO_APP.md](./TESTE_NO_APP.md). Este registro prevalece sobre instruções históricas abaixo.
@@ -132,3 +134,7 @@ Limites: não houve teste visual em navegador nesta execução. A entrega de e-m
 ## Validação desta revisão — 06/11/2026
 
 89 testes aprovados, lint e typecheck Edge aprovados. Typecheck frontend aprovado e repetido pelo build estático; exportação das 17 rotas concluída. O sandbox retornou saída vazia na captura do subprocesso TypeScript (`--showConfig`); o mesmo build fora do sandbox passou, sem alteração no código Next.js. A migração local usa a versão `20261106020118`, igual ao histórico criado pelo Supabase MCP.
+
+## Conta e conexões — publicação de 06/11/2026
+
+Frontend Cloudflare `8fb00466-9e35-42a4-902b-cbeffc02e56b`; backend Supabase `video-generation` v31 e `video-generation-worker` v15. 139 testes, lint, TypeScript frontend/Edge e build de 17 rotas aprovados. Central em `/entrar`, lojas recolhidas e rota antiga preservada por encaminhamento. OAuth Google preparado/testado de forma simulada; provedor remoto confirmado desabilitado. Ativação exige Client ID/Secret Google no painel Auth. Flow remoto e publicação social são estratégia documentada, não funcionalidades implantadas. Detalhes em [CONTA_E_ESTRATEGIA_GOOGLE.md](./CONTA_E_ESTRATEGIA_GOOGLE.md).

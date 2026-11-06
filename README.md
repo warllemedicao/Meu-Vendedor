@@ -1,5 +1,11 @@
 # Meu Vendedor — Viral Commerce AI
 
+> **Conta e estratégia Google — 06/11/2026:** acesso e lojas centralizados em `/entrar`; fluxo OAuth Google implementado, mas provedor remoto ainda desabilitado e dependente de Client ID/Secret. Links externos do Flow removidos do estúdio. Nova direção: geração via navegador no servidor e publicação integrada, ainda não implantadas. Estado vigente e ativação em [CONTA_E_ESTRATEGIA_GOOGLE.md](./CONTA_E_ESTRATEGIA_GOOGLE.md).
+
+> **Saldos e Google Flow — 06/11/2026:** painel aberto abaixo de Gerar vídeo com consultas oficiais e unidades distintas. Auditoria: Magic Hour 456, Runway API 0, OpenRouter US$ 0 disponível; demais saldos não verificados. Assinatura Plus do Flow não foi conectada à API. Pesquisa, limites e caminho de integração em [SALDOS_E_GOOGLE_FLOW.md](./SALDOS_E_GOOGLE_FLOW.md).
+
+> **Primeiro vídeo confirmado e ajustes — 06/11/2026:** responsável confirmou geração com Carla/produto; banco registra uma tarefa concluída. Correções de áudio, player e saldo Magic Hour em [MAGIC_HOUR_AJUSTES.md](./MAGIC_HOUR_AJUSTES.md). Este registro substitui afirmações históricas de ausência de geração real. A fala após a correção ainda precisa ser conferida em um novo resultado.
+
 > **Política vigente — créditos da conta, 06/11/2026:** por solicitação explícita do responsável, o runtime não exige comprovação prévia de gratuidade, orçamento local em USD ou ativação de cotas administrativas para tentar as APIs integradas. Usa saldo quando consultável e permite tentativa quando ele é desconhecido, com fallback e espera automática. O fornecedor pode cobrar conforme o plano da conta. Estado e instruções em [CREDITOS_DA_CONTA.md](./CREDITOS_DA_CONTA.md). Este registro substitui as políticas free-only e os bloqueios históricos abaixo.
 
 > **Teste no app — 06/11/2026:** diagnóstico autenticado de cotas de imagem/vídeo adicionado ao estúdio, com atualização sem inferência. Sem cota elegível, o botão informa “Salvar pedido na fila”; não indica geração imediata. Nenhuma geração real foi enviada nesta revisão, nenhum teste de API foi concluído e nenhuma cota foi ativada. Guia e impedimentos atuais em [TESTE_NO_APP.md](./TESTE_NO_APP.md). Este registro prevalece sobre instruções históricas abaixo.

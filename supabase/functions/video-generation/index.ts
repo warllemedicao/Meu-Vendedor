@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
-import { productionServiceInventory } from "./_shared/provider-inventory.ts";
+import { productionServicesWithBalance } from "./_shared/provider-inventory.ts";
 import { routeAdvertisingScript } from "./_shared/script-router.ts";
 import { accountCreditReadiness } from "./_shared/production-readiness.ts";
 import {
@@ -97,7 +97,7 @@ Deno.serve(createVideoGenerationHandler({
   videoJobsEnabled: processorAvailable,
   videoProcessorAvailable: processorAvailable,
   videoProviders: configuredProviders,
-  productionServices: () => productionServiceInventory((name) => Boolean(Deno.env.get(name))),
+  productionServices: () => productionServicesWithBalance((name) => Deno.env.get(name)),
   generateScript: (input, apiKey) => requestGeminiScript(input, apiKey),
   enqueueJob: async (userId, projectId, idempotencyKey, requestData) => {
     if (!admin) throw new VideoJobError(503, "job_queue_unavailable", "A persistência da fila não está configurada.");

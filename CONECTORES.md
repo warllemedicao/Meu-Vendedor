@@ -1,5 +1,7 @@
 # Conexões e sincronização de marketplaces
 
+> **Conta e estratégia Google — 06/11/2026:** acesso e lojas centralizados em `/entrar`; fluxo OAuth Google implementado, mas provedor remoto ainda desabilitado e dependente de Client ID/Secret. Links externos do Flow removidos do estúdio. Nova direção: geração via navegador no servidor e publicação integrada, ainda não implantadas. Estado vigente e ativação em [CONTA_E_ESTRATEGIA_GOOGLE.md](./CONTA_E_ESTRATEGIA_GOOGLE.md).
+
 > **Revisão autenticada — 06/11/2026:** O responsável informou acesso à Shopee. A consulta autenticada ao Supabase não encontrou conexões nem produtos sincronizados; a função marketplace está ACTIVE v19. É necessário cadastrar App ID/Secret aprovados em Contas Conectadas e validar a sincronização. A vitrine pública usa configuração própria e continua sem fonte. Veja [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Este bloco prevalece sobre os registros anteriores de falta de acesso ou versões históricas abaixo.
 
 ## Entrega atual

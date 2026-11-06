@@ -11,7 +11,7 @@ const inputClass = "mt-1 w-full rounded-lg border border-border bg-background px
 export function AffiliateLinks() {
   const { user, loading: authLoading, configured } = useAuth();
   if(authLoading)return <p role="status">Carregando sua conta…</p>;
-  if(!configured)return <div className="rounded-xl border border-border bg-accent-soft p-5"><p className="font-semibold">Seus links em um só lugar</p><p className="mt-2 text-sm">O armazenamento da sua conta ainda está em preparação nesta publicação. O catálogo das plataformas já pode ser consultado.</p><Link href="/contas" className="mt-3 inline-block text-primary underline">Ver plataformas</Link></div>;
+  if(!configured)return <div className="rounded-xl border border-border bg-accent-soft p-5"><p className="font-semibold">Seus links em um só lugar</p><p className="mt-2 text-sm">O armazenamento da sua conta ainda está em preparação nesta publicação. O catálogo das plataformas já pode ser consultado.</p><Link href="/entrar#lojas" className="mt-3 inline-block text-primary underline">Ver plataformas</Link></div>;
   if(!user)return <div className="rounded-xl border border-border bg-surface p-5"><p>Entre ou crie sua conta para guardar e organizar seus links.</p><Link href="/entrar" className="mt-3 inline-block rounded-lg bg-primary px-4 py-2 text-background">Entrar ou criar conta</Link></div>;
   return <UserLinks key={user.id} userId={user.id}/>;
 }

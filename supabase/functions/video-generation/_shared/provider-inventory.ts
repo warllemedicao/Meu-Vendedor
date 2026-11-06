@@ -1,9 +1,73 @@
+import { auditProviders } from "./provider-audit.ts";
+
 export interface ProductionService {
   id: string;
   name: string;
   stage: "script" | "image" | "video" | "audio" | "unassigned";
   configured: boolean;
   integrated: boolean;
+  balanceCredits?: number | null;
+  balanceCheckedAt?: string;
+  balanceUnit?: "credits" | "USD";
+  balanceScope?: "account" | "key-limit";
+  balanceStatus?: "verified" | "unsupported" | "unavailable" | "permission_missing" | "invalid_credentials" | "not_configured";
+  balanceMessage?: string;
+  balanceUrl?: string;
+}
+
+// Apenas contas/catálogos oficiais; nenhuma inferência ou resposta bruta no navegador.
+export async function productionServicesWithBalance(
+  env: (name: string) => string | undefined,
+  fetcher: typeof fetch = fetch,
+): Promise<ProductionService[]> {
+  const services = productionServiceInventory((name) => Boolean(env(name)));
+  const reports = await auditProviders(env, fetcher);
+  const dashboards: Record<string, [string, string]> = {
+    "google-gemini": ["Saldo da API no AI Studio; assinatura do Flow é separada.", "https://aistudio.google.com/billing"],
+    "cloudflare-workers-ai": ["Uso e franquia de Workers AI no painel; saldo não informado nesta consulta.", "https://dash.cloudflare.com/"],
+    "magic-hour": ["Saldo não informado pela API.", "https://magichour.ai/"],
+    "replicate": ["Endpoint de conta não informa saldo. Consulte o faturamento.", "https://replicate.com/account/billing"],
+    "runway": ["Saldo da API não informado. Créditos do site são separados.", "https://dev.runwayml.com/"],
+    "groq": ["Saldo não disponível na API consultada. Limites e uso no painel.", "https://console.groq.com/settings/billing"],
+    "openrouter": ["Saldo da conta exige chave de gerenciamento; limite da chave pode ser consultado.", "https://openrouter.ai/settings/credits"],
+    "huggingface": ["Identidade não informa saldo. Consulte o painel de faturamento.", "https://huggingface.co/settings/billing"],
+    "modal": ["Relatórios de consumo via SDK ainda não integrados; consulte o painel.", "https://modal.com/"],
+    "kaggle": ["Cota de GPU/TPU no painel de notebooks; não é saldo de API de vídeo.", "https://www.kaggle.com/code"],
+  };
+  for (const service of services) {
+    const audit = reports.find((item) => item.provider_id === service.id);
+    [service.balanceMessage, service.balanceUrl] = dashboards[service.id];
+    service.balanceCredits = null;
+    service.balanceStatus = !service.configured ? "not_configured" : "unsupported";
+    if (!service.configured) { service.balanceMessage = "Credencial não configurada."; continue; }
+    if (!audit) continue;
+    if (["invalid_credentials", "permission_missing", "unavailable"].includes(audit.status)) {
+      service.balanceStatus = audit.status as ProductionService["balanceStatus"];
+      service.balanceMessage = audit.status === "invalid_credentials" ? "Credencial recusada ao consultar a conta."
+        : audit.status === "permission_missing" ? "A credencial não tem permissão para consultar esta informação."
+        : "Consulta indisponível agora. Tente atualizar.";
+      continue;
+    }
+    if (audit.status === "checked") service.balanceCheckedAt = audit.checked_at;
+    const wallet = service.id === "openrouter" ? reports.find((item) => item.provider_id === "openrouter-balance" && item.status === "checked") : null;
+    const total = wallet?.report.total_credits;
+    const used = wallet?.report.total_usage;
+    const hasWallet = typeof total === "number" && typeof used === "number";
+    const value = hasWallet ? Math.max(0, total - used)
+      : service.id === "magic-hour" ? audit.report.total_credits
+      : service.id === "runway" ? audit.report.credit_balance
+      : service.id === "openrouter" ? audit.report.limit_remaining : null;
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+      service.balanceCredits = value;
+      service.balanceUnit = service.id === "openrouter" ? "USD" : "credits";
+      service.balanceScope = service.id === "openrouter" && !hasWallet ? "key-limit" : "account";
+      service.balanceStatus = "verified";
+      service.balanceMessage = service.id === "openrouter" ? hasWallet ? "Saldo da conta em dólares; limite da chave pode ser menor." : "Limite restante da chave; não representa saldo total da conta."
+        : service.id === "runway" ? "Créditos do projeto de API; integração de vídeo pendente."
+        : "Créditos informados pela API da conta.";
+    }
+  }
+  return services;
 }
 
 // Presença de credencial não equivale a saldo, licença ou adaptador implementado.

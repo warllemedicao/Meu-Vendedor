@@ -24,7 +24,9 @@ export async function auditProviders(
       reason: "subscription_does_not_prove_remaining_workers_ai_units_or_model_license",
     }) },
     { id: "magic-hour", token: key("MAGIC_HOUR_API_KEY"), url: "https://api.magichour.ai/v1/account", summarize: (body: Record<string, unknown>) => ({ tier: short(body.tier), total_credits: amount(body.credits), subscription_active: record(body.subscription).status === "active", quota_verified: false, reason: "balance_mixes_purchased_and_subscription_credits" }) },
-    { id: "openrouter", token: key("OPENROUTER_API_KEY"), url: "https://openrouter.ai/api/v1/key", summarize: (body: Record<string, unknown>) => ({ is_free_tier: record(body.data).is_free_tier === true, limit_remaining: amount(record(body.data).limit_remaining), quota_verified: false, reason: "use_only_zero_price_routing_model" }) },
+    { id: "openrouter", token: key("OPENROUTER_API_KEY"), url: "https://openrouter.ai/api/v1/key", summarize: (body: Record<string, unknown>) => ({ is_free_tier: record(body.data).is_free_tier === true, limit_remaining: amount(record(body.data).limit_remaining), quota_verified: false, reason: "key_limit_is_not_account_balance" }) },
+    { id: "openrouter-balance", token: key("OPENROUTER_API_KEY"), url: "https://openrouter.ai/api/v1/credits", summarize: (body: Record<string, unknown>) => ({ total_credits: amount(record(body.data).total_credits), total_usage: amount(record(body.data).total_usage), quota_verified: false, reason: "management_key_required_for_account_balance" }) },
+    { id: "runway", token: key("RUNWAYML_API_SECRET", "RUNWAY_API_KEY"), url: "https://api.dev.runwayml.com/v1/organization", summarize: (body: Record<string, unknown>) => ({ credit_balance: amount(body.creditBalance), quota_verified: false, reason: "api_project_balance_not_web_subscription" }) },
     { id: "groq", token: key("GROQ_API_KEY"), url: "https://api.groq.com/openai/v1/models", summarize: (body: Record<string, unknown>) => ({ configured_model_available: Array.isArray(body.data) && body.data.some((item) => record(item).id === GROQ_SCRIPT_MODEL), available_models: Array.isArray(body.data) ? body.data.map((item) => short(record(item).id)).filter((id) => id && /^[a-zA-Z0-9/_.-]+$/.test(id)).slice(0, 25) : [], quota_verified: false, reason: "model_catalog_does_not_prove_billing_tier" }) },
     { id: "google-gemini", token: key("GEMINI_API_KEY", "GOOGLE_API_KEY"), url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash", google: true, summarize: (body: Record<string, unknown>) => ({ model: short(body.name), quota_verified: false, reason: "model_catalog_does_not_prove_billing_tier" }) },
     { id: "replicate", token: key("REPLICATE_API_TOKEN"), url: "https://api.replicate.com/v1/account", summarize: (body: Record<string, unknown>) => ({ account_type: short(body.type), quota_verified: false, reason: "account_endpoint_has_no_free_credit_balance" }) },
@@ -35,6 +37,7 @@ export async function auditProviders(
     if (!definition.token || !definition.url) return { ...base, status: "not_configured", report: { quota_verified: false, reason: definition.id === "cloudflare-workers-ai" ? "billing_token_or_account_missing" : "credential_missing" } };
     try {
       const headers: Record<string, string> = definition.google ? { "x-goog-api-key": definition.token } : { Authorization: `Bearer ${definition.token}` };
+      if (definition.id === "runway") headers["X-Runway-Version"] = "2024-11-06";
       const response = await fetcher(definition.url, { method: "GET", headers, redirect: "error", signal: AbortSignal.timeout(10_000) });
       if (!response.ok) {
         await response.body?.cancel();
@@ -61,7 +64,6 @@ export async function auditProviders(
     }
   }));
   for (const [id, configured] of [
-    ["runway", Boolean(key("RUNWAYML_API_SECRET", "RUNWAY_API_KEY"))],
     ["modal", Boolean(key("MODAL_TOKEN_ID") && key("MODAL_TOKEN_SECRET"))],
     ["kaggle", Boolean(key("KAGGLE_API_TOKEN"))],
   ] as const) reports.push({ provider_id: id, checked_at: new Date().toISOString(), status: configured ? "no_inference_endpoint" : "not_configured", report: { quota_verified: false, reason: "video_adapter_not_implemented" } });
