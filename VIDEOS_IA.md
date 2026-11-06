@@ -38,6 +38,7 @@ As referências pendentes são exatamente `public/presenters/carla.webp` e `publ
 
 - `/videos` respondeu HTTP 200 e os bundles publicados contêm a URL e a chave pública Supabase do projeto, além do rótulo de provedor. Nenhuma chave `service_role` foi fornecida ao build.
 - A API do Cloudflare confirmou os dois crons remotos. A implantação preservou `MV_SYNC_JOB_TOKEN`; os únicos nomes adicionados ao Worker foram `MV_VIDEO_WORKER_SECRET` e `MV_SUPABASE_PUBLISHABLE_KEY`.
+- O primeiro evento agendado não apareceu no curto período de observação após a publicação. A configuração está confirmada remotamente, mas a execução periódica deve ser revalidada depois da propagação, que pode levar até 15 minutos.
 - `video-generation-worker` está ACTIVE na versão 3 com JWT do gateway desativado; a autenticação manual foi testada nos dois casos acima. `video-generation` permanece com JWT obrigatório.
 - Testes locais confirmam claim/leases, retomada, storage privado, fallback e bloqueio por orçamento. A fila não foi acionada remotamente durante esses testes.
 - A consulta de assinatura da conta Cloudflare retornou 403 por falta de permissão de leitura; nenhum plano foi alterado. A frequência de um minuto é suportada por Cron Triggers; consulte `CLOUDFLARE.md` para limites documentados e a ressalva sobre o plano específico da conta.
