@@ -1,5 +1,7 @@
 # ARQUITETURA — Meu Vendedor (Viral Commerce AI)
 
+> **Revisão autenticada — 06/11/2026:** Revalidação autenticada do Supabase concluída: 15 tabelas com RLS, seis migrações e cinco funções ativas. Oito índices de chaves estrangeiras adicionados e verificados. Acesso Shopee informado pelo responsável, mas sem credencial cadastrada/validada; catálogo público retorna `catalog_not_configured`. Geração real e integrações externas continuam dependentes de configuração. Estado vigente em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Este bloco prevalece sobre os registros anteriores de falta de acesso ou versões históricas abaixo.
+
 > Documento de referência principal para qualquer pessoa ou agente que trabalhe no projeto.
 > Atualize-o sempre que uma etapa for concluída ou uma decisão técnica mudar.
 

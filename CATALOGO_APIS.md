@@ -1,5 +1,7 @@
 # Catálogo inicial: ofertas e mais vendidos
 
+> **Revisão autenticada — 06/11/2026:** Supabase foi reconsultado com acesso autenticado: GET público de Shopee, Amazon e TikTok retorna 503/`catalog_not_configured`. Não há conexões nem produtos sincronizados no banco consultado. O responsável informou acesso à Shopee; falta cadastrar a credencial pela tela segura para uso privado ou configurar `MV_PUBLIC_CATALOG_CONFIG` para uso público permitido. As funções já estão ACTIVE; republicação sem credenciais não resolve a ausência de produtos. Este bloco prevalece sobre os registros anteriores de falta de acesso ou versões históricas abaixo.
+
 > Estado geral revisado em 06/11/2026: o Worker `meu-vendedor` está na versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`; esta é a implantação estática mais recente, não uma confirmação de configuração das fontes do catálogo. O último estado remoto registrado para `catalog-public` foi `catalog_not_configured` para as três fontes. O Supabase não pôde ser reconsultado nesta revisão, portanto essa condição é o último estado conhecido, não uma leitura atual. Testes controlados não comprovam acesso comercial real.
 
 ## Vitrine pública de três lojas — prioridade atual

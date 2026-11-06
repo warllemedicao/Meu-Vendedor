@@ -1,5 +1,7 @@
 # Gerador de vídeos IA — estado e implantação
 
+> **Revisão autenticada — 06/11/2026:** Supabase revalidado: `video-generation` ACTIVE v20 e `video-generation-worker` ACTIVE v3, migrações de vídeo confirmadas e fila vazia na consulta. Nenhum job ou geração criado. Flags/Secrets/saldos/licenças não foram consultados. GET sem sessão de `video-generation` retorna 401; GET do worker retorna 405 e não comprova habilitação do processador. O acesso comercial informado agora foi Shopee; não foram fornecidas credenciais/licenças dos provedores de vídeo. Estado atual em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Este bloco prevalece sobre os registros anteriores de falta de acesso ou versões históricas abaixo.
+
 ## Estado confirmado em 06/11/2026
 
 O Worker `meu-vendedor` está publicado na versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`. A API Cloudflare confirmou os crons de vídeo `* * * * *` e marketplace `*/30 * * * *`, e os nomes `MV_SYNC_JOB_TOKEN`, `MV_VIDEO_WORKER_SECRET` e `MV_SUPABASE_PUBLISHABLE_KEY` estão presentes no Worker (valores não foram lidos). `/videos` responde HTTP 200. A consulta de analytics de invocações agendadas retornou zero registros desde a publicação; a execução efetiva do cron, portanto, não está comprovada.

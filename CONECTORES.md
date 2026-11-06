@@ -1,5 +1,7 @@
 # Conexões e sincronização de marketplaces
 
+> **Revisão autenticada — 06/11/2026:** O responsável informou acesso à Shopee. A consulta autenticada ao Supabase não encontrou conexões nem produtos sincronizados; a função marketplace está ACTIVE v19. É necessário cadastrar App ID/Secret aprovados em Contas Conectadas e validar a sincronização. A vitrine pública usa configuração própria e continua sem fonte. Veja [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Este bloco prevalece sobre os registros anteriores de falta de acesso ou versões históricas abaixo.
+
 ## Entrega atual
 
 Revisão documental em 06/11/2026: o conector e suas limitações permanecem iguais. A publicação mais recente do Worker adicionou o agendador de vídeos sem alterar credenciais, contratos ou comportamento das integrações de marketplace. O cron de marketplace continua configurado a cada 30 minutos; sua execução comercial depende de conexões Shopee válidas.

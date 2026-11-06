@@ -1,5 +1,7 @@
 # Meu Vendedor — Viral Commerce AI
 
+> **Revisão autenticada — 06/11/2026:** Supabase conectado e revalidado nesta sessão: 15 tabelas com RLS, cinco funções ativas e seis migrações aplicadas. A nova migração corrige oito índices ausentes; advisor não aponta mais chaves estrangeiras sem índice. O catálogo real ainda retorna `catalog_not_configured`, inclusive Shopee. Cadastro/login e organização de links estão implementados; catálogo, e-mails e vídeos reais ainda têm dependências externas. Estado atual e instruções em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Este bloco prevalece sobre os registros anteriores de falta de acesso ou versões históricas abaixo.
+
 App web de gerenciamento de afiliados com **Shopee, TikTok, Mercado Livre, Amazon e Magazine Luiza**.
 O usuário acessa os portais oficiais das lojas para entrar ou conhecer a afiliação, e pode organizar seus links na sua conta do Meu Vendedor.
 

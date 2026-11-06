@@ -1,5 +1,7 @@
 # Publicações — Meu Vendedor
 
+> **Revisão autenticada — 06/11/2026:** Migração `20261106020118_foreign_key_indexes.sql` aplicada ao Supabase `jzchlrvxdaffnrgbvabv`, com oito índices confirmados por SQL e ausência do alerta `unindexed_foreign_keys` após aplicação. Nenhuma Edge Function ou frontend foi alterado nesta revisão; funções existentes continuam ativas. Credenciais comerciais não foram cadastradas. O catálogo público segue sem configuração; não declarar o produto integralmente operacional. Histórico abaixo preservado. Este bloco prevalece sobre os registros anteriores de falta de acesso ou versões históricas abaixo.
+
 ## Estado mais recente confirmado — 06/11/2026
 
 O Worker existente `meu-vendedor` está na versão `0f4bd14d-0c3d-48cd-88a9-734e5ce19736`, com 100% do tráfego conforme a listagem de deployments. A API confirmou os crons `* * * * *` (vídeos) e `*/30 * * * *` (marketplace); `/videos` responde HTTP 200. A consulta de invocações agendadas desde a publicação retornou zero registros, portanto a execução do cron ainda não está comprovada.
@@ -105,3 +107,7 @@ Frontend conectado publicado no mesmo Worker. Versão Cloudflare ativa: `31d1b45
 Validações locais: 6 testes, TypeScript, linter e build estático aprovados. Validações remotas de API: catálogo de cinco plataformas; bloqueio anônimo; login por senha de duas contas; perfil; CRUD do proprietário; bloqueio entre usuários; bloqueio de falsificação do proprietário e URLs inseguras; logout. As duas contas temporárias foram criadas já confirmadas sem enviar mensagens e removidas ao final. Nenhuma chave administrativa foi colocada no frontend ou Git.
 
 Limites: não houve teste visual em navegador nesta execução. A entrega de e-mails de confirmação e recuperação ainda precisa ser validada; SMTP próprio não foi configurado. A ligação de builds automáticos GitHub/Cloudflare permanece não confirmada pela API Workers Builds com a autorização atual. APIs das lojas não foram ativadas.
+
+## Validação desta revisão — 06/11/2026
+
+89 testes aprovados, lint e typecheck Edge aprovados. Typecheck frontend aprovado e repetido pelo build estático; exportação das 17 rotas concluída. O sandbox retornou saída vazia na captura do subprocesso TypeScript (`--showConfig`); o mesmo build fora do sandbox passou, sem alteração no código Next.js. A migração local usa a versão `20261106020118`, igual ao histórico criado pelo Supabase MCP.

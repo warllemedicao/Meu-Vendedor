@@ -1,5 +1,7 @@
 # Base Supabase — Meu Vendedor
 
+> **Revisão autenticada — 06/11/2026:** Acesso autenticado confirmado ao projeto `jzchlrvxdaffnrgbvabv`, ACTIVE_HEALTHY. Há 15 tabelas públicas com RLS habilitada e seis migrações aplicadas, incluindo `20261106020118_foreign_key_indexes.sql`: oito índices criados e verificados por SQL; advisor não aponta mais chaves estrangeiras sem índice. Cinco funções ACTIVE: marketplace v19, catalog v18, catalog-public v18, video-generation v20 e video-generation-worker v3. Saúde sem alertas. Proteção contra senhas vazadas continua desativada ([orientação](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)); cinco tabelas internas sem política são intencionais. Secrets/flags e configuração Auth não foram consultados nem alterados. HTTP público confirma `catalog_not_configured` nas três lojas e 401 nas funções privadas. Veja [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Este bloco prevalece sobre os registros anteriores de falta de acesso ou versões históricas abaixo.
+
 ## Estado desta implementação
 
 Projeto hospedado **meu-vendedor**, referência `jzchlrvxdaffnrgbvabv`. As migrações `20261104000100`, `20261104000200`, `20261105151156`, `20261105172000` e `20261105225000` constam como aplicadas nos registros anteriores. As tabelas privadas, incluindo fila/biblioteca de vídeos, foram projetadas com RLS.
@@ -96,3 +98,7 @@ Verificação em 05/11/2026:
 - Performance: seis chaves estrangeiras antigas continuam sem índice cobridor. Os índices novos de produto pai/origem da biblioteca ainda aparecem como não usados porque a tabela está vazia; não devem ser removidos apenas por esse resultado inicial.
 
 O changelog de 04/11/2026 informa que a Supabase CLI v3 passou a operar localmente por padrão e solicita confirmação para mudanças hospedadas. Os procedimentos deste repositório devem fixar a versão usada, consultar `--help` e indicar explicitamente o alvo remoto. [Breaking change da CLI v3](https://supabase.com/changelog/supabase-cli-v3).
+
+## Validação desta revisão — 06/11/2026
+
+89 testes aprovados, lint e typecheck Edge aprovados. Typecheck frontend aprovado e repetido pelo build estático; exportação das 17 rotas concluída. O sandbox retornou saída vazia na captura do subprocesso TypeScript (`--showConfig`); o mesmo build fora do sandbox passou, sem alteração no código Next.js. A migração local usa a versão `20261106020118`, igual ao histórico criado pelo Supabase MCP.

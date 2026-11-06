@@ -13,6 +13,16 @@ test('biblioteca de vídeos usa RLS, valida estados e isola versões por usuári
     for (const file of ['20261104000100_affiliate_base.sql', '20261104000200_marketplace_connections.sql', '20261105151156_video_generator.sql', '20261105172000_video_workflow.sql', '20261105225000_video_ai_processor.sql']) {
       await db.exec(await readFile(new URL('../supabase/migrations/' + file, import.meta.url), 'utf8'));
     }
+    const indexMigration = await readFile(new URL('../supabase/migrations/20261106020118_foreign_key_indexes.sql', import.meta.url), 'utf8');
+    await db.exec(indexMigration);
+    await db.exec(indexMigration); // Reaplicação não duplica índices nem altera dados.
+    const uncovered = await db.query(`select c.conname from pg_constraint c
+      where c.contype = 'f' and c.connamespace = 'public'::regnamespace
+      and not exists (select 1 from pg_index i where i.indrelid = c.conrelid
+        and i.indisvalid and i.indisready
+        and (i.indpred is null or pg_get_expr(i.indpred,i.indrelid) like '%IS NOT NULL%')
+        and (i.indkey::smallint[])[0:cardinality(c.conkey)-1] @> c.conkey)`);
+    assert.deepEqual(uncovered.rows, [], 'Toda chave estrangeira deve ter um índice cobridor');
     const bucketRows = await db.query("select id,public,file_size_limit from storage.buckets order by id");
     assert.deepEqual(bucketRows.rows, [
       { id: 'mv-video-assets', public: false, file_size_limit: 104857600 },
