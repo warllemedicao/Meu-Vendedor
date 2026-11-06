@@ -1,7 +1,9 @@
+import { allowsVideoProvider } from "../video-generation/_shared/generation-tools.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { imageCacheKey } from "../video-generation/_shared/image-cache.ts";
 import { productionServiceInventory } from "../video-generation/_shared/provider-inventory.ts";
 import { auditProviders } from "../video-generation/_shared/provider-audit.ts";
+import { createGoogleVideoProvider, googleVideoModel } from "../video-generation/_shared/providers/google-video.ts";
 import {
   AIProviderFailure,
   type AIProviderAdapter,
@@ -43,7 +45,7 @@ function workerEnabled(): boolean {
 }
 
 function configuredProviders(): ReadonlySet<string> {
-  return new Set(["cloudflare-workers-ai", "magic-hour", "replicate"]);
+  return new Set(["cloudflare-workers-ai", "magic-hour", "google-gemini", "replicate"]);
 }
 
 
@@ -86,6 +88,7 @@ function modelFor(providerId: string): string {
   if (providerId === "cloudflare-workers-ai") return "@cf/black-forest-labs/flux-2-dev";
   if (providerId === "magic-hour") return "ltx-2.5";
   if (providerId === "replicate") return "alibaba/happyhorse-1.0";
+  if (providerId === "google-gemini") return googleVideoModel;
   throw new Error("video_provider_unknown");
 }
 
@@ -193,9 +196,14 @@ function replicateClient() {
 }
 
 async function getVideoStatus(providerId: string, remoteJobId: string) {
+  if (providerId === "google-gemini") return googleVideoClient().status(remoteJobId);
   if (providerId === "magic-hour") return await magicHourClient().status(remoteJobId);
   if (providerId === "replicate") return await replicateClient().status(remoteJobId);
   throw new Error("video_provider_unknown");
+}
+
+function googleVideoClient() {
+  return createGoogleVideoProvider({ apiKey: Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GOOGLE_API_KEY") ?? "" });
 }
 
 const processor = admin ? createVideoProcessor({
@@ -335,6 +343,10 @@ const processor = admin ? createVideoProcessor({
         },
       });
     }
+    if ((Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY")) && !excludeProviders.has("google-gemini")) {
+      const google = googleVideoClient();
+      providers.push({ ...google, readiness: () => persistentReadiness("google-gemini", true, () => google.readiness()) });
+    }
     const replicateKey = Deno.env.get("REPLICATE_API_TOKEN") ?? "";
     if (replicateKey && configuredProviders().has("replicate") && !excludeProviders.has("replicate")) {
       const replicate = replicateClient();
@@ -362,7 +374,7 @@ const processor = admin ? createVideoProcessor({
         },
       });
     }
-    return providers;
+    return providers.filter((provider) => allowsVideoProvider(_job.request_data.generationTool, provider.capabilities.id));
   },
   async createVideoRequest(job, image) {
     if (!job.intermediate_image_path) throw new Error("video_intermediate_missing");
@@ -407,6 +419,7 @@ const processor = admin ? createVideoProcessor({
     }).cancel(remoteJobId);
   },
   async downloadVideo(providerId, url) {
+    if (providerId === "google-gemini") return googleVideoClient().download(url);
     if (providerId === "magic-hour") return await magicHourClient().download(url);
     if (providerId === "replicate") {
       return await replicateClient().download(url);

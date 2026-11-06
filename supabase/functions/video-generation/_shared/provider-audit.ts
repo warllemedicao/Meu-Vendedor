@@ -29,6 +29,7 @@ export async function auditProviders(
     { id: "runway", token: key("RUNWAYML_API_SECRET", "RUNWAY_API_KEY"), url: "https://api.dev.runwayml.com/v1/organization", summarize: (body: Record<string, unknown>) => ({ credit_balance: amount(body.creditBalance), quota_verified: false, reason: "api_project_balance_not_web_subscription" }) },
     { id: "groq", token: key("GROQ_API_KEY"), url: "https://api.groq.com/openai/v1/models", summarize: (body: Record<string, unknown>) => ({ configured_model_available: Array.isArray(body.data) && body.data.some((item) => record(item).id === GROQ_SCRIPT_MODEL), available_models: Array.isArray(body.data) ? body.data.map((item) => short(record(item).id)).filter((id) => id && /^[a-zA-Z0-9/_.-]+$/.test(id)).slice(0, 25) : [], quota_verified: false, reason: "model_catalog_does_not_prove_billing_tier" }) },
     { id: "google-gemini", token: key("GEMINI_API_KEY", "GOOGLE_API_KEY"), url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash", google: true, summarize: (body: Record<string, unknown>) => ({ model: short(body.name), quota_verified: false, reason: "model_catalog_does_not_prove_billing_tier" }) },
+    { id: "google-video", token: key("GEMINI_API_KEY", "GOOGLE_API_KEY"), url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-omni-1.2-flash", google: true, summarize: (body: Record<string, unknown>) => ({ model: short(body.name), quota_verified: false, reason: "api_project_not_flow_subscription" }) },
     { id: "replicate", token: key("REPLICATE_API_TOKEN"), url: "https://api.replicate.com/v1/account", summarize: (body: Record<string, unknown>) => ({ account_type: short(body.type), quota_verified: false, reason: "account_endpoint_has_no_free_credit_balance" }) },
     { id: "huggingface", token: key("HUGGINGFACE_API_KEY", "HUGGINGFACE_API_TOKEN", "HUGGINGFACE_TOKEN", "HUGGING_FACE_TOKEN", "HF_TOKEN"), url: "https://huggingface.co/api/whoami-v2", summarize: (body: Record<string, unknown>) => ({ is_pro: body.isPro === true, quota_verified: false, reason: "identity_does_not_prove_inference_credit_balance_or_adapter" }) },
   ];
@@ -67,6 +68,14 @@ export async function auditProviders(
     ["modal", Boolean(key("MODAL_TOKEN_ID") && key("MODAL_TOKEN_SECRET"))],
     ["kaggle", Boolean(key("KAGGLE_API_TOKEN"))],
   ] as const) reports.push({ provider_id: id, checked_at: new Date().toISOString(), status: configured ? "no_inference_endpoint" : "not_configured", report: { quota_verified: false, reason: "video_adapter_not_implemented" } });
+  const clientId = key("GOOGLE_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_ID", "SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID");
+  const clientSecret = key("GOOGLE_CLIENT_SECRET", "GOOGLE_OAUTH_CLIENT_SECRET", "SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET");
+  reports.push({ provider_id: "google-auth-config", checked_at: new Date().toISOString(), status: "checked", report: {
+    gemini_api_key_present: Boolean(key("GEMINI_API_KEY", "GOOGLE_API_KEY")),
+    oauth_client_id_present: Boolean(clientId), oauth_client_secret_present: Boolean(clientSecret),
+    oauth_client_id_format_valid: Boolean(clientId && /^[a-zA-Z0-9.-]+\.apps\.googleusercontent\.com$/.test(clientId)),
+    quota_verified: false, reason: "edge_secrets_do_not_enable_auth_provider",
+  } });
   return reports;
 }
 

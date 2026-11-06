@@ -1,3 +1,4 @@
+import { generationTools, videoTools } from "./generation-tools.ts";
 const allowedOrigins = new Set([
   "https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev",
   "http://localhost:3000",
@@ -102,6 +103,8 @@ function validString(value: unknown, maxLength: number): value is string {
 
 function validateGeminiScriptInput(value: unknown): GeminiScriptInput | null {
   if (!isRecord(value) || !isRecord(value.product)) return null;
+  const generationTool = value.generationTool ?? "auto";
+  if (!videoTools.some((tool) => tool.id === generationTool)) return null;
   const product = value.product;
   const templateIds = ["wearing-product", "presenting-product", "demonstrating-product"];
   const sceneTemplates: Record<string, string> = {
@@ -137,6 +140,8 @@ function validateGeminiScriptInput(value: unknown): GeminiScriptInput | null {
 
 function validateJobRequest(value: unknown, userId: string): Record<string, unknown> | null {
   if (!isRecord(value) || !isRecord(value.product)) return null;
+  const generationTool = value.generationTool ?? "auto";
+  if (!videoTools.some((tool) => tool.id === generationTool)) return null;
   const imagePath = value.product.imageStoragePath;
   const aiReferencePath = value.product.aiReferenceStoragePath;
   const presenterReferencePath = value.presenterReferenceStoragePath;
@@ -182,6 +187,7 @@ function validateJobRequest(value: unknown, userId: string): Record<string, unkn
     !validString(product.features, 1000) || !validString(clothingSize, 40)) return null;
 
   return {
+    generationTool,
     templateId: value.templateId,
     scenePresetId: value.scenePresetId,
     durationSeconds: value.durationSeconds,
@@ -292,6 +298,7 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
           ...(dependencies.productionReadiness ? { readiness: await dependencies.productionReadiness() } : {}),
           available: dependencies.videoProcessorAvailable(),
           providers: dependencies.videoProviders?.() ?? [],
+          tools: generationTools(dependencies.videoProviders?.() ?? []),
           reason: dependencies.videoProcessorAvailable()
             ? null
             : "A geração real exige credenciais e um processador configurado.",
@@ -352,6 +359,10 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
       if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey) ||
         (projectId !== null && !uuid(projectId)) || !jobRequest) {
         return response({ error: { code: "invalid_request", message: "A solicitação de geração não é válida." } }, 400, cors);
+      }
+      const tool = generationTools(dependencies.videoProviders?.() ?? []).find((entry) => entry.id === jobRequest.generationTool);
+      if (jobRequest.generationTool !== "auto" && !tool?.available) {
+        return response({ error: { code: "generation_tool_unavailable", message: tool?.reason ?? "Ferramenta indisponível." } }, 409, cors);
       }
       try {
         const job = await dependencies.enqueueJob(userId, projectId, idempotencyKey, jobRequest);

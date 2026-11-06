@@ -24,6 +24,7 @@ export async function productionServicesWithBalance(
   const reports = await auditProviders(env, fetcher);
   const dashboards: Record<string, [string, string]> = {
     "google-gemini": ["Saldo da API no AI Studio; assinatura do Flow é separada.", "https://aistudio.google.com/billing"],
+    "google-video": ["Geração pela API Gemini; usa o projeto do aplicativo. Não usa créditos do Flow ou YouTube Create.", "https://aistudio.google.com/billing"],
     "cloudflare-workers-ai": ["Uso e franquia de Workers AI no painel; saldo não informado nesta consulta.", "https://dash.cloudflare.com/"],
     "magic-hour": ["Saldo não informado pela API.", "https://magichour.ai/"],
     "replicate": ["Endpoint de conta não informa saldo. Consulte o faturamento.", "https://replicate.com/account/billing"],
@@ -74,6 +75,7 @@ export async function productionServicesWithBalance(
 export function productionServiceInventory(has: (name: string) => boolean): ProductionService[] {
   const definitions = [
     { id: "google-gemini", name: "Gemini", stage: "script", keys: ["GEMINI_API_KEY", "GOOGLE_API_KEY"], integrated: true },
+    { id: "google-video", name: "Google vídeo — Omni", stage: "video", keys: ["GEMINI_API_KEY", "GOOGLE_API_KEY"], integrated: true },
     { id: "cloudflare-workers-ai", name: "Cloudflare", stage: "image", keys: ["CLOUDFLARE_AI_API_TOKEN"], integrated: true },
     { id: "magic-hour", name: "Magic Hour", stage: "video", keys: ["MAGIC_HOUR_API_KEY"], integrated: true },
     { id: "replicate", name: "Replicate", stage: "video", keys: ["REPLICATE_API_TOKEN"], integrated: true },

@@ -95,12 +95,12 @@ export const googleVideoProvider: VideoGenerationProvider = {
       id: "google-gemini",
       name: "Google Gemini API",
       available: false,
-      model: "gemini-omni-1.1-flash",
+      model: "gemini-omni-1.2-flash",
       supportsReferenceImages: true,
       supportsNativeAudio: true,
       supportsLipSync: null,
       supportsCostEstimate: false,
-      message: "Aguardando credencial compatível, faturamento autorizado e ativação explícita no backend.",
+      message: "A geração Google usa a fila autenticada no backend. Este adaptador local não inicia chamadas de IA.",
     };
   },
   validate() {

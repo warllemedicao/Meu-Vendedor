@@ -1,5 +1,6 @@
-interface WorkerEnv {
-  ASSETS: { fetch(request: Request): Promise<Response> };
+import { handleGoogleFlow } from "./google-flow.ts";
+
+interface WorkerEnv extends WorkerBindings {
   MV_SYNC_JOB_TOKEN: string;
   MV_VIDEO_WORKER_SECRET: string;
   MV_SUPABASE_PUBLISHABLE_KEY: string;
@@ -8,6 +9,16 @@ interface WorkerEnv {
 const marketplaceCron = "*/30 * * * *";
 const videoCron = "* * * * *";
 const videoWorkerUrl = "https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/video-generation-worker";
+
+async function auditBrowserLimits(env: WorkerEnv): Promise<void> {
+  if (!env.BROWSER) return;
+  try {
+    const limits = await env.BROWSER.limits();
+    console.info(JSON.stringify({ event: "google_flow_browser_limits", activeSessions: limits.activeSessions.length,
+      maxConcurrentSessions: limits.maxConcurrentSessions, allowedBrowserAcquisitions: limits.allowedBrowserAcquisitions,
+      timeUntilNextAllowedBrowserAcquisition: limits.timeUntilNextAllowedBrowserAcquisition, usedBrowserTimeSeconds: limits.usedBrowserTimeSeconds ?? null }));
+  } catch { console.warn(JSON.stringify({ event: "google_flow_browser_limits_unavailable" })); }
+}
 
 async function syncMarketplace(env: WorkerEnv): Promise<void> {
   if (!env.MV_SYNC_JOB_TOKEN) throw new Error("marketplace_scheduler_not_configured");
@@ -57,11 +68,12 @@ async function processVideoQueue(env: WorkerEnv): Promise<void> {
 
 const worker = {
   fetch(request: Request, env: WorkerEnv) {
+    if (new URL(request.url).pathname.startsWith("/api/google-flow/")) return handleGoogleFlow(request, env);
     return env.ASSETS.fetch(request);
   },
   async scheduled(controller: { cron: string }, env: WorkerEnv): Promise<void> {
     if (controller.cron === marketplaceCron) return syncMarketplace(env);
-    if (controller.cron === videoCron) return processVideoQueue(env);
+    if (controller.cron === videoCron) { await Promise.all([processVideoQueue(env), auditBrowserLimits(env)]); return; }
     throw new Error("unsupported_cron_trigger");
   },
 };

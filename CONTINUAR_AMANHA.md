@@ -1,4 +1,34 @@
+# Continuidade — estado consolidado em 06/11/2026
+
+## Entregue e publicado
+
+- Seletor de ferramenta acima de Gerar vídeo: Automático, Flow, YouTube Create, Google Omni API, Magic Hour e Replicate. Disponibilidade depende da configuração real; Flow/Create permanecem indisponíveis.
+- Escolha persistida no pedido; apenas Automático permite fallback. O backend recusa ferramentas indisponíveis antes de enfileirar e consumir geração de imagem.
+- Adaptador Google Omni integrado à fila, com polling, validação de MP4 e biblioteca privada. Catálogo autenticado; uma geração Google real ainda não foi validada.
+- Central de conta informa confirmação de e-mail e identidade Google. Conexão experimental Flow usa sessão isolada, cookies cifrados com consentimento, expiração e mensagens específicas de erro/cota.
+- Supabase `video-generation` v35 e `video-generation-worker` v19 republicados. Migração `20261106151423_google_video_provider` confirmada no banco. Frontend ativo na versão Cloudflare `62bb0236-24a3-45dd-ae1c-2e1ebcbf4284`.
+
+## Próximo passo obrigatório para concluir o Flow
+
+1. Disponibilizar acesso de implantação ao Modal no ambiente seguro. Não há token Modal em variáveis locais nem perfil de autenticação Modal nesta sessão; os tokens observados no runtime Supabase não foram extraídos. Não enviar segredos pelo chat.
+2. Implantar executor sob demanda com perfil Google persistente e isolado por usuário, exclusão de concorrência e encerramento do navegador após cada trabalho. A conexão atual continua no Cloudflare Browser Run; não houve migração.
+3. Concluir pessoalmente o login Google no navegador e validar a sessão persistida e revogada. OAuth do app e assinatura Flow são acessos diferentes.
+4. Implementar e validar submissão, acompanhamento, download e importação do MP4 real. Não repetir submissões incertas. Somente habilitar Flow no seletor após o teste completo.
+5. YouTube Create depende de aplicativo móvel, sem API pública do editor identificada. Não tratar Google Omni API como integração Create ou transferência de benefícios.
+
+## Limites da entrega
+
+O Flow sob demanda **não está concluído**. Falta executor externo e teste real; nenhum endpoint fictício foi adicionado. Nenhum plano ou faturamento foi alterado. A última recusa do navegador Cloudflare foi HTTP 429; a correção de mensagens não devolve a franquia consumida. Não confundir essa cota com a hospedagem do aplicativo.
+
+A fonte de estado detalhado é [GOOGLE_FLOW_E_YOUTUBE.md](./GOOGLE_FLOW_E_YOUTUBE.md). Os registros seguintes são históricos e não substituem este resumo.
+
+---
+
+> Atualização 06/11: seleção de ferramenta implementada acima de Gerar vídeo. Escolha explícita não faz fallback. Flow sob demanda depende de implantação do executor externo e teste de login; YouTube Create continua móvel, sem integração automática validada. Estado detalhado em GOOGLE_FLOW_E_YOUTUBE.md.
+
 # Retomada — Meu Vendedor
+
+> **Google, Flow e YouTube — 06/11/2026:** cadastro por e-mail confirmado; OAuth Google continua desabilitado e sem Client ID/Secret nos aliases verificados. Conexão experimental Flow por navegador remoto e alternativa Gemini Omni adicionadas; login remoto e geração real Google ainda não validados. Estado vigente em [GOOGLE_FLOW_E_YOUTUBE.md](./GOOGLE_FLOW_E_YOUTUBE.md). Este registro prevalece sobre o histórico abaixo.
 
 > **Conta e estratégia Google — 06/11/2026:** acesso e lojas centralizados em `/entrar`; fluxo OAuth Google implementado, mas provedor remoto ainda desabilitado e dependente de Client ID/Secret. Links externos do Flow removidos do estúdio. Nova direção: geração via navegador no servidor e publicação integrada, ainda não implantadas. Estado vigente e ativação em [CONTA_E_ESTRATEGIA_GOOGLE.md](./CONTA_E_ESTRATEGIA_GOOGLE.md).
 

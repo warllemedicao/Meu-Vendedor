@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { productionServicesWithBalance } from "./_shared/provider-inventory.ts";
 import { routeAdvertisingScript } from "./_shared/script-router.ts";
 import { accountCreditReadiness } from "./_shared/production-readiness.ts";
+import { googleVideoModel } from "./_shared/providers/google-video.ts";
 import {
   createVideoGenerationHandler,
   requestGeminiScript,
@@ -64,6 +65,7 @@ function jobError(error: { message: string }): VideoJobError {
 function configuredProviders() {
   return [
     { id: "magic-hour", model: "ltx-2.5", configured: Boolean(Deno.env.get("MAGIC_HOUR_API_KEY")) },
+    { id: "google-gemini", model: googleVideoModel, configured: Boolean(Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY")) },
     { id: "replicate", model: "alibaba/happyhorse-1.0", configured: Boolean(Deno.env.get("REPLICATE_API_TOKEN")) },
   ];
 }

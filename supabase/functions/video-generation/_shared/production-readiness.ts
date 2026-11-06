@@ -11,7 +11,7 @@ export interface ProductionReadiness {
 // Configuração permite tentar a API; não representa saldo nem gratuidade confirmados.
 export function accountCreditReadiness(configured: (provider: string) => boolean): ProductionReadiness {
   const imageReady = configured("cloudflare-workers-ai");
-  const videoReady = configured("magic-hour") || configured("replicate");
+  const videoReady = configured("magic-hour") || configured("google-gemini") || configured("replicate");
   return { ready: imageReady && videoReady, imageReady, videoReady, checkedAt: new Date().toISOString(),
     message: imageReady && videoReady
       ? "Serviços configurados para tentar a geração. O fornecedor verifica os créditos; a troca de serviço é automática quando possível."

@@ -154,7 +154,7 @@ test('fila exige flag, imagem privada do usuário e chave idempotente', async ()
       assert.equal(userId, 'user-id');
       assert.equal(projectId, null);
       assert.equal(key, 'request-key-00000001');
-      assert.deepEqual(data, jobRequest);
+      assert.deepEqual(data, { ...jobRequest, generationTool: "auto" });
       return { id: 'job-id', status: 'queued' };
     },
   }));
@@ -228,4 +228,25 @@ test('geração real de vídeo continua bloqueada e handler rejeita origem, mét
   assert.equal((await handler(request({ action: 'capabilities' }, { headers: { Origin: 'https://evil.test' } }))).status, 403);
   assert.equal((await handler(new Request('https://example.test/video-generation', { method: 'GET' }))).status, 405);
   assert.equal((await handler(request({ invalid: true }))).status, 400);
+});
+
+test('escolha explícita é preservada e ferramentas indisponíveis não entram na fila', async () => {
+  const queued = [];
+  const handler = createVideoGenerationHandler(defaultDependencies({
+    videoJobsEnabled: () => true,
+    videoProcessorAvailable: () => true,
+    videoProviders: () => [{ id: 'google-gemini', model: 'configured', configured: true }],
+    enqueueJob: async (_user, _project, _key, data) => { queued.push(data); return { id: 'job-id' }; },
+  }));
+  for (const generationTool of ['google-flow', 'youtube-create', 'magic-hour']) {
+    const result = await handler(request({ action: 'enqueue-job', idempotencyKey: 'tool-selection-test-01', request: { ...jobRequest, generationTool } }));
+    assert.equal(result.status, 409);
+    assert.equal((await result.json()).error.code, 'generation_tool_unavailable');
+  }
+  assert.equal(queued.length, 0);
+  const result = await handler(request({ action: 'enqueue-job', idempotencyKey: 'tool-selection-test-02', request: { ...jobRequest, generationTool: 'google-gemini' } }));
+  assert.equal(result.status, 202);
+  assert.equal(queued[0].generationTool, 'google-gemini');
+  const invalid = await handler(request({ action: 'enqueue-job', idempotencyKey: 'tool-selection-test-03', request: { ...jobRequest, generationTool: 'invented' } }));
+  assert.equal(invalid.status, 400);
 });

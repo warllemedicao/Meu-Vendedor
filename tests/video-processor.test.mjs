@@ -335,3 +335,14 @@ test('créditos da conta aguardam e retomam sem cota gratuita nem perda da image
  assert.equal(await state.processor.processNext(),'video_processing');
  assert.equal(state.job.provider_job_id,'account-job');assert.equal(state.calls.image,0);
 });
+
+test('retoma vídeo Google já submetido até armazenamento privado sem nova geração',async()=>{
+ const state=harness({stage:'video_processing',provider:'google-gemini',provider_job_id:'v1_existing',intermediate_image_path:'owned-reference.jpg'},{
+  videoStatus:async(providerId,id)=>{assert.equal(providerId,'google-gemini');assert.equal(id,'v1_existing');return {status:'completed',progress:100,downloadUrl:'google-interaction:v1_existing'};},
+  outputUrl:async()=> 'google-interaction:v1_existing',
+ });
+ assert.equal(await state.processor.processNext(),'validating');
+ assert.equal(await state.processor.processNext(),'completed');
+ assert.equal(state.calls.image,0);assert.equal(state.calls.magicHour,0);assert.equal(state.calls.replicate,0);
+ assert.equal(state.calls.stored.length,1);
+});

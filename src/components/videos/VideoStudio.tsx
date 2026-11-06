@@ -111,7 +111,7 @@ interface VideoProjectRow {
 interface VideoJobRow {
   id: string;
   status: "queued" | "processing" | "completed" | "failed" | "cancelled";
-  provider: "pending" | "cloudflare-workers-ai" | "magic-hour" | "replicate";
+  provider: "pending" | "cloudflare-workers-ai" | "magic-hour" | "google-gemini" | "replicate";
   stage: string;
   stage_message: string | null;
   next_attempt_at: string;
@@ -187,6 +187,7 @@ const jobProviderLabels: Record<VideoJobRow["provider"], string> = {
   pending: "Aguardando seleção",
   "cloudflare-workers-ai": "Cloudflare Workers AI",
   "magic-hour": "Magic Hour",
+  "google-gemini": "Google vídeo — Omni",
   replicate: "Replicate",
 };
 
@@ -350,6 +351,9 @@ export function VideoStudio() {
   const [motionMode, setMotionMode] = useState<MotionMode>("poses");
   const [durationSeconds, setDurationSeconds] = useState<VideoDuration>(6);
   const format: VideoFormat = "9:16";
+  const [generationTool, setGenerationTool] = useState("auto");
+  const [generationTools, setGenerationTools] = useState<{ id: string; label: string; available: boolean; reason: string }[]>([]);
+  const selectedGenerationTool = generationTools.find((tool) => tool.id === generationTool);
   const [mode, setMode] = useState<GenerationMode>("ai-video");
   const [targetAudience, setTargetAudience] = useState("");
   const [script, setScript] = useState("");
@@ -526,6 +530,7 @@ export function VideoStudio() {
           setGeminiCapabilityMessage("Não foi possível verificar os serviços de roteiro.");
           return;
         }
+        setGenerationTools(Array.isArray(data?.video?.tools) ? data.video.tools : []);
         setProductionServices(Array.isArray(data?.services) ? data.services : []);
         const readiness = data?.video?.readiness;
         setProductionReadiness(readiness && typeof readiness.message === "string" &&
@@ -759,6 +764,10 @@ export function VideoStudio() {
   async function enqueueVideoJob() {
     const client = getSupabase();
     if (!user || !client || !queueAvailable || enqueueingJob) return;
+    if (!selectedGenerationTool?.available) {
+      setError(selectedGenerationTool?.reason ?? "Verifique a disponibilidade da ferramenta.");
+      return;
+    }
     if (presenter.referenceStatus !== "ready") {
       setError(`A referência visual de ${presenter.name} ainda não está aprovada para processamento.`);
       return;
@@ -800,6 +809,7 @@ export function VideoStudio() {
         aiReferenceCache.current = references;
       }
       const request = {
+        generationTool,
         templateId,
         scenePresetId,
         durationSeconds,
@@ -850,7 +860,7 @@ export function VideoStudio() {
       setJobs((current) => [queuedJob, ...current.filter((job) => job.id !== queuedJob.id)].slice(0, 20));
       enqueueIdempotency.current = null;
       setStudioView("queue");
-      setNotice("Pedido registrado. A produção usa os créditos da conta, troca de serviço automaticamente e aguarda na fila se não houver opção disponível.");
+      setNotice(generationTool === "auto" ? "Pedido registrado com seleção automática de serviço. O resultado ficará na biblioteca após a validação." : `Pedido registrado para ${selectedGenerationTool?.label ?? generationTool}. O resultado ficará na biblioteca após a validação.`);
     } catch (enqueueError) {
       setError(enqueueError instanceof Error ? enqueueError.message : "Não foi possível registrar a tarefa na fila.");
     } finally {
@@ -1340,7 +1350,13 @@ export function VideoStudio() {
             </dl>
             {validationError && <p className="mt-4 rounded-lg bg-background p-3 text-xs text-muted">{validationError}</p>}
             {!product.imageStoragePath && !productImage && <p className="mt-3 text-xs text-muted">Adicione uma imagem do produto para liberar a geração.</p>}
-            <button type="button" disabled={!queueAvailable || enqueueingJob || busy || !!validationError || durationSeconds !== 6 || (!product.imageStoragePath && !productImage) || presenter.referenceStatus !== "ready"} onClick={() => void enqueueVideoJob()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
+            <label htmlFor="video-generation-tool" className="mt-4 block text-sm font-semibold">Ferramenta para gerar</label>
+            <select id="video-generation-tool" value={generationTool} onChange={(event) => setGenerationTool(event.target.value)} disabled={enqueueingJob} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm">
+              {generationTools.length === 0 && <option value="auto">Automático · verificando serviços</option>}
+              {generationTools.map((tool) => <option key={tool.id} value={tool.id}>{tool.label}{tool.available ? "" : " · indisponível"}</option>)}
+            </select>
+            <p className="mt-2 text-xs text-muted" aria-live="polite">{selectedGenerationTool?.reason}</p>
+            <button type="button" disabled={!selectedGenerationTool?.available || !queueAvailable || enqueueingJob || busy || !!validationError || durationSeconds !== 6 || (!product.imageStoragePath && !productImage) || presenter.referenceStatus !== "ready"} onClick={() => void enqueueVideoJob()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
               {enqueueingJob ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Preparando produção…</> : <><WandSparkles className="size-4" aria-hidden />{capabilityUserId === userId && productionReadiness && !productionReadiness.ready ? "Salvar pedido na fila" : "Gerar vídeo"}</>}
             </button>
             {userId && capabilityUserId === userId && productionServices.length > 0 && <ProductionServices
@@ -1348,9 +1364,9 @@ export function VideoStudio() {
               refreshing={checkingProduction}
               onRefresh={() => { setCheckingProduction(true); setCapabilityRefresh((value) => value + 1); }}
             />}
-            <p className="mt-3 text-xs text-muted">Magic Hour LTX-2.5 · 480p · 6s: estimativa de 144 créditos, áudio incluído. O custo final é definido pelo fornecedor. O plano gratuito pode incluir marca d’água.</p>
+            <p className="mt-3 text-xs text-muted">A geração pode levar alguns minutos, mesmo para um vídeo de 6 segundos. Créditos e custo dependem da ferramenta selecionada e da conta configurada.</p>
             {!queueAvailable && <p className="mt-3 text-xs text-muted">{user ? "A geração ficará disponível quando os serviços de produção estiverem configurados." : "Entre na sua conta para gerar e guardar vídeos."}</p>}
-            <p className="mt-3 text-xs leading-relaxed text-muted">Usa os créditos disponíveis nas contas e troca de serviço automaticamente quando possível. O fornecedor pode cobrar conforme o plano da conta. Se não houver opção disponível, o pedido aguarda preservando as etapas prontas.</p>
+            <p className="mt-3 text-xs leading-relaxed text-muted">A opção Automático permite trocar de serviço. Ao escolher uma ferramenta, o pedido usa somente ela. O fornecedor pode cobrar conforme o plano da conta. Se não houver opção disponível, o pedido aguarda preservando as etapas prontas.</p>
             <details className="mt-4 border-t border-border pt-3">
               <summary className="cursor-pointer text-xs font-medium text-muted">Testar e exportar briefing</summary>
               <p className="mt-3 text-xs text-muted">A simulação salva um projeto sem produzir MP4 ou consumir créditos de IA.</p>

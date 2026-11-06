@@ -10,7 +10,7 @@ import { googleAuthAvailability, googleSignInOptions, type GoogleAuthAvailabilit
 type Mode = "login" | "signup" | "reset";
 const input = "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2";
 export function AuthForm() {
-  const { user, configured, loading } = useAuth();
+  const { user, configured, loading, refreshUser } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -18,7 +18,7 @@ export function AuthForm() {
   const [googleAvailability, setGoogleAvailability] = useState<GoogleAuthAvailability | "loading">("loading");
   const [googleRevision, setGoogleRevision] = useState(0);
   useEffect(() => {
-    if (!configured || user) return;
+    if (!configured) return;
     let active = true;
     void googleAuthAvailability(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!)
       .then((availability) => { if (active) setGoogleAvailability(availability); });
@@ -67,7 +67,16 @@ export function AuthForm() {
   }
   if (loading) return <p role="status">Carregando conta…</p>;
   if (!configured) return <div role="status" className="rounded-xl border border-border bg-accent-soft p-5 text-sm"><p className="font-semibold">Acesso de usuários em preparação</p><p className="mt-2">A configuração do banco ainda não foi ativada nesta publicação. Você pode explorar o catálogo de plataformas.</p><Link href="/entrar#lojas" className="mt-3 inline-block text-primary underline">Ver plataformas</Link></div>;
-  if (user) return <div className="rounded-xl border border-border bg-surface p-5"><p>Você está conectado como <strong>{user.email}</strong>.</p><Link href="/afiliados" className="mt-3 inline-block text-primary underline">Organizar meus links</Link></div>;
+  if (user) return <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
+    <p>Você está conectado como <strong>{user.email}</strong>.</p>
+    <p className="text-sm">Cadastro: {user.email_confirmed_at ? "e-mail confirmado" : "confirmação pendente"}. Google: {user.identities?.some(i => i.provider === "google") ? "identidade vinculada" : "identidade ainda não vinculada"}.</p>
+    <p className="text-sm text-muted">{googleAvailability === "disabled" ? "O login Google ainda está desabilitado na configuração do aplicativo." : googleAvailability === "enabled" ? "O aplicativo permite login Google." : "Verificando configuração Google…"}</p>
+    <button type="button" disabled={busy} onClick={async () => { setBusy(true); const ok = await refreshUser(); setMessage(ok ? "Cadastro atualizado diretamente no servidor." : "Não foi possível atualizar o cadastro. Entre novamente se sua sessão expirou."); setGoogleRevision(v => v + 1); setBusy(false); }} className="text-sm text-primary underline">Atualizar cadastro</button>
+    {!user.identities?.some(i => i.provider === "google") && <button type="button" disabled={busy || googleAvailability !== "enabled"} onClick={() => void enterWithGoogle()} className="block rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-50">Entrar com a mesma conta Google</button>}
+    {message && <p role="status" className="text-sm text-muted">{message}</p>}
+    {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+    <Link href="/afiliados" className="inline-block text-primary underline">Organizar meus links</Link>
+  </div>;
   return <div className="w-full max-w-md rounded-xl border border-border bg-surface p-5">
     <div className="mb-5 flex gap-2">{([['login','Entrar'],['signup','Criar conta']] as const).map(([value,label]) => <button key={value} type="button" aria-pressed={mode===value} disabled={busy} onClick={() => {setMode(value);setError("");setMessage("");}} className={`rounded-lg px-3 py-2 text-sm ${mode===value ? 'bg-primary text-background' : 'border border-border'}`}>{label}</button>)}</div>
     <h2 className="text-lg font-semibold">{mode === "reset" ? "Recuperar senha" : mode === "signup" ? "Sua conta no Meu Vendedor" : "Bem-vindo de volta"}</h2>

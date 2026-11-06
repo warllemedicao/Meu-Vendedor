@@ -6,5 +6,5 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   { files: ["supabase/functions/**/*.ts"], languageOptions: { globals: { Deno: "readonly" } } },
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "worker/runtime-types.d.ts"]),
 ]);
