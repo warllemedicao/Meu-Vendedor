@@ -34,6 +34,7 @@ export interface VideoGenerationDependencies {
   videoProviders?(): readonly { id: string; model: string; configured: boolean }[];
   productionServices?(): readonly import("./provider-inventory.ts").ProductionService[] | Promise<readonly import("./provider-inventory.ts").ProductionService[]>;
   productionServiceBalances?(): Promise<readonly import("./provider-inventory.ts").ProductionService[]>;
+  importProductImage?(userId: string, productId: string): Promise<{ path: string }>;
   generateScript(input: GeminiScriptInput, apiKey: string): Promise<string>;
   generateScriptWithFallback?(input: GeminiScriptInput): Promise<{ script: string; provider: string; model: string }>;
   scriptProvidersConfigured?(): boolean;
@@ -287,6 +288,16 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
 
     const body = await readBody(request);
     if (!body || typeof body.action !== "string") return response({ error: { code: "invalid_request", message: "Solicitação inválida." } }, 400, cors);
+
+    if (body.action === "import-product-image") {
+      if (!uuid(body.productId)) return response({ error: { code: "invalid_request", message: "Selecione um produto sincronizado válido." } }, 400, cors);
+      if (!dependencies.importProductImage) return response({ error: { code: "product_image_import_unavailable", message: "A importação da foto sincronizada não está disponível agora." } }, 503, cors);
+      try { return response(await dependencies.importProductImage(userId, body.productId), 200, cors); }
+      catch (error) {
+        if (error instanceof VideoJobError) return response({ error: { code: error.code, message: error.message } }, error.status, cors);
+        return response({ error: { code: "product_image_import_unavailable", message: "Não foi possível preparar a foto sincronizada agora." } }, 503, cors);
+      }
+    }
 
     if (body.action === "service-balances") {
       try { return response({ services: await dependencies.productionServiceBalances?.() ?? [] }, 200, cors); }

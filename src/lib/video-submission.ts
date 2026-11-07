@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export interface VideoSubmissionIssue { message: string; step?: number }
 export function videoSubmissionIssue(input: {
   signedIn: boolean; validationError: string | null; hasImage: boolean; presenterReady: boolean;
@@ -26,4 +28,18 @@ export interface AlternativeVoice { id: string; name: string; gender: string; la
 export function filterAlternativeVoices<T extends AlternativeVoice>(voices: readonly T[], gender: string): T[] {
   const expected = gender === "feminina" ? "female" : "male";
   return voices.filter(v => !v.gender || v.gender === expected || v.gender === "neutral");
+}
+
+export async function importVideoProductImage(client: SupabaseClient, userId: string, productId: string): Promise<string> {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(userId) || !uuidPattern.test(productId)) throw new Error("Selecione um produto sincronizado da sua conta.");
+  const { data, error } = await client.functions.invoke("video-generation", {
+    body: { action: "import-product-image", productId }, timeout: 25000,
+  });
+  if (error) throw new Error(await edgeFunctionMessage(error, "Não foi possível preparar a foto sincronizada agora. Tente novamente."));
+  const path = data?.path;
+  if (typeof path !== "string" || !new RegExp(`^${userId}/inputs/[A-Za-z0-9_-]+\\.(?:jpg|png|webp)$`).test(path)) {
+    throw new Error("A foto importada não foi encontrada na área privada desta conta.");
+  }
+  return path;
 }

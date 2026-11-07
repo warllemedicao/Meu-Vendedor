@@ -1,3 +1,4 @@
+import { sceneDirection } from "../video-generation/_shared/scene-direction.ts";
 import { allowsVideoProvider } from "../video-generation/_shared/generation-tools.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { imageCacheKey } from "../video-generation/_shared/image-cache.ts";
@@ -254,7 +255,7 @@ const processor = admin ? createVideoProcessor({
         : request.templateId === "demonstrating-product"
           ? "Composição: personagem demonstrando o uso visual do produto, sem inventar resultados."
           : "Composição: personagem apresentando o produto claramente, cenário simples compatível com o preset indicado.",
-      `Preset de cena: ${String(request.scenePresetId)}.`,
+      sceneDirection(request.scenePresetId),
       "Não inclua texto, logotipos inventados, preços, marcas d'água ou outras pessoas.",
     ].join("\n");
     return { prompt, references, outputWidth: 512, outputHeight: 910, steps: 25 };
@@ -389,7 +390,8 @@ const processor = admin ? createVideoProcessor({
       "Gere exatamente um vídeo de 6 segundos em formato vertical 9:16, animando a imagem de referência.",
       `Apresentador selecionado: ${presenter}.`,
       `Ação: apresentar visualmente o produto "${String(product.name)}" com gestos suaves, contato visual e movimento de câmera sutil.`,
-      "Preserve a identidade visual do personagem, a aparência do produto e a composição da imagem inicial.",
+      "Preserve a identidade visual do personagem e a aparência do produto. Mantenha um único plano, com gestos naturais e movimento de câmera suave, sem cortes.",
+      sceneDirection(request.scenePresetId),
       "Não acrescente texto, preço, logotipo, pessoas adicionais ou afirmações visuais não sustentadas.",
       "Gere áudio audível em português do Brasil, com fala clara em primeiro plano, sem música sobre a voz.",
       request.narrationMode === "character-speech"

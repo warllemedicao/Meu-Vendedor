@@ -1,8 +1,17 @@
 # Continuidade — estado vigente em 07/11/2026
 
+## Atualização — Omni e cenários
+
+- Log fornecido pelo responsável confirma cota Free Tier zero para `gemini-omni-1.2-flash` (requisições/dia, minuto e tokens). Ativar armazenamento de logs não libera cota. Verificar faturamento e limites do projeto correto antes de novo pedido; não houve reenvio automático nem ativação de cobranças.
+- Pedido Omni de 07/11 00:16 UTC estava com interação remota encerrada em RESOURCE_EXHAUSTED, mas tela aguardava recursos indefinidamente. Corrigido para falha com imagem preservada. Frontend `eb8246dc-b5e0-4c19-9020-341d3e547738`; Worker v28 preserva motivo seguro de `errors[]`, encerra falha de provedor explicitamente escolhido e impede espera infinita quando todos os provedores submetidos foram esgotados. Automático mantém fallback.
+- Prompts de imagem/vídeo agora descrevem o ambiente de cada cenário e substituem o fundo de catálogo. Melhoria de qualidade ainda depende de avaliar próxima geração real, não realizada nesta revisão.
+- 190 testes, lint e TypeScript frontend/Edge aprovados. Importação de imagem publicada em `video-generation` v45.
+
 ## Entregue e confirmado
 
-- Frontend/Worker publicado: `a1a5dd36-76b7-4954-99f6-d9d5f5b72b90`; `video-generation` v44. Crons de vídeo e marketplace preservados.
+- Foto automática de produto sincronizado corrigida: o backend importa a imagem Shopee do produto pertencente à conta para o Storage privado antes de preparar as referências. A prévia externa deixa de exigir download/upload manual. Testes e limites em [IMAGENS_SINCRONIZADAS.md](./IMAGENS_SINCRONIZADAS.md).
+
+- Publicação anterior de conta: `a1a5dd36-76b7-4954-99f6-d9d5f5b72b90`; `video-generation` v44. Crons de vídeo e marketplace preservados.
 - Login Google habilitado no Supabase e confirmado pelo responsável. Projeto Google `meu-vendedor-1987`, número `531516167196`.
 - YouTube Data API v3 ativada, escopos readonly/upload declarados e dois e-mails de teste informados pelo responsável. Segundo callback cadastrado e canal conectado, ambos confirmados pelo responsável. Consulta, renovação e desconexão implementadas com tokens cifrados. Não repetir a etapa de criação das credenciais.
 - Migrações `20261106224146_elevenlabs_audio.sql` e `20261106233237_youtube_connection.sql` aplicadas e reconciliadas. Tabelas privadas de áudio/OAuth com RLS; clientes não acessam tokens.

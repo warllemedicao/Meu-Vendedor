@@ -1,5 +1,7 @@
 # Ajustes do estúdio e ferramentas Google — 07/11/2026
 
+> **Diagnóstico posterior confirmado pelo responsável:** o formulário exibia a imagem do produto sincronizado por URL, mas a geração exigia arquivo manual/caminho privado. Essa condição específica foi corrigida com importação automática autenticada para Storage. A alteração anterior do botão não incluía esse caminho. Ver [IMAGENS_SINCRONIZADAS.md](./IMAGENS_SINCRONIZADAS.md).
+
 ## Botão Gerar vídeo
 
 O responsável informou que o botão estava apagado. Os logs reais mostraram respostas 200 da consulta de disponibilidade e worker ativo; o banco continuava com apenas o vídeo Magic Hour concluído anteriormente. Não havia novo pedido registrado. O formulário local do usuário não está disponível ao agente; não foi atribuída uma condição específica de preenchimento sem evidência.
@@ -29,3 +31,7 @@ Prévia, reprodução e exportação de narração ficam junto do seletor, visí
 Chromium em 1440×900 e 390×844, com sessão e respostas controladas: falha 503 na primeira consulta, botão clicável, erros de nome/foto mostrados, PNG real preparado no navegador, referências do produto/apresentador enviadas ao Storage simulado e solicitação registrada uma única vez na fila simulada. Filtro de vozes e ausência de cartão ElevenLabs/overflow conferidos. Esses testes não criaram uma nova tarefa real nem geraram MP4 pago.
 
 Supabase `video-generation` v44 publicado preservando a autenticação e os demais arquivos remotos; somente a orientação da opção Flow foi atualizada no backend. O diagnóstico temporário de chave foi desativado e retorna 410. Frontend/Cloudflare publicado na versão `a1a5dd36-76b7-4954-99f6-d9d5f5b72b90`, preservando os dois crons e os Secrets.
+
+## Omni e ambiente — 07/11/2026
+
+O log real confirmou Free Tier com limite zero no Omni. Falhas remotas agora preservam um código seguro; seleção explícita não troca de provedor e provedores já submetidos/esgotados não ficam em espera infinita. Pedido afetado encerrado com imagem preservada, sem reenvio. Prompts passam a descrever ambientes concretos, iluminação e profundidade em vez de apenas IDs de preset; qualidade visual ainda precisa de avaliação em geração futura.

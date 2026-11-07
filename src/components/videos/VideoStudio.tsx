@@ -34,7 +34,7 @@ import {
 import { mockVideoProvider } from "@/lib/video-provider";
 import { splitGenerationTools } from "@/lib/video-capabilities";
 import { ElevenLabsNarration } from "./ElevenLabsNarration";
-import { edgeFunctionMessage, videoSubmissionIssue } from "@/lib/video-submission";
+import { edgeFunctionMessage, importVideoProductImage, videoSubmissionIssue } from "@/lib/video-submission";
 import {
   advertisingStyles,
   buildAdvertisingScript,
@@ -209,6 +209,8 @@ const jobStageLabels: Record<string, string> = {
   completed: "Vídeo concluído",
   failed: "Erro na geração",
   cancelled: "Cancelado",
+  google_video_resource_exhausted: "Google Omni: limite de recursos ou capacidade atingido. A geração falhou; verifique os limites do projeto antes de criar outro pedido.",
+  video_providers_exhausted: "Os serviços tentados falharam. Revise as configurações antes de criar outro pedido.",
   trying_another_provider: "Tentando outro provedor",
   cancel_requested_remote_continues: "Cancelamento solicitado; provedor finalizando",
   cancel_retry_pending: "Tentando cancelar no provedor",
@@ -449,7 +451,7 @@ export function VideoStudio() {
   const prompt = useMemo(() => buildVideoPrompt(configuration, effectiveScript), [configuration, effectiveScript]);
   const validationError = validateVideoConfiguration(configuration, effectiveScript);
   const submissionIssue = videoSubmissionIssue({ signedIn: Boolean(user), validationError,
-    hasImage: Boolean(product.imageStoragePath || productImage), presenterReady: presenter.referenceStatus === "ready",
+    hasImage: Boolean(product.imageStoragePath || productImage || product.sourceProductId && product.imageUrl), presenterReady: presenter.referenceStatus === "ready",
     presenterName: presenter.name, duration: durationSeconds });
   const status: VideoGenerationStatus = generationStatus === "awaiting_configuration" && !validationError ? "ready" : generationStatus;
 
@@ -640,6 +642,9 @@ export function VideoStudio() {
   }
 
   function selectExistingProduct(id: string) {
+    setImageError("");
+    setUploadedImagePreview(null);
+    aiReferenceCache.current = null;
     const selected = existingProducts.find((item) => item.id === id);
     if (!selected) {
       setProduct({ ...emptyProduct });
@@ -800,8 +805,15 @@ export function VideoStudio() {
       }
       const selected = currentTools.find((tool: { id: string }) => tool.id === generationTool);
       if (!selected?.available) throw new Error(selected?.reason ?? "Escolha Automático, Magic Hour ou Replicate para usar um serviço disponível.");
-      const productPath = product.imageStoragePath || await uploadVideoProductImage(client, user.id, productImage!);
-      if (!product.imageStoragePath) updateProduct("imageStoragePath", productPath);
+      const productPath = product.imageStoragePath || (productImage
+        ? await uploadVideoProductImage(client, user.id, productImage)
+        : product.sourceProductId && product.imageUrl
+          ? await importVideoProductImage(client, user.id, product.sourceProductId)
+          : "");
+      if (!productPath) throw new Error("O produto não tem uma foto disponível para gerar o vídeo.");
+      if (!product.imageStoragePath) setProduct(current =>
+        current.sourceProductId === product.sourceProductId && current.imageUrl === product.imageUrl && current.imageName === product.imageName
+          ? { ...current, imageStoragePath: productPath } : current);
       const referenceKey = `${user.id}:${productPath}:${presenterId}`;
       let references = aiReferenceCache.current?.key === referenceKey ? aiReferenceCache.current : null;
       if (!references) {
@@ -1364,7 +1376,9 @@ export function VideoStudio() {
               <div><dt className="text-xs text-muted">Cenário</dt><dd className="mt-1 font-semibold">{videoScenePresets.find((scene) => scene.id === scenePresetId)?.name}</dd></div>
             </dl>
             {validationError && <p className="mt-4 rounded-lg bg-background p-3 text-xs text-muted">{validationError}</p>}
-            {!product.imageStoragePath && !productImage && <p className="mt-3 text-xs text-muted">Adicione uma imagem do produto para liberar a geração.</p>}
+            {!product.imageStoragePath && !productImage && <p className="mt-3 text-xs text-muted">{product.sourceProductId && product.imageUrl
+              ? "A foto do produto sincronizado será preparada automaticamente ao gerar."
+              : "Adicione uma imagem do produto para gerar o vídeo."}</p>}
             <label htmlFor="video-generation-tool" className="mt-4 block text-sm font-semibold">Ferramenta para gerar</label>
             <select id="video-generation-tool" value={generationTool} onChange={(event) => setGenerationTool(event.target.value)} disabled={enqueueingJob} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm">
               {generationTools.length === 0 && <option value="auto">Automático · verificando serviços</option>}

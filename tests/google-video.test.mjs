@@ -58,3 +58,8 @@ test('migração Google permite tentativas/cooldown e mantém RPCs privadas',asy
   await assert.rejects(db.query("select public.mv_set_video_ai_cooldown('google-gemini',now()+interval '1 minute','rate_limit')"),/permission denied/);
  }finally{await db.close();}
 });
+
+test('Google preserva o motivo seguro de uma interação que falhou sem vazar a resposta', async()=>{
+ const adapter=createGoogleVideoProvider({apiKey:'key',fetcher:async()=>Response.json({status:'failed',errors:[{code:'RESOURCE_EXHAUSTED',message:'private provider detail'}]})});
+ assert.deepEqual(await adapter.status('v1_test'),{status:'failed',progress:0,errorCode:'google_video_resource_exhausted'});
+});

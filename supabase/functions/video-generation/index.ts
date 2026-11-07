@@ -3,6 +3,7 @@ import { productionServiceInventory, productionServicesWithBalance } from "./_sh
 import { routeAdvertisingScript } from "./_shared/script-router.ts";
 import { accountCreditReadiness } from "./_shared/production-readiness.ts";
 import { googleVideoModel } from "./_shared/providers/google-video.ts";
+import { importSyncedProductImage } from "./_shared/product-image.ts";
 import {
   createVideoGenerationHandler,
   requestGeminiScript,
@@ -99,6 +100,27 @@ Deno.serve(createVideoGenerationHandler({
   videoJobsEnabled: processorAvailable,
   videoProcessorAvailable: processorAvailable,
   videoProviders: configuredProviders,
+  importProductImage: async (userId, productId) => {
+    if (!admin) throw new VideoJobError(503, "product_image_storage_unavailable", "O armazenamento de imagens não está disponível agora.");
+    const storage = admin.storage.from(videoAssetBucket);
+    return importSyncedProductImage(userId, productId, {
+      findProduct: async (owner, id) => {
+        const { data, error } = await admin.from("mv_products").select("platform_id,image_url").eq("user_id", owner).eq("id", id).maybeSingle();
+        if (error) throw new VideoJobError(503, "product_image_storage_unavailable", "Não foi possível consultar o produto sincronizado agora.");
+        return data ? { platformId: data.platform_id, imageUrl: data.image_url } : null;
+      },
+      existing: async path => {
+        const { data, error } = await storage.download(path);
+        if (error || !data) return null;
+        if (data.size > 10 * 1024 * 1024) throw new VideoJobError(503, "product_image_storage_invalid", "A foto privada do produto excede o limite permitido.");
+        return new Uint8Array(await data.arrayBuffer());
+      },
+      upload: async (path, bytes, mime) => {
+        const { error } = await storage.upload(path, bytes, { contentType: mime, cacheControl: "3600", upsert: false });
+        if (error) throw new Error("product_image_upload_failed");
+      },
+    });
+  },
   productionServices: () => productionServiceInventory((name) => Boolean(Deno.env.get(name))),
   productionServiceBalances: () => productionServicesWithBalance((name) => Deno.env.get(name)),
   generateScript: (input, apiKey) => requestGeminiScript(input, apiKey),

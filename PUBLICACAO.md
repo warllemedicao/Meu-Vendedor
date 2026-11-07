@@ -1,5 +1,9 @@
 # Publicações — Meu Vendedor
 
+> **Omni e cenários — 07/11/2026:** frontend `eb8246dc-b5e0-4c19-9020-341d3e547738`, `video-generation` v45 e `video-generation-worker` v28. 190 testes, lint, TypeScript frontend/Edge e build de 17 rotas aprovados. Falha remota explícita encerra a tarefa preservando a imagem; esgotamento de provedores submetidos deixa de gerar espera infinita. Log do usuário confirmou cota Free Tier zero no Omni. Prompt agora descreve o ambiente; resultado visual ainda não reavaliado em geração real.
+
+> **Foto sincronizada corrigida — 07/11/2026:** frontend Cloudflare `ef952e64-9d8f-47a3-96ac-26579c3fd8a5` e função `video-generation` v45. Seleção do produto reconhece a URL da foto e importa automaticamente uma cópia privada antes de preparar referências, sem download/upload manual. 186 testes aprovados; teste com JPEG real Shopee e UI desktop/celular na versão publicada com fila simulada. Ver [IMAGENS_SINCRONIZADAS.md](./IMAGENS_SINCRONIZADAS.md).
+
 > **Estúdio corrigido — 07/11/2026:** frontend/Worker publicado na versão `a1a5dd36-76b7-4954-99f6-d9d5f5b72b90`; `video-generation` v44. Botão Gerar vídeo valida ao clicar e reconsulta disponibilidade, com travas de concorrência, idempotência e limites de espera. ElevenLabs ao lado de Característica da voz; navegador Flow removido da central e opção pendente mantida no seletor. Nova chave Gemini aceita pelo catálogo e modelos consultados, sem inferência. 178 testes aprovados, lint, TypeScript frontend/Edge e build das 17 rotas aprovados. Estado e limites em [AJUSTES_ESTUDIO.md](./AJUSTES_ESTUDIO.md).
 
 ## Histórico das entregas anteriores

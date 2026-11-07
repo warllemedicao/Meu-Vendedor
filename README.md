@@ -8,6 +8,7 @@ Aplicativo de gerenciamento de afiliados e produção de vídeos. Frontend Next.
 - Canal **YouTube conectado**, com consulta, renovação de autorização e desconexão implementadas. Publicação/agendamento de vídeos ainda pendentes.
 - Nova chave **Gemini** aceita pelo catálogo e pelos modelos configurados de roteiro e vídeo (HTTP 200). Isso não comprova geração de vídeo, saldo ou faturamento da API.
 - Estúdio com fila, roteiros, referências, reprodução e download. Existe um vídeo real concluído via Magic Hour; áudio após a correção ainda precisa de um novo resultado real.
+- **Fotos de produtos sincronizados** são importadas automaticamente para a área privada ao gerar; não é necessário baixar e reenviar a foto exibida na prévia. Detalhes em [IMAGENS_SINCRONIZADAS.md](./IMAGENS_SINCRONIZADAS.md).
 - **Gerar vídeo** valida ao clicar, consulta o backend e mostra pendências junto à ação. Uma consulta inicial com falha não deixa a ação bloqueada silenciosamente; envio preserva idempotência e tem limite de espera.
 - **Outra voz** fica ao lado de **Característica da voz**, filtrada por tipo. ElevenLabs produz prévia/narração e exportação opcional; a geração mantém a voz nativa. O plano Free verificado não inclui licença comercial para anúncios.
 - Navegador remoto **Flow removido da central**. Flow e YouTube Create aparecem no seletor como integrações pendentes; o login Google não libera automaticamente seus editores ou benefícios.

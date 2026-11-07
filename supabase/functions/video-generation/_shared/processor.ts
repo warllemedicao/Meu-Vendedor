@@ -287,6 +287,10 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
           const request = await dependencies.createVideoRequest(job, image);
           const excluded = await dependencies.triedVideoProviders(job.id);
           const providers = dependencies.createVideoRouter(job, image, excluded);
+          if (!providers.length && excluded.size) {
+            await dependencies.advance(job, { stage: "failed", progress: job.progress, errorCode: "video_providers_exhausted" });
+            return "failed";
+          }
           const routed = await new AIProviderRouter<VideoGenerationRequest, VideoSubmission>(
             providers,
             dependencies.createAttemptStore(job, "video"),
@@ -343,6 +347,11 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
           }
           if (remote.status === "failed") {
             await dependencies.recordVideoStatusFailure(job, remote.errorCode ?? "provider_generation_failed");
+            const selected = job.request_data.generationTool;
+            if (typeof selected === "string" && selected !== "auto") {
+              await dependencies.advance(job, { stage: "failed", progress: job.progress, errorCode: remote.errorCode ?? "provider_generation_failed" });
+              return "failed";
+            }
             await dependencies.advance(job, {
               stage: "image_ready",
               progress: 45,

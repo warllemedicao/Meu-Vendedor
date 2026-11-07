@@ -94,7 +94,12 @@ export function createGoogleVideoProvider(options: { apiKey: string; fetcher?: t
       const body = await get(id);
       if (body.status === "in_progress") return { status: "processing", progress: 50 };
       if (body.status === "cancelled") return { status: "cancelled", progress: 0 };
-      if (body.status === "failed") return { status: "failed", progress: 0, errorCode: "google_video_generation_failed" };
+      if (body.status === "failed") {
+        const codes = new Set((Array.isArray(body.errors) ? body.errors : []).map(error => record(error).code));
+        const known = ["RESOURCE_EXHAUSTED", "PERMISSION_DENIED", "INVALID_ARGUMENT", "INTERNAL", "UNAVAILABLE"];
+        const code = known.find(value => codes.has(value));
+        return { status: "failed", progress: 0, errorCode: code ? `google_video_${code.toLowerCase()}` : "google_video_generation_failed" };
+      }
       if (body.status !== "completed" || !output(body).data) throw new AIProviderFailure("google_video_status_invalid", "transient", "accepted");
       // Retrieval returns base64 even when creation requested URI delivery. Download through this adapter.
       return { status: "completed", progress: 100, downloadUrl: `google-interaction:${id}` };

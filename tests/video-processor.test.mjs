@@ -346,3 +346,16 @@ test('retoma vídeo Google já submetido até armazenamento privado sem nova ger
  assert.equal(state.calls.image,0);assert.equal(state.calls.magicHour,0);assert.equal(state.calls.replicate,0);
  assert.equal(state.calls.stored.length,1);
 });
+
+test('falha do provedor escolhido encerra a tarefa preservando a imagem e sem fallback', async()=>{
+ const state=harness({stage:'video_processing',provider:'google-gemini',provider_job_id:'v1_test',intermediate_image_path:'saved.jpg',request_data:{generationTool:'google-gemini'}},{videoStatus:async()=>({status:'failed',progress:0,errorCode:'google_video_resource_exhausted'})});
+ assert.equal(await state.processor.processNext(),'failed');
+ assert.equal(state.job.stage_message,'google_video_resource_exhausted');
+ assert.equal(state.job.intermediate_image_path,'saved.jpg');
+ assert.equal(state.calls.magicHour+state.calls.replicate,0);
+});
+test('provedores já tentados e esgotados não entram em espera infinita de créditos', async()=>{
+ const state=harness({stage:'image_ready',intermediate_image_path:'saved.jpg'},{triedVideoProviders:async()=>new Set(['google-gemini']),createVideoRouter:()=>[]});
+ assert.equal(await state.processor.processNext(),'failed');
+ assert.equal(state.job.stage_message,'video_providers_exhausted');
+});
