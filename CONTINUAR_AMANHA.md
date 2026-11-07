@@ -1,5 +1,12 @@
 # Continuidade — estado vigente em 07/11/2026
 
+## Benchmark Kaggle — resultado posterior
+
+- Ver [TESTES_KAGGLE_E_CAPACIDADE.md](./TESTES_KAGGLE_E_CAPACIDADE.md): ampliação 4K CPU aprovada (40,773 s), upload privado e SHA-256 conferidos.
+- Hunyuan FP16 não carregou até o fim; NF4 carregou em 223,785 s e depois falhou por VRAM insuficiente na geração. Nenhum MP4 do modelo; qualidade e lip sync não comprovados. Não repetir sem mudança técnica.
+- Cota final: 1.129,563 de 108.000 s usados; incremento dos testes 1.115,694 s. Sem reserva ativa. Endpoints temporários encerrados com HTTP 410.
+- Scripts em `executors/kaggle/`; calculador em `scripts/calculate-video-capacity.mjs`. 208 testes passaram. Nenhum novo motor habilitado para lojistas.
+
 ## Qualidade visual e prompts — revisão posterior
 
 - Corrigida contradição de identidade: o worker antigo descrevia todos os apresentadores exceto Ana como homem esguio. Agora a identidade da foto é prioritária.

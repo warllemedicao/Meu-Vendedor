@@ -1,5 +1,12 @@
 # Atualizações — Meu Vendedor
 
+## 07/11/2026 — testes reais Kaggle e capacidade
+
+- Ampliação CPU para 2160×3840 validada em 40,773 s; MP4 de 14,74 MB enviado ao Storage privado e conferido por SHA-256. É ampliação de vídeo Magic Hour existente, não geração nativa 4K.
+- HunyuanVideo 1.5: primeira configuração falhou em dependências; FP16 foi encerrado durante carga; NF4 carregou e falhou na geração por falta de VRAM. Nenhum MP4 novo do modelo. Kaggle permanece fora do fallback.
+- API confirmou 30h semanais; testes consumiram mais 18 min 35,7 s. Meta de 15 vídeos/dia exigiria até 13 min 43 s por vídeo com reserva de 20%, ainda sem throughput comprovado.
+- Scripts, relatórios e calculador adicionados; 208 testes aprovados, lint e TypeScript Edge aprovados. Diagnósticos temporários encerrados com HTTP 410. Relatório completo: [TESTES_KAGGLE_E_CAPACIDADE.md](./TESTES_KAGGLE_E_CAPACIDADE.md).
+
 ## 07/11/2026 — identidade e direção visual
 
 - Pesquisa de modelos para personagem realista: HunyuanVideo 1.5 I2V, Wan 2.2, família LTX e MuseTalk; requisitos e limites em [QUALIDADE_VISUAL_E_PROMPTS.md](./QUALIDADE_VISUAL_E_PROMPTS.md). Nenhum novo modelo foi executado.

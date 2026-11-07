@@ -1,0 +1,33 @@
+{
+  "stage": "complete",
+  "kind": "existing_video_lanczos_upscale_not_native_4k",
+  "gpu_requested": false,
+  "cpu_count": 4,
+  "metrics": {
+    "download_seconds": 0.913,
+    "upscale_encode_seconds": 40.773,
+    "output_bytes": 14741478
+  },
+  "input": {
+    "size": [
+      480,
+      854
+    ],
+    "fps": 24.0,
+    "duration": 6.04,
+    "codec": "h264"
+  },
+  "input_bytes": 833153,
+  "ffmpeg": "7.0.2-static",
+  "elapsed_seconds": 46.612,
+  "output": {
+    "size": [
+      2160,
+      3840
+    ],
+    "fps": 24.0,
+    "duration": 6.02,
+    "codec": "h264"
+  },
+  "output_file": "existing-video-4k-lanczos.mp4"
+}

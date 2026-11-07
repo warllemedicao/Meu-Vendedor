@@ -1,0 +1,52 @@
+{
+  "model": "hunyuanvideo-community/HunyuanVideo-1.5-Diffusers-480p_i2v",
+  "stage": "failed",
+  "runs": [],
+  "metrics": {
+    "model_metadata_seconds": 0.266,
+    "installation_seconds": 21.934,
+    "download_seconds": 246.995,
+    "load_seconds": 223.785
+  },
+  "quantization": "nf4",
+  "hardware": {
+    "torch": "2.11.0+cu130",
+    "python": "3.13.16",
+    "cuda_available": true,
+    "ram_total_bytes": 33658159104,
+    "ram_available_bytes": 32143581184,
+    "disk_free_bytes": 1038218502144,
+    "gpus": [
+      {
+        "name": "Tesla T4",
+        "vram_bytes": 15636037632,
+        "compute_capability": [
+          7,
+          5
+        ]
+      },
+      {
+        "name": "Tesla T4",
+        "vram_bytes": 15636037632,
+        "compute_capability": [
+          7,
+          5
+        ]
+      }
+    ]
+  },
+  "elapsed_seconds": 565.953,
+  "model_revision": "5a700ee883ff4c1b3d887ec4188755a7a5e2f698",
+  "model_weight_bytes": 54224260124,
+  "model_gated": false,
+  "dependencies": {
+    "diffusers": "0.42.1",
+    "transformers": "5.4.0",
+    "accelerate": "1.12.0",
+    "huggingface-hub": "1.33.0",
+    "torch": "2.11.0+cu130"
+  },
+  "disk_free_after_download": 983520923648,
+  "error_type": "OutOfMemoryError",
+  "error": "CUDA out of memory. Tried to allocate 3.45 GiB. GPU 0 has a total capacity of 14.56 GiB of which 2.87 GiB is free. Including non-PyTorch memory, this process has 11.69 GiB memory in use. Of the allocated memory 11.46 GiB is allocated by PyTorch, and 101.99 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  ([url]"
+}

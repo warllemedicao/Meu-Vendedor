@@ -417,3 +417,11 @@ O frontend apresenta conexão por App ID/Secret, produtos com ficha e geração/
 As regras de RLS e RPCs impedem usuários de ler credenciais, alterar o estado da conexão ou acessar produtos de outros usuários. Toda operação privada valida a sessão com Supabase Auth; o agendador usa segredo próprio. Nenhum segredo comercial é incluído no frontend.
 
 A implementação continua condicionada a credenciais e liberação reais da Open API. Não foi comprovada uma conexão de conta Shopee real nesta execução; testes controlados não são dados de produção. TikTok, Mercado Livre, Amazon e Magazine Luiza permanecem em preparação por requisitos específicos de API/aplicativo. Limites, fontes, segurança e verificações em `CONECTORES.md`.
+
+## 15. Benchmarks de capacidade Kaggle — 07/11/2026
+
+Os executores privados em `executors/kaggle/` medem inferência e pós-processamento separadamente. A submissão usa a API oficial de notebooks, sem túnel público ou servidor persistente. Credenciais administrativas permanecem no Supabase; o notebook recebe somente referência temporária e callback descartável. Claims no banco impedem lançamentos duplicados.
+
+A ampliação CPU de um MP4 existente para 2160×3840 foi validada em 40,773 s, com armazenamento privado e conferência SHA-256. Ela não produz detalhe nativo 4K. Os resultados de inferência e as contas condicionais estão em [TESTES_KAGGLE_E_CAPACIDADE.md](./TESTES_KAGGLE_E_CAPACIDADE.md). Kaggle permanece fora do fallback de produção até haver MP4 gerado, inspeção de qualidade, licença e operação assíncrona validados. O benchmark não altera jobs de lojistas nem injeta resultados técnicos na biblioteca.
+
+O calculador considera cota, preparação por sessão, duração por vídeo, reserva e taxa de sucesso. A meta de 105 vídeos semanais exige custo médio total até 13 min 43 s por vídeo com 20% de reserva; esse número não comprova capacidade de geração. Endpoints temporários de diagnóstico são encerrados após os testes; Storage e auditorias preservam a evidência.
