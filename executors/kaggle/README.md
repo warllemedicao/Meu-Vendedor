@@ -3,6 +3,7 @@
 Scripts de teste, separados da geração dos usuários. Não são um servidor persistente nem utilizam túneis.
 
 - `benchmark.py`: tentativa de imagem-para-vídeo HunyuanVideo 1.5, com modelo e dependências fixados, medições por etapa, duas sementes para execução inicial/quente e limite externo de sessão.
+- `distilled_benchmark.py`: checkpoint 480p I2V step-distilled, 12 passos e VAE em blocos. O padrão é o modo `model`, NF4 no gerador e texto, contexto de 256 tokens, apenas 49 quadros: configuração que produziu MP4 de dois segundos. O teste de 145 quadros exige `attempt_six_seconds="yes"` e orçamento de sessão; seis segundos ainda não foram validados. Modo `hybrid` (gerador FP16 por blocos, texto quantizado) continua experimental e foi interrompido antes de produzir MP4. O modo de blocos com todo o NF4 falhou. Não gera áudio; não tratar os modos experimentais como aprovados.
 - `upscale_benchmark.py`: ampliação Lanczos de um vídeo já concluído para 2160×3840, sem GPU. Não representa geração nativa 4K nem recuperação de detalhes reais.
 - `../../scripts/calculate-video-capacity.mjs`: projeções com tempo de preparação por sessão, tempo por vídeo, margem de cota, duração máxima e taxa de sucesso. Cenários hipotéticos têm identificação explícita.
 

@@ -1,5 +1,12 @@
 # Continuidade — estado vigente em 07/11/2026
 
+## Resultado mais recente — Hunyuan destilado e parada solicitada
+
+- **MP4 novo de dois segundos confirmado**, 480×848/24 fps, NF4 + offload por componente, 12 passos, contexto 256. Tempo com codificação 558,729 s. Arquivo privado no Supabase e local em `/tmp/meu-vendedor-benchmarks/generation/short_generation.mp4`; SHA-256 no relatório.
+- Seis segundos: OOM na atenção. Configuração FP16 por blocos: hooks ajustados; R3 entrou na inferência, mas foi interrompida por solicitação do usuário (4% de uso restante no ChatGPT). Não continuar automaticamente nem marcar R3 como sucesso/falha de geração.
+- Notebook R3 temporário removido; endpoints `kaggle-benchmark` e `kaggle-benchmark-hybrid` encerrados com HTTP 410. Saldo Kaggle observado 28h55min; independente do limite ChatGPT, que não conseguimos consultar.
+- Retomada, configurações e evidências em [TESTE_HUNYUAN_DESTILADO.md](./TESTE_HUNYUAN_DESTILADO.md). Scripts padrão limitados a dois segundos; seis segundos exige opção explícita. Nenhuma alteração na fila dos lojistas.
+
 ## Benchmark Kaggle — resultado posterior
 
 - Ver [TESTES_KAGGLE_E_CAPACIDADE.md](./TESTES_KAGGLE_E_CAPACIDADE.md): ampliação 4K CPU aprovada (40,773 s), upload privado e SHA-256 conferidos.

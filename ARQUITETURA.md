@@ -425,3 +425,9 @@ Os executores privados em `executors/kaggle/` medem inferência e pós-processam
 A ampliação CPU de um MP4 existente para 2160×3840 foi validada em 40,773 s, com armazenamento privado e conferência SHA-256. Ela não produz detalhe nativo 4K. Os resultados de inferência e as contas condicionais estão em [TESTES_KAGGLE_E_CAPACIDADE.md](./TESTES_KAGGLE_E_CAPACIDADE.md). Kaggle permanece fora do fallback de produção até haver MP4 gerado, inspeção de qualidade, licença e operação assíncrona validados. O benchmark não altera jobs de lojistas nem injeta resultados técnicos na biblioteca.
 
 O calculador considera cota, preparação por sessão, duração por vídeo, reserva e taxa de sucesso. A meta de 105 vídeos semanais exige custo médio total até 13 min 43 s por vídeo com 20% de reserva; esse número não comprova capacidade de geração. Endpoints temporários de diagnóstico são encerrados após os testes; Storage e auditorias preservam a evidência.
+
+### 15.1 Piloto Hunyuan destilado
+
+O checkpoint 480p I2V step-distilled gerou um MP4 nativo de dois segundos, 480×848 e 24 fps, com 12 passos, NF4, offload por componente e contexto de 256 tokens. O arquivo foi decodificado integralmente, teve quadros inspecionados e foi armazenado no Supabase privado com conferência SHA-256. A geração e a codificação levaram 558,729 s, sem contar a preparação. A tentativa seguinte de seis segundos falhou por VRAM na atenção.
+
+Os executores experimentais comparam offload por componente, por blocos e uma configuração com gerador FP16 e encoder de texto quantizado. Falhas de hooks/dispositivos são registradas separadamente de inferência e qualidade. Nenhuma dessas configurações é adicionada automaticamente ao fallback dos lojistas. O piloto não valida fala, lip sync ou criação de cenário pelo diretor. Resultados e limites atualizados em [TESTE_HUNYUAN_DESTILADO.md](./TESTE_HUNYUAN_DESTILADO.md).

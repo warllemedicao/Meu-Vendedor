@@ -40,3 +40,7 @@ Para evolução do diretor automático, priorizar um modelo com visão que receb
 ## Como validar a qualidade
 
 Comparar os candidatos usando a mesma imagem aprovada, ação simples e duração. Manter configurações e sementes registradas dentro de cada modelo, sem assumir equivalência de sementes entre modelos. Avaliar identidade, pele, mãos, produto, continuidade, movimento, fala, tempo e memória. Começar com uma entrega de imagem-para-vídeo; adicionar voz/lip sync após validar a animação. Nenhuma melhoria visual é declarada como comprovada antes da avaliação do MP4.
+
+## Validação posterior — Hunyuan destilado
+
+O piloto posterior gerou um vídeo de dois segundos com o checkpoint 480p I2V step-distilled. Identidade e composição próximas da referência nos quadros inspecionados; lettering pequeno do produto varia. Não foi validada fala ou criação de novo cenário. Consulte medições, configurações e limitações em [TESTE_HUNYUAN_DESTILADO.md](./TESTE_HUNYUAN_DESTILADO.md).

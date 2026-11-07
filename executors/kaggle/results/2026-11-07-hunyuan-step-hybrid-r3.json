@@ -1,0 +1,65 @@
+{
+  "runs": [],
+  "model": "hunyuanvideo-community/HunyuanVideo-1.5-Diffusers-480p_i2v_step_distilled",
+  "stage": "short_generation",
+  "steps": 12,
+  "metrics": {
+    "load_seconds": 142.508,
+    "download_seconds": 176.039,
+    "installation_seconds": 22.212,
+    "model_metadata_seconds": 0.096
+  },
+  "hardware": {
+    "gpus": [
+      {
+        "name": "Tesla T4",
+        "vram_bytes": 15636037632,
+        "compute_capability": [
+          7,
+          5
+        ]
+      },
+      {
+        "name": "Tesla T4",
+        "vram_bytes": 15636037632,
+        "compute_capability": [
+          7,
+          5
+        ]
+      }
+    ],
+    "torch": "2.11.0+cu130",
+    "python": "3.13.16",
+    "cuda_available": true,
+    "disk_free_bytes": 1038218502144,
+    "ram_total_bytes": 33658159104,
+    "ram_available_bytes": 32143126528
+  },
+  "offloading": "hybrid",
+  "model_gated": false,
+  "dependencies": {
+    "torch": "2.11.0+cu130",
+    "diffusers": "0.42.1",
+    "accelerate": "1.12.0",
+    "transformers": "5.4.0",
+    "huggingface-hub": "1.33.0"
+  },
+  "quantization": "nf4",
+  "prompt_tokens": 94,
+  "model_revision": "854c04a4c8a53d990b418c7478f0802c0fc8c726",
+  "elapsed_seconds": 477.008,
+  "requested_frames": 49,
+  "ram_available_now": 2947227648,
+  "gpu_reserved_bytes": 4504682496,
+  "model_weight_bytes": 34620593582,
+  "gpu_allocated_bytes": 595916800,
+  "quantized_components": [
+    "text_encoder"
+  ],
+  "tokenizer_max_length": 256,
+  "disk_free_after_download": 1003125088256,
+  "generation_elapsed_seconds": 90.473,
+  "operator_note": "Interrupted at user request to preserve remaining ChatGPT usage; no completed MP4 measured in this attempt.",
+  "operator_status": "interrupted_by_user",
+  "temporary_notebook_deleted": true
+}

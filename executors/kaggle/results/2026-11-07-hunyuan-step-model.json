@@ -1,0 +1,102 @@
+{
+  "model": "hunyuanvideo-community/HunyuanVideo-1.5-Diffusers-480p_i2v_step_distilled",
+  "stage": "failed",
+  "runs": [
+    {
+      "label": "short_generation",
+      "seed": 42,
+      "steps": 12,
+      "requested_frames": 49,
+      "generated_frames": 49,
+      "native_frame_shape": [
+        848,
+        480,
+        3
+      ],
+      "render_seconds": 556.009,
+      "total_generation_and_encode_seconds": 558.729,
+      "gpu_peak_allocated_bytes": 10614864384,
+      "gpu_peak_reserved_bytes": 11723079680,
+      "mp4_bytes": 232825,
+      "file": "short_generation.mp4",
+      "audio": false
+    }
+  ],
+  "metrics": {
+    "model_metadata_seconds": 0.111,
+    "installation_seconds": 23.775,
+    "download_seconds": 182.037,
+    "load_seconds": 150.071
+  },
+  "quantization": "nf4",
+  "offloading": "model",
+  "steps": 12,
+  "hardware": {
+    "torch": "2.11.0+cu130",
+    "python": "3.13.16",
+    "cuda_available": true,
+    "ram_total_bytes": 33658155008,
+    "ram_available_bytes": 32149327872,
+    "disk_free_bytes": 1038218498048,
+    "gpus": [
+      {
+        "name": "Tesla T4",
+        "vram_bytes": 15636037632,
+        "compute_capability": [
+          7,
+          5
+        ]
+      },
+      {
+        "name": "Tesla T4",
+        "vram_bytes": 15636037632,
+        "compute_capability": [
+          7,
+          5
+        ]
+      }
+    ]
+  },
+  "elapsed_seconds": 970.415,
+  "model_revision": "854c04a4c8a53d990b418c7478f0802c0fc8c726",
+  "model_weight_bytes": 34620593582,
+  "model_gated": false,
+  "dependencies": {
+    "diffusers": "0.42.1",
+    "transformers": "5.4.0",
+    "accelerate": "1.12.0",
+    "huggingface-hub": "1.33.0",
+    "torch": "2.11.0+cu130"
+  },
+  "disk_free_after_download": 1003125075968,
+  "prompt_tokens": 94,
+  "tokenizer_max_length": 256,
+  "requested_frames": 145,
+  "generation_elapsed_seconds": 544.335,
+  "ram_available_now": 15554420736,
+  "gpu_allocated_bytes": 2736081408,
+  "gpu_reserved_bytes": 11720982528,
+  "error_type": "OutOfMemoryError",
+  "error": "CUDA out of memory. Tried to allocate 3.36 GiB. GPU 0 has a total capacity of 14.56 GiB of which 2.98 GiB is free. Including non-PyTorch memory, this process has 11.58 GiB memory in use. Of the allocated memory 11.34 GiB is allocated by PyTorch, and 111.83 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  ([url]",
+  "traceback": "\n    ...<2 lines>...\n        image_rotary_emb=freqs_cis,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py\", line 1779, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py\", line 1790, in _call_impl\n    return forward_call(*args, **kwargs)\n  File \"/usr/local/lib/python3.13/dist-packages/diffusers/models/attention_processor.py\", line 607, in forward\n    return self.processor(\n           ~~~~~~~~~~~~~~^\n        self,\n        ^^^^^\n    ...<3 lines>...\n        **cross_attention_kwargs,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"/usr/local/lib/python3.13/dist-packages/diffusers/mod",
+  "local_validation": {
+    "decoded_frames": 48,
+    "fps": 24,
+    "duration_seconds": 2,
+    "width": 480,
+    "height": 848,
+    "bytes": 232825,
+    "sha256": "079011758ce65ae8f7fe43d5fecca3691b6486525310329fd86d4c8a8e35bd98",
+    "inspected_frame_seconds": [
+      0,
+      1,
+      1.9
+    ],
+    "visual_observation": "Face, clothing and overall composition similar to reference; small product lettering changes; no audio or lip sync validation"
+  },
+  "storage_verification": {
+    "stored_privately": true,
+    "readback_sha256": "079011758ce65ae8f7fe43d5fecca3691b6486525310329fd86d4c8a8e35bd98",
+    "bytes": 232825
+  }
+}

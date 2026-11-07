@@ -1,5 +1,12 @@
 # Atualizações — Meu Vendedor
 
+## 07/11/2026 — primeiro vídeo Hunyuan no Kaggle
+
+- Checkpoint 480p I2V step-distilled gerou MP4 novo de dois segundos, 480×848, 24 fps e 232.825 bytes em 558,729 s incluindo codificação. NF4 e offload por componente; prompt inteiro de 94 tokens.
+- MP4 decodificado, quadros inspecionados e upload privado relido por SHA-256. Escrita pequena do produto varia; fala/lip sync não validados.
+- Seis segundos falhou por VRAM. Comparação FP16 por blocos teve ajustes de hooks e foi interrompida a pedido do usuário antes de concluir outro MP4, para preservar o uso do ChatGPT. Kaggle segue fora do fallback.
+- Notebook temporário interrompido removido; diagnósticos desativados. Saldo Kaggle observado: 28h55min. Scripts, relatórios e instruções de retomada em [TESTE_HUNYUAN_DESTILADO.md](./TESTE_HUNYUAN_DESTILADO.md).
+
 ## 07/11/2026 — testes reais Kaggle e capacidade
 
 - Ampliação CPU para 2160×3840 validada em 40,773 s; MP4 de 14,74 MB enviado ao Storage privado e conferido por SHA-256. É ampliação de vídeo Magic Hour existente, não geração nativa 4K.

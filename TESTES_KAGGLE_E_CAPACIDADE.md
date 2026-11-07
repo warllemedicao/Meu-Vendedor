@@ -1,5 +1,7 @@
 # Testes Kaggle e capacidade — 07/11/2026
 
+> Atualização posterior: o checkpoint destilado produziu um MP4 novo de dois segundos. As medições abaixo são o histórico do primeiro benchmark. Resultados posteriores em [TESTE_HUNYUAN_DESTILADO.md](./TESTE_HUNYUAN_DESTILADO.md).
+
 ## Escopo e evidência
 
 Testes privados com a conta já autorizada, sem compra de créditos. Scripts reproduzíveis em `executors/kaggle/`; cálculos em `scripts/calculate-video-capacity.mjs`. As tentativas ficam registradas em `mv_ai_provider_audits` com prefixo `kaggle-benchmark-20261107`. Resultados de uma configuração não representam todas as bibliotecas de vídeo.
