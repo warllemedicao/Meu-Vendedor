@@ -7,6 +7,15 @@
 - Prompts de imagem/vídeo agora descrevem o ambiente de cada cenário e substituem o fundo de catálogo. Melhoria de qualidade ainda depende de avaliar próxima geração real, não realizada nesta revisão.
 - 190 testes, lint e TypeScript frontend/Edge aprovados. Importação de imagem publicada em `video-generation` v45.
 
+## Piloto Wan no Kaggle — continuidade
+
+- O responsável confirmou que `KAGGLE_API_TOKEN` está nos Secrets do Supabase. A credencial foi validada sem revelar o valor: chamada à API Kaggle retornou HTTP 200.
+- Nenhum notebook foi enviado e nenhuma GPU/modelo Wan foi executado. Portanto, ainda não há resultado de geração, duração ou qualidade.
+- A checagem usou uma Edge Function temporária autenticada por segredo descartável; ela foi substituída por resposta HTTP 410 logo após o teste. A pasta local temporária também foi removida.
+- Próximo passo: implementar um disparador de teste do lado servidor que use `KAGGLE_API_TOKEN` sem expor o segredo, envie um notebook privado com GPU via API oficial de kernels, acompanhe estado/logs e recupere o MP4. Primeiro verificar/obter o username da conta e a disponibilidade de GPU/cota. Não integrar ao fluxo de usuários até terminar o piloto.
+- Começar com notebook mínimo que confirma GPU e versões/runtime; em seguida rodar uma geração curta Wan image-to-video com imagem de teste autorizada. Wan 2.2 I2V de alta qualidade documenta necessidade de GPU grande; escolher variante/configuração compatível com a GPU Kaggle efetivamente concedida. Se faltar VRAM ou disponibilidade, registrar como limite do Kaggle, sem trocar para API paga.
+- Kaggle notebooks são temporários e sujeitos a cotas; mesmo que o piloto passe, isso ainda não garante um backend de produção sob demanda.
+
 ## Entregue e confirmado
 
 - Foto automática de produto sincronizado corrigida: o backend importa a imagem Shopee do produto pertencente à conta para o Storage privado antes de preparar as referências. A prévia externa deixa de exigir download/upload manual. Testes e limites em [IMAGENS_SINCRONIZADAS.md](./IMAGENS_SINCRONIZADAS.md).
