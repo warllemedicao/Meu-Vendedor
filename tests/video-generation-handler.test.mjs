@@ -67,6 +67,25 @@ const jobRequest = {
   presenterReferenceHeight: 512,
 };
 
+test('consulta de saldo indisponível não bloqueia capacidades dos provedores de vídeo existentes', async () => {
+  let balanceCalls = 0;
+  const handler = createVideoGenerationHandler(defaultDependencies({
+    videoJobsEnabled: () => true,
+    videoProcessorAvailable: () => true,
+    videoProviders: () => [{ id: 'magic-hour', model: 'ltx-2.5', configured: true }],
+    productionServices: () => [],
+    productionServiceBalances: async () => { balanceCalls++; throw new Error('balance timeout'); },
+  }));
+  const caps = await handler(request({ action: 'capabilities' }));
+  const data = await caps.json();
+  assert.equal(caps.status, 200);
+  assert.equal(data.video.tools.find(t => t.id === 'magic-hour').available, true);
+  assert.equal(data.jobs.processorAvailable, true);
+  assert.equal(balanceCalls, 0);
+  assert.equal((await handler(request({ action: 'service-balances' }))).status, 503);
+  assert.equal((await handler(request({ action: 'capabilities' }))).status, 200);
+});
+
 test('backend exige autenticação e informa capacidades sem revelar configuração sensível', async () => {
   const handler = createVideoGenerationHandler(defaultDependencies({
     geminiApiKey: () => 'server-only-test-key',

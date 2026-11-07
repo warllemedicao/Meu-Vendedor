@@ -60,5 +60,5 @@ test('ElevenLabs consulta plano sem inferência e distingue créditos de licenç
  assert.equal(report.report.quota_verified,false);
  assert.doesNotMatch(JSON.stringify(reports),/private-eleven-key|private@example.com/);
  const item=productionServiceInventory(name=>name==='ELEVENLABS_API').find(r=>r.id==='elevenlabs');
- assert.equal(item.stage,'audio');assert.equal(item.configured,true);assert.equal(item.integrated,false);
+ assert.equal(item.stage,'audio');assert.equal(item.configured,true);assert.equal(item.integrated,true);
 });

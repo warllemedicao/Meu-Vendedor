@@ -7,7 +7,7 @@ import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
 import { connectorCatalog } from "@/lib/connectors/catalog";
 import { Badge } from "@/components/ui/Badge";
-import { GoogleFlowConnection } from "./GoogleFlowConnection";
+import { YouTubeConnection } from "./YouTubeConnection";
 
 const sections = [{ id: "acesso", label: "Meu acesso" }, { id: "google", label: "Google e redes" }, { id: "lojas", label: "Lojas" }] as const;
 type Section = typeof sections[number]["id"];
@@ -42,10 +42,9 @@ export function AccountHub() {
         {!user && <button type="button" onClick={() => { window.location.hash = "acesso"; setSection("acesso"); }} className="mt-3 text-sm text-primary underline">Ir para meu acesso</button>}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <GoogleFlowConnection key={user?.id ?? "anonymous"} />
+        <YouTubeConnection key={`youtube:${user?.id ?? "anonymous"}`} />
         {[
-          ["YouTube Create / Google vídeo", "Alternativa por API implementada", "O editor YouTube Create não possui API pública identificada. A geração por Gemini Omni foi adicionada ao pipeline; usa a chave e o faturamento do aplicativo, separados dos benefícios do YouTube e Flow. O acesso real ao modelo ainda será validado."],
-          ["YouTube", "Publicação em preparação", "A autorização do canal será solicitada aqui quando a publicação estiver disponível."],
+          ["Gemini · roteiro e vídeo", "API do aplicativo", "As opções Gemini ficam no estúdio e usam a chave de API cadastrada no servidor. O login Google e a assinatura pessoal não substituem o acesso e o faturamento dessa API."],
           ["Instagram e Facebook", "Conexão em preparação", "As contas e páginas serão autorizadas nesta central, com as permissões de publicação de cada rede."],
           ["TikTok", "Publicação em preparação", "A conexão para publicar vídeos depende da integração oficial e da aprovação do aplicativo."],
         ].map(([name, state, description]) => <article key={name} className="rounded-xl border border-border bg-surface p-4"><h3 className="font-semibold">{name}</h3><div className="mt-2"><Badge>{state}</Badge></div><p className="mt-2 text-sm text-muted">{description}</p></article>)}

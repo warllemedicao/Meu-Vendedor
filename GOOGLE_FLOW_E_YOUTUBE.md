@@ -1,5 +1,15 @@
 # Google, Flow e YouTube Create — 06/11/2026
 
+## Estado vigente — 07/11/2026
+
+Login Google e conexão do canal YouTube confirmados pelo responsável. Nova chave Gemini aceita pelo catálogo/modelos consultados; geração de vídeo Google ainda requer teste real. Gerar vídeo foi corrigido para validar ao clicar e mostrar pendências; ElevenLabs aparece em Outra voz junto das características da voz, com prévia/exportação opcional e áudio nativo mantido na geração. Flow remoto saiu da central; Flow/Create permanecem pendentes no seletor. Frontend Cloudflare `a1a5dd36-76b7-4954-99f6-d9d5f5b72b90`; video-generation v44. Retomada e pendências em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md) e [AJUSTES_ESTUDIO.md](./AJUSTES_ESTUDIO.md).
+
+## Histórico técnico — registros anteriores
+
+Os registros abaixo preservam decisões e validações das entregas anteriores; afirmações divergentes não substituem o estado vigente acima.
+
+> **Correção de geração e ajustes solicitados — 07/11/2026:** botão Gerar vídeo deixou de depender de bloqueios silenciosos da interface; valida campos ao clicar, reconsulta disponibilidade e mostra erro junto à ação, com limites de espera e idempotência preservada. Navegador Flow retirado da central; Flow/Create aparecem somente como opções pendentes no seletor. ElevenLabs movida para Outra voz ao lado de Característica da voz, filtrada pelo tipo; prévia/exportação usam o roteiro existente e geração mantém a voz nativa. Chave Gemini anterior recusada com API_KEY_INVALID; após atualização pelo responsável, catálogo e modelos de roteiro/vídeo responderam HTTP 200. Isso não comprova inferência ou faturamento de vídeo Google. Teste UI de desktop/celular preparou imagens e confirmou um pedido por clique com fila simulada, mesmo após falha inicial 503; nenhum vídeo real novo foi solicitado. Detalhes em [AJUSTES_ESTUDIO.md](./AJUSTES_ESTUDIO.md).
+
 Este registro substitui os estados anteriores de Google/Flow. A integração está parcialmente entregue: conexão experimental do Flow e adaptador oficial de vídeo Google implementados; executor externo de conexão Modal implantado e testado; login pessoal, automação de geração e importação do resultado ainda pendentes.
 
 ## Estado vigente: navegador externo Modal implantado

@@ -33,6 +33,7 @@ export interface VideoGenerationDependencies {
   videoProcessorAvailable(): boolean;
   videoProviders?(): readonly { id: string; model: string; configured: boolean }[];
   productionServices?(): readonly import("./provider-inventory.ts").ProductionService[] | Promise<readonly import("./provider-inventory.ts").ProductionService[]>;
+  productionServiceBalances?(): Promise<readonly import("./provider-inventory.ts").ProductionService[]>;
   generateScript(input: GeminiScriptInput, apiKey: string): Promise<string>;
   generateScriptWithFallback?(input: GeminiScriptInput): Promise<{ script: string; provider: string; model: string }>;
   scriptProvidersConfigured?(): boolean;
@@ -286,6 +287,11 @@ export function createVideoGenerationHandler(dependencies: VideoGenerationDepend
 
     const body = await readBody(request);
     if (!body || typeof body.action !== "string") return response({ error: { code: "invalid_request", message: "Solicitação inválida." } }, 400, cors);
+
+    if (body.action === "service-balances") {
+      try { return response({ services: await dependencies.productionServiceBalances?.() ?? [] }, 200, cors); }
+      catch { return response({ error: { code: "balance_unavailable", message: "Não foi possível atualizar os saldos agora." } }, 503, cors); }
+    }
 
     if (body.action === "capabilities") {
       const configured = dependencies.scriptProvidersConfigured?.() ?? Boolean(dependencies.geminiApiKey());

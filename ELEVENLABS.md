@@ -1,29 +1,34 @@
-# ElevenLabs — verificação em 06/11/2026
+# ElevenLabs — integração de narração, 06/11/2026
 
-## Resultado no projeto
+## Estado vigente
 
-O inventário do Meu Vendedor reconhece ElevenLabs como serviço de áudio e consulta `GET https://api.elevenlabs.io/v1/user/subscription` usando o cabeçalho `xi-api-key`. Nomes aceitos: `ELEVENLABS_API_KEY` (recomendado), `ELEVENLABS_API`, `ELEVEN_LABS_API_KEY` e `XI_API_KEY`. A consulta usa somente GET, timeout, limite de resposta e resumo permitido; não executa síntese nem consome créditos de geração.
+A chave existente `ELEVENLABS_API` é usada no backend. Não foi necessário cadastrá-la novamente. A função independente `audio-generation` está publicada na versão 2 e valida cada sessão com Supabase Auth. A integração não condiciona a disponibilidade de geração de vídeo.
 
-O diagnóstico foi publicado no Supabase: `video-generation` v38 e `video-generation-worker` v23. A chave foi localizada sob o nome **`ELEVENLABS_API`**, agora aceito como alias, sem expor ou copiar seu valor. Não é necessário cadastrá-la novamente.
+No estúdio, **Outra voz (opcional)** fica ao lado de **Característica da voz**, com vozes filtradas pelo tipo feminina/masculina selecionado. O cartão separado e o segundo campo de roteiro foram removidos; a prévia e a exportação de narração usam o roteiro existente. A voz nativa é a opção padrão e permanece no pipeline de geração. A escolha ElevenLabs se aplica à prévia e à exportação opcional, não substitui automaticamente o áudio no worker. Um resultado concluído pode receber essa narração na exportação local; o vídeo original permanece na biblioteca. O navegador exporta MP4 ou WebM conforme suporte e mantém o último quadro quando a fala excede a duração do vídeo. Não há sincronização labial nem composição automática no worker.
 
-A consulta real de 06/11 às 16:41 UTC foi autenticada e retornou plano **Free**, limite de **10.000 créditos**, uso **0** e restante **10.000**. A API respondeu subscription_status=free. O timestamp de renovação retornado é anterior à data desta revisão; não foi apresentado como próxima renovação garantida. A auditoria persiste somente os campos permitidos, sem dados pessoais, segredos ou detalhes de cobrança.
+## Teste real e compatibilidade
 
-O cartão informa o saldo real, mas a integração de geração de áudio permanece pendente. Plano Free não inclui licença comercial. Nenhum áudio foi gerado e nenhum crédito de síntese foi consumido pela verificação.
+Uma frase neutra de avaliação em português foi sintetizada pela API com `eleven_multilingual_v2` e a voz padrão **Bella - Professional, Bright, Warm**. O MP3 retornou **59.811 bytes** e foi decodificado no Chromium com aproximadamente **3,67 segundos**. A exportação local com um vídeo de teste retornou MP4 com faixa de áudio decodificável. Isso é um teste real de síntese separado dos testes simulados de interface e não constitui anúncio comercial produzido.
 
-## Recursos gratuitos e aplicação
+A lista de vozes da conta inclui uma voz profissional de biblioteca que foi recusada pela síntese com HTTP **402 / payment_required**. A integração agora filtra vozes **premade** para contas Free, mesmo quando uma voz profissional aparece na lista e informa `free_users_allowed=true`. Foram encontradas 21 vozes padrão na consulta de validação.
 
-A página pública consultada informa plano Free com **10 mil créditos mensais** e recursos de texto para fala, transcrição, efeitos sonoros, criação de voz e música. O acesso a cada operação depende das permissões da chave, modelo e plano real. Não confundir créditos com minutos fixos: consumo varia por recurso/modelo.
+O plano verificado continua **Free**. A API informou 10.000 créditos antes e imediatamente depois do teste; esse retorno imediato não comprova consumo zero nem gratuidade ilimitada. Valores posteriores podem refletir contabilização do fornecedor.
 
-Para o Meu Vendedor, narração em português, transcrição para legendas e efeitos sonoros são possibilidades úteis. Contudo, os termos oficiais dizem que o plano Free **não inclui licença comercial**. Conteúdo publicado não comercialmente exige atribuição; serviços Beta também têm restrições. Portanto, a franquia Free não foi habilitada automaticamente na produção de vídeos publicitários. Planos pagos oferecem licença comercial sujeita aos termos específicos, mas não foram contratados nem ativados nesta entrega.
+## Licença
 
-## Próximo passo
+O plano Free permite a área de prévia não comercial. Não inclui licença para anúncios; a interface informa essa condição. O backend recusa pedidos marcados como comerciais quando a conta não tem um plano reconhecido com licença comercial. Não foi contratado ou alterado plano. Após mudança de plano no fornecedor, **Atualizar vozes e saldo** reconsulta as condições da conta. Áudio gerado no Free não ganha licença retroativa com uma assinatura posterior.
 
-A credencial e o plano já foram confirmados. É possível avaliar recursos em testes não comerciais dentro da franquia. Para anúncios, é necessário um plano/licença compatível; nenhum plano foi alterado. Antes de oferecer áudio no botão Gerar vídeo, implementar síntese, armazenamento privado e composição/sincronização com vídeo, validando também os termos específicos do recurso. Consulta de saldo não equivale a adaptador de síntese pronto.
+## Persistência e proteção
 
-Fontes oficiais consultadas:
+- Migração `20261106224146_elevenlabs_audio.sql` aplicada e reconciliada com o histórico remoto.
+- Tabela `mv_audio_generations` com RLS forçada, leitura somente do proprietário e gravação/claim somente no backend.
+- Bucket `mv-video-assets` permanece privado, agora aceitando `audio/mpeg`. URLs assinadas duram cinco minutos e podem ser renovadas pelo dono do resultado.
+- Mesmo usuário/texto/voz/modelo/finalidade reutilizam o áudio concluído. Claim atômico evita duas sínteses concorrentes; envio incerto não é repetido automaticamente. Há limite de quatro novas solicitações por minuto por conta.
+- Chaves, respostas brutas e comandos arbitrários não são enviados ao navegador.
+- A função técnica temporária de verificação foi desativada e retorna 410; não deixa um caminho público de geração.
 
-- [Planos e franquia Free](https://elevenlabs.io/pricing)
-- [API e recursos](https://elevenlabs.io/pricing/api)
-- [Autenticação por chave](https://elevenlabs.io/docs/api-reference/authentication)
-- [Consulta de assinatura](https://elevenlabs.io/docs/api-reference/user/subscription/get)
-- [Licença e publicação comercial](https://elevenlabs.io/docs/help-center/legal/can-i-publish-the-content-i-generate-on-the-platform)
+## Validação
+
+165 testes Node aprovados, lint, TypeScript frontend/Edge e build estático das 17 rotas aprovados. Testes Chromium com sessão/respostas controladas em 1440×900 e 390×844 confirmaram o cartão de voz, seleção, prévia, ausência de overflow e preservação das ferramentas de vídeo após falha 503 na atualização de disponibilidade. A síntese real foi testada separadamente com as credenciais do runtime; não foi usado login pessoal do responsável nem criada nova tarefa de vídeo.
+
+Fontes oficiais: [síntese](https://elevenlabs.io/docs/api-reference/text-to-speech/convert), [vozes](https://elevenlabs.io/docs/api-reference/voices/search), [licença](https://elevenlabs.io/docs/help-center/legal/can-i-publish-the-content-i-generate-on-the-platform).

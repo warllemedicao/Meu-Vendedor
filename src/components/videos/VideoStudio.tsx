@@ -32,6 +32,9 @@ import {
   uploadVideoResult,
 } from "@/lib/video-assets";
 import { mockVideoProvider } from "@/lib/video-provider";
+import { splitGenerationTools } from "@/lib/video-capabilities";
+import { ElevenLabsNarration } from "./ElevenLabsNarration";
+import { edgeFunctionMessage, videoSubmissionIssue } from "@/lib/video-submission";
 import {
   advertisingStyles,
   buildAdvertisingScript,
@@ -354,6 +357,7 @@ export function VideoStudio() {
   const [generationTool, setGenerationTool] = useState("auto");
   const [generationTools, setGenerationTools] = useState<{ id: string; label: string; available: boolean; reason: string }[]>([]);
   const selectedGenerationTool = generationTools.find((tool) => tool.id === generationTool);
+  const toolGroups = splitGenerationTools(generationTools);
   const [mode, setMode] = useState<GenerationMode>("ai-video");
   const [targetAudience, setTargetAudience] = useState("");
   const [script, setScript] = useState("");
@@ -367,6 +371,8 @@ export function VideoStudio() {
   const [capabilityRefresh, setCapabilityRefresh] = useState(0);
   const [checkingProduction, setCheckingProduction] = useState(false);
   const [productionServices, setProductionServices] = useState<ProductionServiceView[]>([]);
+  const [balanceRefresh, setBalanceRefresh] = useState(0);
+  const [checkingBalances, setCheckingBalances] = useState(false);
   const lastObservedJobs = useRef<{ userId: string; statuses: Map<string, string> } | null>(null);
   const [capabilityUserId, setCapabilityUserId] = useState<string | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
@@ -396,6 +402,8 @@ export function VideoStudio() {
   const [notice, setNotice] = useState("");
   const [libraryLoading, setLibraryLoading] = useState(true);
   const generationLock = useRef(false);
+  const enqueueLock = useRef(false);
+  const generationFeedback = useRef<HTMLParagraphElement>(null);
   const enqueueIdempotency = useRef<{ fingerprint: string; key: string } | null>(null);
   const aiReferenceCache = useRef<{
     key: string;
@@ -440,6 +448,9 @@ export function VideoStudio() {
   const effectiveScript = scriptEdited ? script : suggestedScript;
   const prompt = useMemo(() => buildVideoPrompt(configuration, effectiveScript), [configuration, effectiveScript]);
   const validationError = validateVideoConfiguration(configuration, effectiveScript);
+  const submissionIssue = videoSubmissionIssue({ signedIn: Boolean(user), validationError,
+    hasImage: Boolean(product.imageStoragePath || productImage), presenterReady: presenter.referenceStatus === "ready",
+    presenterName: presenter.name, duration: durationSeconds });
   const status: VideoGenerationStatus = generationStatus === "awaiting_configuration" && !validationError ? "ready" : generationStatus;
 
   useEffect(() => () => {
@@ -522,16 +533,11 @@ export function VideoStudio() {
         if (!active) return;
         setCheckingProduction(false);
         if (invokeError) {
-          setProductionReadiness(null);
-          setCapabilityUserId(null);
-          setGeminiScriptAvailable(false);
-          setJobManagementAvailable(false);
-          setVideoProcessorAvailable(false);
-          setGeminiCapabilityMessage("Não foi possível verificar os serviços de roteiro.");
+          setGeminiCapabilityMessage("Não foi possível atualizar os serviços. A última disponibilidade verificada foi preservada; tente atualizar novamente.");
           return;
         }
         setGenerationTools(Array.isArray(data?.video?.tools) ? data.video.tools : []);
-        setProductionServices(Array.isArray(data?.services) ? data.services : []);
+        setProductionServices(current => current.length ? current : Array.isArray(data?.services) ? data.services : []);
         const readiness = data?.video?.readiness;
         setProductionReadiness(readiness && typeof readiness.message === "string" &&
           typeof readiness.ready === "boolean" && typeof readiness.imageReady === "boolean" &&
@@ -549,16 +555,22 @@ export function VideoStudio() {
       .catch(() => {
         if (active) {
           setCheckingProduction(false);
-          setProductionReadiness(null);
-          setCapabilityUserId(null);
-          setGeminiScriptAvailable(false);
-          setJobManagementAvailable(false);
-          setVideoProcessorAvailable(false);
-          setGeminiCapabilityMessage("Não foi possível verificar os serviços de roteiro.");
+          setGeminiCapabilityMessage("Não foi possível atualizar os serviços. A última disponibilidade verificada foi preservada; tente atualizar novamente.");
         }
       });
     return () => { active = false; };
   }, [userId, capabilityRefresh]);
+
+  useEffect(() => {
+    const client = getSupabase();
+    if (!userId || !client) return;
+    let active = true;
+    void client.functions.invoke("video-generation", { body: { action: "service-balances" } })
+      .then(({ data, error }) => { if (active && !error && Array.isArray(data?.services)) setProductionServices(data.services); })
+      .catch(() => { /* A balance request never changes generation capabilities. */ })
+      .finally(() => { if (active) setCheckingBalances(false); });
+    return () => { active = false; };
+  }, [userId, balanceRefresh, capabilityRefresh]);
 
   useEffect(() => {
     const client = getSupabase();
@@ -763,33 +775,31 @@ export function VideoStudio() {
 
   async function enqueueVideoJob() {
     const client = getSupabase();
-    if (!user || !client || !queueAvailable || enqueueingJob) return;
-    if (!selectedGenerationTool?.available) {
-      setError(selectedGenerationTool?.reason ?? "Verifique a disponibilidade da ferramenta.");
+    if (enqueueLock.current || enqueueingJob) return;
+    if (submissionIssue || !user || !client) {
+      setError(submissionIssue?.message ?? "Entre na sua conta para gerar o vídeo.");
+      if (submissionIssue?.step !== undefined) setStudioStep(submissionIssue.step);
+      requestAnimationFrame(() => generationFeedback.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
       return;
     }
-    if (presenter.referenceStatus !== "ready") {
-      setError(`A referência visual de ${presenter.name} ainda não está aprovada para processamento.`);
-      return;
-    }
-    if (!product.imageStoragePath && !productImage) {
-      setError("Selecione uma imagem do produto para gerar o vídeo.");
-      return;
-    }
-    if (durationSeconds !== 6) {
-      setError("A geração de vídeo atualmente aceita somente 6 segundos.");
-      return;
-    }
-    const invalid = validateVideoConfiguration(configuration, effectiveScript);
-    if (invalid) {
-      setError(invalid);
-      return;
-    }
-
+    enqueueLock.current = true;
     setEnqueueingJob(true);
     setError("");
     setNotice("");
     try {
+      // Revalidate on demand instead of leaving the button disabled by stale/missing UI state.
+      const capability = await client.functions.invoke("video-generation", { body: { action: "capabilities" }, timeout: 15000 });
+      if (capability.error) throw new Error(await edgeFunctionMessage(capability.error, "Não foi possível verificar os serviços. Tente Gerar vídeo novamente."));
+      const currentTools = Array.isArray(capability.data?.video?.tools) ? capability.data.video.tools : [];
+      setGenerationTools(currentTools);
+      setCapabilityUserId(user.id);
+      setJobManagementAvailable(capability.data?.jobs?.enabled === true);
+      setVideoProcessorAvailable(capability.data?.jobs?.processorAvailable === true);
+      if (capability.data?.jobs?.enabled !== true || capability.data?.jobs?.processorAvailable !== true) {
+        throw new Error("O processador de vídeo não está disponível agora. Seu produto foi preservado; tente novamente mais tarde.");
+      }
+      const selected = currentTools.find((tool: { id: string }) => tool.id === generationTool);
+      if (!selected?.available) throw new Error(selected?.reason ?? "Escolha Automático, Magic Hour ou Replicate para usar um serviço disponível.");
       const productPath = product.imageStoragePath || await uploadVideoProductImage(client, user.id, productImage!);
       if (!product.imageStoragePath) updateProduct("imageStoragePath", productPath);
       const referenceKey = `${user.id}:${productPath}:${presenterId}`;
@@ -845,6 +855,7 @@ export function VideoStudio() {
         : crypto.randomUUID();
       enqueueIdempotency.current = { fingerprint, key: idempotencyKey };
       const { data, error: invokeError } = await client.functions.invoke("video-generation", {
+        timeout: 30000,
         body: {
           action: "enqueue-job",
           idempotencyKey,
@@ -853,8 +864,8 @@ export function VideoStudio() {
         },
       });
       if (invokeError || !data?.job) {
-        const message = typeof data?.error?.message === "string" ? data.error.message : "Não foi possível registrar a tarefa na fila.";
-        throw new Error(message);
+        const message = typeof data?.error?.message === "string" ? data.error.message : "Não foi possível confirmar o registro da tarefa. Tente novamente; a mesma solicitação será reutilizada para evitar duplicação.";
+        throw new Error(invokeError ? await edgeFunctionMessage(invokeError, message) : message);
       }
       const queuedJob = data.job as VideoJobRow;
       setJobs((current) => [queuedJob, ...current.filter((job) => job.id !== queuedJob.id)].slice(0, 20));
@@ -863,7 +874,9 @@ export function VideoStudio() {
       setNotice(generationTool === "auto" ? "Pedido registrado com seleção automática de serviço. O resultado ficará na biblioteca após a validação." : `Pedido registrado para ${selectedGenerationTool?.label ?? generationTool}. O resultado ficará na biblioteca após a validação.`);
     } catch (enqueueError) {
       setError(enqueueError instanceof Error ? enqueueError.message : "Não foi possível registrar a tarefa na fila.");
+      requestAnimationFrame(() => generationFeedback.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
     } finally {
+      enqueueLock.current = false;
       setEnqueueingJob(false);
     }
   }
@@ -1216,7 +1229,7 @@ export function VideoStudio() {
 
           <Card titulo="Preferências de voz e movimento">
             <div className="grid gap-4 sm:grid-cols-2">
-              <fieldset>
+              <fieldset className="sm:col-span-2">
                 <legend className="text-sm font-medium">Tipo de voz</legend>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {voiceGenders.map((voice) => <button key={voice.id} type="button" aria-pressed={voiceGender === voice.id} onClick={() => setVoiceGender(voice.id)} className={`rounded-xl border px-3 py-3 text-sm ${voiceGender === voice.id ? "border-primary bg-primary-soft font-semibold" : "border-border"}`}>{voice.label}</button>)}
@@ -1227,6 +1240,8 @@ export function VideoStudio() {
                   {voiceProfiles.map((voice) => <option key={voice.id} value={voice.id}>{voice.label}</option>)}
                 </select>
               </label>
+              {userId && <ElevenLabsNarration key={userId} script={effectiveScript} voiceGender={voiceGender}
+                videoResults={visibleJobs.filter((job) => job.status === "completed" && job.result_object_path).map((job) => ({ id: job.id, path: job.result_object_path! }))} />}
               <label className="block text-sm font-medium sm:col-span-2">Tom emocional
                 <select value={emotionalToneId} onChange={(event) => setEmotionalToneId(event.target.value as EmotionalToneId)} className={inputClass}>
                   {emotionalTones.map((tone) => <option key={tone.id} value={tone.id}>{tone.label}</option>)}
@@ -1353,19 +1368,24 @@ export function VideoStudio() {
             <label htmlFor="video-generation-tool" className="mt-4 block text-sm font-semibold">Ferramenta para gerar</label>
             <select id="video-generation-tool" value={generationTool} onChange={(event) => setGenerationTool(event.target.value)} disabled={enqueueingJob} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm">
               {generationTools.length === 0 && <option value="auto">Automático · verificando serviços</option>}
-              {generationTools.map((tool) => <option key={tool.id} value={tool.id}>{tool.label}{tool.available ? "" : " · indisponível"}</option>)}
+              {toolGroups.available.map((tool) => <option key={tool.id} value={tool.id}>{tool.label}</option>)}
+              {toolGroups.pending.map((tool) => <option key={tool.id} value={tool.id} disabled>{tool.label} · {tool.id === "google-flow" || tool.id === "youtube-create" ? "integração pendente" : "indisponível"}</option>)}
             </select>
             <p className="mt-2 text-xs text-muted" aria-live="polite">{selectedGenerationTool?.reason}</p>
-            <button type="button" disabled={!selectedGenerationTool?.available || !queueAvailable || enqueueingJob || busy || !!validationError || durationSeconds !== 6 || (!product.imageStoragePath && !productImage) || presenter.referenceStatus !== "ready"} onClick={() => void enqueueVideoJob()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
-              {enqueueingJob ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />Preparando produção…</> : <><WandSparkles className="size-4" aria-hidden />{capabilityUserId === userId && productionReadiness && !productionReadiness.ready ? "Salvar pedido na fila" : "Gerar vídeo"}</>}
+            {selectedGenerationTool && !selectedGenerationTool.available && toolGroups.available.length > 0 && <button type="button" onClick={() => setGenerationTool("auto")} className="mt-2 text-sm text-primary underline">Usar serviços disponíveis no Automático</button>}
+            {toolGroups.pending.length > 0 && <details className="mt-3 text-xs text-muted"><summary className="cursor-pointer">Outras ferramentas e integrações em preparação</summary><ul className="mt-2 space-y-2">{toolGroups.pending.map((tool) => <li key={tool.id}><strong>{tool.label}:</strong> {tool.reason}</li>)}</ul></details>}
+            {submissionIssue && <p className="mt-3 text-xs text-muted">{submissionIssue.message}</p>}
+            {error && <p ref={generationFeedback} role="alert" className="mt-3 rounded-lg bg-danger-soft p-3 text-sm text-danger">{error}</p>}
+            <button type="button" disabled={enqueueingJob || authLoading} onClick={() => void enqueueVideoJob()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
+              {enqueueingJob || authLoading ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />{authLoading ? "Verificando seu acesso…" : "Preparando produção…"}</> : <><WandSparkles className="size-4" aria-hidden />{capabilityUserId === userId && productionReadiness && !productionReadiness.ready ? "Salvar pedido na fila" : "Gerar vídeo"}</>}
             </button>
             {userId && capabilityUserId === userId && productionServices.length > 0 && <ProductionServices
               services={productionServices}
-              refreshing={checkingProduction}
-              onRefresh={() => { setCheckingProduction(true); setCapabilityRefresh((value) => value + 1); }}
+              refreshing={checkingBalances}
+              onRefresh={() => { setCheckingBalances(true); setBalanceRefresh((value) => value + 1); }}
             />}
             <p className="mt-3 text-xs text-muted">A geração pode levar alguns minutos, mesmo para um vídeo de 6 segundos. Créditos e custo dependem da ferramenta selecionada e da conta configurada.</p>
-            {!queueAvailable && <p className="mt-3 text-xs text-muted">{user ? "A geração ficará disponível quando os serviços de produção estiverem configurados." : "Entre na sua conta para gerar e guardar vídeos."}</p>}
+            {!queueAvailable && <p className="mt-3 text-xs text-muted">{user ? "Ao clicar em Gerar vídeo, o aplicativo consulta novamente os serviços e informa qualquer pendência." : "Entre na sua conta para gerar e guardar vídeos."}</p>}
             <p className="mt-3 text-xs leading-relaxed text-muted">A opção Automático permite trocar de serviço. Ao escolher uma ferramenta, o pedido usa somente ela. O fornecedor pode cobrar conforme o plano da conta. Se não houver opção disponível, o pedido aguarda preservando as etapas prontas.</p>
             <details className="mt-4 border-t border-border pt-3">
               <summary className="cursor-pointer text-xs font-medium text-muted">Testar e exportar briefing</summary>
@@ -1388,7 +1408,6 @@ export function VideoStudio() {
 
       {(error || notice) && (
         <div className="space-y-2">
-          {error && <p role="alert" className="rounded-xl border border-danger bg-danger-soft p-4 text-sm text-danger">{error}</p>}
           {notice && <p role="status" className="rounded-xl border border-border bg-surface p-4 text-sm">{notice}</p>}
         </div>
       )}

@@ -33,3 +33,11 @@ verify_jwt = true
 [functions.video-generation-worker]
 # O worker valida MV_VIDEO_WORKER_SECRET em todas as chamadas.
 verify_jwt = false
+
+[functions.audio-generation]
+# Validação de JWT com auth.getUser no handler, compatível com chaves públicas novas.
+verify_jwt = false
+
+[functions.youtube-connection]
+# POSTs verificam a sessão Auth; GET de retorno verifica state, cookie, PKCE e identidade Google.
+verify_jwt = false
