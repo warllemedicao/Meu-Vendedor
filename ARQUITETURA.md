@@ -2,7 +2,15 @@
 
 ## Estado vigente — 07/11/2026
 
-Login Google e conexão do canal YouTube confirmados pelo responsável. Nova chave Gemini aceita pelo catálogo/modelos consultados; geração de vídeo Google ainda requer teste real. Gerar vídeo foi corrigido para validar ao clicar e mostrar pendências; ElevenLabs aparece em Outra voz junto das características da voz, com prévia/exportação opcional e áudio nativo mantido na geração. Flow remoto saiu da central; Flow/Create permanecem pendentes no seletor. Frontend Cloudflare `a1a5dd36-76b7-4954-99f6-d9d5f5b72b90`; video-generation v44. Retomada e pendências em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md) e [AJUSTES_ESTUDIO.md](./AJUSTES_ESTUDIO.md).
+O pipeline usa créditos das contas e integra **1min.ai / Seedance 2.0 Fast**, Magic Hour, Google/Gemini e Replicate. Em Automático, tenta 1min.ai → Magic Hour → Google → Replicate, respeitando compatibilidade, cooldown e submissões já aceitas. A escolha explícita não troca de ferramenta. Cloudflare FLUX.2 continua compondo a referência; o worker acompanha a tarefa, valida duração/formato e grava o MP4 privado no Supabase. O estúdio mantém 6 segundos, 9:16 e áudio nativo quando disponível. ElevenLabs permanece prévia/narração/exportação opcional; ainda não é composição automática no worker.
+
+**Verificação real de 07/11:** três tarefas Magic Hour concluídas no banco; um teste Google falhou por RESOURCE_EXHAUSTED. A chave 1min.ai foi aceita, imagem enviada e pedido assíncrono registrado, mas Seedance recusou a renderização: **1.632.960 créditos necessários / 280.000 disponíveis** para 6s/720p. Não há MP4 1min.ai validado. O erro é identificado como saldo insuficiente, sem reenvio automático da submissão aceita; Automático pode tentar os demais adaptadores. A ordem não estima qual conta é mais barata.
+
+**Kaggle:** API administrativa `kaggle-pilot` implementada, autenticada por segredo interno. Consultou 108.000 segundos de GPU disponíveis e executou um script privado de diagnóstico com sucesso (`COMPLETE`, arquivo `gpu-report.json`). O script verifica CUDA. Limite de execução de 300s, internet desligada e nenhuma chave enviada ao notebook. Isso comprova execução de GPU, **não** Wan, avatares ou sincronização labial, que continuam pendentes de piloto específico. Kaggle não integra o fallback de vídeos dos usuários.
+
+Supabase: `video-generation` v48, `video-generation-worker` v31 e `kaggle-pilot` v2; frontend Cloudflare `d7a1db16-9e83-4c66-a12d-ec2512ec9179`. Validações em [ATUALIZACOES.md](./ATUALIZACOES.md). Migração `20261107050118_onemin_video_provider.sql` aplicada; RLS e acesso exclusivo às RPCs internas preservados. Login Google/YouTube existentes preservados; publicação no YouTube e Flow/Create continuam pendentes.
+
+Detalhes, evidências e continuidade: [ONEMIN_E_KAGGLE.md](./ONEMIN_E_KAGGLE.md) e [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Os registros abaixo são históricos e não substituem este estado.
 
 ## Histórico técnico — registros anteriores
 

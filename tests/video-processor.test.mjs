@@ -6,6 +6,7 @@ import {
 } from '../supabase/functions/video-generation/_shared/ai-provider-router.ts';
 import { freeOnlyAdapter } from '../supabase/functions/video-generation/_shared/free-only.ts';
 import { createVideoProcessor } from '../supabase/functions/video-generation/_shared/processor.ts';
+import { oneminVideoCapabilities } from '../supabase/functions/video-generation/_shared/providers/onemin.ts';
 
 function uint32(value) {
   const bytes = new Uint8Array(4);
@@ -165,6 +166,24 @@ function harness(initialJob, overrides = {}) {
   };
   return { job, calls, dependencies, processor: createVideoProcessor(dependencies) };
 }
+
+test('1min retoma polling e finaliza MP4 privado sem reenviar geração', async () => {
+  const state = harness({ stage: 'video_processing', provider: 'onemin', provider_job_id: 'record-1min', progress: 55 }, {
+    createVideoRouter: () => { throw new Error('must not resubmit'); },
+    videoStatus: async (provider, id) => {
+      assert.equal(provider, oneminVideoCapabilities.id); assert.equal(id, 'record-1min');
+      return { status: 'completed', progress: 100, downloadUrl: 'onemin-record:record-1min' };
+    },
+    outputUrl: async () => 'onemin-record:record-1min',
+    downloadVideo: async (provider, reference) => {
+      assert.equal(provider, 'onemin'); assert.equal(reference, 'onemin-record:record-1min'); return makeValidMp4();
+    },
+  });
+  assert.equal(await state.processor.processNext(), 'validating');
+  assert.equal(await state.processor.processNext(), 'completed');
+  assert.equal(state.calls.stored.length, 1);
+  assert.match(state.job.result_object_path, /\/outputs\/.+\.mp4$/);
+});
 
 test('processa a tarefa até MP4 e usa fallback Magic Hour para Replicate sem reiniciar referências', async () => {
   const state = harness({});

@@ -114,7 +114,7 @@ interface VideoProjectRow {
 interface VideoJobRow {
   id: string;
   status: "queued" | "processing" | "completed" | "failed" | "cancelled";
-  provider: "pending" | "cloudflare-workers-ai" | "magic-hour" | "google-gemini" | "replicate";
+  provider: "pending" | "cloudflare-workers-ai" | "magic-hour" | "google-gemini" | "replicate" | "onemin";
   stage: string;
   stage_message: string | null;
   next_attempt_at: string;
@@ -192,6 +192,7 @@ const jobProviderLabels: Record<VideoJobRow["provider"], string> = {
   "magic-hour": "Magic Hour",
   "google-gemini": "Google vídeo — Omni",
   replicate: "Replicate",
+  onemin: "1min.ai · Seedance",
 };
 
 const jobStageLabels: Record<string, string> = {
@@ -210,6 +211,8 @@ const jobStageLabels: Record<string, string> = {
   failed: "Erro na geração",
   cancelled: "Cancelado",
   google_video_resource_exhausted: "Google Omni: limite de recursos ou capacidade atingido. A geração falhou; verifique os limites do projeto antes de criar outro pedido.",
+  onemin_generation_failed: "O 1min.ai não concluiu este vídeo. Confira os créditos e a disponibilidade do modelo na sua conta.",
+  onemin_insufficient_credits: "O saldo do 1min.ai é insuficiente para este modelo. Use outra ferramenta ou confira os créditos da conta.",
   video_providers_exhausted: "Os serviços tentados falharam. Revise as configurações antes de criar outro pedido.",
   trying_another_provider: "Tentando outro provedor",
   cancel_requested_remote_continues: "Cancelamento solicitado; provedor finalizando",

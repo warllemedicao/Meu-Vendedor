@@ -41,3 +41,7 @@ verify_jwt = false
 [functions.youtube-connection]
 # POSTs verificam a sessão Auth; GET de retorno verifica state, cookie, PKCE e identidade Google.
 verify_jwt = false
+
+[functions.kaggle-pilot]
+# Piloto administrativo: exige MV_VIDEO_WORKER_SECRET em todas as chamadas.
+verify_jwt = false

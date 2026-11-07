@@ -1,5 +1,8 @@
 # Gerador de vídeos IA — estado e implantação
 
+> **Atualização de 07/11/2026:** 1min.ai integrado com Seedance, fila/polling/Storage e erros seguros. Teste real recusado por créditos insuficientes; não houve MP4 1min.ai. Kaggle passou no piloto privado de GPU; Wan/lip sync ainda pendentes. Política ativa usa créditos das contas. Estado e versões atuais: [ATUALIZACOES.md](./ATUALIZACOES.md) e [ONEMIN_E_KAGGLE.md](./ONEMIN_E_KAGGLE.md). Trechos divergentes abaixo são históricos.
+
+
 ## Estado vigente — 07/11/2026
 
 Login Google e conexão do canal YouTube confirmados pelo responsável. Nova chave Gemini aceita pelo catálogo/modelos consultados; geração de vídeo Google ainda requer teste real. Gerar vídeo foi corrigido para validar ao clicar e mostrar pendências; ElevenLabs aparece em Outra voz junto das características da voz, com prévia/exportação opcional e áudio nativo mantido na geração. Flow remoto saiu da central; Flow/Create permanecem pendentes no seletor. Frontend Cloudflare `a1a5dd36-76b7-4954-99f6-d9d5f5b72b90`; video-generation v44. Retomada e pendências em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md) e [AJUSTES_ESTUDIO.md](./AJUSTES_ESTUDIO.md).

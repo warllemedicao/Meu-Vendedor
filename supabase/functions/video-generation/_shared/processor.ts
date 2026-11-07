@@ -312,7 +312,7 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
         }
 
         if (job.stage === "video_processing") {
-          if (!job.provider_job_id || !["magic-hour", "google-gemini", "replicate"].includes(job.provider)) {
+          if (!job.provider_job_id || !["magic-hour", "google-gemini", "replicate", "onemin"].includes(job.provider)) {
             throw new Error("remote_video_job_missing");
           }
           let remote: MagicHourVideoStatus | ReplicateVideoStatus;
@@ -368,7 +368,7 @@ export function createVideoProcessor(dependencies: VideoProcessorDependencies) {
         }
 
         if (job.stage === "validating") {
-          if (!job.provider_job_id || !["magic-hour", "google-gemini", "replicate"].includes(job.provider)) {
+          if (!job.provider_job_id || !["magic-hour", "google-gemini", "replicate", "onemin"].includes(job.provider)) {
             throw new Error("remote_video_job_missing");
           }
           const path = `${job.user_id}/outputs/${job.id}.mp4`;

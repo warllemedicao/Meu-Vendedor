@@ -1,3 +1,4 @@
+import { createOneminVideoProvider, oneminVideoModel } from "../video-generation/_shared/providers/onemin.ts";
 import { sceneDirection } from "../video-generation/_shared/scene-direction.ts";
 import { allowsVideoProvider } from "../video-generation/_shared/generation-tools.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
@@ -46,7 +47,7 @@ function workerEnabled(): boolean {
 }
 
 function configuredProviders(): ReadonlySet<string> {
-  return new Set(["cloudflare-workers-ai", "magic-hour", "google-gemini", "replicate"]);
+  return new Set(["cloudflare-workers-ai", "magic-hour", "google-gemini", "replicate", "onemin"]);
 }
 
 
@@ -89,6 +90,7 @@ function modelFor(providerId: string): string {
   if (providerId === "cloudflare-workers-ai") return "@cf/black-forest-labs/flux-2-dev";
   if (providerId === "magic-hour") return "ltx-2.5";
   if (providerId === "replicate") return "alibaba/happyhorse-1.0";
+  if (providerId === "onemin") return oneminVideoModel;
   if (providerId === "google-gemini") return googleVideoModel;
   throw new Error("video_provider_unknown");
 }
@@ -196,7 +198,12 @@ function replicateClient() {
   });
 }
 
+function oneminClient() {
+  return createOneminVideoProvider({ apiKey: Deno.env.get("ONEMIN_API_KEY") ?? "" });
+}
+
 async function getVideoStatus(providerId: string, remoteJobId: string) {
+  if (providerId === "onemin") return oneminClient().status(remoteJobId);
   if (providerId === "google-gemini") return googleVideoClient().status(remoteJobId);
   if (providerId === "magic-hour") return await magicHourClient().status(remoteJobId);
   if (providerId === "replicate") return await replicateClient().status(remoteJobId);
@@ -312,6 +319,10 @@ const processor = admin ? createVideoProcessor({
   },
   createVideoRouter(_job, _image, excludeProviders) {
     const providers: AIProviderAdapter<VideoGenerationRequest, { providerJobId: string; estimatedCostUsd: number | null }>[] = [];
+    if (Deno.env.get("ONEMIN_API_KEY") && !excludeProviders.has("onemin")) {
+      const onemin = oneminClient();
+      providers.push({ ...onemin, readiness: () => persistentReadiness("onemin", true, () => onemin.readiness()) });
+    }
     const key = Deno.env.get("MAGIC_HOUR_API_KEY") ?? "";
     if (key && configuredProviders().has("magic-hour") && !excludeProviders.has("magic-hour")) {
       const magicHour = magicHourClient();
@@ -421,6 +432,7 @@ const processor = admin ? createVideoProcessor({
     }).cancel(remoteJobId);
   },
   async downloadVideo(providerId, url) {
+    if (providerId === "onemin") return oneminClient().download(url);
     if (providerId === "google-gemini") return googleVideoClient().download(url);
     if (providerId === "magic-hour") return await magicHourClient().download(url);
     if (providerId === "replicate") {
@@ -457,6 +469,11 @@ const processor = admin ? createVideoProcessor({
     return new Set((data ?? []).filter((row) => row.remote_job_id || row.status === "uncertain").map((row) => row.provider_id));
   },
   async recordVideoStatusFailure(job, code) {
+    if (code === "onemin_insufficient_credits") {
+      await rpcOk<void>("mv_set_video_ai_cooldown", {
+        p_provider_id: "onemin", p_cooldown_until: new Date(Date.now() + 900_000).toISOString(), p_reason_code: code,
+      });
+    }
     const { error } = await admin!.rpc("mv_record_video_ai_attempt", {
       p_job_id: job.id,
       p_stage: "video",

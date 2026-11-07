@@ -4,6 +4,7 @@ export const videoTools = [
   { id: "google-flow", label: "Google Flow", provider: null, reason: "Integração de geração pendente. O login Google não transfere a sessão nem os créditos do Flow ao aplicativo." },
   { id: "youtube-create", label: "YouTube Create", provider: null, reason: "Disponível no aplicativo móvel; não há integração automática validada com este editor." },
   { id: "google-gemini", label: "Google Omni · API", provider: "google-gemini", reason: "Usa a API e o faturamento do projeto Google; assinatura do Flow não é transferida." },
+  { id: "onemin", label: "1min.ai · Seedance", provider: "onemin", reason: "Gera vídeo com referência de imagem e áudio nativo usando os créditos da conta 1min.ai." },
   { id: "magic-hour", label: "Magic Hour", provider: "magic-hour", reason: "Usa os créditos da conta Magic Hour configurada no app." },
   { id: "replicate", label: "Replicate", provider: "replicate", reason: "Usa o faturamento da conta Replicate configurada no app." },
 ] as const;

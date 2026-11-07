@@ -76,6 +76,9 @@ export async function auditProviders(
     ["modal", Boolean(key("MODAL_TOKEN_ID") && key("MODAL_TOKEN_SECRET"))],
     ["kaggle", Boolean(key("KAGGLE_API_TOKEN"))],
   ] as const) reports.push({ provider_id: id, checked_at: new Date().toISOString(), status: configured ? "no_inference_endpoint" : "not_configured", report: { quota_verified: false, reason: "video_adapter_not_implemented" } });
+  reports.push({ provider_id: "onemin", checked_at: new Date().toISOString(), status: key("ONEMIN_API_KEY") ? "checked" : "not_configured", report: {
+    credential_present: Boolean(key("ONEMIN_API_KEY")), credentials_validated: false, quota_verified: false, model: "bytedance/seedance-2.0-fast", reason: "configuration_only_no_documented_balance_endpoint",
+  } });
   const clientId = key("GOOGLE_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_ID", "SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID");
   const clientSecret = key("GOOGLE_CLIENT_SECRET", "GOOGLE_OAUTH_CLIENT_SECRET", "SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET");
   reports.push({ provider_id: "google-auth-config", checked_at: new Date().toISOString(), status: "checked", report: {

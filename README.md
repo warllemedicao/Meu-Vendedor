@@ -7,7 +7,10 @@ Aplicativo de gerenciamento de afiliados e produção de vídeos. Frontend Next.
 - Cadastro/login por e-mail e **Continuar com Google** funcionando, confirmados pelo responsável.
 - Canal **YouTube conectado**, com consulta, renovação de autorização e desconexão implementadas. Publicação/agendamento de vídeos ainda pendentes.
 - Nova chave **Gemini** aceita pelo catálogo e pelos modelos configurados de roteiro e vídeo (HTTP 200). Isso não comprova geração de vídeo, saldo ou faturamento da API.
-- Estúdio com fila, roteiros, referências, reprodução e download. Existe um vídeo real concluído via Magic Hour; áudio após a correção ainda precisa de um novo resultado real.
+- Estúdio com fila, roteiros, referências, reprodução e download. O banco registra três vídeos concluídos via Magic Hour; qualidade da fala ainda exige avaliação do responsável.
+- **1min.ai integrado** ao estúdio e ao worker. Teste real de Seedance 2.0 Fast recusado por saldo insuficiente (1.632.960 necessários / 280.000 disponíveis); sem MP4 validado desse serviço.
+- **Kaggle:** piloto administrativo de GPU executado com sucesso; Wan e sincronização labial ainda não integram a fila de usuários. [Detalhes](./ONEMIN_E_KAGGLE.md).
+
 - **Fotos de produtos sincronizados** são importadas automaticamente para a área privada ao gerar; não é necessário baixar e reenviar a foto exibida na prévia. Detalhes em [IMAGENS_SINCRONIZADAS.md](./IMAGENS_SINCRONIZADAS.md).
 - **Gerar vídeo** valida ao clicar, consulta o backend e mostra pendências junto à ação. Uma consulta inicial com falha não deixa a ação bloqueada silenciosamente; envio preserva idempotência e tem limite de espera.
 - **Outra voz** fica ao lado de **Característica da voz**, filtrada por tipo. ElevenLabs produz prévia/narração e exportação opcional; a geração mantém a voz nativa. O plano Free verificado não inclui licença comercial para anúncios.
@@ -18,9 +21,9 @@ Estado consolidado e próximas tarefas: [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA
 
 ## Publicação e validação
 
-Cloudflare `a1a5dd36-76b7-4954-99f6-d9d5f5b72b90`; função `video-generation` v44. Migrações de áudio e YouTube reconciliadas com o banco remoto. Crons e Secrets preservados.
+Versões de publicação e validações mais recentes em [ATUALIZACOES.md](./ATUALIZACOES.md). Migrações de áudio e YouTube reconciliadas com o banco remoto. Crons e Secrets preservados.
 
-178 testes aprovados; lint, TypeScript frontend/Edge e build estático das 17 rotas aprovados. Chromium verificou computador/celular na URL publicada, com fila e sessão simuladas, incluindo preparação real das imagens no navegador, clique duplo e falha inicial 503. Esses testes não consumiram créditos de vídeo. Síntese ElevenLabs real foi validada separadamente.
+200 testes aprovados na suíte completa; 27 testes focados passaram após o ajuste final de erro/cooldown. Lint, TypeScript frontend/Edge e build estático das 17 rotas aprovados. O teste real 1min.ai comprovou upload, submissão e retorno de falha por saldo insuficiente; o piloto Kaggle comprovou execução do diagnóstico de GPU. Não houve nova verificação visual em Chromium nem MP4 1min.ai nesta entrega.
 
 ## Executar localmente
 

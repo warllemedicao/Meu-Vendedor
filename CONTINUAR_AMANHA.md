@@ -1,5 +1,14 @@
 # Continuidade — estado vigente em 07/11/2026
 
+## 1min.ai e piloto Kaggle — entrega mais recente
+
+- `ONEMIN_API_KEY` e `KAGGLE_API_TOKEN` presentes e verificadas sem expor valores. 1min.ai integrado ao seletor, inventário, readiness, worker, polling, validação e Storage privado; escolha explícita preservada.
+- Modelo inicial: `bytedance/seedance-2.0-fast`, referência enviada pela Asset API, `TEXT_TO_VIDEO` com `imageUrls`, 6s, 9:16, 720p, áudio nativo. Automático tenta 1min.ai antes dos adaptadores anteriores.
+- Teste real `30c582b5-e739-4711-9f23-b4d94e23faf8`: imagem em cache preservada e submissão aceita, depois falha `INSUFFICIENT_CREDITS`: 1.632.960 exigidos / 280.000 disponíveis. Nenhum MP4 1min.ai e nenhuma compra/recarga efetuados. Não repetir o mesmo teste sem mudança de saldo/modelo; não confundir chave válida com renderização financiada.
+- Kaggle: cota real 30h; notebook privado GPU terminou `COMPLETE` e produziu `gpu-report.json`. `kaggle-pilot` é exclusivo do operador e protege o lançamento por claim persistente. Wan/lip sync não foram executados e não estão habilitados para usuários.
+- Próxima evolução: comparar custo de modelos 1min.ai compatíveis com referência e fala; validar um MP4 com recursos disponíveis. Depois executar piloto de modelo de avatar/lip sync no Kaggle, medindo tempo, VRAM, licença e recuperação do MP4 antes de integrá-lo à fila.
+- Documentos desta entrega: [ONEMIN_E_KAGGLE.md](./ONEMIN_E_KAGGLE.md), [ATUALIZACOES.md](./ATUALIZACOES.md). A função temporária `integration-verification` foi desativada com HTTP 410.
+
 ## Atualização — Omni e cenários
 
 - Log fornecido pelo responsável confirma cota Free Tier zero para `gemini-omni-1.2-flash` (requisições/dia, minuto e tokens). Ativar armazenamento de logs não libera cota. Verificar faturamento e limites do projeto correto antes de novo pedido; não houve reenvio automático nem ativação de cobranças.
