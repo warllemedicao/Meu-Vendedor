@@ -1,5 +1,12 @@
 # Continuidade — estado vigente em 07/11/2026
 
+## Qualidade visual e prompts — revisão posterior
+
+- Corrigida contradição de identidade: o worker antigo descrevia todos os apresentadores exceto Ana como homem esguio. Agora a identidade da foto é prioritária.
+- Prompts de composição/animação centralizados em `visual-direction.ts`, com direção de câmera, textura, luz, mãos, produto, movimento e narração. Texto aprovado não é mais cortado silenciosamente; direções acima de 2.000 caracteres retornam erro específico.
+- Pesquisa aponta HunyuanVideo 1.5 I2V como primeiro candidato de piloto com offload, Wan 2.2 como comparação condicionada à memória, LTX para áudio/vídeo e MuseTalk para lip sync. Nenhum foi executado nesta revisão.
+- Diretor multimodal (Gemini analisando fotos e compilando instruções por modelo) é evolução pendente, distinta das correções determinísticas entregues. Benchmark visual e licença por variante precisam ser avaliados antes de habilitação. Ver [QUALIDADE_VISUAL_E_PROMPTS.md](./QUALIDADE_VISUAL_E_PROMPTS.md).
+
 ## 1min.ai e piloto Kaggle — entrega mais recente
 
 - `ONEMIN_API_KEY` e `KAGGLE_API_TOKEN` presentes e verificadas sem expor valores. 1min.ai integrado ao seletor, inventário, readiness, worker, polling, validação e Storage privado; escolha explícita preservada.

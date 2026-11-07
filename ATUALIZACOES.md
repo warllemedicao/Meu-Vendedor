@@ -1,5 +1,12 @@
 # Atualizações — Meu Vendedor
 
+## 07/11/2026 — identidade e direção visual
+
+- Pesquisa de modelos para personagem realista: HunyuanVideo 1.5 I2V, Wan 2.2, família LTX e MuseTalk; requisitos e limites em [QUALIDADE_VISUAL_E_PROMPTS.md](./QUALIDADE_VISUAL_E_PROMPTS.md). Nenhum novo modelo foi executado.
+- Corrigida a identidade no prompt de Carla/Rafael/Lucas; referência fotográfica tem prioridade. Composição e animação recebem direções separadas e coerentes, preservando ambiente e produto.
+- Perfil de voz/emoção traduzidos em instruções; fala aprovada não é cortada silenciosamente. Direção excessiva retorna erro claro antes da submissão de vídeo.
+- Nenhum novo pedido de geração de teste iniciado nesta revisão. Qualidade visual ainda depende da próxima avaliação real. Suíte completa com 204 testes aprovados; após ajuste do limite FLUX, cinco testes focados aprovados. Lint, TypeScript frontend/Edge e build estático aprovados. Supabase `video-generation-worker` v32 e Cloudflare `5cf22553-5ede-4f77-b07f-fc925fb2c02d` publicados; autenticação e crons preservados.
+
 ## 07/11/2026 — 1min.ai e diagnóstico Kaggle
 
 - 1min.ai / Seedance integrado ao seletor, capacidades, inventário e processamento assíncrono até o Storage privado; mensagens de saldo insuficiente e proteção contra reenvio incerto.

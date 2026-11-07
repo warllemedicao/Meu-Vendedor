@@ -211,6 +211,7 @@ const jobStageLabels: Record<string, string> = {
   failed: "Erro na geração",
   cancelled: "Cancelado",
   google_video_resource_exhausted: "Google Omni: limite de recursos ou capacidade atingido. A geração falhou; verifique os limites do projeto antes de criar outro pedido.",
+  video_prompt_too_long: "O roteiro ficou longo para a direção deste vídeo. Encurte a fala e envie novamente; o texto aprovado não será cortado.",
   onemin_generation_failed: "O 1min.ai não concluiu este vídeo. Confira os créditos e a disponibilidade do modelo na sua conta.",
   onemin_insufficient_credits: "O saldo do 1min.ai é insuficiente para este modelo. Use outra ferramenta ou confira os créditos da conta.",
   video_providers_exhausted: "Os serviços tentados falharam. Revise as configurações antes de criar outro pedido.",

@@ -2,13 +2,15 @@
 
 ## Estado vigente — 07/11/2026
 
+Direção visual revisada para priorizar a identidade das fotos, pele/materiais naturais, produto preservado e uma ação viável em plano único. Corrigida a descrição masculina aplicada indevidamente a Carla e demais apresentadores. Roteiro publicitário e direção visual são etapas distintas; análise multimodal automática ainda não foi adicionada. Pesquisa e próximos modelos para piloto em [QUALIDADE_VISUAL_E_PROMPTS.md](./QUALIDADE_VISUAL_E_PROMPTS.md). Nenhum novo modelo Kaggle foi executado nesta revisão.
+
 O pipeline usa créditos das contas e integra **1min.ai / Seedance 2.0 Fast**, Magic Hour, Google/Gemini e Replicate. Em Automático, tenta 1min.ai → Magic Hour → Google → Replicate, respeitando compatibilidade, cooldown e submissões já aceitas. A escolha explícita não troca de ferramenta. Cloudflare FLUX.2 continua compondo a referência; o worker acompanha a tarefa, valida duração/formato e grava o MP4 privado no Supabase. O estúdio mantém 6 segundos, 9:16 e áudio nativo quando disponível. ElevenLabs permanece prévia/narração/exportação opcional; ainda não é composição automática no worker.
 
 **Verificação real de 07/11:** três tarefas Magic Hour concluídas no banco; um teste Google falhou por RESOURCE_EXHAUSTED. A chave 1min.ai foi aceita, imagem enviada e pedido assíncrono registrado, mas Seedance recusou a renderização: **1.632.960 créditos necessários / 280.000 disponíveis** para 6s/720p. Não há MP4 1min.ai validado. O erro é identificado como saldo insuficiente, sem reenvio automático da submissão aceita; Automático pode tentar os demais adaptadores. A ordem não estima qual conta é mais barata.
 
 **Kaggle:** API administrativa `kaggle-pilot` implementada, autenticada por segredo interno. Consultou 108.000 segundos de GPU disponíveis e executou um script privado de diagnóstico com sucesso (`COMPLETE`, arquivo `gpu-report.json`). O script verifica CUDA. Limite de execução de 300s, internet desligada e nenhuma chave enviada ao notebook. Isso comprova execução de GPU, **não** Wan, avatares ou sincronização labial, que continuam pendentes de piloto específico. Kaggle não integra o fallback de vídeos dos usuários.
 
-Supabase: `video-generation` v48, `video-generation-worker` v31 e `kaggle-pilot` v2; frontend Cloudflare `d7a1db16-9e83-4c66-a12d-ec2512ec9179`. Validações em [ATUALIZACOES.md](./ATUALIZACOES.md). Migração `20261107050118_onemin_video_provider.sql` aplicada; RLS e acesso exclusivo às RPCs internas preservados. Login Google/YouTube existentes preservados; publicação no YouTube e Flow/Create continuam pendentes.
+Supabase: `video-generation` v48, `video-generation-worker` v32 e `kaggle-pilot` v2; frontend Cloudflare `5cf22553-5ede-4f77-b07f-fc925fb2c02d`. Validações em [ATUALIZACOES.md](./ATUALIZACOES.md). Migração `20261107050118_onemin_video_provider.sql` aplicada; RLS e acesso exclusivo às RPCs internas preservados. Login Google/YouTube existentes preservados; publicação no YouTube e Flow/Create continuam pendentes.
 
 Detalhes, evidências e continuidade: [ONEMIN_E_KAGGLE.md](./ONEMIN_E_KAGGLE.md) e [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Os registros abaixo são históricos e não substituem este estado.
 
