@@ -19,7 +19,7 @@ Cloud Text-to-Speech substitui ElevenLabs em novas narrações do estúdio. Os S
 | Rafael | `pt-BR-Chirp3-HD-Charon` |
 | Lucas | `pt-BR-Chirp3-HD-Puck` |
 
-O seletor mantém a voz fixa como padrão e permite alternativas filtradas pelo tipo selecionado. Trocar personagem reinicia a seleção; mudar o roteiro invalida a reprodução do áudio anterior como se fosse do novo texto. A identidade vocal é a da voz nomeada pelo Google, não uma cópia da biblioteca ElevenLabs. Avaliação subjetiva das quatro vozes pelo responsável permanece necessária. Referências visuais de Carla/Rafael continuam sendo uma pendência independente.
+O seletor mantém a voz fixa como padrão e permite alternativas filtradas pelo tipo selecionado. Trocar personagem reinicia a seleção; mudar o roteiro invalida a reprodução do áudio anterior como se fosse do novo texto. A identidade vocal é a da voz nomeada pelo Google, não uma cópia da biblioteca ElevenLabs. A avaliação subjetiva das quatro vozes pelo responsável continua recomendada. As referências visuais de Carla e Rafael já foram concluídas; a próxima sessão deve revisar a qualidade audiovisual, conforme [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md).
 
 ## Teste real
 
@@ -58,7 +58,7 @@ Isso não é saldo oficial do Google nem um bloqueio de faturamento de todo o pr
 
 Disponível: voz Google, prévia, download MP3, histórico privado e exportação local opcional de um vídeo concluído com a narração. A exportação local não faz lip sync e pode manter o último quadro se a fala for mais longa.
 
-**Atualização em 08/11:** o piloto automático Google → MuseTalk/Kaggle → FFmpeg → MP4 privado foi implementado e gerou um vídeo real. Não foi liberado como produção comercial: a região da boca precisa de ajuste e bases aprovadas ainda não estão disponíveis aos usuários. A função separada `hybrid-video` cuida desta fila; selecionar uma voz na seção de prévia não altera sozinho um job antigo.
+**Estado atualizado em 08/11:** Google → MuseTalk/Kaggle → FFmpeg → MP4 privado está disponível no modo foto falante + cartão do produto, com quatro perfis aprovados e uma geração real validada pelo botão publicado. Isso não certifica qualidade comercial irrestrita: revisar boca/identidade, produto real, termos e capacidade antes de ampliar o uso. Detalhes atuais em [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md); o texto de piloto abaixo é histórico. A função `hybrid-video` mantém a fila separada.
 
 Estado, medições, pendências e versões posteriores em [ARQUITETURA_VIDEO_SINCRONIZADO.md](./ARQUITETURA_VIDEO_SINCRONIZADO.md).
 

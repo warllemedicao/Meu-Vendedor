@@ -1,137 +1,34 @@
-# Continuidade — estado vigente em 08/11/2026
+# Continuidade do projeto — próxima sessão
 
-## Estado vigente — 08/11/2026: foto falante com produto
+## Estado confirmado em 08/11/2026
 
-Carla e Rafael têm referências fotográficas realistas, plus size, próprias e selecionáveis. Os quatro perfis ficam em `mv_presenter_profiles`, com identidade, arquivo/hash e voz fixa Google. Quatro bases foram validadas com MP4s reais de 10–13 segundos e habilitadas para o formato **foto falante + cartão com a imagem enviada do produto**, em 720×1280.
+O fluxo **foto falante + cartão da imagem do produto** está publicado e disponível no estúdio. O botão principal usa Google TTS → MuseTalk 1.5 no Kaggle → MP4 privado, em 720×1280/25 fps, com fala limitada a 15 segundos. Carla e Rafael têm referências realistas plus size; os quatro perfis estão aprovados para esse formato e guardados em `mv_presenter_profiles`.
 
-O botão principal usa o fluxo Google TTS/MuseTalk. Histórico privado, cancelamento cooperativo, renovação de acesso e recuperação sem reenviar a GPU foram implementados. Corpo, roupa e cenário permanecem os da base; não há geração nativa 4K, sessão persistente de modelos ou garantia de 15 vídeos/dia.
+Foi concluída uma geração real pelo botão publicado, incluindo login, upload do produto, nova narração, processamento Kaggle e MP4 na biblioteca. Também foram validados quatro MP4s de referência, histórico por usuário, cancelamento cooperativo, recuperação de resultado e acesso privado. O relatório versionado é [2026-11-08-presenter-product-validation.json](./executors/kaggle/results/2026-11-08-presenter-product-validation.json); a entrega e os limites estão em [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md).
 
-Estado consolidado, validações, publicação e limites: [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md). **Este bloco prevalece sobre os registros históricos abaixo**, inclusive referências antigas a bases desabilitadas ou geração Kaggle ainda não implementada.
+Frontend Cloudflare publicado na versão `627f251b-955c-4175-a065-f00bce5c26d4`; Supabase `hybrid-video` v8. Os diagnósticos temporários foram encerrados (HTTP 410), contas técnicas removidas e não há tarefas híbridas ativas. A suíte concluiu com 219 testes; lint, TypeScript frontend/Edge e build das 17 rotas passaram. Commit da implementação enviado para `origin/main`: `91e553481c211af5fe3dcea88c29c00ab61331bf`.
 
-## Histórico do encerramento anterior e da retomada
+## O que revisar e corrigir na próxima sessão
 
-Trabalho pausado a pedido do responsável. Implementação publicada e enviada ao GitHub no commit `c71c9f6`, branch `main`. Não iniciar novos testes de GPU ou geração ao abrir o projeto; retomar primeiro pela avaliação dos resultados existentes.
+1. **Revisão visual humana antes de ampliar a promessa de qualidade:** abrir as amostras finais de Carla e Rafael e o MP4 da geração real no relatório. Anotar defeitos reproduzíveis de alinhamento, suavização, tremor ou identidade da boca. Corrigir apenas defeitos observados e voltar a conferir os quadros e o vídeo completo. O alinhamento foi melhorado, mas a textura ainda pode variar e não há certificação de sincronismo perfeito.
+2. **Validar o cartão com um produto real autorizado:** gerar no app com uma imagem de produto de teste da própria conta e confirmar enquadramento, legibilidade e ausência de corte. A geração E2E usou um cartão técnico de controle; ele não prova a apresentação de um produto real. Não reutilizar imagem de cliente sem autorização.
+3. **Conferir a experiência após a geração:** confirmar estados de espera/falha/cancelamento, reprodução e download na biblioteca em desktop e celular, usando uma conta normal. Se ocorrer defeito, guardar o estado/ID técnico e corrigir antes de tentar novamente; evitar reenvio de tarefa incerta, pois GPU pode ser consumida.
+4. **Reavaliar limites e licenças antes de uso comercial ampliado:** revisar termos vigentes do MuseTalk e de cada componente, materiais de produto enviados, Google TTS e capacidade/cota Kaggle. Os testes não comprovam disponibilidade contínua, SLA nem 15 vídeos por dia.
 
-Pendências em ordem de prioridade:
+## Melhorias futuras, fora do escopo já liberado
 
-1. Rever o MP4 de Ana e corrigir a suavização da boca/parte inferior do rosto. Ajustar recorte e máscara; comparar com o parser facial oficial do MuseTalk antes de aprovar qualidade comercial.
-2. Validar identidade, voz, recorte, enquadramento e licença das quatro referências cadastradas. Todas permanecem com `approved=false`; Carla, Rafael e Lucas ainda não passaram pelo teste de vídeo sincronizado.
-3. Preparar bases com movimentos naturais em 9:16 e ambientes autorizados. O piloto atual usa foto estática de 640×800; ainda não existe pacote pronto de praia, cozinha, oficina etc.
-4. Encadear o produto/imagem do usuário e a composição Cloudflare à preparação da base. Troca de roupa, cenário e interação com produto exigem nova base; MuseTalk altera a fala, não resolve essas mudanças sozinho.
-5. Reutilizar modelos e preparação em lote/sessão para reduzir o custo de instalação por pedido. Hoje cada tarefa inicia um notebook. Medir vídeos de 10–15 s e uma sequência de pelo menos 15 tarefas antes de afirmar capacidade diária.
-6. Integrar resultados aprovados à biblioteca principal, cancelamento e recuperação supervisionada de tarefas sem callback. Manter proteção contra lançamentos duplicados/incertos.
+- Movimento corporal, gestos e atuação natural; a base atual é uma fotografia estática com animação facial.
+- Troca de roupa ou cenário e novas bases (por exemplo, cozinha/oficina). Não estão conectadas a geração automática FLUX nem a um fluxo de aprovação por variante.
+- Sessão persistente de modelos para reduzir a preparação por job, capacidade diária comprovada e geração nativa 4K.
+- Publicação no YouTube, catálogo das lojas, SMTP e demais integrações continuam sendo pendências independentes do fluxo de vídeo.
 
-Estado para retomar com segurança:
+## Regras para retomar
 
-- Supabase publicado: `audio-generation` v13, `video-generation` v54, worker v38 e `hybrid-video` v4. Migração híbrida `20261107235204` aplicada. Frontend Cloudflare `b078cba9-6f4f-4337-aa2d-7da07482bcfc`.
-- 216 testes passaram; lint, TypeScript frontend/Edge, build e interface desktop/celular verificados. Repetir verificações conforme as próximas alterações, sem gastar GPU apenas para reproduzir o encerramento.
-- Três contas técnicas e seus arquivos de origem foram removidos. Diagnóstico temporário `hybrid-verification` encerrado e verificado com HTTP 410. Os testes já concluíram; não dependem deste terminal para entregar resultados.
-- Evidência versionada: `executors/kaggle/results/2026-11-08-musetalk-pilot.json`. Detalhes e limites em [ARQUITETURA_VIDEO_SINCRONIZADO.md](./ARQUITETURA_VIDEO_SINCRONIZADO.md).
-- MP4s preservados no Storage privado: `operator/hybrid-musetalk-20261107/final.mp4` e `operator/hybrid-musetalk-20261108-r3/final.mp4`. Para baixar novamente, gerar acesso temporário autorizado; não publicar URLs assinadas ou credenciais nos documentos.
-- Cópias locais em `artifacts/hybrid/` são ignoradas pelo Git; arquivos em `/tmp` podem desaparecer. O Storage privado e o relatório versionado são a referência durável.
-- Replicate, 1min.ai, Runway, Magic Hour e Google vídeo não são fallback de novas gerações deste fluxo. Não apagar Secrets nem reativar provedores por inferência.
+- Começar pela revisão das evidências existentes; não iniciar notebook/GPU apenas para repetir os testes já concluídos.
+- Se uma correção exigir nova renderização, usar primeiro uma amostra curta autorizada e registrar nova evidência no relatório. Não afirmar que testes controlados da interface representam uma geração real.
+- Não reativar provedores pagos antigos, não excluir Secrets e não publicar tokens, cookies ou URLs assinadas.
+- Depois de qualquer mudança: rodar as verificações pertinentes, atualizar este arquivo e [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md); documentar a nova evidência e limites.
 
-Primeira ação recomendada na próxima sessão: ler este bloco e a arquitetura sincronizada, assistir ao MP4 existente e trabalhar na qualidade do rosto antes de iniciar outro notebook.
+## Histórico
 
-## Histórico — piloto inicial Google + MuseTalk de 08/11/2026
-
-A arquitetura sincronizada foi implementada e publicada como piloto: base aprovada no Supabase → voz fixa Google → MuseTalk 1.5/Kaggle T4 → FFmpeg → MP4 privado. Dois MP4s reais foram concluídos: três segundos em 152,378 s de notebook; 8,496 s de fala em 127,829 s de notebook e 135 s entre registro da tarefa e entrega. Inferência/codificação silenciosa: 7,829 s e 21,279 s; pico de 6,54 GiB. Boca/rosto ainda precisam de ajuste visual; bases permanecem sem aprovação para anúncios. Não há garantia de 15 vídeos/dia nem de 4K. Novas gerações não acionam provedores com créditos do fluxo antigo.
-
-Estado completo, limites e continuidade: [ARQUITETURA_VIDEO_SINCRONIZADO.md](./ARQUITETURA_VIDEO_SINCRONIZADO.md). Os registros anteriores abaixo são históricos.
-
-## Entrega posterior — narração Google
-
-- API e Secrets Google TTS cadastrados pelo responsável; autenticação e 30 vozes pt-BR confirmadas. Google substitui ElevenLabs nas novas narrações.
-- Ana/Aoede, Carla/Kore, Rafael/Charon, Lucas/Puck: quatro MP3s reais, 5,256–6,408 s de áudio, com aproximadamente 1,9–2,7 s por solicitação e arquivamento. Não são tempos de geração de vídeo.
-- Idempotência e isolamento validados por sessões reais; contas temporárias removidas. 287 caracteres reservados no limite mensal global do app, padrão 900.000; esse contador não cobre usos externos do projeto Google.
-- Migração `20261107233234_google_tts_budget.sql` aplicada; RLS e RPCs internas. Backend de áudio v13, vídeo v53, worker v37; frontend `8b342aae-1ead-4fa7-aec0-24720ad68d2e`; diagnóstico encerrado com 410. Suíte completa: 214 testes aprovados; cinco focados após o ajuste final.
-- Prévia e exportação local disponíveis. **Fila automática Kaggle/MuseTalk ainda não implementada/validada.** Escolher voz Google não substitui áudio de job nativo. Continuidade em [GOOGLE_TTS.md](./GOOGLE_TTS.md).
-- Direção confirmada: retirar Replicate, 1min.ai e Runway da nova estratégia; Magic Hour não deve ser dependência do novo fluxo. Não apagar Secrets adicionais por inferência.
-
-## Resultado mais recente — Hunyuan destilado e parada solicitada
-
-- **MP4 novo de dois segundos confirmado**, 480×848/24 fps, NF4 + offload por componente, 12 passos, contexto 256. Tempo com codificação 558,729 s. Arquivo privado no Supabase e local em `/tmp/meu-vendedor-benchmarks/generation/short_generation.mp4`; SHA-256 no relatório.
-- Seis segundos: OOM na atenção. Configuração FP16 por blocos: hooks ajustados; R3 entrou na inferência, mas foi interrompida por solicitação do usuário (4% de uso restante no ChatGPT). Não continuar automaticamente nem marcar R3 como sucesso/falha de geração.
-- Notebook R3 temporário removido; endpoints `kaggle-benchmark` e `kaggle-benchmark-hybrid` encerrados com HTTP 410. Saldo Kaggle observado 28h55min; independente do limite ChatGPT, que não conseguimos consultar.
-- Retomada, configurações e evidências em [TESTE_HUNYUAN_DESTILADO.md](./TESTE_HUNYUAN_DESTILADO.md). Scripts padrão limitados a dois segundos; seis segundos exige opção explícita. Nenhuma alteração na fila dos lojistas.
-
-## Benchmark Kaggle — resultado posterior
-
-- Ver [TESTES_KAGGLE_E_CAPACIDADE.md](./TESTES_KAGGLE_E_CAPACIDADE.md): ampliação 4K CPU aprovada (40,773 s), upload privado e SHA-256 conferidos.
-- Hunyuan FP16 não carregou até o fim; NF4 carregou em 223,785 s e depois falhou por VRAM insuficiente na geração. Nenhum MP4 do modelo; qualidade e lip sync não comprovados. Não repetir sem mudança técnica.
-- Cota final: 1.129,563 de 108.000 s usados; incremento dos testes 1.115,694 s. Sem reserva ativa. Endpoints temporários encerrados com HTTP 410.
-- Scripts em `executors/kaggle/`; calculador em `scripts/calculate-video-capacity.mjs`. 208 testes passaram. Nenhum novo motor habilitado para lojistas.
-
-## Qualidade visual e prompts — revisão posterior
-
-- Corrigida contradição de identidade: o worker antigo descrevia todos os apresentadores exceto Ana como homem esguio. Agora a identidade da foto é prioritária.
-- Prompts de composição/animação centralizados em `visual-direction.ts`, com direção de câmera, textura, luz, mãos, produto, movimento e narração. Texto aprovado não é mais cortado silenciosamente; direções acima de 2.000 caracteres retornam erro específico.
-- Pesquisa aponta HunyuanVideo 1.5 I2V como primeiro candidato de piloto com offload, Wan 2.2 como comparação condicionada à memória, LTX para áudio/vídeo e MuseTalk para lip sync. Nenhum foi executado nesta revisão.
-- Diretor multimodal (Gemini analisando fotos e compilando instruções por modelo) é evolução pendente, distinta das correções determinísticas entregues. Benchmark visual e licença por variante precisam ser avaliados antes de habilitação. Ver [QUALIDADE_VISUAL_E_PROMPTS.md](./QUALIDADE_VISUAL_E_PROMPTS.md).
-
-## 1min.ai e piloto Kaggle — entrega mais recente
-
-- `ONEMIN_API_KEY` e `KAGGLE_API_TOKEN` presentes e verificadas sem expor valores. 1min.ai integrado ao seletor, inventário, readiness, worker, polling, validação e Storage privado; escolha explícita preservada.
-- Modelo inicial: `bytedance/seedance-2.0-fast`, referência enviada pela Asset API, `TEXT_TO_VIDEO` com `imageUrls`, 6s, 9:16, 720p, áudio nativo. Automático tenta 1min.ai antes dos adaptadores anteriores.
-- Teste real `30c582b5-e739-4711-9f23-b4d94e23faf8`: imagem em cache preservada e submissão aceita, depois falha `INSUFFICIENT_CREDITS`: 1.632.960 exigidos / 280.000 disponíveis. Nenhum MP4 1min.ai e nenhuma compra/recarga efetuados. Não repetir o mesmo teste sem mudança de saldo/modelo; não confundir chave válida com renderização financiada.
-- Kaggle: cota real 30h; notebook privado GPU terminou `COMPLETE` e produziu `gpu-report.json`. `kaggle-pilot` é exclusivo do operador e protege o lançamento por claim persistente. Wan/lip sync não foram executados e não estão habilitados para usuários.
-- Próxima evolução: comparar custo de modelos 1min.ai compatíveis com referência e fala; validar um MP4 com recursos disponíveis. Depois executar piloto de modelo de avatar/lip sync no Kaggle, medindo tempo, VRAM, licença e recuperação do MP4 antes de integrá-lo à fila.
-- Documentos desta entrega: [ONEMIN_E_KAGGLE.md](./ONEMIN_E_KAGGLE.md), [ATUALIZACOES.md](./ATUALIZACOES.md). A função temporária `integration-verification` foi desativada com HTTP 410.
-
-## Atualização — Omni e cenários
-
-- Log fornecido pelo responsável confirma cota Free Tier zero para `gemini-omni-1.2-flash` (requisições/dia, minuto e tokens). Ativar armazenamento de logs não libera cota. Verificar faturamento e limites do projeto correto antes de novo pedido; não houve reenvio automático nem ativação de cobranças.
-- Pedido Omni de 07/11 00:16 UTC estava com interação remota encerrada em RESOURCE_EXHAUSTED, mas tela aguardava recursos indefinidamente. Corrigido para falha com imagem preservada. Frontend `eb8246dc-b5e0-4c19-9020-341d3e547738`; Worker v28 preserva motivo seguro de `errors[]`, encerra falha de provedor explicitamente escolhido e impede espera infinita quando todos os provedores submetidos foram esgotados. Automático mantém fallback.
-- Prompts de imagem/vídeo agora descrevem o ambiente de cada cenário e substituem o fundo de catálogo. Melhoria de qualidade ainda depende de avaliar próxima geração real, não realizada nesta revisão.
-- 190 testes, lint e TypeScript frontend/Edge aprovados. Importação de imagem publicada em `video-generation` v45.
-
-## Piloto Wan no Kaggle — continuidade
-
-- O responsável confirmou que `KAGGLE_API_TOKEN` está nos Secrets do Supabase. A credencial foi validada sem revelar o valor: chamada à API Kaggle retornou HTTP 200.
-- Nenhum notebook foi enviado e nenhuma GPU/modelo Wan foi executado. Portanto, ainda não há resultado de geração, duração ou qualidade.
-- A checagem usou uma Edge Function temporária autenticada por segredo descartável; ela foi substituída por resposta HTTP 410 logo após o teste. A pasta local temporária também foi removida.
-- Próximo passo: implementar um disparador de teste do lado servidor que use `KAGGLE_API_TOKEN` sem expor o segredo, envie um notebook privado com GPU via API oficial de kernels, acompanhe estado/logs e recupere o MP4. Primeiro verificar/obter o username da conta e a disponibilidade de GPU/cota. Não integrar ao fluxo de usuários até terminar o piloto.
-- Começar com notebook mínimo que confirma GPU e versões/runtime; em seguida rodar uma geração curta Wan image-to-video com imagem de teste autorizada. Wan 2.2 I2V de alta qualidade documenta necessidade de GPU grande; escolher variante/configuração compatível com a GPU Kaggle efetivamente concedida. Se faltar VRAM ou disponibilidade, registrar como limite do Kaggle, sem trocar para API paga.
-- Kaggle notebooks são temporários e sujeitos a cotas; mesmo que o piloto passe, isso ainda não garante um backend de produção sob demanda.
-
-## Entregue e confirmado
-
-- Foto automática de produto sincronizado corrigida: o backend importa a imagem Shopee do produto pertencente à conta para o Storage privado antes de preparar as referências. A prévia externa deixa de exigir download/upload manual. Testes e limites em [IMAGENS_SINCRONIZADAS.md](./IMAGENS_SINCRONIZADAS.md).
-
-- Publicação anterior de conta: `a1a5dd36-76b7-4954-99f6-d9d5f5b72b90`; `video-generation` v44. Crons de vídeo e marketplace preservados.
-- Login Google habilitado no Supabase e confirmado pelo responsável. Projeto Google `meu-vendedor-1987`, número `531516167196`.
-- YouTube Data API v3 ativada, escopos readonly/upload declarados e dois e-mails de teste informados pelo responsável. Segundo callback cadastrado e canal conectado, ambos confirmados pelo responsável. Consulta, renovação e desconexão implementadas com tokens cifrados. Não repetir a etapa de criação das credenciais.
-- Migrações `20261106224146_elevenlabs_audio.sql` e `20261106233237_youtube_connection.sql` aplicadas e reconciliadas. Tabelas privadas de áudio/OAuth com RLS; clientes não acessam tokens.
-- Chave Gemini anterior foi recusada (`API_KEY_INVALID`). O responsável a substituiu; catálogo e modelos de roteiro/vídeo responderam HTTP 200. Não solicitar a chave novamente nem confundir com Client ID/Secret OAuth.
-- Botão Gerar vídeo corrigido: valida ao clicar, mostra pendência, abre a etapa correspondente, reconsulta capacidades e preserva idempotência. Só acesso inicial/envio em andamento desabilitam a ação. Falhas de saldo, voz ou integrações pendentes não são bloqueios globais de UI.
-- Um vídeo real Magic Hour anterior está concluído. As correções mais recentes não criaram outro vídeo real; o áudio nativo corrigido ainda precisa ser conferido em um novo resultado.
-- ElevenLabs usa a chave existente, sem exigir novo cadastro. Síntese real de teste validada. Outra voz está ao lado de Característica da voz, filtrada por tipo, usando o roteiro existente para prévia/exportação. O worker continua usando áudio nativo.
-- Navegador Flow retirado da central por solicitação do responsável. Flow/Create permanecem apenas como opções pendentes no seletor. Não reintroduzir o navegador como fluxo principal nem declarar que OAuth transfere a sessão pessoal do Flow.
-
-## Pendências, em ordem de continuidade
-
-1. Conferir a geração real pelo botão publicado com produto/referência válidos, até MP4, incluindo fala/qualidade. A validação Chromium confirmou envio à fila simulada, não um novo MP4 real.
-2. Validar vídeo pela API Gemini com os acessos/custos da conta. Catálogo HTTP 200 não comprova inferência nem aproveita assinatura pessoal Flow/Create.
-3. Para ElevenLabs em anúncios, usar licença/plano apropriado; Free permanece prévia não comercial. Composição automática de voz no worker é uma melhoria separada; a exportação local opcional já existe.
-4. Implementar publicação/agendamento no YouTube e testar com autorização do usuário. Canal conectado e escopo upload não significam publicação entregue. O Google pode exigir renovação após sete dias no modo Testando.
-5. Flow: geração automática/importação de MP4 não implementadas; avaliar caminho permitido e testável antes de habilitar a opção. Não inventar escopos, API pública ou sessão por inferência a partir do login.
-6. YouTube Create: integração automática do editor móvel continua pendente; Data API de canais/uploads não concede esse recurso.
-7. Catálogo e lojas: cadastrar/validar credenciais Shopee e fontes públicas autorizadas de Shopee/Amazon/TikTok. Última consulta comercial registrada: `catalog_not_configured`. Outros adaptadores/contratos continuam conforme CATALOGO_APIS.md.
-8. Validar SMTP/e-mails, proteção contra senhas vazadas, limpeza de Storage, deduplicação de imagens em andamento e carga real. Tendências, ranking e relatórios comerciais completos continuam futuros.
-
-## Preferências e cuidados para a próxima sessão
-
-- Preservar a geração existente enquanto novas ferramentas são inseridas; não fazer a disponibilidade global depender de um novo conector.
-- Manter voz alternativa junto das preferências e evitar um segundo formulário de roteiro.
-- Somente Automático permite fallback de vídeo; escolha explícita permanece vinculada à ferramenta.
-- Política ativa: créditos das contas. A antiga free-only e seus bloqueios administrativos são históricos; não os reativar por ler documentação antiga.
-- Nunca expor valores de Secrets, tokens ou cookies. A presença de uma chave não comprova saldo, licença ou geração real.
-- Usuário pediu atualização dos Markdown, commit e push destas alterações. Deploy já ocorreu; Git e publicação são operações distintas.
-
-## Verificações realizadas
-
-178 testes Node aprovados; lint e TypeScript frontend/Edge aprovados; build das 17 rotas concluído. Chromium na URL publicada, em 1440×900 e 390×844, confirmou validações de nome/foto, preparação das referências, envio único mesmo com clique duplo, recuperação após 503 inicial, filtro de vozes, ausência do cartão ElevenLabs e do navegador Flow na central, sem overflow. Sessão/fila do teste eram simuladas; nenhum vídeo pago novo foi solicitado. Diagnósticos temporários foram desativados.
-
-## Referências atuais
-
-[AJUSTES_ESTUDIO.md](./AJUSTES_ESTUDIO.md), [YOUTUBE_CONEXAO.md](./YOUTUBE_CONEXAO.md), [GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md), [ELEVENLABS.md](./ELEVENLABS.md), [PUBLICACAO.md](./PUBLICACAO.md). Os registros históricos nos demais documentos devem ser lidos com essa precedência.
+Os registros anteriores desta continuidade descreviam estados de piloto que foram superados pela entrega acima. Para histórico de outras funcionalidades, consultar [ATUALIZACOES.md](./ATUALIZACOES.md) e os documentos específicos. A situação vigente do fluxo de vídeo é sempre a descrita em [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md).

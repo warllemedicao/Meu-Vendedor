@@ -18,9 +18,9 @@ Estado completo, limites e continuidade: [ARQUITETURA_VIDEO_SINCRONIZADO.md](./A
 
 ## Publicação e validação
 
-Versões de publicação e validações mais recentes em [ATUALIZACOES.md](./ATUALIZACOES.md). Migrações de áudio e YouTube reconciliadas com o banco remoto. Crons e Secrets preservados.
+Estado vigente em 08/11/2026: fluxo de foto falante com cartão de produto publicado; quatro apresentadores aprovados para esse formato. A entrega real, as verificações e os limites estão em [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md). Próxima revisão e correções estão em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md).
 
-200 testes aprovados na suíte completa; 27 testes focados passaram após o ajuste final de erro/cooldown. Lint, TypeScript frontend/Edge e build estático das 17 rotas aprovados. O teste real 1min.ai comprovou upload, submissão e retorno de falha por saldo insuficiente; o piloto Kaggle comprovou execução do diagnóstico de GPU. Não houve nova verificação visual em Chromium nem MP4 1min.ai nesta entrega.
+Commit publicado em `main`: `91e553481c211af5fe3dcea88c29c00ab61331bf`. Cloudflare `627f251b-955c-4175-a065-f00bce5c26d4`; Supabase `hybrid-video` v8. Foram aprovados 219 testes, lint, TypeScript frontend/Edge e build estático das 17 rotas. As atualizações antigas abaixo são histórico e não substituem o estado vigente.
 
 ## Executar localmente
 

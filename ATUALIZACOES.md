@@ -8,6 +8,8 @@ O botão principal usa o fluxo Google TTS/MuseTalk. Histórico privado, cancelam
 
 Estado consolidado, validações, publicação e limites: [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md). **Este bloco prevalece sobre os registros históricos abaixo**, inclusive referências antigas a bases desabilitadas ou geração Kaggle ainda não implementada.
 
+Commit `91e553481c211af5fe3dcea88c29c00ab61331bf` foi enviado a `origin/main`; Cloudflare `627f251b-955c-4175-a065-f00bce5c26d4`, Supabase `hybrid-video` v8. Para a próxima sessão, a revisão pendente é de qualidade audiovisual com amostras existentes e cartão de produto real autorizado; movimento corporal, troca de cenário/roupa, 4K nativo e throughput diário seguem fora do escopo liberado. Plano em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md).
+
 ## Histórico — piloto inicial Google + MuseTalk de 08/11/2026
 
 A arquitetura sincronizada foi implementada e publicada como piloto: base aprovada no Supabase → voz fixa Google → MuseTalk 1.5/Kaggle T4 → FFmpeg → MP4 privado. Dois MP4s reais foram concluídos: três segundos em 152,378 s de notebook; 8,496 s de fala em 127,829 s de notebook e 135 s entre registro da tarefa e entrega. Inferência/codificação silenciosa: 7,829 s e 21,279 s; pico de 6,54 GiB. Boca/rosto ainda precisam de ajuste visual; bases permanecem sem aprovação para anúncios. Não há garantia de 15 vídeos/dia nem de 4K. Novas gerações não acionam provedores com créditos do fluxo antigo.
