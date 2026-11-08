@@ -34,7 +34,8 @@ import {
 import { mockVideoProvider } from "@/lib/video-provider";
 import { splitGenerationTools } from "@/lib/video-capabilities";
 import { GoogleNarration } from "./GoogleNarration";
-import { HybridVideo } from "./HybridVideo";
+import { HybridVideo, HybridLibrary, type HybridVideoHandle } from "./HybridVideo";
+import { buildHybridNarration } from "@/lib/hybrid-video";
 import { edgeFunctionMessage, importVideoProductImage, videoSubmissionIssue } from "@/lib/video-submission";
 import {
   advertisingStyles,
@@ -361,7 +362,8 @@ export function VideoStudio() {
   const [motionMode, setMotionMode] = useState<MotionMode>("poses");
   const [durationSeconds, setDurationSeconds] = useState<VideoDuration>(6);
   const format: VideoFormat = "9:16";
-  const [generationTool, setGenerationTool] = useState("auto");
+  const hybridVideoRef = useRef<HybridVideoHandle>(null);
+  const [generationTool, setGenerationTool] = useState("hybrid");
   const [generationTools, setGenerationTools] = useState<{ id: string; label: string; available: boolean; reason: string }[]>([]);
   const selectedGenerationTool = generationTools.find((tool) => tool.id === generationTool);
   const toolGroups = splitGenerationTools(generationTools);
@@ -452,7 +454,7 @@ export function VideoStudio() {
     targetAudience,
   }), [product, templateId, scenePresetId, presenterId, voiceGender, voiceProfileId, emotionalToneId, advertisingStyleId, narrationMode, motionMode, durationSeconds, mode, targetAudience]);
   const suggestedScript = useMemo(() => buildAdvertisingScript(configuration), [configuration]);
-  const effectiveScript = scriptEdited ? script : suggestedScript;
+  const effectiveScript = scriptEdited ? script : generationTool === "hybrid" ? buildHybridNarration(product) : suggestedScript;
   const prompt = useMemo(() => buildVideoPrompt(configuration, effectiveScript), [configuration, effectiveScript]);
   const validationError = validateVideoConfiguration(configuration, effectiveScript);
   const submissionIssue = videoSubmissionIssue({ signedIn: Boolean(user), validationError,
@@ -696,6 +698,17 @@ export function VideoStudio() {
     setUploadedImagePreview(null);
   }
 
+  async function prepareHybridProduct(): Promise<string> {
+    const client = getSupabase();
+    if (!user || !client) throw new Error("Entre na sua conta para gerar o vídeo.");
+    if (product.imageStoragePath) return product.imageStoragePath;
+    const path = productImage ? await uploadVideoProductImage(client, user.id, productImage)
+      : product.sourceProductId && product.imageUrl ? await importVideoProductImage(client, user.id, product.sourceProductId) : "";
+    if (!path) throw new Error("Envie a foto do produto antes de gerar o vídeo.");
+    setProduct(current => current.imageName === product.imageName && current.imageUrl === product.imageUrl && current.sourceProductId === product.sourceProductId ? { ...current, imageStoragePath: path } : current);
+    return path;
+  }
+
   async function uploadProductImage() {
     const client = getSupabase();
     if (!user || !client || !productImage) {
@@ -784,6 +797,14 @@ export function VideoStudio() {
   }
 
   async function enqueueVideoJob() {
+    if (generationTool === "hybrid") {
+      if (!user) { setError("Entre na sua conta para gerar o vídeo."); return; }
+      if (!product.name.trim()) { setError("Informe o nome do produto."); setStudioStep(0); return; }
+      setError(""); setStudioStep(1);
+      requestAnimationFrame(() => document.getElementById("hybrid-video-production")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      await hybridVideoRef.current?.generate();
+      return;
+    }
     const client = getSupabase();
     if (enqueueLock.current || enqueueingJob) return;
     if (submissionIssue || !user || !client) {
@@ -1099,7 +1120,7 @@ export function VideoStudio() {
           </span>
         </div>
         <nav aria-label="Áreas do estúdio" className="mt-6 flex gap-1 overflow-x-auto rounded-xl bg-background p-1">
-          {([{ id: "create", label: "Criar vídeo" }, { id: "queue", label: `Em produção (${visibleJobs.filter((job) => job.status === "queued" || job.status === "processing").length})` }, { id: "library", label: "Biblioteca" }] as const).map((item) => (
+          {([{ id: "create", label: "Criar vídeo" }, { id: "queue", label: generationTool === "hybrid" ? "Em produção" : `Em produção (${visibleJobs.filter((job) => job.status === "queued" || job.status === "processing").length})` }, { id: "library", label: "Biblioteca" }] as const).map((item) => (
             <button key={item.id} type="button" onClick={() => setStudioView(item.id)} aria-current={studioView === item.id ? "page" : undefined}
               className={`flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-semibold transition ${studioView === item.id ? "bg-surface text-primary shadow-sm" : "text-muted hover:text-foreground"}`}>{item.label}</button>
           ))}
@@ -1222,7 +1243,7 @@ export function VideoStudio() {
                 >
                   <div className="relative aspect-[4/5] bg-surface-muted">
                     {character.image ? (
-                      <Image src={character.image} alt={`Apresentador virtual ${character.name}`} fill sizes="(max-width: 640px) 50vw, 220px" className="object-cover" />
+                      <Image src={character.image} alt={`Apresentador virtual ${character.name}`} fill sizes="(max-width: 640px) 50vw, 220px" className="object-cover object-top" />
                     ) : (
                       <div role="img" aria-label={`Imagem de referência de ${character.name} pendente`} className="absolute inset-0 grid place-items-center p-5 text-center text-sm font-medium text-muted">
                         Imagem de referência original pendente
@@ -1257,7 +1278,7 @@ export function VideoStudio() {
                   {voiceProfiles.map((voice) => <option key={voice.id} value={voice.id}>{voice.label}</option>)}
                 </select>
               </label>
-              {userId && <HybridVideo key={`hybrid:${userId}:${presenterId}`} presenterId={presenterId} script={effectiveScript} />}
+              {userId && <HybridVideo key={`hybrid:${userId}:${presenterId}`} presenterId={presenterId} script={effectiveScript} prepareProduct={prepareHybridProduct} ref={hybridVideoRef} onBusyChange={setEnqueueingJob} />}
               {userId && <GoogleNarration key={`${userId}:${presenterId}:${voiceGender}`} script={effectiveScript} voiceGender={voiceGender} presenterId={presenterId}
                 videoResults={visibleJobs.filter((job) => job.status === "completed" && job.result_object_path).map((job) => ({ id: job.id, path: job.result_object_path! }))} />}
               <label className="block text-sm font-medium sm:col-span-2">Tom emocional
@@ -1341,7 +1362,7 @@ export function VideoStudio() {
             <Card titulo="Pré-visualização estática">
               <div className={`relative mx-auto w-full max-w-[240px] overflow-hidden rounded-2xl border border-border bg-surface-muted ${previewRatio}`}>
                 {presenter.image ? (
-                  <Image src={presenter.image} alt={`Prévia com ${presenter.name}`} fill sizes="380px" className="object-cover" />
+                  <Image src={presenter.image} alt={`Prévia com ${presenter.name}`} fill sizes="380px" className="object-cover object-top" />
                 ) : (
                   <div role="img" aria-label={`Imagem de referência de ${presenter.name} pendente`} className="absolute inset-0 grid place-items-center p-6 text-center text-sm font-medium text-muted">
                     Referência visual de {presenter.name} pendente
@@ -1366,7 +1387,7 @@ export function VideoStudio() {
           </div>
 
           <Card titulo="Produzir vídeo">
-            {userId && <div className="mb-4 rounded-xl border border-border bg-background p-3" aria-live="polite">
+            {userId && generationTool !== "hybrid" && <div className="mb-4 rounded-xl border border-border bg-background p-3" aria-live="polite">
               <p className="text-sm font-semibold">Disponibilidade para gerar agora</p>
               <p className="mt-2 text-xs leading-relaxed text-muted">{capabilityUserId === userId && productionReadiness ? productionReadiness.message : "Verifique a disponibilidade dos serviços antes de iniciar."}</p>
               {capabilityUserId === userId && productionReadiness && <p className="mt-2 text-xs text-muted">Imagem: {productionReadiness.imageReady ? "serviço configurado" : "configuração pendente"} · Vídeo: {productionReadiness.videoReady ? "serviço configurado" : "configuração pendente"}</p>}
@@ -1377,16 +1398,17 @@ export function VideoStudio() {
             </div>}
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div><dt className="text-xs text-muted">Formato</dt><dd className="mt-1 font-semibold">Vertical · 9:16</dd></div>
-              <div><dt className="text-xs text-muted">Duração</dt><dd className="mt-1 font-semibold">6 segundos</dd></div>
+              <div><dt className="text-xs text-muted">Duração</dt><dd className="mt-1 font-semibold">{generationTool === "hybrid" ? "Até 15 segundos de fala" : "6 segundos"}</dd></div>
               <div><dt className="text-xs text-muted">Apresentador</dt><dd className="mt-1 font-semibold">{presenter.name}</dd></div>
-              <div><dt className="text-xs text-muted">Cenário</dt><dd className="mt-1 font-semibold">{videoScenePresets.find((scene) => scene.id === scenePresetId)?.name}</dd></div>
+              <div><dt className="text-xs text-muted">Cenário</dt><dd className="mt-1 font-semibold">{generationTool === "hybrid" ? "Estúdio da base aprovada" : videoScenePresets.find((scene) => scene.id === scenePresetId)?.name}</dd></div>
             </dl>
-            {validationError && <p className="mt-4 rounded-lg bg-background p-3 text-xs text-muted">{validationError}</p>}
+            {generationTool !== "hybrid" && validationError && <p className="mt-4 rounded-lg bg-background p-3 text-xs text-muted">{validationError}</p>}
             {!product.imageStoragePath && !productImage && <p className="mt-3 text-xs text-muted">{product.sourceProductId && product.imageUrl
               ? "A foto do produto sincronizado será preparada automaticamente ao gerar."
               : "Adicione uma imagem do produto para gerar o vídeo."}</p>}
             <label htmlFor="video-generation-tool" className="mt-4 block text-sm font-semibold">Ferramenta para gerar</label>
             <select id="video-generation-tool" value={generationTool} onChange={(event) => setGenerationTool(event.target.value)} disabled={enqueueingJob} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm">
+              <option value="hybrid">Voz Google + personagem + cartão do produto</option>
               {generationTools.length === 0 && <option value="auto">Automático · verificando serviços</option>}
               {toolGroups.available.map((tool) => <option key={tool.id} value={tool.id}>{tool.label}</option>)}
               {toolGroups.pending.map((tool) => <option key={tool.id} value={tool.id} disabled>{tool.label} · {tool.id === "google-flow" || tool.id === "youtube-create" ? "integração pendente" : "indisponível"}</option>)}
@@ -1394,17 +1416,17 @@ export function VideoStudio() {
             <p className="mt-2 text-xs text-muted" aria-live="polite">{selectedGenerationTool?.reason}</p>
             {selectedGenerationTool && !selectedGenerationTool.available && toolGroups.available.length > 0 && <button type="button" onClick={() => setGenerationTool("auto")} className="mt-2 text-sm text-primary underline">Usar serviços disponíveis no Automático</button>}
             {toolGroups.pending.length > 0 && <details className="mt-3 text-xs text-muted"><summary className="cursor-pointer">Outras ferramentas e integrações em preparação</summary><ul className="mt-2 space-y-2">{toolGroups.pending.map((tool) => <li key={tool.id}><strong>{tool.label}:</strong> {tool.reason}</li>)}</ul></details>}
-            {submissionIssue && <p className="mt-3 text-xs text-muted">{submissionIssue.message}</p>}
+            {generationTool !== "hybrid" && submissionIssue && <p className="mt-3 text-xs text-muted">{submissionIssue.message}</p>}
             {error && <p ref={generationFeedback} role="alert" className="mt-3 rounded-lg bg-danger-soft p-3 text-sm text-danger">{error}</p>}
             <button type="button" disabled={enqueueingJob || authLoading} onClick={() => void enqueueVideoJob()} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50">
-              {enqueueingJob || authLoading ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />{authLoading ? "Verificando seu acesso…" : "Preparando produção…"}</> : <><WandSparkles className="size-4" aria-hidden />{capabilityUserId === userId && productionReadiness && !productionReadiness.ready ? "Salvar pedido na fila" : "Gerar vídeo"}</>}
+              {enqueueingJob || authLoading ? <><LoaderCircle className="size-4 animate-spin" aria-hidden />{authLoading ? "Verificando seu acesso…" : "Preparando produção…"}</> : <><WandSparkles className="size-4" aria-hidden />{generationTool !== "hybrid" && capabilityUserId === userId && productionReadiness && !productionReadiness.ready ? "Salvar pedido na fila" : "Gerar vídeo"}</>}
             </button>
-            {userId && capabilityUserId === userId && productionServices.length > 0 && <ProductionServices
+            {generationTool !== "hybrid" && userId && capabilityUserId === userId && productionServices.length > 0 && <ProductionServices
               services={productionServices}
               refreshing={checkingBalances}
               onRefresh={() => { setCheckingBalances(true); setBalanceRefresh((value) => value + 1); }}
             />}
-            <p className="mt-3 text-xs text-muted">A geração pode levar alguns minutos, mesmo para um vídeo de 6 segundos. Créditos e custo dependem da ferramenta selecionada e da conta configurada.</p>
+            <p className="mt-3 text-xs text-muted">A geração pode levar alguns minutos. O modo com voz Google usa a cota Kaggle e mantém o corpo, a roupa e o cenário da base; a foto do produto aparece em um cartão.</p>
             {!queueAvailable && <p className="mt-3 text-xs text-muted">{user ? "Ao clicar em Gerar vídeo, o aplicativo consulta novamente os serviços e informa qualquer pendência." : "Entre na sua conta para gerar e guardar vídeos."}</p>}
             <p className="mt-3 text-xs leading-relaxed text-muted">A opção Automático permite trocar de serviço. Ao escolher uma ferramenta, o pedido usa somente ela. O fornecedor pode cobrar conforme o plano da conta. Se não houver opção disponível, o pedido aguarda preservando as etapas prontas.</p>
             <details className="mt-4 border-t border-border pt-3">
@@ -1440,6 +1462,7 @@ export function VideoStudio() {
           </div>
           <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">{visibleJobs.length} tarefa(s)</span>
         </div>
+        {userId && studioView === "queue" && <HybridLibrary key={`hybrid-queue:${userId}`} />}
         {visibleJobsLoading ? <p role="status" className="mt-4 text-sm text-muted">Carregando tarefas…</p> : visibleJobsError ? (
           <p role="alert" className="mt-4 rounded-lg bg-danger-soft p-3 text-sm text-danger">{visibleJobsError}</p>
         ) : visibleJobs.length === 0 ? (
@@ -1507,6 +1530,7 @@ export function VideoStudio() {
           </button>
           {!user && <p className="mt-2 text-xs text-muted">Entre na sua conta para guardar o arquivo de forma privada.</p>}
         </details>
+        {userId && studioView === "library" && <HybridLibrary key={`hybrid-library:${userId}`} />}
         {libraryLoading ? <p role="status" className="mt-5 text-sm text-muted">Carregando biblioteca…</p> : library.length === 0 ? (
           <div className="mt-5 rounded-xl border border-dashed border-border p-8 text-center">
             <Film className="mx-auto size-8 text-muted" aria-hidden />

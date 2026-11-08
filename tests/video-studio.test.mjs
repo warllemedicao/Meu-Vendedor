@@ -49,7 +49,7 @@ test('catálogos do estúdio oferecem apresentadores, vozes, emoções, estilos 
   assert.deepEqual(virtualPresenters.map(item => item.name), ['Ana', 'Lucas', 'Carla', 'Rafael']);
   assert.deepEqual(virtualPresenters.map(item => item.id), ['ana', 'lucas', 'carla', 'rafael']);
   assert.deepEqual(virtualPresenters.map(item => item.bodyType), ['esguio', 'esguio', 'plus-size', 'plus-size']);
-  assert.deepEqual(virtualPresenters.map(item => item.referenceStatus), ['ready', 'ready', 'pending', 'pending']);
+  assert.deepEqual(virtualPresenters.map(item => item.referenceStatus), ['ready', 'ready', 'ready', 'ready']);
   assert.equal(voiceProfiles.length, 7);
   assert.equal(emotionalTones.length, 8);
   assert.equal(advertisingStyles.length, 6);
@@ -110,12 +110,13 @@ test('tamanho de roupa informado é preservado sem inferir medidas', () => {
   assert.match(prompt, /Não infira medidas nem numeração a partir do biotipo/);
 });
 
-test('personagem sem referência não recebe imagem de outro personagem no prompt', () => {
+test('Carla e Rafael usam referências próprias aprovadas no prompt', () => {
   const carla = virtualPresenters.find(item => item.id === 'carla');
-  assert.equal(carla.image, null);
+  assert.equal(carla.image, '/presenters/carla-v2.webp');
+  assert.equal(virtualPresenters.find(item => item.id === 'rafael').image, '/presenters/rafael-v2.webp');
   const prompt = buildVideoPrompt({ ...configuration, presenterId: 'carla' }, 'roteiro válido com conteúdo suficiente');
-  assert.match(prompt, /imagem de referência original de Carla está pendente/i);
-  assert.match(prompt, /Não use a imagem de outro personagem/);
+  assert.match(prompt, /Carla/);
+  assert.doesNotMatch(prompt, /referência original de Carla está pendente/i);
 });
 
 test('configuração exige vertical 9:16 e cenário compatível com template', () => {

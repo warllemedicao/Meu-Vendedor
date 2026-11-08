@@ -1,5 +1,13 @@
 # Publicações — Meu Vendedor
 
+## Estado vigente — 08/11/2026: foto falante com produto
+
+Carla e Rafael têm referências fotográficas realistas, plus size, próprias e selecionáveis. Os quatro perfis ficam em `mv_presenter_profiles`, com identidade, arquivo/hash e voz fixa Google. Quatro bases foram validadas com MP4s reais de 10–13 segundos e habilitadas para o formato **foto falante + cartão com a imagem enviada do produto**, em 720×1280.
+
+O botão principal usa o fluxo Google TTS/MuseTalk. Histórico privado, cancelamento cooperativo, renovação de acesso e recuperação sem reenviar a GPU foram implementados. Corpo, roupa e cenário permanecem os da base; não há geração nativa 4K, sessão persistente de modelos ou garantia de 15 vídeos/dia.
+
+Estado consolidado, validações, publicação e limites: [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md). **Este bloco prevalece sobre os registros históricos abaixo**, inclusive referências antigas a bases desabilitadas ou geração Kaggle ainda não implementada.
+
 > **Omni e cenários — 07/11/2026:** frontend `eb8246dc-b5e0-4c19-9020-341d3e547738`, `video-generation` v45 e `video-generation-worker` v28. 190 testes, lint, TypeScript frontend/Edge e build de 17 rotas aprovados. Falha remota explícita encerra a tarefa preservando a imagem; esgotamento de provedores submetidos deixa de gerar espera infinita. Log do usuário confirmou cota Free Tier zero no Omni. Prompt agora descreve o ambiente; resultado visual ainda não reavaliado em geração real.
 
 > **Foto sincronizada corrigida — 07/11/2026:** frontend Cloudflare `ef952e64-9d8f-47a3-96ac-26579c3fd8a5` e função `video-generation` v45. Seleção do produto reconhece a URL da foto e importa automaticamente uma cópia privada antes de preparar referências, sem download/upload manual. 186 testes aprovados; teste com JPEG real Shopee e UI desktop/celular na versão publicada com fila simulada. Ver [IMAGENS_SINCRONIZADAS.md](./IMAGENS_SINCRONIZADAS.md).

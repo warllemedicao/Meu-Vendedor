@@ -1,0 +1,188 @@
+{
+  "date": "2026-11-08",
+  "scope": "four curated photo-talking presenters with a product card",
+  "audioTest": "Existing Google narration repeated twice for duration validation; not fresh long TTS",
+  "fixture": "A blue and white technical image; not a user-facing fake product",
+  "results": [
+    {
+      "presenter": "ana",
+      "objectPath": "operator/presenter-qa-20261108-r6/ana/final.mp4",
+      "state": "completed",
+      "report": {
+        "fps": 25,
+        "gpu": "Tesla T4",
+        "bytes": 416429,
+        "phase": "complete",
+        "width": 720,
+        "frames": 304,
+        "height": 1280,
+        "sha256": "a57c384511d00939e59fea1561a2bb28f55697c41fba59207260cd803b16d726",
+        "adapter": "musetalk-v15-mouth-aligned",
+        "native_4k": false,
+        "setup_seconds": 105.452,
+        "total_seconds": 174.483,
+        "peak_gpu_bytes": 7017208320,
+        "duration_seconds": 12.192,
+        "inference_seconds": 35.582,
+        "preprocess_seconds": 21.293
+      },
+      "decode": {
+        "videoSeconds": 12.16,
+        "audioSeconds": 12.16,
+        "rms": 0.09665882695113405
+      },
+      "visualReview": {
+        "scope": "photo-talking-product-card",
+        "mouthPosition": "checked",
+        "identity": "checked",
+        "body": "static"
+      }
+    },
+    {
+      "presenter": "carla",
+      "objectPath": "operator/presenter-qa-20261108-r6/carla/final.mp4",
+      "state": "completed",
+      "report": {
+        "fps": 25,
+        "gpu": "Tesla T4",
+        "bytes": 474104,
+        "phase": "complete",
+        "width": 720,
+        "frames": 320,
+        "height": 1280,
+        "sha256": "ea1234716ba727ee588095422624e9acf8f5a9128b9eca35aa3df6483f36b9bc",
+        "adapter": "musetalk-v15-mouth-aligned",
+        "native_4k": false,
+        "setup_seconds": 100.727,
+        "total_seconds": 176.297,
+        "peak_gpu_bytes": 7017208320,
+        "duration_seconds": 12.816,
+        "inference_seconds": 41.997,
+        "preprocess_seconds": 21.341
+      },
+      "decode": {
+        "videoSeconds": 12.8,
+        "audioSeconds": 12.8,
+        "rms": 0.13776245256257474
+      },
+      "visualReview": {
+        "scope": "photo-talking-product-card",
+        "mouthPosition": "checked",
+        "identity": "checked",
+        "body": "static"
+      }
+    },
+    {
+      "presenter": "rafael",
+      "objectPath": "operator/presenter-qa-20261108-r6/rafael/final.mp4",
+      "state": "completed",
+      "report": {
+        "fps": 25,
+        "gpu": "Tesla T4",
+        "bytes": 501772,
+        "phase": "complete",
+        "width": 720,
+        "frames": 280,
+        "height": 1280,
+        "sha256": "43cc883c8e56306cd8d15b847921caf80bd8059c15cb1aaaed56476f9477aa87",
+        "adapter": "musetalk-v15-mouth-aligned",
+        "native_4k": false,
+        "setup_seconds": 109.382,
+        "total_seconds": 179.865,
+        "peak_gpu_bytes": 7017208320,
+        "duration_seconds": 11.232,
+        "inference_seconds": 36.313,
+        "preprocess_seconds": 21.323
+      },
+      "decode": {
+        "videoSeconds": 11.2,
+        "audioSeconds": 11.2,
+        "rms": 0.12281711038370409
+      },
+      "visualReview": {
+        "scope": "photo-talking-product-card",
+        "mouthPosition": "checked",
+        "identity": "checked",
+        "body": "static"
+      }
+    },
+    {
+      "presenter": "lucas",
+      "objectPath": "operator/presenter-qa-20261108-r6/lucas/final.mp4",
+      "state": "completed",
+      "report": {
+        "fps": 25,
+        "gpu": "Tesla T4",
+        "bytes": 356020,
+        "phase": "complete",
+        "width": 720,
+        "frames": 262,
+        "height": 1280,
+        "sha256": "501d1d9483b2771f0d4e8185c3f35f9408646d91be65552ad5725e426e137478",
+        "adapter": "musetalk-v15-mouth-aligned",
+        "native_4k": false,
+        "setup_seconds": 105.954,
+        "total_seconds": 173.552,
+        "peak_gpu_bytes": 7017208320,
+        "duration_seconds": 10.512,
+        "inference_seconds": 32.94,
+        "preprocess_seconds": 21.887
+      },
+      "decode": {
+        "videoSeconds": 10.48,
+        "audioSeconds": 10.431995464852609,
+        "rms": 0.1520634992056925
+      },
+      "visualReview": {
+        "scope": "photo-talking-product-card",
+        "mouthPosition": "checked",
+        "identity": "checked",
+        "body": "static"
+      }
+    }
+  ],
+  "limitations": [
+    "No body animation, wardrobe or environment change",
+    "No model reuse between requests",
+    "No 15-per-day or native 4K guarantee",
+    "Lip texture can remain smoother than the reference"
+  ],
+  "authenticatedMainButton": {
+    "id": "ab4ae46e-ff03-4f1b-a5e7-f7e77db3baa8",
+    "status": "completed",
+    "bytes": 192735,
+    "sha256": "2541b28ea29dbc9aaffc3002bbb0251300be97c13baaacb46cf9a8ad1bd89258",
+    "report": {
+      "phase": "complete",
+      "total_seconds": 152.759,
+      "duration_seconds": 4.488
+    },
+    "consoleErrors": [],
+    "objectPath": "operator/presenter-e2e-20261108/ab4ae46e-ff03-4f1b-a5e7-f7e77db3baa8.mp4",
+    "width": 720,
+    "height": 1280,
+    "fps": 25,
+    "requestElapsedSeconds": 158,
+    "decode": {
+      "videoSeconds": 4.48,
+      "audioSeconds": 4.48,
+      "rms": 0.11321387535846861
+    },
+    "libraryAccessVerified": true,
+    "technicalAccountRemoved": true
+  },
+  "verification": {
+    "tests": 219,
+    "lint": true,
+    "frontendTypes": true,
+    "edgeTypes": true,
+    "buildRoutes": 17,
+    "desktopViewport": "1440x900",
+    "mobileViewport": "390x844",
+    "controlledUiUsesActualAudioResponseContract": true,
+    "profiles": 4,
+    "approvedBases": 4,
+    "cooperativeCancellation": true,
+    "recoveryWithoutCallback": true
+  }
+}

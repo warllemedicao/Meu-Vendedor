@@ -111,7 +111,7 @@ export const videoFormats = [
 export type VideoFormat = (typeof videoFormats)[number]["id"];
 
 export const generationModes = [
-  { id: "ai-video", label: "Vídeo com IA", description: "Preparado para o provedor oficial do Google. A chamada real permanece desativada." },
+  { id: "ai-video", label: "Vídeo com IA", description: "Produção conforme a ferramenta selecionada e as bases disponíveis." },
   { id: "economy", label: "Modo econômico", description: "Planeja anúncio com foto, movimento de câmera, narração, legenda e transições." },
 ] as const;
 export type GenerationMode = (typeof generationModes)[number]["id"];
@@ -157,9 +157,9 @@ export const virtualPresenters: readonly VirtualPresenter[] = [
   {
     id: "carla",
     name: "Carla",
-    image: null,
+    image: "/presenters/carla-v2.webp",
     bodyType: "plus-size",
-    referenceStatus: "pending",
+    referenceStatus: "ready",
     description: "Mulher adulta plus size, com proporções naturais, adequada para roupas de tamanhos variados, moda e beleza.",
     visualIdentity: "mulher adulta brasileira plus size, com proporções naturais, pele negra, cabelo cacheado preso de forma elegante, blusa verde-esmeralda e acessórios discretos, aparência realista",
     defaultVoiceGender: "feminina",
@@ -169,9 +169,9 @@ export const virtualPresenters: readonly VirtualPresenter[] = [
   {
     id: "rafael",
     name: "Rafael",
-    image: null,
+    image: "/presenters/rafael-v2.webp",
     bodyType: "plus-size",
-    referenceStatus: "pending",
+    referenceStatus: "ready",
     description: "Homem adulto plus size, com proporções naturais, adequado para roupas, acessórios e demonstrações de produtos.",
     visualIdentity: "homem adulto brasileiro plus size, com proporções naturais, pele morena clara, cabelo curto escuro com fios grisalhos, polo terracota, aparência realista",
     defaultVoiceGender: "masculina",

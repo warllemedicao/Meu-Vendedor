@@ -1,6 +1,14 @@
 # Arquitetura de vídeo sincronizado — 08/11/2026
 
-## Estado da entrega
+## Estado vigente — 08/11/2026: foto falante com produto
+
+Carla e Rafael têm referências fotográficas realistas, plus size, próprias e selecionáveis. Os quatro perfis ficam em `mv_presenter_profiles`, com identidade, arquivo/hash e voz fixa Google. Quatro bases foram validadas com MP4s reais de 10–13 segundos e habilitadas para o formato **foto falante + cartão com a imagem enviada do produto**, em 720×1280.
+
+O botão principal usa o fluxo Google TTS/MuseTalk. Histórico privado, cancelamento cooperativo, renovação de acesso e recuperação sem reenviar a GPU foram implementados. Corpo, roupa e cenário permanecem os da base; não há geração nativa 4K, sessão persistente de modelos ou garantia de 15 vídeos/dia.
+
+Estado consolidado, validações, publicação e limites: [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md). **Este bloco prevalece sobre os registros históricos abaixo**, inclusive referências antigas a bases desabilitadas ou geração Kaggle ainda não implementada.
+
+## Histórico do piloto inicial
 
 Backend e interface implementados e publicados como **piloto experimental**, com um MP4 real de Ana falando em português. Não confundir piloto com aprovação de qualidade comercial ou com produção diária já demonstrada. As bases permanecem desabilitadas para usuários até aprovação de identidade, enquadramento, licença e boca/rosto.
 

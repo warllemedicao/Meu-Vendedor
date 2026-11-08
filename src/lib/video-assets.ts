@@ -114,7 +114,7 @@ export async function createVideoPresenterAIReference(
   userId: string,
   imagePath: string,
 ): Promise<VideoAIReference> {
-  if (!uuidPattern.test(userId) || !/^\/presenters\/(?:ana|lucas)\.webp$/.test(imagePath)) {
+  if (!uuidPattern.test(userId) || !/^\/presenters\/(?:ana|lucas|carla-v2|rafael-v2)\.webp$/.test(imagePath)) {
     throw new Error("A referência visual deste personagem não está aprovada para processamento.");
   }
   const response = await fetch(imagePath, { credentials: "same-origin", redirect: "error" })
