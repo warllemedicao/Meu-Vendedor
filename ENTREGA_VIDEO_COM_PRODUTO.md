@@ -1,5 +1,11 @@
 # Vídeo com voz e produto — entrega de 08/11/2026
 
+> **Revisão vigente:** o responsável rejeitou a camiseta de exemplo e proibiu reiniciar os testes. Correções e limites em [AUDITORIA_GERADOR_VIDEO.md](./AUDITORIA_GERADOR_VIDEO.md); conversa e decisões em [historico.md](./historico.md). Nenhum resultado da camisa do anúncio foi aprovado.
+
+## Complemento de movimento e roupa
+
+Foi autorizado um modo experimental separado com vídeo-base, roupa e edição por máscara. Implementação e evidências em [MOVIMENTO_E_PRODUTO.md](./MOVIMENTO_E_PRODUTO.md). Este documento descreve a entrega do modo de voz fixa; seus limites não devem ser interpretados como ausência do novo código.
+
 ## Escopo desta entrega
 
 O fluxo principal é Google TTS → MuseTalk 1.5 com calibração semântica dos lábios → cartão com a foto real enviada → MP4 H.264/AAC privado. O botão principal **Gerar vídeo** utiliza esse fluxo por padrão. As ferramentas antigas continuam separadas, sem fallback pago deste fluxo.

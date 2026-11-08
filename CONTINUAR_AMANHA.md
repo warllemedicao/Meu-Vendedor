@@ -1,6 +1,16 @@
 # Continuidade do projeto — próxima sessão
 
-## Estado confirmado em 08/11/2026
+> **Revisão vigente:** o responsável rejeitou a camiseta de exemplo e proibiu reiniciar os testes. Correções e limites em [AUDITORIA_GERADOR_VIDEO.md](./AUDITORIA_GERADOR_VIDEO.md); conversa e decisões em [historico.md](./historico.md). Nenhum resultado da camisa do anúncio foi aprovado.
+
+## Interrompido pelo responsável
+
+Testes de movimento interrompidos a pedido do responsável. A imagem FASHN da camisa na Carla foi rejeitada como errada; não tratá-la como resultado aprovado. Não reiniciar GPU sem nova instrução.
+
+## Complemento autorizado — movimento e roupa
+
+O responsável ampliou o escopo e autorizou implementação, publicação e testes no Kaggle, Supabase e Cloudflare. A integração experimental está em [MOVIMENTO_E_PRODUTO.md](./MOVIMENTO_E_PRODUTO.md): Wan Animate, SCAIL-2, VACE e FASHN. FASHN já entregou uma imagem real da Carla vestindo a camiseta da referência; validação de movimento está em andamento. Não confundir integração com aprovação de qualidade ou interação exata com qualquer objeto. O relatório final desse complemento prevalece sobre as pendências antigas de movimento abaixo.
+
+## Estado confirmado do modo de voz fixa em 08/11/2026
 
 O fluxo **foto falante + cartão da imagem do produto** está publicado e disponível no estúdio. O botão principal usa Google TTS → MuseTalk 1.5 no Kaggle → MP4 privado, em 720×1280/25 fps, com fala limitada a 15 segundos. Carla e Rafael têm referências realistas plus size; os quatro perfis estão aprovados para esse formato e guardados em `mv_presenter_profiles`.
 
@@ -15,7 +25,7 @@ Frontend Cloudflare publicado na versão `627f251b-955c-4175-a065-f00bce5c26d4`;
 3. **Conferir a experiência após a geração:** confirmar estados de espera/falha/cancelamento, reprodução e download na biblioteca em desktop e celular, usando uma conta normal. Se ocorrer defeito, guardar o estado/ID técnico e corrigir antes de tentar novamente; evitar reenvio de tarefa incerta, pois GPU pode ser consumida.
 4. **Reavaliar limites e licenças antes de uso comercial ampliado:** revisar termos vigentes do MuseTalk e de cada componente, materiais de produto enviados, Google TTS e capacidade/cota Kaggle. Os testes não comprovam disponibilidade contínua, SLA nem 15 vídeos por dia.
 
-## Melhorias futuras, fora do escopo já liberado
+## Pendências registradas antes da ampliação de escopo
 
 - Movimento corporal, gestos e atuação natural; a base atual é uma fotografia estática com animação facial.
 - Troca de roupa ou cenário e novas bases (por exemplo, cozinha/oficina). Não estão conectadas a geração automática FLUX nem a um fluxo de aprovação por variante.

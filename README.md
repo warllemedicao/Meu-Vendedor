@@ -1,5 +1,9 @@
 # Meu Vendedor — Viral Commerce AI
 
+> **Revisão vigente:** o responsável rejeitou a camiseta de exemplo e proibiu reiniciar os testes. Correções e limites em [AUDITORIA_GERADOR_VIDEO.md](./AUDITORIA_GERADOR_VIDEO.md); conversa e decisões em [historico.md](./historico.md). Nenhum resultado da camisa do anúncio foi aprovado.
+
+Modo experimental de movimento, roupa e edição por máscara: [implementação e evidências](./MOVIMENTO_E_PRODUTO.md). A amostra FASHN usou o produto errado e foi rejeitada; os resultados técnicos não são aprovação visual. Os ensaios estão interrompidos.
+
 ## Estado vigente — 08/11/2026: foto falante com produto
 
 Carla e Rafael têm referências fotográficas realistas, plus size, próprias e selecionáveis. Os quatro perfis ficam em `mv_presenter_profiles`, com identidade, arquivo/hash e voz fixa Google. Quatro bases foram validadas com MP4s reais de 10–13 segundos e habilitadas para o formato **foto falante + cartão com a imagem enviada do produto**, em 720×1280.

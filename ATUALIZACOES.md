@@ -1,6 +1,12 @@
 # Atualizações — Meu Vendedor
 
-## Estado vigente — 08/11/2026: foto falante com produto
+> **Revisão vigente:** o responsável rejeitou a camiseta de exemplo e proibiu reiniciar os testes. Correções e limites em [AUDITORIA_GERADOR_VIDEO.md](./AUDITORIA_GERADOR_VIDEO.md); conversa e decisões em [historico.md](./historico.md). Nenhum resultado da camisa do anúncio foi aprovado.
+
+## Complemento — 08/11/2026: movimento e roupa experimental
+
+Novo modo integrado ao estúdio: vídeo-base para Wan Animate/SCAIL-2; VACE com máscara; FASHN para preparar a roupa do personagem. FASHN produziu imagem real da Carla na GPU Kaggle, com camiseta preta da referência pública do projeto. Movimento permanece em validação; não há confirmação de interação exata com produtos arbitrários nem sincronização labial neste modo. Detalhes e evidências vigentes em [MOVIMENTO_E_PRODUTO.md](./MOVIMENTO_E_PRODUTO.md). O responsável autorizou os testes e acesso Kaggle, Cloudflare e Supabase.
+
+## Estado do modo de voz fixa — 08/11/2026: foto falante com produto
 
 Carla e Rafael têm referências fotográficas realistas, plus size, próprias e selecionáveis. Os quatro perfis ficam em `mv_presenter_profiles`, com identidade, arquivo/hash e voz fixa Google. Quatro bases foram validadas com MP4s reais de 10–13 segundos e habilitadas para o formato **foto falante + cartão com a imagem enviada do produto**, em 720×1280.
 

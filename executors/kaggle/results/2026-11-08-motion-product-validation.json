@@ -1,0 +1,112 @@
+{
+  "date": "2026-11-08",
+  "status": "stopped_by_user",
+  "authorized_services": [
+    "Cloudflare",
+    "Supabase",
+    "Kaggle"
+  ],
+  "deployment": {
+    "cloudflare": "e383d328-4bfe-4cca-bf06-fe4a7042863e",
+    "motion_generation": 12,
+    "motion_qa_closed": 12,
+    "video_generation_inventory_only": 56,
+    "video_worker_inventory_only": 40,
+    "migration": "20261108184055"
+  },
+  "checks": {
+    "full_suite_passed": 225,
+    "focused_passed": 6,
+    "frontend_types": true,
+    "edge_types": true,
+    "lint": true,
+    "static_build": true,
+    "browser_visual_qa": false
+  },
+  "contracts": {
+    "anonymous": 401,
+    "duplicate": 200,
+    "sameJob": true,
+    "own": 200,
+    "missing": 404,
+    "ssrf": 400,
+    "unavailableEngine": 400,
+    "falseCallback": 401
+  },
+  "fashn": {
+    "job": "fe5f3297-3077-465f-9081-d7832500ef33",
+    "status": "completed",
+    "width": 486,
+    "height": 864,
+    "bytes": 406309,
+    "sha256": "3990bc8f71a89f148a4367e7df5c02a332e71755ae04c223f36ec37943c22225",
+    "setup_seconds": 60.405,
+    "inference_seconds": 260.445,
+    "total_seconds": 321.465,
+    "peak_gpu_bytes": 5691386880,
+    "local_artifact": "artifacts/motion/carla-fashn.png",
+    "visual_review": "REJECTED BY USER: shirt result is wrong for the requested objective. Technical image delivery is not visual acceptance.",
+    "accepted": false
+  },
+  "limits": [
+    "Motion pilots pending",
+    "No automatic arbitrary hand-object interaction",
+    "Motion videos are silent",
+    "No 4K or throughput guarantee",
+    "Kaggle kernels.get permission missing; callback diagnosis works"
+  ],
+  "technical_account_removed": true,
+  "vace": {
+    "job": "b8ae7419-c061-4eed-9d05-75d9fb4158b2",
+    "status": "completed",
+    "bytes": 327602,
+    "sha256": "d4bc47f28fcbf2ab6437074f94a80149324dac4b925cf027d644ef066b48a7d8",
+    "setup_seconds": 197.648,
+    "inference_seconds": 229.636,
+    "total_seconds": 427.829,
+    "width": 288,
+    "height": 512,
+    "fps": 16,
+    "frames": 32,
+    "duration_seconds": 2,
+    "local_artifact": "artifacts/motion/vace-mask-smoke.mp4",
+    "metrics": {
+      "frames": 32,
+      "outside_mask_safe_margin_rgb_mae": 2.0552,
+      "compression": "H264 crf18",
+      "claim": "Source reconstructed outside edit mask before encoding. Does not validate character or product fidelity."
+    },
+    "visual_review": "Technical rectangular mask on two-person official sample. Decodes successfully, but no convincing Carla replacement; no product interaction validated."
+  },
+  "wan": {
+    "job": "8698e6bf-50d7-49fd-bf4d-7d064bc21dda",
+    "status": "failed",
+    "stage": "sampling",
+    "total_seconds": 511.732,
+    "diagnosis": "Comfy process exited after several sampling steps. Exact cause unconfirmed; no CUDA OOM error in received log. A no-cache configuration has been added for future validation."
+  },
+  "scail": {
+    "status": "completed",
+    "accepted": false,
+    "job": "5eb04fbf-0bf2-4960-94d8-f66723ff8d64",
+    "duration_seconds": 2,
+    "frames": 32,
+    "width": 288,
+    "height": 512,
+    "fps": 16,
+    "bytes": 269155,
+    "sha256": "b654b86b7281e034b5c9e52923c13cd3a863f079339ad000cc74a356af8173f1",
+    "setup_seconds": 226.897,
+    "inference_seconds": 863.472,
+    "total_seconds": 1090.989,
+    "review": "Not visually approved; used the rejected example garment. Finished before cancellation arrived."
+  },
+  "audit_without_generation": {
+    "no_new_gpu": true,
+    "correct_ad_sha256": "73ccd4990382d1e0efb4ca768ec79afa8f948e502e5aff0687f32d6a286465e7",
+    "qa_endpoint_closed": true,
+    "active_motion": 0,
+    "active_hybrid": 0,
+    "no_new_inference_calls": true
+  }
+}

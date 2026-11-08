@@ -45,3 +45,7 @@ verify_jwt = false
 [functions.kaggle-pilot]
 # Piloto administrativo: exige MV_VIDEO_WORKER_SECRET em todas as chamadas.
 verify_jwt = false
+
+[functions.motion-generation]
+# User operations validate JWT via auth.getUser; executor callbacks use one-job capabilities.
+verify_jwt = false
