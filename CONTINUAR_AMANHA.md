@@ -1,4 +1,29 @@
-# Continuidade — estado vigente em 07/11/2026
+# Continuidade — estado vigente em 08/11/2026
+
+## Encerramento da sessão e próxima retomada
+
+Trabalho pausado a pedido do responsável. Implementação publicada e enviada ao GitHub no commit `c71c9f6`, branch `main`. Não iniciar novos testes de GPU ou geração ao abrir o projeto; retomar primeiro pela avaliação dos resultados existentes.
+
+Pendências em ordem de prioridade:
+
+1. Rever o MP4 de Ana e corrigir a suavização da boca/parte inferior do rosto. Ajustar recorte e máscara; comparar com o parser facial oficial do MuseTalk antes de aprovar qualidade comercial.
+2. Validar identidade, voz, recorte, enquadramento e licença das quatro referências cadastradas. Todas permanecem com `approved=false`; Carla, Rafael e Lucas ainda não passaram pelo teste de vídeo sincronizado.
+3. Preparar bases com movimentos naturais em 9:16 e ambientes autorizados. O piloto atual usa foto estática de 640×800; ainda não existe pacote pronto de praia, cozinha, oficina etc.
+4. Encadear o produto/imagem do usuário e a composição Cloudflare à preparação da base. Troca de roupa, cenário e interação com produto exigem nova base; MuseTalk altera a fala, não resolve essas mudanças sozinho.
+5. Reutilizar modelos e preparação em lote/sessão para reduzir o custo de instalação por pedido. Hoje cada tarefa inicia um notebook. Medir vídeos de 10–15 s e uma sequência de pelo menos 15 tarefas antes de afirmar capacidade diária.
+6. Integrar resultados aprovados à biblioteca principal, cancelamento e recuperação supervisionada de tarefas sem callback. Manter proteção contra lançamentos duplicados/incertos.
+
+Estado para retomar com segurança:
+
+- Supabase publicado: `audio-generation` v13, `video-generation` v54, worker v38 e `hybrid-video` v4. Migração híbrida `20261107235204` aplicada. Frontend Cloudflare `b078cba9-6f4f-4337-aa2d-7da07482bcfc`.
+- 216 testes passaram; lint, TypeScript frontend/Edge, build e interface desktop/celular verificados. Repetir verificações conforme as próximas alterações, sem gastar GPU apenas para reproduzir o encerramento.
+- Três contas técnicas e seus arquivos de origem foram removidos. Diagnóstico temporário `hybrid-verification` encerrado e verificado com HTTP 410. Os testes já concluíram; não dependem deste terminal para entregar resultados.
+- Evidência versionada: `executors/kaggle/results/2026-11-08-musetalk-pilot.json`. Detalhes e limites em [ARQUITETURA_VIDEO_SINCRONIZADO.md](./ARQUITETURA_VIDEO_SINCRONIZADO.md).
+- MP4s preservados no Storage privado: `operator/hybrid-musetalk-20261107/final.mp4` e `operator/hybrid-musetalk-20261108-r3/final.mp4`. Para baixar novamente, gerar acesso temporário autorizado; não publicar URLs assinadas ou credenciais nos documentos.
+- Cópias locais em `artifacts/hybrid/` são ignoradas pelo Git; arquivos em `/tmp` podem desaparecer. O Storage privado e o relatório versionado são a referência durável.
+- Replicate, 1min.ai, Runway, Magic Hour e Google vídeo não são fallback de novas gerações deste fluxo. Não apagar Secrets nem reativar provedores por inferência.
+
+Primeira ação recomendada na próxima sessão: ler este bloco e a arquitetura sincronizada, assistir ao MP4 existente e trabalhar na qualidade do rosto antes de iniciar outro notebook.
 
 ## Estado vigente — 08/11/2026: fluxo Google + MuseTalk
 
