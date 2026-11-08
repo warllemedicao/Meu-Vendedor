@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-08",
+  "pipeline": ["Google Chirp 3 HD Aoede", "MuseTalk 1.5 curated crop", "FFmpeg H264 AAC", "Supabase private Storage"],
+  "gpu": "Tesla T4",
+  "samples": [
+    {"input_audio_seconds": 3.024, "frames": 75, "fps": 25, "width": 640, "height": 800, "setup_seconds": 108.912, "preprocess_seconds": 20.462, "inference_and_silent_encode_seconds": 7.829, "notebook_total_seconds": 152.378, "peak_cuda_allocated_bytes": 7017208320, "output_bytes": 135995, "sha256": "e92791db6830d944f8564de2209db9fd9803ea4a504982fd0d9e1567ca5e5bf6", "private_archive": "operator/hybrid-musetalk-20261107/final.mp4"},
+    {"input_audio_seconds": 8.496, "decoded_video_seconds": 8.48, "decoded_audio_seconds": 8.447981859410431, "frames": 212, "fps": 25, "width": 640, "height": 800, "setup_seconds": 74.318, "preprocess_seconds": 17.422, "inference_and_silent_encode_seconds": 21.279, "notebook_total_seconds": 127.829, "job_claim_to_callback_seconds": 135, "peak_cuda_allocated_bytes": 7017208320, "output_bytes": 243864, "sha256": "104a149301f6d7b091ba2a4ce19250840bfc7c07e741683aac6bb41ff6ea0487", "private_archive": "operator/hybrid-musetalk-20261108-r3/final.mp4"}
+  ],
+  "http_checks": {"duplicate_same_job": 200, "cross_user_result": 404, "invalid_callback": 401, "anonymous_capabilities": 401, "temporary_diagnostic_closed": 410},
+  "temporary_users_removed": true,
+  "source_user_objects_removed": true,
+  "commercial_quality_approved": false,
+  "limitations": ["Still image input; body remains static", "Softness in mouth/lower face", "Fixed curated crop, no automatic tracking or official face parser", "640x800 reference, not 9:16 or 4K", "Separate notebook per request; no persistent warm batching", "Two successful samples do not establish 15 videos/day capacity", "135 seconds excludes preceding Google synthesis and UI interaction"],
+  "first_attempt": {"status": "failed_before_inference", "stage": "setup", "error_type": "CalledProcessError", "notebook_seconds": 45.958}
+}

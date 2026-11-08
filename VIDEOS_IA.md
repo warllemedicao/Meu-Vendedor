@@ -1,5 +1,11 @@
 # Gerador de vídeos IA — estado e implantação
 
+## Estado vigente — 08/11/2026: fluxo Google + MuseTalk
+
+A arquitetura sincronizada foi implementada e publicada como piloto: base aprovada no Supabase → voz fixa Google → MuseTalk 1.5/Kaggle T4 → FFmpeg → MP4 privado. Dois MP4s reais foram concluídos: três segundos em 152,378 s de notebook; 8,496 s de fala em 127,829 s de notebook e 135 s entre registro da tarefa e entrega. Inferência/codificação silenciosa: 7,829 s e 21,279 s; pico de 6,54 GiB. Boca/rosto ainda precisam de ajuste visual; bases permanecem sem aprovação para anúncios. Não há garantia de 15 vídeos/dia nem de 4K. Novas gerações não acionam provedores com créditos do fluxo antigo.
+
+Estado completo, limites e continuidade: [ARQUITETURA_VIDEO_SINCRONIZADO.md](./ARQUITETURA_VIDEO_SINCRONIZADO.md). Os registros anteriores abaixo são históricos.
+
 > **Atualização de 07/11/2026:** 1min.ai integrado com Seedance, fila/polling/Storage e erros seguros. Teste real recusado por créditos insuficientes; não houve MP4 1min.ai. Kaggle passou no piloto privado de GPU; Wan/lip sync ainda pendentes. Política ativa usa créditos das contas. Estado e versões atuais: [ATUALIZACOES.md](./ATUALIZACOES.md) e [ONEMIN_E_KAGGLE.md](./ONEMIN_E_KAGGLE.md). Trechos divergentes abaixo são históricos.
 
 

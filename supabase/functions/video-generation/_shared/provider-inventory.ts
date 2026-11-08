@@ -23,7 +23,8 @@ export async function productionServicesWithBalance(
   const services = productionServiceInventory((name) => Boolean(env(name)));
   const reports = await auditProviders(env, fetcher);
   const dashboards: Record<string, [string, string]> = {
-    "elevenlabs": ["Narração e prévia de voz disponíveis no estúdio. Uso comercial depende do plano.", "https://elevenlabs.io/app/subscription"],
+    "google-tts": ["Narração Chirp 3 HD em português brasileiro. Vozes e limite mensal do aplicativo na seção de voz do personagem; consumo externo é separado.", "https://console.cloud.google.com/apis/api/texttospeech.googleapis.com/metrics"],
+    "elevenlabs": ["Integração anterior substituída pela narração Google. Credencial preservada; não é usada para novas narrações.", "https://elevenlabs.io/app/subscription"],
     "google-gemini": ["Saldo da API no AI Studio; assinatura do Flow é separada.", "https://aistudio.google.com/billing"],
     "google-video": ["Geração pela API Gemini; usa o projeto do aplicativo. Não usa créditos do Flow ou YouTube Create.", "https://aistudio.google.com/billing"],
     "cloudflare-workers-ai": ["Uso e franquia de Workers AI no painel; saldo não informado nesta consulta.", "https://dash.cloudflare.com/"],
@@ -78,7 +79,8 @@ export async function productionServicesWithBalance(
 // Presença de credencial não equivale a saldo, licença ou adaptador implementado.
 export function productionServiceInventory(has: (name: string) => boolean): ProductionService[] {
   const definitions = [
-    { id: "elevenlabs", name: "ElevenLabs", stage: "audio", keys: ["ELEVENLABS_API_KEY", "ELEVENLABS_API", "ELEVEN_LABS_API_KEY", "XI_API_KEY"], integrated: true },
+    { id: "google-tts", name: "Google · voz Chirp 3 HD", stage: "audio", keys: ["GOOGLE_TTS_PROJECT_ID", "GOOGLE_TTS_SERVICE_ACCOUNT_JSON"], integrated: true },
+    { id: "elevenlabs", name: "ElevenLabs · anterior", stage: "audio", keys: ["ELEVENLABS_API_KEY", "ELEVENLABS_API", "ELEVEN_LABS_API_KEY", "XI_API_KEY"], integrated: false },
     { id: "google-gemini", name: "Gemini", stage: "script", keys: ["GEMINI_API_KEY", "GOOGLE_API_KEY"], integrated: true },
     { id: "google-video", name: "Google vídeo — Omni", stage: "video", keys: ["GEMINI_API_KEY", "GOOGLE_API_KEY"], integrated: true },
     { id: "cloudflare-workers-ai", name: "Cloudflare", stage: "image", keys: ["CLOUDFLARE_AI_API_TOKEN"], integrated: true },
@@ -93,6 +95,6 @@ export function productionServiceInventory(has: (name: string) => boolean): Prod
     { id: "modal", name: "Modal", stage: "unassigned", keys: ["MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"], integrated: false },
   ] as const;
   return definitions.map(({ keys, ...service }) => ({ ...service, configured:
-    service.id === "modal" ? keys.every(has) :
+    service.id === "modal" || service.id === "google-tts" ? keys.every(has) :
     service.id === "cloudflare-workers-ai" ? keys.some(has) && has("CLOUDFLARE_ACCOUNT_ID") : keys.some(has) }));
 }

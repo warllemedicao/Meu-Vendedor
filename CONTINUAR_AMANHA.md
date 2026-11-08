@@ -1,5 +1,20 @@
 # Continuidade — estado vigente em 07/11/2026
 
+## Estado vigente — 08/11/2026: fluxo Google + MuseTalk
+
+A arquitetura sincronizada foi implementada e publicada como piloto: base aprovada no Supabase → voz fixa Google → MuseTalk 1.5/Kaggle T4 → FFmpeg → MP4 privado. Dois MP4s reais foram concluídos: três segundos em 152,378 s de notebook; 8,496 s de fala em 127,829 s de notebook e 135 s entre registro da tarefa e entrega. Inferência/codificação silenciosa: 7,829 s e 21,279 s; pico de 6,54 GiB. Boca/rosto ainda precisam de ajuste visual; bases permanecem sem aprovação para anúncios. Não há garantia de 15 vídeos/dia nem de 4K. Novas gerações não acionam provedores com créditos do fluxo antigo.
+
+Estado completo, limites e continuidade: [ARQUITETURA_VIDEO_SINCRONIZADO.md](./ARQUITETURA_VIDEO_SINCRONIZADO.md). Os registros anteriores abaixo são históricos.
+
+## Entrega posterior — narração Google
+
+- API e Secrets Google TTS cadastrados pelo responsável; autenticação e 30 vozes pt-BR confirmadas. Google substitui ElevenLabs nas novas narrações.
+- Ana/Aoede, Carla/Kore, Rafael/Charon, Lucas/Puck: quatro MP3s reais, 5,256–6,408 s de áudio, com aproximadamente 1,9–2,7 s por solicitação e arquivamento. Não são tempos de geração de vídeo.
+- Idempotência e isolamento validados por sessões reais; contas temporárias removidas. 287 caracteres reservados no limite mensal global do app, padrão 900.000; esse contador não cobre usos externos do projeto Google.
+- Migração `20261107233234_google_tts_budget.sql` aplicada; RLS e RPCs internas. Backend de áudio v13, vídeo v53, worker v37; frontend `8b342aae-1ead-4fa7-aec0-24720ad68d2e`; diagnóstico encerrado com 410. Suíte completa: 214 testes aprovados; cinco focados após o ajuste final.
+- Prévia e exportação local disponíveis. **Fila automática Kaggle/MuseTalk ainda não implementada/validada.** Escolher voz Google não substitui áudio de job nativo. Continuidade em [GOOGLE_TTS.md](./GOOGLE_TTS.md).
+- Direção confirmada: retirar Replicate, 1min.ai e Runway da nova estratégia; Magic Hour não deve ser dependência do novo fluxo. Não apagar Secrets adicionais por inferência.
+
 ## Resultado mais recente — Hunyuan destilado e parada solicitada
 
 - **MP4 novo de dois segundos confirmado**, 480×848/24 fps, NF4 + offload por componente, 12 passos, contexto 256. Tempo com codificação 558,729 s. Arquivo privado no Supabase e local em `/tmp/meu-vendedor-benchmarks/generation/short_generation.mp4`; SHA-256 no relatório.

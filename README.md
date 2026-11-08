@@ -2,22 +2,11 @@
 
 Aplicativo de gerenciamento de afiliados e produção de vídeos. Frontend Next.js na Cloudflare; autenticação, banco, Storage privado e funções no Supabase.
 
-## Estado atual — 07/11/2026
+## Estado vigente — 08/11/2026: fluxo Google + MuseTalk
 
-- Cadastro/login por e-mail e **Continuar com Google** funcionando, confirmados pelo responsável.
-- Canal **YouTube conectado**, com consulta, renovação de autorização e desconexão implementadas. Publicação/agendamento de vídeos ainda pendentes.
-- Nova chave **Gemini** aceita pelo catálogo e pelos modelos configurados de roteiro e vídeo (HTTP 200). Isso não comprova geração de vídeo, saldo ou faturamento da API.
-- Estúdio com fila, roteiros, referências, reprodução e download. O banco registra três vídeos concluídos via Magic Hour; qualidade da fala ainda exige avaliação do responsável.
-- **1min.ai integrado** ao estúdio e ao worker. Teste real de Seedance 2.0 Fast recusado por saldo insuficiente (1.632.960 necessários / 280.000 disponíveis); sem MP4 validado desse serviço.
-- **Kaggle:** piloto administrativo de GPU executado com sucesso; Wan e sincronização labial ainda não integram a fila de usuários. [Detalhes](./ONEMIN_E_KAGGLE.md).
+A arquitetura sincronizada foi implementada e publicada como piloto: base aprovada no Supabase → voz fixa Google → MuseTalk 1.5/Kaggle T4 → FFmpeg → MP4 privado. Dois MP4s reais foram concluídos: três segundos em 152,378 s de notebook; 8,496 s de fala em 127,829 s de notebook e 135 s entre registro da tarefa e entrega. Inferência/codificação silenciosa: 7,829 s e 21,279 s; pico de 6,54 GiB. Boca/rosto ainda precisam de ajuste visual; bases permanecem sem aprovação para anúncios. Não há garantia de 15 vídeos/dia nem de 4K. Novas gerações não acionam provedores com créditos do fluxo antigo.
 
-- **Fotos de produtos sincronizados** são importadas automaticamente para a área privada ao gerar; não é necessário baixar e reenviar a foto exibida na prévia. Detalhes em [IMAGENS_SINCRONIZADAS.md](./IMAGENS_SINCRONIZADAS.md).
-- **Gerar vídeo** valida ao clicar, consulta o backend e mostra pendências junto à ação. Uma consulta inicial com falha não deixa a ação bloqueada silenciosamente; envio preserva idempotência e tem limite de espera.
-- **Outra voz** fica ao lado de **Característica da voz**, filtrada por tipo. ElevenLabs produz prévia/narração e exportação opcional; a geração mantém a voz nativa. O plano Free verificado não inclui licença comercial para anúncios.
-- Navegador remoto **Flow removido da central**. Flow e YouTube Create aparecem no seletor como integrações pendentes; o login Google não libera automaticamente seus editores ou benefícios.
-- Catálogo público Shopee/Amazon/TikTok implementado, mas a última verificação comercial continua sem fontes configuradas. Conector Shopee requer credenciais autorizadas.
-
-Estado consolidado e próximas tarefas: [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md). Registros anteriores nos documentos técnicos estão identificados como histórico e não substituem esse estado.
+Estado completo, limites e continuidade: [ARQUITETURA_VIDEO_SINCRONIZADO.md](./ARQUITETURA_VIDEO_SINCRONIZADO.md). Os registros anteriores abaixo são históricos.
 
 ## Publicação e validação
 

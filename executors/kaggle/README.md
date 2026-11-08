@@ -1,5 +1,11 @@
 # Benchmarks privados no Kaggle
 
+## Estado vigente — 08/11/2026: fluxo Google + MuseTalk
+
+A arquitetura sincronizada foi implementada e publicada como piloto: base aprovada no Supabase → voz fixa Google → MuseTalk 1.5/Kaggle T4 → FFmpeg → MP4 privado. Dois MP4s reais foram concluídos: três segundos em 152,378 s de notebook; 8,496 s de fala em 127,829 s de notebook e 135 s entre registro da tarefa e entrega. Inferência/codificação silenciosa: 7,829 s e 21,279 s; pico de 6,54 GiB. Boca/rosto ainda precisam de ajuste visual; bases permanecem sem aprovação para anúncios. Não há garantia de 15 vídeos/dia nem de 4K. Novas gerações não acionam provedores com créditos do fluxo antigo.
+
+Estado completo, limites e continuidade: [ARQUITETURA_VIDEO_SINCRONIZADO.md](../../ARQUITETURA_VIDEO_SINCRONIZADO.md). Os registros anteriores abaixo são históricos.
+
 Scripts de teste, separados da geração dos usuários. Não são um servidor persistente nem utilizam túneis.
 
 - `benchmark.py`: tentativa de imagem-para-vídeo HunyuanVideo 1.5, com modelo e dependências fixados, medições por etapa, duas sementes para execução inicial/quente e limite externo de sessão.

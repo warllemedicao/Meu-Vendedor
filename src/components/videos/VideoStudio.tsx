@@ -33,7 +33,8 @@ import {
 } from "@/lib/video-assets";
 import { mockVideoProvider } from "@/lib/video-provider";
 import { splitGenerationTools } from "@/lib/video-capabilities";
-import { ElevenLabsNarration } from "./ElevenLabsNarration";
+import { GoogleNarration } from "./GoogleNarration";
+import { HybridVideo } from "./HybridVideo";
 import { edgeFunctionMessage, importVideoProductImage, videoSubmissionIssue } from "@/lib/video-submission";
 import {
   advertisingStyles,
@@ -1256,7 +1257,8 @@ export function VideoStudio() {
                   {voiceProfiles.map((voice) => <option key={voice.id} value={voice.id}>{voice.label}</option>)}
                 </select>
               </label>
-              {userId && <ElevenLabsNarration key={userId} script={effectiveScript} voiceGender={voiceGender}
+              {userId && <HybridVideo key={`hybrid:${userId}:${presenterId}`} presenterId={presenterId} script={effectiveScript} />}
+              {userId && <GoogleNarration key={`${userId}:${presenterId}:${voiceGender}`} script={effectiveScript} voiceGender={voiceGender} presenterId={presenterId}
                 videoResults={visibleJobs.filter((job) => job.status === "completed" && job.result_object_path).map((job) => ({ id: job.id, path: job.result_object_path! }))} />}
               <label className="block text-sm font-medium sm:col-span-2">Tom emocional
                 <select value={emotionalToneId} onChange={(event) => setEmotionalToneId(event.target.value as EmotionalToneId)} className={inputClass}>

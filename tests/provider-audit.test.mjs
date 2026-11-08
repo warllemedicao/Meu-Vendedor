@@ -60,5 +60,14 @@ test('ElevenLabs consulta plano sem inferência e distingue créditos de licenç
  assert.equal(report.report.quota_verified,false);
  assert.doesNotMatch(JSON.stringify(reports),/private-eleven-key|private@example.com/);
  const item=productionServiceInventory(name=>name==='ELEVENLABS_API').find(r=>r.id==='elevenlabs');
- assert.equal(item.stage,'audio');assert.equal(item.configured,true);assert.equal(item.integrated,true);
+ assert.equal(item.stage,'audio');assert.equal(item.configured,true);assert.equal(item.integrated,false);
+});
+
+test('Google narration requires both project and credentials and does not expose the JSON',async()=>{
+ const secrets={GOOGLE_TTS_PROJECT_ID:'test-project',GOOGLE_TTS_SERVICE_ACCOUNT_JSON:'private-json'};
+ assert.equal(productionServiceInventory(n=>n==='GOOGLE_TTS_PROJECT_ID').find(s=>s.id==='google-tts').configured,false);
+ assert.equal(productionServiceInventory(n=>Boolean(secrets[n])).find(s=>s.id==='google-tts').integrated,true);
+ const reports=await auditProviders(n=>secrets[n],async()=>{throw Error('No network required');});
+ assert.equal(reports.find(r=>r.provider_id==='google-tts').report.credentials_validated,false);
+ assert.doesNotMatch(JSON.stringify(reports),/private-json/);
 });

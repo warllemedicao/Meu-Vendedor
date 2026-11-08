@@ -1,5 +1,7 @@
 # ElevenLabs — integração de narração, 06/11/2026
 
+> **Substituído em 07/11/2026:** novas narrações usam Google Chirp 3 HD; vozes fixas e validação em [GOOGLE_TTS.md](./GOOGLE_TTS.md). Este documento preserva o histórico ElevenLabs. Credencial e áudios anteriores não foram apagados.
+
 ## Estado vigente
 
 A chave existente `ELEVENLABS_API` é usada no backend. Não foi necessário cadastrá-la novamente. A função independente `audio-generation` está publicada na versão 2 e valida cada sessão com Supabase Auth. A integração não condiciona a disponibilidade de geração de vídeo.

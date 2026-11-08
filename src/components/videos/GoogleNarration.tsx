@@ -6,8 +6,8 @@ import { createVideoAssetUrl } from "@/lib/video-assets";
 import { filterAlternativeVoices } from "@/lib/video-submission";
 
 type Voice = { id: string; name: string; gender: string; language: string };
-type Capabilities = { available: boolean; tier: string; remaining: number | null; commercial: boolean; voices: Voice[] };
-type Result = { id: string; url: string; commercial: boolean; tier: string };
+type Capabilities = { available: boolean; tier: string; remaining: number | null; commercial: boolean; voices: Voice[]; presenterVoices: Record<string, string> };
+type Result = { id: string; url: string; commercial: boolean; tier: string; text?: string };
 
 async function invoke(body: Record<string, unknown>) {
   const client = getSupabase();
@@ -18,28 +18,31 @@ async function invoke(body: Record<string, unknown>) {
       const failure = await error.context.json().catch(() => null);
       if (typeof failure?.error?.message === "string") throw new Error(failure.error.message);
     }
-    throw new Error("Não foi possível acessar a ElevenLabs agora. A geração de vídeo continua disponível.");
+    throw new Error("Não foi possível acessar a narração Google agora. A geração de vídeo continua disponível.");
   }
   if (data?.error?.message) throw new Error(data.error.message);
   return data;
 }
 
-export function ElevenLabsNarration({ script, voiceGender, videoResults }: {
-  script: string; voiceGender: string; videoResults: { id: string; path: string }[];
+export function GoogleNarration({ script, voiceGender, presenterId, videoResults }: {
+  script: string; voiceGender: string; presenterId: string; videoResults: { id: string; path: string }[];
 }) {
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [voice, setVoice] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<Result | null>(null);
+  const [storedResult, setResult] = useState<Result | null>(null);
+  const result = storedResult && (!storedResult.text || storedResult.text === script) ? storedResult : null;
   const [refresh, setRefresh] = useState(0);
   const [videoId, setVideoId] = useState("");
   const [exporting, setExporting] = useState(false);
   const [history, setHistory] = useState<{ id: string; tier: string; commercial: boolean; created_at: string }[]>([]);
   const effectiveText = script;
   const filteredVoices = filterAlternativeVoices(capabilities?.voices ?? [], voiceGender);
-  const selectedVoice = filteredVoices.some(v => v.id === voice) ? voice : "";
+  const fixedVoice = capabilities?.presenterVoices?.[presenterId] ?? "";
+  const selectedVoice = filteredVoices.some(v => v.id === voice) ? voice : fixedVoice;
+  const voiceName = capabilities?.voices.find(v => v.id === fixedVoice)?.name;
   useEffect(() => {
     let active = true;
     void invoke({ action: "capabilities" }).then((value: Capabilities) => {
@@ -61,8 +64,8 @@ export function ElevenLabsNarration({ script, voiceGender, videoResults }: {
   async function generate() {
     setBusy(true); setError("");
     try {
-      const value = await invoke({ action: "generate", text: effectiveText, voiceId: selectedVoice, purpose: capabilities?.commercial ? "commercial" : "preview" });
-      setResult(value);
+      const value = await invoke({ action: "generate", text: effectiveText, voiceId: selectedVoice, purpose: "commercial" });
+      setResult({ ...value, text: effectiveText });
       setRefresh(v => v + 1);
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível gerar a narração."); }
     finally { setBusy(false); }
@@ -102,12 +105,12 @@ export function ElevenLabsNarration({ script, voiceGender, videoResults }: {
     finally { if (context && context.state !== "closed") await context.close(); setExporting(false); }
   }
   return <div className="block text-sm font-medium">
-    <label htmlFor="alternative-voice">Outra voz (opcional)</label>
-    <select id="alternative-voice" aria-label="Outra voz" value={selectedVoice}
+    <label htmlFor="alternative-voice">Voz Google do personagem</label>
+    <select id="alternative-voice" aria-label="Voz Google do personagem" value={voice && selectedVoice === voice ? voice : ""}
       onChange={e => { setVoice(e.target.value); setResult(null); setError(""); }}
       className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm font-normal">
-      <option value="">Voz original da ferramenta de vídeo</option>
-      {filteredVoices.length > 0 && <optgroup label="ElevenLabs · vozes compatíveis">
+      <option value="">Voz fixa{voiceName ? ` · ${voiceName}` : " do personagem"}</option>
+      {filteredVoices.length > 0 && <optgroup label="Google · alternativas em português brasileiro">
         {filteredVoices.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
       </optgroup>}
     </select>
@@ -116,8 +119,8 @@ export function ElevenLabsNarration({ script, voiceGender, videoResults }: {
       <button type="button" disabled={loading || busy} onClick={() => { setLoading(true); setRefresh(v => v + 1); }} className="text-primary underline">Atualizar vozes</button>
     </div>
     {selectedVoice && <div className="mt-2 space-y-2 text-xs font-normal">
-      <p className="text-muted">Esta escolha vale para a prévia e a exportação de narração com o roteiro. Gerar vídeo mantém a voz nativa da ferramenta.</p>
-      {capabilities && !capabilities.commercial && <p className="text-muted">Plano Free: prévia não comercial; não usar esta narração em anúncios. A voz nativa do vídeo permanece disponível.</p>}
+      <p className="text-muted">Narração em português brasileiro com voz fixa por personagem. Ouça e exporte com o roteiro. A geração de vídeo atual ainda usa o áudio da ferramenta; sincronização labial automática está em preparação.</p>
+      {capabilities?.remaining != null && <p className="text-muted">{capabilities.remaining.toLocaleString("pt-BR")} caracteres disponíveis no limite mensal do aplicativo. Outros usos do projeto Google são contabilizados separadamente.</p>}
       <button type="button" disabled={busy || !capabilities?.available || effectiveText.trim().length < 2 || effectiveText.length > 1500}
         onClick={() => void generate()} className="text-primary underline disabled:opacity-50">{busy ? "Preparando voz…" : "Ouvir esta voz com o roteiro"}</button>
       {result && <>

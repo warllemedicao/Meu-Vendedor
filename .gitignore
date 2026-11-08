@@ -37,3 +37,6 @@ supabase/.branches/
 # caches Python dos executores
 __pycache__/
 *.pyc
+
+# vídeos e capturas privados dos testes locais
+/artifacts/

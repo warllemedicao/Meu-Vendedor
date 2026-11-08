@@ -1,5 +1,20 @@
 # Atualizações — Meu Vendedor
 
+## Estado vigente — 08/11/2026: fluxo Google + MuseTalk
+
+A arquitetura sincronizada foi implementada e publicada como piloto: base aprovada no Supabase → voz fixa Google → MuseTalk 1.5/Kaggle T4 → FFmpeg → MP4 privado. Dois MP4s reais foram concluídos: três segundos em 152,378 s de notebook; 8,496 s de fala em 127,829 s de notebook e 135 s entre registro da tarefa e entrega. Inferência/codificação silenciosa: 7,829 s e 21,279 s; pico de 6,54 GiB. Boca/rosto ainda precisam de ajuste visual; bases permanecem sem aprovação para anúncios. Não há garantia de 15 vídeos/dia nem de 4K. Novas gerações não acionam provedores com créditos do fluxo antigo.
+
+Estado completo, limites e continuidade: [ARQUITETURA_VIDEO_SINCRONIZADO.md](./ARQUITETURA_VIDEO_SINCRONIZADO.md). Os registros anteriores abaixo são históricos.
+
+## 07/11/2026 — Google Chirp 3 HD substitui ElevenLabs
+
+- Credenciais Google TTS cadastradas pelo responsável e validadas; catálogo real com 30 vozes pt-BR. Vozes fixas Ana/Aoede, Carla/Kore, Rafael/Charon e Lucas/Puck.
+- Quatro MP3s reais decodificados, com 5,256–6,408 s de duração e 1,933–2,658 s por pedido com arquivamento técnico. Idempotência e isolamento entre contas confirmados. Contas temporárias removidas e diagnóstico encerrado com 410.
+- Limite mensal global do aplicativo em 900.000 caracteres, com reserva atômica e persistente; 287 caracteres no teste. Não cobre uso externo do projeto Google nem garante faturamento total zero.
+- Narração, vozes, histórico e exportação opcional no estúdio usam Google. Kaggle/MuseTalk automático **continua pendente**, sem novo vídeo ou consumo de GPU nesta entrega.
+- Supabase áudio v13, vídeo v53, worker v37; migração `20261107233234_google_tts_budget.sql` aplicada. Cloudflare `8b342aae-1ead-4fa7-aec0-24720ad68d2e`, mantendo crons e Secrets.
+- 214 testes na suíte completa; cinco focados após correção final de JSON nulo. Lint, TypeScript frontend/Edge e build estático aprovados. Chromium desktop/celular com respostas controladas verificou o seletor e ausência de overflow. Evidência completa em [GOOGLE_TTS.md](./GOOGLE_TTS.md).
+
 ## 07/11/2026 — primeiro vídeo Hunyuan no Kaggle
 
 - Checkpoint 480p I2V step-distilled gerou MP4 novo de dois segundos, 480×848, 24 fps e 232.825 bytes em 558,729 s incluindo codificação. NF4 e offload por componente; prompt inteiro de 94 tokens.

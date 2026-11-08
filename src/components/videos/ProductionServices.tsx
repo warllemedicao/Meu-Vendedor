@@ -30,7 +30,7 @@ export function ProductionServices({ services, refreshing, onRefresh }: {
     </div>
     <p className="mt-2 text-xs text-muted">Consulta as contas sem gerar conteúdo. Cada serviço tem sua unidade de crédito.</p>
     <dl className="mt-2 divide-y divide-border" aria-live="polite" aria-busy={refreshing}>
-      {services.map((service) => <div key={service.id} className="py-2.5">
+      {services.filter(service => service.id !== "elevenlabs").map((service) => <div key={service.id} className="py-2.5">
         <div className="flex items-start justify-between gap-2 text-xs">
           <dt className="font-semibold">{service.name}</dt>
           <dd className="text-right font-medium">

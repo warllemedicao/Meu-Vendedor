@@ -47,7 +47,7 @@ function workerEnabled(): boolean {
 }
 
 function configuredProviders(): ReadonlySet<string> {
-  return new Set(["cloudflare-workers-ai", "magic-hour", "google-gemini", "replicate", "onemin"]);
+  return new Set(["cloudflare-workers-ai"]);
 }
 
 
@@ -300,7 +300,7 @@ const processor = admin ? createVideoProcessor({
   },
   createVideoRouter(_job, _image, excludeProviders) {
     const providers: AIProviderAdapter<VideoGenerationRequest, { providerJobId: string; estimatedCostUsd: number | null }>[] = [];
-    if (Deno.env.get("ONEMIN_API_KEY") && !excludeProviders.has("onemin")) {
+    if (configuredProviders().has("onemin") && Deno.env.get("ONEMIN_API_KEY") && !excludeProviders.has("onemin")) {
       const onemin = oneminClient();
       providers.push({ ...onemin, readiness: () => persistentReadiness("onemin", true, () => onemin.readiness()) });
     }
@@ -336,7 +336,7 @@ const processor = admin ? createVideoProcessor({
         },
       });
     }
-    if ((Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY")) && !excludeProviders.has("google-gemini")) {
+    if (configuredProviders().has("google-gemini") && (Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY")) && !excludeProviders.has("google-gemini")) {
       const google = googleVideoClient();
       providers.push({ ...google, readiness: () => persistentReadiness("google-gemini", true, () => google.readiness()) });
     }
