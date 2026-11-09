@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Clapperboard,
+  Download,
   LayoutDashboard,
   House,
   Link2,
@@ -79,6 +80,16 @@ export const navItems: NavItem[] = [
     recursosPlanejados: ["Análise de estrutura de vídeos em alta", "Roteiros promocionais", "Geração de vídeos originais"],
     dependencias: ["Modelos de IA de texto e vídeo", "Capacidade de processamento (GPU)"],
     etapaPrevista: "Etapas 8 e 9",
+  },
+  {
+    href: "/baixar-audio",
+    label: "Baixar áudio MP3",
+    icon: Download,
+    titulo: "Baixar áudio MP3",
+    descricao: "Baixe arquivos MP3 a partir de links diretos autorizados.",
+    recursosPlanejados: [],
+    dependencias: [],
+    etapaPrevista: "Ferramenta disponível",
   },
   {
     href: "/publicacoes",
