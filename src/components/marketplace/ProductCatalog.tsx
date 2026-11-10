@@ -1,54 +1,92 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { getSupabase } from "@/lib/supabase/client";
 import { ProductCampaign } from "@/components/videos/ProductCampaign";
 import { useMarketplace } from "./MarketplaceProvider";
 import { displayDate,marketplaceAction } from "@/lib/marketplace";
 import type { MarketplaceProduct } from "@/types/marketplace";
 const money=(value:number|null)=>value===null?"Não informado":Number(value).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const percentage=(value:number|null)=>value===null?"Não informada":`${(Number(value)*100).toLocaleString("pt-BR",{maximumFractionDigits:2})}%`;
-export function ProductCatalog({discovery=false}:{discovery?:boolean}) {
+export function ProductCatalog({discovery=false,view="products"}:{discovery?:boolean;view?:"offers"|"products"|"dashboard"|"trends"|"top10"}) {
   const {user,loading}=useAuth();const state=useMarketplace();
   if(loading||state.loading)return <p role="status">Carregando suas conexões…</p>;
   if(!user)return <p><Link href="/entrar" className="text-primary underline">Entre na sua conta</Link> para consultar os produtos das plataformas conectadas.</p>;
   if(state.error)return <p role="alert">{state.error} <button onClick={state.refresh} className="text-primary underline">Tentar novamente</button></p>;
   const connection=state.connections.find(x=>x.platform_id==="shopee");
   if(!connection)return <div className="rounded-xl border border-border bg-surface p-5"><h2 className="font-semibold">Seu catálogo começa com uma conexão real</h2><p className="mt-2 text-sm text-muted">Conecte a Open API de afiliados Shopee para trazer ofertas para o Meu Vendedor. Nenhum produto demonstrativo será misturado ao catálogo.</p><Link href="/entrar#lojas" className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm text-background">Conectar Shopee</Link><p className="mt-4 text-xs text-muted">TikTok, Mercado Livre, Amazon e Magazine Luiza serão disponibilizados conforme integração e acesso oficiais.</p></div>;
-  return <UserProducts key={`${user.id}-${connection.id}`} userId={user.id} connectionId={connection.id} lastSync={connection.last_sync_at} connectionError={Boolean(connection.last_error_code)} discovery={discovery}/>;
+  return <UserProducts key={`${user.id}-${connection.id}`} userId={user.id} connectionId={connection.id} discovery={discovery} view={view}/>;
 }
-function UserProducts({userId,connectionId,lastSync,connectionError,discovery}:{userId:string;connectionId:string;lastSync:string|null;connectionError:boolean;discovery:boolean}) {
-  const {refresh}=useMarketplace();const [products,setProducts]=useState<MarketplaceProduct[]>([]);
-  const [loading,setLoading]=useState(true);const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [notice,setNotice]=useState("");
+type View = "offers" | "products" | "dashboard" | "trends" | "top10";
+// Coalescência evita duas consultas idênticas na montagem em Strict Mode.
+const pendingPages = new Map<string, Promise<Awaited<ReturnType<typeof marketplaceAction>>>>();
+function browsePage(userId: string, connectionId: string, keyword: string, sort: string, page: number) {
+  const key = JSON.stringify([userId, connectionId, keyword, sort, page]);
+  const existing = pendingPages.get(key); if (existing) return existing;
+  const pending = marketplaceAction("browse_products", { keyword, sort, page });
+  pendingPages.set(key, pending);
+  void pending.finally(() => { if (pendingPages.get(key) === pending) pendingPages.delete(key); }).catch(() => {});
+  return pending;
+}
+function UserProducts({userId,connectionId,discovery,view}:{userId:string;connectionId:string;discovery:boolean;view:View}) {
+  const [keyword,setKeyword]=useState(""); const [query,setQuery]=useState(""); const [sort,setSort]=useState("sales");
   const [onlyDiscounts,setOnlyDiscounts]=useState(false);
-  const [keyword,setKeyword]=useState("");const [sort,setSort]=useState("sales");const [selected,setSelected]=useState<MarketplaceProduct|null>(null);const [revision,setRevision]=useState(0);
-  useEffect(()=>{
-    let active=true;const client=getSupabase();if(!client)return;
-    void client.from("mv_products").select("*").eq("user_id",userId).eq("connection_id",connectionId).eq("in_latest_sync",true).order("sales",{ascending:false,nullsFirst:false}).limit(60).then(({data,error})=>{
-      if(!active)return;if(error)setError("Não foi possível carregar os produtos sincronizados.");else{setProducts(data??[]);setSelected(current=>current?(data??[]).find(p=>p.id===current.id)??null:null);setError("");}setLoading(false);
-    });return()=>{active=false;};
-  },[userId,connectionId,lastSync,revision]);
-  async function sync() {
-    if(busy)return;setBusy(true);setError("");setNotice("");
-    try{const data=await marketplaceAction("sync");setNotice(`${data.productsCount??0} ofertas atualizadas.`);setSelected(null);setLoading(true);setRevision(x=>x+1);refresh();}
-    catch(err){setError(err instanceof Error?err.message:"Não foi possível atualizar.");}finally{setBusy(false);}
-  }
-  const visible=products.filter(p=>!onlyDiscounts||(p.discount_percent!==null&&Number(p.discount_percent)>0)).filter(p=>`${p.title} ${p.shop_name??''}`.toLocaleLowerCase("pt-BR").includes(keyword.toLocaleLowerCase("pt-BR"))).sort((a,b)=>{
-    const field=sort==="price"?"price_min":sort==="commission"?"commission_rate":sort==="discount"?"discount_percent":"sales";
-    const av=a[field];const bv=b[field];if(av===null&&bv===null)return 0;if(av===null)return 1;if(bv===null)return -1;return sort==="price"?Number(av)-Number(bv):Number(bv)-Number(av);
-  });
+  useEffect(() => { const timer = setTimeout(() => setQuery(keyword.trim()), 450); return () => clearTimeout(timer); }, [keyword]);
   return <div className="space-y-5">
-    <div className="rounded-xl border border-border bg-accent-soft p-4 text-sm"><p className="font-semibold">Ofertas da sua integração Shopee</p><p className="mt-1">Até 60 ofertas disponíveis pela API, ordenadas originalmente pelas vendas informadas. Esta seleção não representa todos os produtos nem um ranking global da Shopee.</p><p className="mt-2 text-xs text-muted">Última sincronização: {displayDate(lastSync)}. Atualização automática consultada a cada 30 minutos, conforme capacidade da fila e limites da API.</p>{connectionError&&<p className="mt-2 text-danger">A última atualização falhou. Os dados exibidos podem estar desatualizados.</p>}</div>
-    <div className="flex flex-wrap items-end gap-3"><label className="min-w-48 flex-1 text-sm">Pesquisar nesta seleção<input value={keyword} onChange={e=>setKeyword(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2" placeholder="Produto ou loja"/></label><label className="text-sm">Ordenar<select value={sort} onChange={e=>setSort(e.target.value)} className="mt-1 block rounded-lg border border-border bg-surface px-3 py-2"><option value="sales">Mais vendidos nesta seleção</option><option value="discount">Maior desconto informado</option><option value="price">Menor preço</option><option value="commission">Maior comissão estimada</option></select></label><button type="button" disabled={busy} onClick={sync} className="rounded-lg bg-primary px-4 py-2 text-sm text-background disabled:opacity-50">{busy?"Consultando Shopee…":"Atualizar agora"}</button></div>
-    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={onlyDiscounts} onChange={e=>setOnlyDiscounts(e.target.checked)}/>Somente produtos com desconto informado</label>
-    {error&&<p role="alert" className="rounded-lg bg-danger-soft p-3 text-sm text-danger">{error}</p>}{notice&&<p role="status" className="text-sm text-primary">{notice}</p>}
+    <div className="rounded-xl border border-border bg-accent-soft p-4 text-sm"><p className="font-semibold">Produtos para divulgar na Shopee</p><p className="mt-1">Atualização automática ao entrar nesta visualização. Busque no catálogo da API e continue carregando páginas, sem o antigo corte de 60 produtos. A disponibilidade e as condições dependem da Shopee e da sua conta.</p></div>
+    <div className="flex flex-wrap items-end gap-3"><label className="min-w-48 flex-1 text-sm">Buscar produtos na Shopee<input value={keyword} maxLength={120} onChange={e=>setKeyword(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2" placeholder="Ex.: camisa, vestido, garrafa"/></label><label className="text-sm">Ordenar<select value={sort} onChange={e=>setSort(e.target.value)} className="mt-1 block rounded-lg border border-border bg-surface px-3 py-2"><option value="sales">Mais vendidos</option><option value="price">Menor preço</option><option value="commission">Maior comissão</option></select></label></div>
+    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={onlyDiscounts} onChange={e=>setOnlyDiscounts(e.target.checked)}/>Somente com desconto informado nas páginas carregadas</label>
+    <ShopeeResults key={JSON.stringify([query,sort,view])} userId={userId} connectionId={connectionId} keyword={query} sort={sort} discovery={discovery} onlyDiscounts={onlyDiscounts} view={view}/>
+  </div>;
+}
+function ShopeeResults({userId,connectionId,keyword,sort,discovery,onlyDiscounts,view}:{userId:string;connectionId:string;keyword:string;sort:string;discovery:boolean;onlyDiscounts:boolean;view:View}) {
+  const [products,setProducts]=useState<MarketplaceProduct[]>([]); const [loading,setLoading]=useState(true);
+  const [error,setError]=useState(""); const [page,setPage]=useState(0); const [hasNext,setHasNext]=useState(false); const [updated,setUpdated]=useState<string|null>(null);
+  const [searchFallback,setSearchFallback]=useState(false);
+  const [selected,setSelected]=useState<MarketplaceProduct|null>(null); const [revision,setRevision]=useState(0);
+  const active=useRef(true); const lock=useRef(false); const sentinel=useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    active.current=true; let alive=true;
+    void browsePage(userId,connectionId,keyword,sort,1).then(data=>{
+      if(!alive)return;
+      if(!Array.isArray(data.products)||typeof data.hasNextPage!=="boolean") throw new Error("A Shopee não retornou uma lista válida.");
+      setSearchFallback(Boolean(data.searchFallback));setProducts(data.products);setPage(1);setHasNext(data.hasNextPage);setUpdated(data.fetchedAt??null);setError("");
+    }).catch(failure=>{if(alive)setError(failure instanceof Error?failure.message:"Não foi possível consultar a Shopee.");}).finally(()=>{if(alive)setLoading(false);});
+    return()=>{alive=false;active.current=false;};
+  },[userId,connectionId,keyword,sort,revision]);
+  async function more() {
+    if(lock.current || loading || !hasNext)return;lock.current=true;setLoading(true);setError("");
+    try{const data=await browsePage(userId,connectionId,keyword,sort,page+1);if(!active.current)return;
+      if(!Array.isArray(data.products)||typeof data.hasNextPage!=="boolean")throw new Error("A Shopee não retornou uma lista válida.");
+      setSearchFallback(old=>old||Boolean(data.searchFallback));setProducts(old=>[...new Map([...old,...data.products!].map(p=>[p.id,p])).values()]);setPage(page+1);setHasNext(data.hasNextPage);setUpdated(data.fetchedAt??null);
+    }catch(failure){if(active.current)setError(failure instanceof Error?failure.message:"Não foi possível carregar mais produtos.");}
+    finally{lock.current=false;if(active.current)setLoading(false);}
+  }
+  useEffect(()=>{
+    if(!sentinel.current||loading||error||!hasNext||view==="top10"||searchFallback)return;
+    const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))void more();},{rootMargin:"300px"});
+    observer.observe(sentinel.current);return()=>observer.disconnect();
+    // Recria a observação quando a página/estado de carregamento muda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[page,loading,error,hasNext,view,searchFallback]);
+  const filtered=products.filter(p=>!searchFallback || `${p.title} ${p.shop_name??""}`.toLocaleLowerCase("pt-BR").includes(keyword.toLocaleLowerCase("pt-BR"))).filter(p=>!onlyDiscounts||(p.discount_percent!==null&&Number(p.discount_percent)>0));
+  const visible=view==="top10"?filtered.slice(0,10):filtered;
+  return <div className="space-y-5">
+    {view==="dashboard"&&<section aria-label="Resumo do catálogo" className="grid gap-3 sm:grid-cols-3">{[["Produtos carregados",products.length],["Com desconto informado",products.filter(p=>Number(p.discount_percent)>0).length],["Páginas consultadas",page]].map(([label,value])=><div key={label} className="rounded-xl border border-border bg-surface p-4"><p className="text-sm text-muted">{label}</p><p className="mt-2 text-2xl font-semibold">{value}</p></div>)}</section>}
+    {(view==="trends"||view==="top10")&&<p className="text-sm text-muted">{view==="top10"?"Até dez produtos dos resultados carregados, conforme a ordenação escolhida.":"Explore o volume de vendas informado. Ainda não há medição de crescimento ao longo do tempo."}</p>}
+    <p className="text-xs text-muted">Consulta automática à Shopee: {displayDate(updated)} · {products.length} produtos carregados. Preço, comissão e elegibilidade são confirmados pela plataforma.</p>
+    {searchFallback&&<p role="status" className="rounded-lg border border-border bg-accent-soft p-3 text-sm">A pesquisa por palavra está temporariamente falhando na API Shopee. Exibimos os resultados que contêm “{keyword}” nas páginas carregadas. Continue carregando para ampliar a pesquisa.</p>}
+    {error&&<div role="alert" className="rounded-lg bg-danger-soft p-3 text-sm text-danger">{error} <button type="button" onClick={()=>{if(page)void more();else{setLoading(true);setRevision(x=>x+1);}}} className="underline">Tentar novamente</button></div>}
     {selected&&<ProductDetails key={selected.id} product={selected} discovery={discovery} onClose={()=>setSelected(null)}/>}
-    {loading?<p role="status">Carregando ofertas…</p>:visible.length?<><p className="text-xs text-muted">{visible.length} ofertas nesta seleção · Shopee</p><ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(product=><li key={product.id} className="overflow-hidden rounded-xl border border-border bg-surface">
+    {visible.length>0&&<><p className="text-xs text-muted">{visible.length} produtos exibidos · Shopee</p><ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(product=><li key={product.id} className="overflow-hidden rounded-xl border border-border bg-surface">
       <div className="flex h-44 items-center justify-center bg-white p-3">{product.image_url?<Image unoptimized src={product.image_url} alt={product.title} width={240} height={160} className="h-full w-full object-contain"/>:<span className="text-sm text-slate-500">Imagem não fornecida</span>}</div>
       <div className="p-4"><h2 className="line-clamp-2 text-sm font-semibold">{product.title}</h2><p className="mt-1 truncate text-xs text-muted">{product.shop_name??"Loja não informada"}</p><p className="mt-3 text-xl font-semibold">{money(product.price_min)}</p>{product.discount_percent!==null&&Number(product.discount_percent)>0&&<p className="mt-1 text-sm font-semibold text-primary">{product.discount_percent}% de desconto informado</p>}<p className="mt-1 text-xs text-muted">Shopee · {displayDate(product.synced_at)}</p><p className="mt-1 text-xs text-muted">Comissão estimada: {percentage(product.commission_rate)}</p><p className="mt-1 text-xs text-muted">Vendas informadas: {product.sales===null?"Não informadas":Number(product.sales).toLocaleString("pt-BR")}</p><button type="button" onClick={()=>{setSelected(product);window.scrollTo({top:0,behavior:"smooth"});}} className="mt-4 w-full rounded-lg border border-border px-3 py-2 text-sm text-primary">{discovery?"Ver produto":"Ver produto e divulgar"}<span className="sr-only">: {product.title}</span></button></div>
-    </li>)}</ul></>:<p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted">{keyword||onlyDiscounts?"Nenhuma oferta corresponde aos filtros nesta seleção.":"A API não retornou ofertas nesta sincronização. Nenhum produto foi inventado."}</p>}
+    </li>)}</ul></>}
+    {loading&&<p role="status">{page?"Carregando mais produtos da Shopee…":"Atualizando produtos da Shopee…"}</p>}
+    {!loading&&!error&&!visible.length&&<p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted">{onlyDiscounts?"Nenhum desconto informado nas páginas carregadas. Continue para consultar mais produtos.":searchFallback?"Nenhum produto com esse nome nas páginas carregadas. Continue carregando ou tente outra busca.":"A Shopee não retornou produtos para esta busca. Tente outro nome de produto."}</p>}
+    {hasNext&&view!=="top10"&&<div ref={sentinel} className="py-3 text-center"><button type="button" disabled={loading} onClick={()=>void more()} className="rounded-lg border border-border px-4 py-2 text-sm text-primary disabled:opacity-50">{loading?"Carregando…":"Carregar mais produtos"}</button></div>}
+    {!hasNext&&page>0&&!loading&&!error&&<p className="text-xs text-muted">Fim dos resultados que a API disponibilizou para esta busca. Pesquise outro produto para explorar outras ofertas.</p>}
   </div>;
 }
 function ProductDetails({product,onClose,discovery}:{product:MarketplaceProduct;onClose:()=>void;discovery:boolean}) {

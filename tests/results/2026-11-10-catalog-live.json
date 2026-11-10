@@ -1,0 +1,132 @@
+{
+  "schema": {
+    "name": "productOfferV2",
+    "args": [
+      {
+        "name": "listType",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        }
+      },
+      {
+        "name": "matchId",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int64",
+          "ofType": null
+        }
+      },
+      {
+        "name": "keyword",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        }
+      },
+      {
+        "name": "sortType",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        }
+      },
+      {
+        "name": "page",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        }
+      },
+      {
+        "name": "limit",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        }
+      },
+      {
+        "name": "itemId",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int64",
+          "ofType": null
+        }
+      },
+      {
+        "name": "shopId",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int64",
+          "ofType": null
+        }
+      },
+      {
+        "name": "productCatId",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        }
+      },
+      {
+        "name": "isAMSOffer",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        }
+      },
+      {
+        "name": "isKeySeller",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "query": {
+        "page": 1,
+        "keyword": "",
+        "sort": "sales"
+      },
+      "count": 20,
+      "hasNextPage": true,
+      "searchFallback": false,
+      "firstItem": "728389176:58217601055"
+    },
+    {
+      "query": {
+        "page": 4,
+        "keyword": "",
+        "sort": "sales"
+      },
+      "count": 20,
+      "hasNextPage": true,
+      "searchFallback": false,
+      "firstItem": "1457191648:20698320516"
+    },
+    {
+      "query": {
+        "page": 1,
+        "keyword": "vestido",
+        "sort": "commission"
+      },
+      "count": 20,
+      "hasNextPage": true,
+      "searchFallback": true,
+      "firstItem": "728389176:58217601055"
+    }
+  ],
+  "scope": "Consultas reais de leitura com credenciais mantidas apenas no backend; nenhuma geração de link ou publicação. Página 4 confirma navegação além da seleção antiga. Pesquisa por palavra retornou código 10000; fallback validado sem fingir busca global.",
+  "diagnostic": "catalog-page-check encerrado na versão 5, HTTP410 confirmado"
+}

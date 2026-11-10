@@ -57,3 +57,29 @@ test('corpo de requisição é limitado inclusive sem Content-Length e só aceit
  for(const body of ['[]','null','invalid'])await assert.rejects(readLimitedObject(new Request('https://example.test',{method:'POST',body})),error=>error.status===400);
  await assert.rejects(readLimitedObject(new Request('https://example.test',{method:'POST',body:'x'.repeat(4097)})),error=>error.status===413);
 });
+
+test('busca pagina além dos primeiros 60, encaminha palavra à API e não restringe Top Performing', async () => {
+ const {fetchShopeePage}=await import('../supabase/functions/marketplace/_shared/shopee.ts');
+ const result=await fetchShopeePage(credentials,{page:4,keyword:'vestido midi',sort:'commission'},async(_url,options)=>{
+  const body=JSON.parse(options.body);assert.equal(body.variables.page,4);assert.equal(body.variables.keyword,'vestido midi');assert.equal(body.variables.sortType,5);assert.ok(!body.query.includes('listType:2'));
+  return Response.json({data:{productOfferV2:{nodes:[product],pageInfo:{hasNextPage:true}}}});
+ });
+ assert.equal(result.page,4);assert.equal(result.hasNextPage,true);assert.equal(result.products[0].item_id,product.itemId);
+});
+test('paginação valida entrada, propaga fim de resultados e não transforma falha em catálogo vazio', async () => {
+ const {fetchShopeePage,validateBrowseQuery}=await import('../supabase/functions/marketplace/_shared/shopee.ts');
+ for(const input of [{page:0},{page:-1},{page:1.5},{keyword:'x'.repeat(121)},{sort:'injetado'},{page:'2'}])assert.throws(()=>validateBrowseQuery(input),e=>e.code==='invalid_query');
+ const result=await fetchShopeePage(credentials,{page:5,keyword:'',sort:'price'},async(_url,options)=>{assert.equal(JSON.parse(options.body).variables.sortType,4);return Response.json({data:{productOfferV2:{nodes:[],pageInfo:{hasNextPage:false}}}});});
+ assert.equal(result.hasNextPage,false);assert.equal(result.products.length,0);
+ await assert.rejects(fetchShopeePage(credentials,{page:1,keyword:'',sort:'sales'},async()=>new Response('',{status:429})),e=>e.code==='rate_limited');
+});
+
+test('System Error apenas na busca mantém catálogo paginado e sinaliza filtro local sem culpar credenciais', async () => {
+ const {fetchShopeePage}=await import('../supabase/functions/marketplace/_shared/shopee.ts');let calls=0;
+ const result=await fetchShopeePage(credentials,{page:4,keyword:'vestido',sort:'sales'},async(_url,options)=>{
+  const body=JSON.parse(options.body);assert.equal(body.variables.page,4);calls++;
+  if(body.variables.keyword)return Response.json({errors:[{message:'System Error',extensions:{code:10000}}]});
+  return Response.json({data:{productOfferV2:{nodes:[product],pageInfo:{hasNextPage:true}}}});
+ });
+ assert.equal(calls,2);assert.equal(result.searchFallback,true);assert.equal(result.products.length,1);assert.equal(result.hasNextPage,true);
+});

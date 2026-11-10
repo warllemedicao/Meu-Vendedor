@@ -15,7 +15,7 @@ export function PublicProductCatalog({ view = "offers" }: { view?: "offers" | "d
   const [sort, setSort] = useState(view === "top10" || view === "trends" ? "sales" : "default"), [discounts, setDiscounts] = useState(false);
   const [results, setResults] = useState<Partial<Record<PublicPlatform, PublicCatalogResult>>>({});
   const [errors, setErrors] = useState<Partial<Record<PublicPlatform, string>>>({});
-  const [loading, setLoading] = useState(true), [revision, setRevision] = useState(0);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
@@ -28,7 +28,7 @@ export function PublicProductCatalog({ view = "offers" }: { view?: "offers" | "d
           const data = await response.json();
           if (!response.ok) throw new Error(typeof data?.error?.message === "string" ? data.error.message : "Não foi possível atualizar esta loja.");
           if (data.platform !== source.id || !Array.isArray(data.products)) throw new Error("Não foi possível carregar os produtos desta loja.");
-          if (active) setResults(previous => ({ ...previous, [source.id]: data }));
+          if (active) { setResults(previous => ({ ...previous, [source.id]: data })); setErrors(previous => ({ ...previous, [source.id]: undefined })); }
         } catch (error) {
           if (active) setErrors(previous => ({ ...previous, [source.id]: error instanceof Error ? error.message : "Não foi possível atualizar esta loja." }));
         }
@@ -37,9 +37,12 @@ export function PublicProductCatalog({ view = "offers" }: { view?: "offers" | "d
     };
     void load();
     // Refazer a leitura ao manter a página aberta, sem apresentar ofertas vencidas como atuais.
-    const timer = setInterval(() => { if (active) {setResults({}); setErrors({}); void load();} }, 10 * 60_000);
-    return () => { active = false; controller.abort(); clearInterval(timer); };
-  }, [revision]);
+    const refresh = () => { if (active && document.visibilityState === "visible") void load(); };
+    const timer = setInterval(refresh, 60_000);
+    window.addEventListener("online", refresh);
+    window.addEventListener("focus", refresh);
+    return () => { active = false; controller.abort(); clearInterval(timer); window.removeEventListener("online", refresh); window.removeEventListener("focus", refresh); };
+  }, []);
 
   const visibleSources = homePlatforms.filter(source => platform === "all" || source.id === platform);
   const products = visibleSources.flatMap(source => results[source.id]?.products ?? []).filter(product =>
@@ -74,7 +77,7 @@ export function PublicProductCatalog({ view = "offers" }: { view?: "offers" | "d
       </div>
     </li>)}</ul>}
     {!loading && products.length === 0 && Object.keys(results).length > 0 && <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted">Nenhum produto disponível corresponde aos filtros atuais.</p>}
-    {!loading && visibleSources.some(source => errors[source.id]) && <div className="rounded-xl border border-border bg-surface p-4 text-sm"><h2 className="font-semibold">Lojas ainda sem produtos disponíveis</h2>{visibleSources.filter(source => errors[source.id]).map(source => <p key={source.id} className="mt-2 text-muted"><strong>{source.name}:</strong> {errors[source.id]}</p>)}<button type="button" onClick={() => {setLoading(true);setErrors({});setResults({});setRevision(value => value + 1);}} className="mt-3 text-primary underline">Tentar carregar novamente</button></div>}
+    {!loading && visibleSources.some(source => errors[source.id]) && <div className="rounded-xl border border-border bg-surface p-4 text-sm"><h2 className="font-semibold">Lojas ainda sem produtos disponíveis</h2>{visibleSources.filter(source => errors[source.id]).map(source => <p key={source.id} className="mt-2 text-muted"><strong>{source.name}:</strong> {errors[source.id]}</p>)}<p className="mt-3 text-xs text-muted">A consulta é repetida automaticamente ao entrar nesta visualização, ao voltar à janela e a cada minuto.</p></div>}
     {visibleSources.map(source => results[source.id] && <p key={source.id} className="text-xs text-muted"><strong>{source.name}:</strong> {results[source.id]?.scope} {results[source.id]?.warnings.join(" ")}</p>)}
     <p className="text-xs text-muted">Preços e disponibilidade podem mudar. A seleção não representa o ranking global das lojas. Nenhuma conta de loja precisa ser conectada para navegar.</p>
   </div>;

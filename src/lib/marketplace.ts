@@ -1,6 +1,6 @@
 "use client";
 import { getSupabase } from "@/lib/supabase/client";
-export async function marketplaceAction(action:"connect"|"sync"|"disconnect"|"generate_link",payload:Record<string,unknown>={}) {
+export async function marketplaceAction(action:"connect"|"sync"|"disconnect"|"generate_link"|"browse_products",payload:Record<string,unknown>={}) {
   const client=getSupabase();if(!client)throw new Error("A conexão com o banco não está configurada.");
   const {data:{session}}=await client.auth.getSession();
   if(!session)throw new Error("Entre na sua conta para continuar.");
@@ -16,7 +16,7 @@ export async function marketplaceAction(action:"connect"|"sync"|"disconnect"|"ge
     throw new Error(message);
   }
   if(data?.error)throw new Error(typeof data.error.message==="string"?data.error.message:"Operação não concluída.");
-  return data as {productsCount?:number;url?:string;message?:string};
+  return data as {productsCount?:number;url?:string;message?:string;products?:import("@/types/marketplace").MarketplaceProduct[];page?:number;hasNextPage?:boolean;searchFallback?:boolean;fetchedAt?:string};
 }
 export function displayDate(value:string|null):string {
   return value?new Date(value).toLocaleString("pt-BR"):"Ainda não realizada";

@@ -1,5 +1,11 @@
 # Continuidade do projeto — próxima sessão
 
+## Correção posterior — catálogo Shopee em 10/11/2026
+
+O responsável informou que Início/Ofertas mostrava lojas indisponíveis, pediu atualização automática ao trocar abas e acesso além da lista pequena. Confirmado: vitrine pública HTTP503; conexões privadas funcionando; corte interno de 60 produtos. Todas as visualizações agora usam a conexão Shopee quando autenticado, atualizam ao entrar e consultam páginas sem corte total de 60. Busca por nome é enviada à API. A Shopee retornou System Error código10000 para palavras; fallback explícito permite filtrar páginas da listagem geral e continuar carregando, sem fingir busca global. O cron inicial continua com sua seleção antiga, independente da navegação paginada.
+
+241 testes aprovados, TypeScript frontend/Edge, lint sem erros e build de 17 rotas. Navegador controlado com 80 produtos, troca de abas, busca, link e mobile aprovado. API real confirmou página4 com 20 produtos e próxima página disponível; nenhum link foi gerado nos testes. Supabase marketplace v31; diagnóstico encerrado HTTP410. Relatório e evidências em [DIVULGACAO_INTEGRADA.md](./DIVULGACAO_INTEGRADA.md).
+
 ## Retomada autorizada em 10/11/2026
 
 O responsável pediu “faça isso agora”, autorizando a implementação do pedido abaixo. A área unificada e o fluxo produto → link → criação/importação → preparação da publicação foram implementados e publicados na versão Cloudflare `8f951b5b-ff29-4e6a-ac25-bb2069477dc3`. Estado e limites em [DIVULGACAO_INTEGRADA.md](./DIVULGACAO_INTEGRADA.md). A instrução de apenas registrar abaixo passa a ser histórica. Geração externa no Gemini/Flow e postagem final na Shopee continuam exigindo ação do usuário; não iniciar ensaios de GPU automaticamente.
@@ -137,3 +143,5 @@ Frontend Cloudflare publicado na versão `627f251b-955c-4175-a065-f00bce5c26d4`;
 ## Histórico
 
 Os registros anteriores desta continuidade descreviam estados de piloto que foram superados pela entrega acima. Para histórico de outras funcionalidades, consultar [ATUALIZACOES.md](./ATUALIZACOES.md) e os documentos específicos. A situação vigente do fluxo de vídeo é sempre a descrita em [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md).
+
+Frontend desta correção publicado no Cloudflare `e553299a-b481-4246-aca1-d6a64f1c94b4`.

@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "checks": [
+    "conta conectada usa Shopee em Ofertas",
+    "entrada carrega automaticamente",
+    "80 produtos em quatro páginas sem limite60",
+    "troca de abas faz nova consulta",
+    "busca encaminhada à API",
+    "link acompanha produto pesquisado",
+    "desktop/mobile sem overflow",
+    "falha da busca mostra escopo local e permite novas páginas"
+  ],
+  "scope": "sessão e API simuladas; sem geração real de link"
+}

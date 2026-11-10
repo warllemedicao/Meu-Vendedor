@@ -297,3 +297,16 @@ Após recuperar a última conversa, o responsável pediu “faça isso agora”.
 Publicações permite retomar o último rascunho local da conta, com mídia, legenda, hashtags e link, baixar e usar compartilhamento nativo quando suportado. Não há envio direto para Shopee Vídeo na integração disponível. Não foi automatizada a análise/geração externa e não houve inferência/GPU, teste real de API de link ou postagem. Dashboard, Radar e Top 10 usam somente os dados disponíveis do catálogo e explicam seus limites.
 
 235 testes existentes e 3 novos aprovados, TypeScript/build/lint sem erros. Teste de navegador com catálogo simulado aprovado em desktop e celular; IndexedDB validado com mídia e separação das chaves por conta. Publicado no Cloudflare `8f951b5b-ff29-4e6a-ac25-bb2069477dc3`; página inicial e Publicações verificadas por HTTP. Detalhes em [DIVULGACAO_INTEGRADA.md](./DIVULGACAO_INTEGRADA.md).
+
+
+## 10/11/2026 — correção de ofertas indisponíveis e lista limitada
+
+O responsável relatou Início/Ofertas mostrando “lojas sem produtos disponíveis”, pediu atualização automática ao mudar de aba e perguntou por que a lista de Produtos era pequena. A investigação confirmou vitrine pública indisponível enquanto a conexão privada funcionava, e dois cortes internos: sincronização de três páginas de20 e `.limit(60)` na tela.
+
+Implementada navegação autenticada por páginas da API, sem depender da seleção salva de60, com consulta automática em cada visualização, carregamento ao rolar, botão de continuidade e busca/ordenação enviadas à Shopee. Produtos consultados são salvos apenas na conta/conexão da sessão para preservar ficha, geração de link e mídia. Não se expõem credenciais privadas na vitrine pública.
+
+A verificação real no backend confirmou a quarta página,20 itens e `hasNextPage:true`. Pesquisa por “vestido” retornou System Error10000; foi criado fallback identificado como filtro local nas páginas da listagem geral, sem culpar credenciais ou afirmar busca global. Introspecção do endpoint oficial confirmou os parâmetros usados. Diagnóstico temporário protegido encerrado com HTTP410. Não houve geração de link ou postagem real nos testes.
+
+241 testes passaram; tipos frontend/Edge, lint sem erros, build e navegador com sessão/API simuladas aprovados. Evidências, limites e detalhes em [DIVULGACAO_INTEGRADA.md](./DIVULGACAO_INTEGRADA.md). Backend marketplace v31.
+
+Frontend desta correção publicado no Cloudflare `e553299a-b481-4246-aca1-d6a64f1c94b4`.

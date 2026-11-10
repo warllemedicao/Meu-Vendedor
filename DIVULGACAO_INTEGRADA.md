@@ -26,3 +26,21 @@ A interface prepara os materiais e permite compartilhamento do dispositivo, sem 
 - O teste não fez login, não gerou link real na API, não executou IA/GPU e não compartilhou/postou conteúdo. Não é validação de publicação no Shopee Vídeo ou geração real no Flow.
 - Cloudflare publicado na versão `8f951b5b-ff29-4e6a-ac25-bb2069477dc3`, após dry run. Página inicial e `/publicacoes` consultadas por HTTP com sucesso e conteúdo novo confirmado.
 - URL: https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev
+
+## Correção do catálogo — retorno do responsável em 10/11/2026
+
+**Problema:** Ofertas usava a vitrine pública separada, retornando HTTP503. As duas conexões privadas Shopee estavam ativas e o banco tinha 120 registros atuais, 60 por conexão. A sincronização buscava três páginas de 20 e a tela também tinha `.limit(60)`. Trocar abas relia somente a seleção salva, sem ampliar a busca.
+
+**Correção:** todas as cinco visualizações usam a conexão Shopee da conta autenticada quando disponível. Cada entrada na visualização inicia uma consulta autenticada à API. A ação `browse_products` consulta uma página por vez e retorna `hasNextPage`; busca por nome e ordenação são enviadas à Shopee, sem restringir a `listType:2`. Novos produtos são salvos somente na conexão e conta autenticadas, para manter a ficha, fotos e geração de link. O cron antigo continua atualizando sua seleção inicial de 60, mas a navegação interativa já não depende dessa seleção e o link não é recusado apenas por ficar fora dela; validade temporal e expiração continuam conferidas.
+
+A lista carrega novas páginas ao rolar, com botão de continuidade como alternativa; não há um teto total de 60 na navegação. Isto permite explorar o catálogo liberado pela API, não garante que a Shopee exponha todos os anúncios ou todas as condições de afiliado da plataforma. Total global não é inventado. Coalescência de solicitações simultâneas e cache privado de 10 segundos evitam duplicação de chamadas na troca rápida de visualização.
+
+**Falha real da Shopee:** introspecção autenticada confirmou `keyword`, `page`, `limit` e `sortType`. Página 1 e página 4 entregaram 20 produtos cada, com IDs iniciais diferentes e `hasNextPage:true`. Consulta por “vestido” retornou `extensions.code:10000`, System Error, inclusive com consulta mínima e `listType:0`. Esse erro agora é tratado como falha interna do provedor. Quando só a pesquisa falha, o sistema carrega a listagem sem palavra, identifica explicitamente a pesquisa como filtro local e permite consultar mais páginas por botão. Não apresenta a listagem geral como resultado completo daquela busca. Erros de autenticação ou limites não são ocultados por esse fallback.
+
+A vitrine pública continua isolada, sem usar credenciais privadas para visitantes. Sua configuração indisponível não foi preenchida com chaves pessoais. Tentativas públicas agora ocorrem automaticamente ao entrar, voltar à janela, reconectar a rede e a cada minuto; não dependem de botão de atualização.
+
+**Validação:** 241 testes passaram, incluindo paginação além da terceira página, validação de parâmetros e fallback do código10000. TypeScript frontend/Edge, lint sem erros (quatro avisos anteriores), build de 17 rotas e revisão de whitespace aprovados. Navegador com conta/API simuladas validou 80 itens em quatro páginas, troca de visualização atualizando, envio de palavra-chave, link no produto, mobile e fallback transparente. Consulta real foi somente de catálogo, sem criar link/venda/postagem. Evidências: `tests/results/2026-11-10-catalog-browser.json` e `tests/results/2026-11-10-catalog-live.json`.
+
+Supabase `marketplace` v31. Diagnóstico temporário encerrado em HTTP410. Versão final do frontend registrada na continuidade após publicação.
+
+Frontend desta correção publicado no Cloudflare `e553299a-b481-4246-aca1-d6a64f1c94b4`.

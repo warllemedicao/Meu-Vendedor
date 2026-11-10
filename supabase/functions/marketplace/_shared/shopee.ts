@@ -72,6 +72,7 @@ export async function shopeeRequest(credentials: ShopeeCredentials, query: strin
     // Identificadores Int64 não podem perder precisão ao passar pelo JSON do JavaScript.
     payload = JSON.parse(text.replace(/"(itemId|shopId|sales)"\s*:\s*(\d+)/g, '"$1":"$2"'));
   } catch { throw new IntegrationError("invalid_response", "A Shopee retornou uma resposta inválida."); }
+  if (payload.errors?.some(error => typeof error === "object" && error !== null && (error as { extensions?: { code?: number } }).extensions?.code === 10000)) throw new IntegrationError("provider_system_error", "A Shopee está com uma falha interna nesta consulta. As demais ofertas continuam disponíveis.", 503);
   if (payload.errors?.length || !payload.data) throw new IntegrationError("provider_rejected", "A Shopee não autorizou a operação ou os dados solicitados. Confira o acesso à Open API.", 422);
   return payload.data;
 }
@@ -94,4 +95,31 @@ export async function generateShopeeLink(credentials: ShopeeCredentials, product
   const link = shopeeUrl((data.generateShortLink as {shortLink?: unknown} | undefined)?.shortLink);
   if (!link) throw new IntegrationError("invalid_response", "A Shopee não retornou um link válido.");
   return link;
+}
+
+export interface ShopeeBrowseQuery { page: number; keyword: string; sort: "sales" | "price" | "commission"; }
+export function validateBrowseQuery(body: Record<string, unknown>): ShopeeBrowseQuery {
+  const page = body.page ?? 1;
+  const keyword = body.keyword ?? "";
+  const sort = body.sort ?? "sales";
+  if (!Number.isSafeInteger(page) || Number(page) < 1 || Number(page) > 2147483647 || typeof keyword !== "string" || keyword.length > 120 || !["sales", "price", "commission"].includes(String(sort))) {
+    throw new IntegrationError("invalid_query", "Informe uma busca de até 120 caracteres e uma página válida.", 400);
+  }
+  return { page: Number(page), keyword: keyword.trim(), sort: sort as ShopeeBrowseQuery["sort"] };
+}
+// Sem listType:2: a busca não fica restrita à seleção Top Performing.
+export const BROWSE_QUERY = `query Browse($page:Int,$limit:Int,$keyword:String,$sortType:Int){productOfferV2(keyword:$keyword,sortType:$sortType,page:$page,limit:$limit){nodes{itemId shopId productName shopName productLink imageUrl price priceMin priceMax commissionRate commission sales ratingStar priceDiscountRate periodEndTime}pageInfo{hasNextPage}}}`;
+export async function fetchShopeePage(credentials: ShopeeCredentials, query: ShopeeBrowseQuery, fetcher: typeof fetch = fetch) {
+  const checked = validateBrowseQuery({ ...query });
+  const variables = { page: checked.page, limit: 20, keyword: checked.keyword, sortType: checked.sort === "price" ? 4 : checked.sort === "commission" ? 5 : 2 };
+  let data: Record<string, unknown>; let searchFallback = false;
+  try { data = await shopeeRequest(credentials, BROWSE_QUERY, variables, fetcher); }
+  catch (error) {
+    if (!checked.keyword || !(error instanceof IntegrationError) || error.code !== "provider_system_error") throw error;
+    data = await shopeeRequest(credentials, BROWSE_QUERY, { ...variables, keyword: "" }, fetcher); searchFallback = true;
+  }
+  const connection = data.productOfferV2 as { nodes?: unknown[]; pageInfo?: { hasNextPage?: boolean } } | undefined;
+  if (!connection || !Array.isArray(connection.nodes) || connection.nodes.length > 20 || typeof connection.pageInfo?.hasNextPage !== "boolean") throw new IntegrationError("invalid_response", "A lista de ofertas recebida é inválida.");
+  const products = [...new Map(connection.nodes.map(row => { const product = normalizeProduct(row); return [product.external_id, product] as const; })).values()];
+  return { products, page: checked.page, hasNextPage: connection.pageInfo.hasNextPage, searchFallback };
 }

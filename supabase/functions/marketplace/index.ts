@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
-import { IntegrationError, validateCredentials, fetchShopeeProducts, generateShopeeLink } from "./_shared/shopee.ts";
+import { IntegrationError, validateCredentials, fetchShopeeProducts, generateShopeeLink, fetchShopeePage, validateBrowseQuery } from "./_shared/shopee.ts";
 import { readLimitedObject } from "./_shared/http.ts";
 import { encryptionKey, encryptCredentials, decryptCredentials, secretMatches } from "./_shared/credentials.ts";
 
@@ -18,6 +18,28 @@ async function credentialsFor(connectionId:string,userId:string,key:CryptoKey) {
   const row=checked(await db.from("mv_connection_secrets").select("encrypted_value").eq("connection_id",connectionId).single());
   try{if(!row)throw new Error("missing_credentials");return validateCredentials(await decryptCredentials(row.encrypted_value,key,userId));}
   catch{throw new IntegrationError("credentials_unavailable","Reconecte a conta Shopee para atualizar suas credenciais.",409);}
+}
+const browseCache = new Map<string, { expires: number; pending: Promise<unknown> }>();
+async function browse(userId: string, body: Record<string, unknown>) {
+  const query = validateBrowseQuery(body);
+  const connection = await getConnection(userId);
+  if (!connection) throw new IntegrationError("not_connected", "Conecte sua conta Shopee para consultar os produtos.", 409);
+  const cacheKey = JSON.stringify([userId, connection.id, query]);
+  const cached = browseCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return cached.pending;
+  const pending = (async () => {
+    const key = await encryptionKey(Deno.env.get("MV_CREDENTIAL_ENCRYPTION_KEY") ?? "");
+    const credentials = await credentialsFor(connection.id, userId, key);
+    const result = await fetchShopeePage(credentials, query);
+    const syncedAt = new Date().toISOString();
+    const products = result.products.length ? checked(await db.from("mv_products").upsert(result.products.map(product => ({ ...product, user_id: userId, connection_id: connection.id, platform_id: "shopee", synced_at: syncedAt, in_latest_sync: true })), { onConflict: "connection_id,external_id" }).select("*")) : [];
+    const ordered = result.products.map(product => (products ?? []).find(row => row.external_id === product.external_id));
+    return { products: ordered, page: result.page, hasNextPage: result.hasNextPage, searchFallback: result.searchFallback, fetchedAt: syncedAt };
+  })();
+  for (const [id, entry] of browseCache) if (entry.expires <= Date.now()) browseCache.delete(id);
+  if (browseCache.size >= 128) browseCache.delete(browseCache.keys().next().value!);
+  browseCache.set(cacheKey, { expires: Date.now() + 10000, pending });
+  try { return await pending; } catch (error) { browseCache.delete(cacheKey); throw error; }
 }
 async function perform(action:string,userId:string,body:Record<string,unknown>) {
   const lockId=crypto.randomUUID();
@@ -49,7 +71,7 @@ async function perform(action:string,userId:string,body:Record<string,unknown>) 
       if(typeof body.productId!=="string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.productId))throw new IntegrationError("invalid_product","Selecione um produto válido.",400);
       const product=checked(await db.from("mv_products").select("id,title,product_url,offer_ends_at,synced_at,in_latest_sync").eq("id",body.productId).eq("connection_id",connection.id).eq("user_id",userId).maybeSingle());
       if(!product)throw new IntegrationError("product_not_found","Produto não encontrado na sua conta.",404);
-      if(!product.in_latest_sync || Date.parse(product.synced_at)<Date.now()-3600000)throw new IntegrationError("stale_product","Atualize os produtos antes de gerar este link.",409);
+      if(Date.parse(product.synced_at)<Date.now()-3600000)throw new IntegrationError("stale_product","Atualize os produtos antes de gerar este link.",409);
       if(product.offer_ends_at && Date.parse(product.offer_ends_at)<=Date.now())throw new IntegrationError("offer_expired","Esta oferta expirou. Atualize a lista de produtos.",409);
       const url=await generateShopeeLink(credentials,product.product_url);
       return checked(await db.rpc("mv_save_generated_link",{p_user_id:userId,p_lock_id:lockId,p_product_id:product.id,p_url:url}));
@@ -89,7 +111,8 @@ Deno.serve(async(request:Request) => {
     if(error || !user)throw new IntegrationError("unauthorized","Sua sessão expirou. Entre novamente.",401);
     const body=await readLimitedObject(request);
     if(body.platform!=="shopee")throw new IntegrationError("not_implemented","Esta plataforma ainda depende de integração e liberação próprias.",400);
-    if(!["connect","sync","disconnect","generate_link"].includes(String(body.action)))throw new IntegrationError("invalid_action","Operação inválida.",400);
+    if(!["connect","sync","disconnect","generate_link","browse_products"].includes(String(body.action)))throw new IntegrationError("invalid_action","Operação inválida.",400);
+    if(body.action === "browse_products") return reply(await browse(user.id, body));
     return reply(await perform(String(body.action),user.id,body));
   } catch(error) {
     if(error instanceof IntegrationError)return reply({error:{code:error.code,message:error.message}},error.status);
