@@ -1,0 +1,127 @@
+{
+  "recovered_at": "2026-11-09T16:16:07.017246+00:00",
+  "engine": "wan",
+  "attempt": "r2",
+  "controller": {
+    "slug": "mv-ana-midi-20261109-wan-r2",
+    "state": "submitting",
+    "engine": "wan",
+    "inputs": {
+      "driver": {
+        "hash": "268918740bf2de47870c52ae4767551e8ac673fa371fc1557bab891d3371c65e",
+        "path": "operator/ana-vidi-20261108/inputs/ana-driver.mp4"
+      },
+      "product": {
+        "hash": "f8369d01d66b48319d3e4878e0bdd410d46923f96acbe410b1c8074423ce1c6b",
+        "path": "operator/ana-vidi-20261108/inputs/product-vidi.jpg"
+      },
+      "reference": {
+        "hash": "5df249ae228a9c7b6658fd4fd80a281c66a037ce87980f7b69682f5202ba4182",
+        "path": "operator/ana-vidi-20261108/motion/1d1ca4cd-685c-415a-82eb-419dacb3705f.png"
+      }
+    },
+    "started": "2026-11-09T16:05:32.957Z",
+    "terminal": false,
+    "video_path": "operator/ana-midi-20261109/wan-r2.mp4",
+    "archive_path": "operator/ana-midi-20261109/wan-r2.zip",
+    "quota_before": {
+      "timeUsed": "19579.023297100s",
+      "hasEverRun": true,
+      "timeReserved": "0s",
+      "totalTimeAllowed": "108000s",
+      "minimumTimeAllowed": "108000s"
+    }
+  },
+  "submission": {
+    "state": "submitted",
+    "engine": "wan",
+    "slug": "mv-ana-midi-20261109-wan-r2",
+    "remote_ref": "/code/warllemedio/mv-ana-midi-20261109-wan-r2",
+    "kernel_id": 143998541,
+    "version": 1
+  },
+  "remote": {
+    "keys": [
+      "log"
+    ],
+    "metadata": {
+      "id": 143998541,
+      "ref": "warllemedio/mv-ana-midi-20261109-wan-r2",
+      "title": "mv-ana-midi-20261109-wan-r2",
+      "author": "warllem edi\u00e7\u00e3o",
+      "slug": "mv-ana-midi-20261109-wan-r2",
+      "lastRunTime": "2026-11-06T16:15:36.861290400Z",
+      "language": "python",
+      "kernelType": "script",
+      "isPrivate": true,
+      "enableGpu": true,
+      "enableInternet": true,
+      "enableTpu": false,
+      "currentVersionNumber": 1,
+      "machineShape": "NvidiaTeslaT4",
+      "source_length": 35996,
+      "keys": [
+        "metadata",
+        "blob"
+      ]
+    },
+    "status": {},
+    "log": ""
+  },
+  "quota": {
+    "active": true,
+    "quota": {
+      "timeUsed": "20171.606067100s",
+      "timeReserved": "0s",
+      "totalTimeAllowed": "108000s",
+      "minimumTimeAllowed": "108000s",
+      "hasEverRun": true
+    }
+  },
+  "interpretation": "No callback, log or output yet. Raw status {} is consistent with protobuf default QUEUED (0), per cached official Kaggle SDK. It does not prove inference started or completed. Do not resubmit.",
+  "remaining": [
+    "Confirm cancellation acknowledgement remotely",
+    "Preserve any existing diagnostics without resubmission",
+    "Wan comparison remains incomplete without MP4"
+  ],
+  "latest_checked_at": "2026-11-09T16:17:07.354335+00:00",
+  "latest_controller_response": {
+    "generation_disabled": true,
+    "states": [
+      {
+        "slug": "mv-ana-midi-20261109-hunyuan-r1",
+        "status": "CANCEL_REQUESTED",
+        "failure": null
+      },
+      {
+        "slug": "mv-ana-midi-20261109-hunyuan-r2",
+        "status": "RUNNING",
+        "failure": null
+      },
+      {
+        "slug": "mv-ana-midi-20261109-wan-r1",
+        "status": "CANCEL_REQUESTED",
+        "failure": null
+      },
+      {
+        "slug": "mv-ana-midi-20261109-wan-r2",
+        "status": "CANCEL_REQUESTED",
+        "failure": null
+      }
+    ],
+    "quota": {
+      "timeUsed": "20249.995271500s",
+      "timeReserved": "0s",
+      "totalTimeAllowed": "108000s",
+      "minimumTimeAllowed": "108000s",
+      "hasEverRun": true
+    }
+  },
+  "latest_interpretation": "Controller now reports generation_disabled and Wan r2 CANCEL_REQUESTED. No new submission performed in this recovery. Cancellation acknowledgement and Wan result are not confirmed.",
+  "software_validation": {
+    "tests_passed": 225,
+    "tests_failed": 0,
+    "python_syntax": "passed",
+    "git_diff_check": "passed"
+  }
+}

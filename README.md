@@ -1,5 +1,9 @@
 # Meu Vendedor — Viral Commerce AI
 
+> **Continuidade mais recente:** ensaio de 6 s encerrado a pedido do responsável; 4 s preservados para retomada, sem resultado novo de 6 s aprovado. Não iniciar GPU sem nova instrução. Ver [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md).
+
+> **Atualização de 09/11/2026:** origem do vídeo Ana/vestido midi confirmada: FASHN → SCAIL-2 → áudio. Comparação posterior: Hunyuan entregou vídeo curto; Wan não chegou à inferência. Testes encerrados, controlador HTTP410 e cancelamentos remotos sem confirmação de término. Evidências em [TESTE_ANA_MIDI.md](./TESTE_ANA_MIDI.md).
+
 > **Revisão vigente:** o responsável rejeitou a camiseta de exemplo e proibiu reiniciar os testes. Correções e limites em [AUDITORIA_GERADOR_VIDEO.md](./AUDITORIA_GERADOR_VIDEO.md); conversa e decisões em [historico.md](./historico.md). Nenhum resultado da camisa do anúncio foi aprovado.
 
 Modo experimental de movimento, roupa e edição por máscara: [implementação e evidências](./MOVIMENTO_E_PRODUTO.md). A amostra FASHN usou o produto errado e foi rejeitada; os resultados técnicos não são aprovação visual. Os ensaios estão interrompidos.

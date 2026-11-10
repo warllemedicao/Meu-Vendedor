@@ -1,0 +1,22 @@
+{
+  "gpu": "Tesla T4, 15360 MiB\nTesla T4, 15360 MiB",
+  "slug": "mv-research-20261109-motion-first-r5",
+  "bytes": 809,
+  "error": "install_torch: ERROR: Could not find a version that satisfies the requirement torchvision==0.20.1 (from versions: 0.1.6, 0.2.0, 0.21.0+cu124)\nERROR: No matching distribution found for torchvision==0.20.1\n",
+  "phase": "finished",
+  "state": "failed",
+  "sha256": "4cc74f5f99f42b1c3deb1c191888802ca2a07dd4c130070c635660da1b71f6b7",
+  "started": "2026-11-09T04:44:04.919Z",
+  "artifact": "operator/research/2026-11-09/motion-first-r5.zip",
+  "terminal": true,
+  "heartbeat": "2026-11-09T04:45:45.790Z",
+  "experiments": [],
+  "quota_before": {
+    "timeUsed": "17282.214139300s",
+    "hasEverRun": true,
+    "timeReserved": "0s",
+    "totalTimeAllowed": "108000s",
+    "minimumTimeAllowed": "108000s"
+  },
+  "total_seconds": 94.248
+}

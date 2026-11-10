@@ -1,0 +1,47 @@
+{
+  "found": true,
+  "slug": "mv-motion-scail-52e3dabb",
+  "expected_engine_from_title": "scail",
+  "config": {
+    "id": "52e3dabb-0175-4990-a52c-0f1e628f97ce",
+    "engine": "scail",
+    "seed": 20261108,
+    "seconds": 2,
+    "mode": "animate"
+  },
+  "blob_keys": [
+    "source",
+    "language",
+    "kernelType",
+    "slug"
+  ],
+  "engine_mentions": [
+    "scail",
+    "wan-animate",
+    "vace"
+  ],
+  "reports": [
+    {
+      "state": "completed",
+      "adapter": "scail",
+      "native_4k": false,
+      "phase": "complete",
+      "setup_seconds": 280.102,
+      "steps_completed": 20,
+      "steps_total": 20,
+      "width": 288,
+      "height": 512,
+      "fps": 16,
+      "frames": 32,
+      "duration_seconds": 2,
+      "inference_seconds": 991.033,
+      "bytes": 163728,
+      "sha256": "101d9664f06b5b6249499d2b53a9f4975957566a7cc38a665e22919d7c6fff99",
+      "total_seconds": 1271.815
+    }
+  ],
+  "files": [
+    "mv-motion/final.mp4",
+    "mv-motion/report.json"
+  ]
+}

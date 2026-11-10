@@ -1,0 +1,123 @@
+{
+  "stable": {
+    "repository": "Francis-Rings/StableAnimator",
+    "revision": "020e7f23a768410e0183ce943397d96a609f4ec1",
+    "model": {
+      "repository": "FrancisRing/StableAnimator",
+      "revision": "172658c01f49905d09f33c8872cc701e3f6d9ec5",
+      "card": {
+        "license": "apache-2.0",
+        "pipeline_tag": "image-to-video",
+        "tags": [
+          "human-animation"
+        ]
+      },
+      "files": [
+        ".gitattributes",
+        "Animation/face_encoder.pth",
+        "Animation/glintr100_torch.pth",
+        "Animation/pose_net.pth",
+        "Animation/unet.pth",
+        "DWPose/dw-ll_ucoco_384.onnx",
+        "DWPose/yolox_l.onnx",
+        "README.md",
+        "assets/figures/case-17.gif",
+        "assets/figures/case-18.gif",
+        "assets/figures/case-24.gif",
+        "assets/figures/case-35.gif",
+        "assets/figures/case-42.gif",
+        "assets/figures/case-45.gif",
+        "assets/figures/case-46.gif",
+        "assets/figures/case-47.gif",
+        "assets/figures/case-5.gif",
+        "assets/figures/case-61.gif",
+        "assets/figures/framework.jpg",
+        "assets/gif/case-35.gif",
+        "assets/gif/case-42.gif",
+        "config.json",
+        "inference.zip",
+        "models/antelopev2/.gitattributes",
+        "models/antelopev2/1k3d68.onnx",
+        "models/antelopev2/2d106det.onnx",
+        "models/antelopev2/genderage.onnx",
+        "models/antelopev2/glintr100.onnx",
+        "models/antelopev2/scrfd_10g_bnkps.onnx",
+        "stable-video-diffusion-img2vid-xt/.gitattributes",
+        "stable-video-diffusion-img2vid-xt/LICENSE.md",
+        "stable-video-diffusion-img2vid-xt/README.md",
+        "stable-video-diffusion-img2vid-xt/comparison.png",
+        "stable-video-diffusion-img2vid-xt/feature_extractor/preprocessor_config.json",
+        "stable-video-diffusion-img2vid-xt/image_encoder/config.json",
+        "stable-video-diffusion-img2vid-xt/image_encoder/model.fp16.safetensors",
+        "stable-video-diffusion-img2vid-xt/image_encoder/model.safetensors",
+        "stable-video-diffusion-img2vid-xt/model_index.json",
+        "stable-video-diffusion-img2vid-xt/output_tile.gif",
+        "stable-video-diffusion-img2vid-xt/scheduler/scheduler_config.json",
+        "stable-video-diffusion-img2vid-xt/svd_xt.safetensors",
+        "stable-video-diffusion-img2vid-xt/svd_xt_image_decoder.safetensors",
+        "stable-video-diffusion-img2vid-xt/unet/config.json",
+        "stable-video-diffusion-img2vid-xt/unet/diffusion_pytorch_model.fp16.safetensors",
+        "stable-video-diffusion-img2vid-xt/unet/diffusion_pytorch_model.safetensors",
+        "stable-video-diffusion-img2vid-xt/vae/config.json",
+        "stable-video-diffusion-img2vid-xt/vae/diffusion_pytorch_model.fp16.safetensors",
+        "stable-video-diffusion-img2vid-xt/vae/diffusion_pytorch_model.safetensors"
+      ]
+    }
+  },
+  "swift": {
+    "repository": "VinAIResearch/SwiftTry",
+    "revision": "57d3f0b8b25509d4b650db68391c1ad11b86e833",
+    "model": {
+      "repository": "NMHung/SwiftTry",
+      "revision": "db30bc98a65851b532b6efde41a2b25761709e40",
+      "card": {},
+      "files": [
+        ".gitattributes",
+        "denoising_unet.pth",
+        "motion_module.pth",
+        "pose_guider.pth",
+        "reference_unet.pth"
+      ]
+    }
+  },
+  "cat": {
+    "repository": "Zheng-Chong/CatV2TON",
+    "revision": "d8abdab93c9e3ffc89f6f9e13dbbee6b88e85cfc"
+  },
+  "3dv": {
+    "repository": "2y7c3/3DV-TON",
+    "revision": "b0276f4299ffa9d66141a7c1379e66903e8475b4"
+  },
+  "homie": {
+    "repository": "YIYANGCAI/HOMIE",
+    "revision": "ffe79dd954e2358ac70b1b56ccc97768256680b6"
+  },
+  "mimic": {
+    "repository": "Tencent/MimicMotion",
+    "revision": "6907bdcc259a6a048d41a365e840d22274f9256c"
+  },
+  "leffa": {
+    "repository": "franciszzj/Leffa",
+    "revision": "05a259104b6927607776c7edb3e86b75406f20aa"
+  },
+  "unianimate": {
+    "repository": "ali-vilab/UniAnimate-DiT",
+    "revision": "61d882c25385042f0cf5bcdaf6853238d9756d68"
+  },
+  "vivid": {
+    "repository": "alibaba-yuanjing-aigclab/ViViD",
+    "revision": "d8a01e8cd1bb60fb1993e3e2f9a9f263af62ab16"
+  },
+  "bernini": {
+    "repository": "bytedance/Bernini",
+    "revision": "e6c2cf11843470b08491745947abcba9c3c6b079"
+  },
+  "magic": {
+    "repository": "vivoCameraResearch/Magic-TryOn",
+    "revision": "0ef4b17869d9cccc86c61f5b7ec656d365e0ae82"
+  },
+  "controlnext": {
+    "repository": "dvlab-research/ControlNeXt",
+    "revision": "ab4b3acf912cc178d23bbf003369dfb657fc8d01"
+  }
+}

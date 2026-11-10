@@ -1,0 +1,34 @@
+{
+  "slug": "mv-ana-six-20261109-r1",
+  "state": "submitted",
+  "cancel": true,
+  "inputs": {
+    "driver": {
+      "hash": "268918740bf2de47870c52ae4767551e8ac673fa371fc1557bab891d3371c65e",
+      "path": "operator/ana-vidi-20261108/inputs/ana-driver.mp4"
+    },
+    "product": {
+      "hash": "f8369d01d66b48319d3e4878e0bdd410d46923f96acbe410b1c8074423ce1c6b",
+      "path": "operator/ana-vidi-20261108/inputs/product-vidi.jpg"
+    },
+    "reference": {
+      "hash": "5df249ae228a9c7b6658fd4fd80a281c66a037ce87980f7b69682f5202ba4182",
+      "path": "operator/ana-vidi-20261108/motion/1d1ca4cd-685c-415a-82eb-419dacb3705f.png"
+    },
+    "seed_video": {
+      "hash": "e10729e4c41528e2109db1a0dc10da0b7fd6a411250f7ad47c0d78995dcf3a81",
+      "path": "operator/ana-midi-20261109/hunyuan-r2.mp4"
+    }
+  },
+  "started": "2026-11-09T16:26:08.143Z",
+  "terminal": false,
+  "kernel_id": 144014985,
+  "remote_ref": "/code/warllemedio/mv-ana-six-20261109-r1",
+  "quota_before": {
+    "timeUsed": "20277.195507900s",
+    "hasEverRun": true,
+    "timeReserved": "0s",
+    "totalTimeAllowed": "108000s",
+    "minimumTimeAllowed": "108000s"
+  }
+}

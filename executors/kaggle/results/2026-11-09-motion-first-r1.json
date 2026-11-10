@@ -1,0 +1,20 @@
+{
+  "gpu": "Tesla T4, 15360 MiB\nTesla T4, 15360 MiB",
+  "slug": "mv-research-20261109-motion-first-r1",
+  "error": "venv_stable: Error: Command '['/kaggle/working/mv-research/venv-stable/bin/python3', '-m', 'ensurepip', '--upgrade', '--default-pip']' returned non-zero exit status 1.\n",
+  "phase": "failed",
+  "state": "failed",
+  "started": "2026-11-09T04:39:39.502Z",
+  "artifact": "operator/research/2026-11-09/motion-first-r1.zip",
+  "terminal": true,
+  "heartbeat": "2026-11-09T04:40:35.084Z",
+  "experiments": [],
+  "quota_before": {
+    "timeUsed": "17224.599139300s",
+    "hasEverRun": true,
+    "timeReserved": "0s",
+    "totalTimeAllowed": "108000s",
+    "minimumTimeAllowed": "108000s"
+  },
+  "total_seconds": 49.847
+}

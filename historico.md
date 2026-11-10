@@ -1,4 +1,221 @@
-# Histórico da conversa — 08/11/2026
+# Histórico da conversa — atualizado em 09/11/2026
+
+## Encerramento solicitado — 09/11/2026, preservação para próxima sessão
+
+O responsável informou aproximadamente 5% de crédito restante e pediu adiantar
+o processo ou encerrá-lo com relatório/histórico para continuar depois. A
+porcentagem é informação do responsável, sem medição independente. **Processo
+encerrado; não retomar GPU sem nova instrução. Nenhum notebook r4 foi enviado.**
+
+Resultado real: Hunyuan r3 gerou uma continuação de 49 quadros, 480×832/24 fps,
+2,04 s, em 579,999 s de geração e 582,311 s incluindo codificação. A montagem
+falhou porque o vídeo inicial era 480×848. É erro de normalização do adaptador,
+não falha de inferência. A primeira tentativa T4 r1 não iniciou; r2 foi
+interrompido no carregamento para corrigir conversão float/Pillow. O pedido
+P100 recebeu duas T4 no runtime; não atribuir esses resultados à P100.
+
+Arquivos preservados e decodificados integralmente:
+
+- `artifacts/ana-six-20261109/continuation-2-raw-49frames.mp4`: todos os 49 quadros
+  novos, inclusive o último necessário à referência seguinte.
+- `artifacts/ana-six-20261109/resume-four-seconds.mp4`: montagem de **4,00 s e
+  96 quadros**, 480×848, com os 48 quadros iniciais e os quadros 1..48 da
+  continuação, normalizados localmente. **Ainda sem revisão visual de qualidade.**
+- Ambos enviados com sucesso ao Storage privado `mv-video-assets`, sob
+  `operator/ana-six-20261109/resume/`, com os mesmos nomes. Não dependem apenas
+  do terminal. Hashes e tamanhos no relatório final.
+- Prévia de 6,00 s/144 quadros em
+  `artifacts/ana-six-20261109/ana-vestido-midi-camera-lenta-6s-exatos.mp4`.
+  É câmera lenta interpolada do trecho antigo de 2 s; não é a geração nova
+  completa e não satisfaz, por si, aprovação de qualidade comercial.
+- Diagnósticos r2/r3 e referências anteriores preservados localmente.
+
+Correções preparadas, **sem nova execução de GPU**: conversão float 0..1 para
+uint8 somente nas referências/montagem; exportação da montagem via Pillow;
+normalização das dimensões; suporte a seed de 96 quadros para gerar apenas
+a continuação restante. Sintaxe, conversão e normalização local verificadas.
+
+**Retomada exata:** revisar visualmente os 4 s preservados; configurar novo
+controlador/job com o caminho privado e hash dessa montagem de 4 s, novo ID e
+novas capacidades; gerar **somente `continuation_3`, seed 44, 49 quadros**.
+Descartar o primeiro quadro repetido, normalizar para 480×848 e acrescentar
+os 48 restantes: total de 144 quadros/6 s. Não rerodar o antigo controlador
+com o seed de 2 s, pois repetiria o trabalho já salvo. Conferir duração,
+rosto, mãos, roupa e junções antes de aprovar a entrega. Não há áudio novo.
+
+Encerramento remoto solicitado para r3: DeleteKernel respondeu sem erro;
+a consulta posterior retornou 403. Isso não é confirmação explícita
+CANCEL_ACKNOWLEDGED. O filho havia terminado com diagnóstico arquivado e
+o controlador estava terminal. `ana-six-test` substituído por **HTTP410,
+versão 10**, verificado por requisição real; recusa submissões e callbacks.
+Última consulta: 20.535,7411393 s usados, 0 reservados de 108.000 s; a diferença
+da cota não foi atribuída exclusivamente a um job. Hunyuan antigo r2 agora
+COMPLETE; Wan antigo r2 ainda CANCEL_REQUESTED. Não declarar todas as sessões
+da conta encerradas com base apenas em reserva zero.
+
+Relatório consolidado: [2026-11-09-ana-six-stopped.json](./executors/kaggle/results/2026-11-09-ana-six-stopped.json).
+Nenhuma compra de créditos, alteração do estúdio, commit ou push nesta rodada.
+
+## Nova instrução — vídeo final de 6 segundos
+
+O responsável pediu: “continue o processo novamente me entregue um video final de 6s como pedido com qualidade”. Nova autorização para retomar GPU com Ana e o mesmo vestido midi. Preparada geração de duas continuações Hunyuan de 2 s após o trecho já preservado, cada uma condicionada ao último quadro anterior. Total previsto: 144 quadros, 24 fps, 480×848, sem áudio. Isso evita repetir a inferência única de 145 quadros que já falhou por VRAM; não é loop. Resultado sujeito a revisão de movimento, rosto, roupa e junções antes da entrega.
+
+Notebook `mv-ana-six-20261109-r1`, ID `144014985`, submissão confirmada. Controlador privado temporário `ana-six-test`, supervisor de 3.900 s e prazo de sessão de 4.200 s; não alterar o estúdio nem comprar créditos. Não duplicar submissão pendente. Continuidade técnica em [TESTE_ANA_MIDI.md](./TESTE_ANA_MIDI.md).
+
+> **Estado final consolidado — 09/11/2026 16:22 UTC:** a sessão que conduziu os testes encerrou o controlador `ana-midi-test` na versão 19; HTTP410 verificado. Hunyuan r2 entregou o MP4; Wan r2 não chegou à inferência após dez minutos na fila. Foram solicitados os cancelamentos dos quatro notebooks temporários, inclusive Hunyuan r2 após sua entrega. A última consulta devolveu **CANCEL_REQUESTED para todos os quatro**, sem confirmação de término remoto. Isso supera o retrato parcial da recuperação abaixo, que ainda mostrava Hunyuan r2 RUNNING e controlador somente em leitura. A origem das mudanças foi a própria sessão de teste, não uma retomada de GPU. Relatórios finais em [TESTE_ANA_MIDI.md](./TESTE_ANA_MIDI.md). Não reenviar ou reativar automaticamente.
+
+
+> **Retorno posterior nesta recuperação:** o controlador passou a responder
+> `generation_disabled: true`; Wan r1/r2 e Hunyuan r1 aparecem como
+> `CANCEL_REQUESTED`. Hunyuan r2 aparece remotamente como `RUNNING`, apesar
+> do MP4 concluído e preservado anteriormente. Não confundir entrega de arquivo
+> com encerramento da sessão. Nenhuma submissão ou solicitação de cancelamento
+> foi enviada nesta recuperação; a origem dessa mudança do controlador não foi
+> determinada. Cancelamento solicitado não comprova encerramento confirmado.
+> Não retomar GPU automaticamente. A comparação Wan continua sem MP4.
+> Verificação local: 225 testes aprovados, sintaxe dos scripts Python conferida
+> e `git diff --check` aprovado.
+
+## Recuperação após fechamento do terminal — 09/11/2026
+
+O responsável informou que o terminal fechou sozinho e pediu ler os Markdown,
+verificar os commits pendentes, recuperar o último estado e continuar.
+Recuperados os registros de Hunyuan e os arquivos temporários da comparação.
+A última submissão Wan é r2, ID `143998541`, confirmada no Kaggle; às 16:15 UTC
+ainda não havia callback, log ou MP4. O estado `submitting` do controlador não
+significa inferência ativa. A resposta remota `{}` é compatível com o padrão
+`QUEUED = 0` no SDK oficial preservado localmente. Nenhuma nova GPU foi submetida
+nesta recuperação. Detalhes e pendências em [TESTE_ANA_MIDI.md](./TESTE_ANA_MIDI.md).
+
+HEAD `40e307e`; nenhum commit local à frente de `origin/main` na referência local.
+Há documentação alterada e scripts/relatórios não rastreados, preservados para
+revisão. Nenhum push, mudança do estúdio ou compra de créditos nesta recuperação.
+
+## Comparação encerrada — Ana e vestido midi, Hunyuan e Wan
+
+O responsável confirmou vestido midi feminino e autorizou Hunyuan primeiro e
+Wan depois, pedindo antes identificar o motor de
+`operator/ana-vidi-20261108/inputs/final-ana-vidi.mp4`.
+
+**Origem confirmada: FASHN VTON → SCAIL-2 → áudio acrescentado.** Recuperados
+os notebooks `mv-motion-fashn-1d1ca4cd` e `mv-motion-scail-52e3dabb`, configurações
+e relatórios. IDs e hashes correspondem exatamente ao PNG e MP4 preservados.
+O 403 inicial vinha de um slug incorreto, diferente do título usado pelo Kaggle.
+FASHN: 343,334 s; SCAIL: 1.271,815 s para 2 s de movimento. O stream de vídeo do
+final é idêntico ao do intermediário silencioso.
+
+A comparação usou a mesma base histórica com o vestido aplicado. Ela difere do
+arquivo oficial de Ana e já mostra a peça mais vermelha que a foto do anúncio.
+Não foi nova aplicação da roupa à foto cadastrada.
+
+Hunyuan r1 ficou 15 minutos sem iniciar, recebeu cancelamento e teve callback
+revogado. Hunyuan r2 concluiu MP4 de 2 s, 480×848/24 fps, sem áudio. Supervisor:
+1.031,645 s; geração/codificação: 596,561 s. Decodificação integral, tamanho e
+hash conferidos. Quadros 0, 1 e 1,9 s mostram movimento discreto e composição
+preservada, com suavização/variações de rosto e mãos. Sem aprovação comercial.
+Arquivo privado: `operator/ana-midi-20261109/hunyuan-r2.mp4`.
+
+Wan r1 sofreu timeout; notebook salvo, mas não iniciou. Wan r2 teve submissão
+confirmada, mas ficou dez minutos na fila, sem callback ou log. **Nenhuma
+inferência Wan nesta rodada.** Cancelamentos solicitados, sem terceira tentativa.
+Isso não reprova a qualidade do modelo.
+
+Na conferência final, Hunyuan r2 ainda aparecia RUNNING apesar da entrega; foi
+solicitado seu encerramento. Os quatro notebooks passaram a CANCEL_REQUESTED,
+sem confirmação CANCEL_ACKNOWLEDGED. API de exclusão retornou 503, rota legada
+404. Controlador `ana-midi-test` encerrado na v19, HTTP410 verificado. Callbacks
+e submissões bloqueados; início tardio não passa da consulta anterior ao preparo
+do modelo.
+
+Resultados e limites: [TESTE_ANA_MIDI.md](./TESTE_ANA_MIDI.md), com relatórios
+`executors/kaggle/results/2026-11-09-ana-midi-*.json`. Sem compra de créditos,
+nova narração, publicação de frontend ou alteração do gerador do estúdio.
+Não retomar GPU sem nova instrução.
+
+## Nova instrução — testes de Ana com vestido
+
+O responsável pediu: “faça os testes usando as ferramentas acima q vc falou q da certo”. Isso autoriza novos testes, substituindo a suspensão anterior para este pedido; não significa que Wan ou Seedance já tenham qualidade comprovada. A resposta anterior distinguiu o sucesso de fala do MuseTalk da falha de Wan Animate e da recusa de créditos do Seedance.
+
+Conferidos perfil remoto de Ana e hash do arquivo local, com correspondência. O catálogo contém dois vestidos diferentes: envelope e regata com variantes. Foi solicitada a escolha da peça/variante antes de qualquer geração para não repetir a mistura de anúncios. Sintaxe Python do executor e dos grafos validada; isso não é inferência. O adaptador atual do Seedance não consulta saldo; os valores antigos não foram apresentados como saldo atual. Wan S2V ainda não está integrado.
+
+Nenhuma GPU ou geração de fornecedor iniciada nesta preparação. Estado e referências em `executors/kaggle/results/2026-11-09-ana-dress-preflight.json`. Próximo passo depende da identificação do vestido pelo responsável; usar Ana em todas as etapas deste pedido.
+
+## Última conversa — 09/11/2026: decisão sobre o gerador adiada para amanhã
+
+Mensagens do responsável, em ordem:
+
+1. “chat estou começando a aceitar o fato de remover o gerador de video do projeto, ao inves de gerar o video dentro do app deixamos apenas o botao e uma caixa com o filtro par aeu escolher em qual site, estou conseguindo fazer os videos no google flw e no gemini. esta cada vez mais claro q criar esse tipo de ferramenta so vai funcionar se eu pagar”
+2. “nao altere nada ainda, vamos debater sobre o assunto e ver qual a melhor saida”
+3. “salve nossa conversa no histociro aamaha eu decido”
+
+O responsável informou que está conseguindo produzir vídeos no Google Flow e no Gemini e considera substituir a geração interna por um seletor de sites e um botão para abrir a ferramenta escolhida. Expressou preocupação com a necessidade de pagar para alcançar o resultado pretendido; isso não constitui autorização para contratar serviços ou comprar créditos.
+
+O assistente inicialmente anunciou que adaptaria o estúdio e leu a skill Sites e o código do componente `VideoStudio.tsx`. O responsável interrompeu antes de qualquer edição nessa tentativa. **Nenhuma alteração de código, interface ou publicação foi feita para substituir o gerador por links externos.** Os scripts e registros experimentais da rodada anterior continuam preservados; esta afirmação não apaga as mudanças anteriores.
+
+No debate, foram apresentadas três alternativas, sem decisão de implementação:
+
+- Seletor de sites e botão para abrir Flow ou Gemini, com preparação feita no serviço externo.
+- Meu Vendedor organiza produto, variante, referências e instruções para copiar/baixar e levar ao serviço externo; eventual retorno do vídeo à biblioteca precisaria ser conferido ou adaptado.
+- Geração integrada por uma API paga compatível, condicionada a orçamento, integração e validação real de qualidade.
+
+O assistente indicou preferência pela preparação no Meu Vendedor com geração externa, podendo começar somente pelo seletor. Essa foi uma sugestão, **não uma escolha aprovada pelo responsável**. Também esclareceu que pagar por GPU, isoladamente, não comprova fidelidade de roupa/personagem.
+
+**Decisão pendente para amanhã:** manter a geração interna suspensa, substituí-la por acesso a sites externos ou adotar preparação de materiais com geração externa. O responsável ainda decidirá entre somente abrir o site e também preparar imagens/textos no aplicativo. Não excluir os motores, remover recursos, alterar botões, publicar mudanças, contratar serviços ou reiniciar GPU com base nessa discussão. A instrução vigente é apenas registrar e aguardar a decisão.
+
+## Interrupção anterior — 09/11/2026: registrar os testes, sem novas gerações
+
+Mensagem literal do responsável: “CHAT encerrei pq percebi q vc esta misturando as fotos do anuncio pegando a camisa de um anuncio e montando na personagem depois vestindo vestido nela, atualize o historico com o q vc testou por ultimoe os resultados”.
+
+**Testes suspensos novamente. Não iniciar, reenviar ou retomar geração/GPU sem nova instrução.** A autorização da seção seguinte é histórica e foi interrompida por esta mensagem.
+
+### Erro de condução e referências utilizadas
+
+O responsável interrompeu a rodada por perceber mistura de anúncios. O assistente preparou referências dos dois vestidos encontrados e depois mudou para a camisa do Flamengo, sem fechar a identificação da peça desejada. Essa alternância foi um erro de condução e não deve ser repetida. Referências de anúncios diferentes não podem compor uma mesma validação de produto.
+
+Separação entre o que foi preparado e o que efetivamente rodou:
+
+- **Carla:** imagem cadastrada `carla-v2.webp`, com a blusa verde original; SHA-256 `acf2757d16f9f3c724dc731250a83390eeab2901c2884455ecbf94ed0dbb40f9`. Foi a única imagem de pessoa enviada aos notebooks desta rodada. Nenhuma camisa ou vestido foi aplicado nela por inferência nesta rodada.
+- **Vestido envelope laranja:** foto original do anúncio, SHA-256 `3c7e647b7bb2de3cd115075e13aef87cb843cbd34185b68d1ae12b7f970326cc`. Foi feito um recorte local por cor, reprovado por conter cabelo/pele e perder partes da roupa. Não alimentou uma geração de roupa/vídeo.
+- **Vestido regata:** foto do anúncio com duas variantes/estampas, SHA-256 `6d09f5d9d15a63edb6bd1a76ed98de3f9463d15773edcc4457f117521f420621`. Foi apenas inspecionada; nenhuma variante foi confirmada como a peça do último vídeo.
+- **Camisa do Flamengo:** foto original já documentada, SHA-256 `73ccd4990382d1e0efb4ca768ec79afa8f948e502e5aff0687f32d6a286465e7`. Foi preparado um recorte por contorno, mantendo pixels da peça, e enviado ao bucket privado de pesquisa. SHA-256 do PNG preparado: `9a7d5a590429c156aaee8ed491c920b523091a3d108aa9f0e0e87515b2a6a1f3`. Isso foi preparação de entrada, não imagem da Carla vestida; o SwiftTry não foi executado.
+
+### Últimos ensaios e resultados confirmados
+
+As identificações r1–r7 são tentativas de preparação/submissão do experimento StableAnimator; **não representam sete motores de vídeo testados nem sete inferências concluídas**.
+
+| Tentativa | O que ocorreu | Resultado |
+| --- | --- | --- |
+| r1 | Falha ao criar ambiente Python com `ensurepip`; 49,847 s reportados no notebook | Sem inferência, sem MP4. O ZIP não foi salvo porque o bucket de vídeos não aceitava ZIP. |
+| r2 | Criação do armazenamento de pesquisa recusada pelo limite solicitado | Falha antes de submeter Kaggle; sem inferência. Depois foi criado bucket privado separado, sem ampliar os tipos do bucket do app. |
+| r3 | Submissão sem confirmação preservada; consulta de sessão sem permissão | Marcada cancelada e capacidade de callback revogada. Não há evidência de inferência/MP4. |
+| r4 | Kaggle respondeu HTTP 409; o título do notebook havia sido reutilizado | Submissão rejeitada; sem evidência de inferência. Título único foi aceito na tentativa seguinte. |
+| r5 | Não havia distribuição compatível de `torchvision==0.20.1` no índice consultado; 94,248 s | Sem inferência, sem MP4. ZIP de logs de 809 bytes preservado. |
+| r6 | Python 3.11.11 e dependências instalados, pesos baixados; falha no adaptador de poses, que passou CHW ao Pillow em vez de HWC; 417,523 s | Erro do adaptador, antes de carregar/executar o gerador de vídeo. Sem MP4. ZIP de 246.208 bytes preservado. A conversão foi corrigida no código. |
+| r7 | Repetição com conversão de pose corrigida; interrompida a pedido do responsável durante download de pesos | Sem inferência do gerador, sem MP4. Arquivo de diagnóstico registra 323,644 s e apenas mensagens de download de `pose_net.pth` e `face_encoder.pth`. ZIP de 1.837 bytes preservado. |
+
+O `failed` com erro vazio dentro do ZIP r7 foi produzido pelo tratamento de cancelamento, não por uma falha de inferência do modelo. O registro final no servidor foi corrigido para `cancelled`, com essa explicação. O formato de poses corrigido não chegou a ser validado por uma nova geração.
+
+**Resultado visual desta rodada: nenhum vídeo novo, nenhuma roupa aplicada à Carla e nenhuma solução aprovada.** StableAnimator ainda não teve sua qualidade de geração avaliada aqui. SwiftTry teve adaptador preparado, mas não foi executado. Bernini, HOMIE e as demais opções ficaram na pesquisa documental/código; a matriz de 29 opções não é uma lista de 29 testes de GPU.
+
+### Encerramento e evidências
+
+- Cancelamento cooperativo enviado ao ensaio r7; processo filho interrompido e ZIP de encerramento recuperado. Não foi submetido outro notebook após esta instrução.
+- Endpoint temporário `video-research` encerrado com HTTP 410; não permite novas tarefas nem acesso administrativo. Nenhum Secret antigo foi excluído.
+- Cota consultada no encerramento: `18.211,380893 s` usados de `108.000 s`, `0 s` reservados. Diferença desde a primeira consulta da rodada: aproximadamente **16 min 26,782 s**. Esses números são da cota Kaggle, não do tempo total da conversa. A consulta independente de sessão continua sem permissão; não apresentar zero reserva como prova universal de todas as sessões da conta.
+- Relatório consolidado: [2026-11-09-research-stopped.json](./executors/kaggle/results/2026-11-09-research-stopped.json). Matriz, descartes e limitações: [PESQUISA_VIDEO_ALTERNATIVAS.md](./PESQUISA_VIDEO_ALTERNATIVAS.md).
+- Fontes, scripts experimentais e evidências foram salvos no workspace; nenhum novo motor foi habilitado no estúdio e não houve publicação de frontend nesta rodada. Sem commit/push desta atualização.
+
+Não retomar a partir da camisa preparada ou do vestido recortado como se fossem a peça confirmada. Numa eventual nova instrução, fixar primeiro **um anúncio, uma variante, uma foto de produto e a Carla correta**, mantendo essa seleção em todas as etapas.
+
+## Continuação — 09/11/2026: pesquisa e novos testes autorizados
+
+O responsável pediu revisão dos Markdown e uma estratégia diferente de **ferramentas de geração**, preservando pessoa/produto em movimento. Rejeitou a sugestão de foto parada/montagem como substituto: para roupas, mostrar caimento no corpo é o atrativo; para utensílios, uma demonstração só com mãos pode servir. O assistente corrigiu o entendimento e propôs investigar animação primeiro e provador temporal depois, além de modelos com referências separadas de pessoa/produto.
+
+Instrução anterior literal: “teste sua recomendação equanto vc continua buscando mais soluçoes. preciso de muitas opçoes ate encontrarmos o caminho. mas sempre registrando e eleiminando as q nao deram certo”. Autorizava novos ensaios, posteriormente interrompidos conforme a seção mais recente acima; não aprovava amostras antigas nem autorizava compra de créditos.
+
+Criado [PESQUISA_VIDEO_ALTERNATIVAS.md](./PESQUISA_VIDEO_ALTERNATIVAS.md) com matriz de 29 opções e distinção entre falha de ambiente, reprovação visual, indisponibilidade de pesos e restrição comercial. Preparado controlador privado temporário, sem alteração do estúdio/seletores, e iniciados ensaios StableAnimator. As falhas de preparação e suas correções ficam nesse registro e nos JSON de evidência. Não declarar o modelo aprovado por ter instalado/carregado.
+
+O catálogo atual contém dois vestidos diferentes. Foram inspecionadas as fotos originais e enviada pergunta para identificar a peça do último vídeo. Um recorte automático exploratório do vestido envelope foi reprovado antes de usar GPU por conter ruído de pele/cabelo. Não repetir a substituição de produto por amostra pública.
 
 Este arquivo registra as mensagens do usuário disponíveis nesta conversa e resume as ações e respostas relevantes do assistente. As mensagens intermediárias do assistente estão resumidas; não se trata de uma exportação literal completa de todos os eventos da plataforma. Nenhum token, senha ou URL assinada foi incluído.
 

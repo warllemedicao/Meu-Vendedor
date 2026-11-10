@@ -1,0 +1,123 @@
+{
+  "runs": [
+    {
+      "file": "continuation_2.mp4",
+      "seed": 43,
+      "audio": false,
+      "label": "continuation_2",
+      "steps": 12,
+      "mp4_bytes": 173332,
+      "render_seconds": 579.999,
+      "generated_frames": 49,
+      "requested_frames": 49,
+      "native_frame_shape": [
+        832,
+        480,
+        3
+      ],
+      "gpu_peak_reserved_bytes": 11720982528,
+      "gpu_peak_allocated_bytes": 10504977920,
+      "total_generation_and_encode_seconds": 582.311
+    }
+  ],
+  "slug": "mv-ana-six-20261109-r3",
+  "error": "child_failed_exit_1",
+  "model": "hunyuanvideo-community/HunyuanVideo-1.5-Diffusers-480p_i2v_step_distilled",
+  "phase": "finished",
+  "stage": "failed",
+  "state": "failed",
+  "steps": 12,
+  "inputs": {
+    "driver": {
+      "hash": "268918740bf2de47870c52ae4767551e8ac673fa371fc1557bab891d3371c65e",
+      "path": "operator/ana-vidi-20261108/inputs/ana-driver.mp4"
+    },
+    "product": {
+      "hash": "f8369d01d66b48319d3e4878e0bdd410d46923f96acbe410b1c8074423ce1c6b",
+      "path": "operator/ana-vidi-20261108/inputs/product-vidi.jpg"
+    },
+    "reference": {
+      "hash": "5df249ae228a9c7b6658fd4fd80a281c66a037ce87980f7b69682f5202ba4182",
+      "path": "operator/ana-vidi-20261108/motion/1d1ca4cd-685c-415a-82eb-419dacb3705f.png"
+    },
+    "seed_video": {
+      "hash": "e10729e4c41528e2109db1a0dc10da0b7fd6a411250f7ad47c0d78995dcf3a81",
+      "path": "operator/ana-midi-20261109/hunyuan-r2.mp4"
+    }
+  },
+  "metrics": {
+    "load_seconds": 149.622,
+    "download_seconds": 177.289,
+    "installation_seconds": 24.475,
+    "model_metadata_seconds": 1.094
+  },
+  "started": "2026-11-09T16:48:48.290Z",
+  "hardware": {
+    "gpus": [
+      {
+        "name": "Tesla T4",
+        "vram_bytes": 15636037632,
+        "compute_capability": [
+          7,
+          5
+        ]
+      },
+      {
+        "name": "Tesla T4",
+        "vram_bytes": 15636037632,
+        "compute_capability": [
+          7,
+          5
+        ]
+      }
+    ],
+    "torch": "2.11.0+cu130",
+    "python": "3.13.16",
+    "cuda_available": true,
+    "disk_free_bytes": 1038218502144,
+    "ram_total_bytes": 33658159104,
+    "ram_available_bytes": 32216481792
+  },
+  "terminal": true,
+  "heartbeat": "2026-11-09T17:09:36.833Z",
+  "kernel_id": 144031864,
+  "traceback": "stage.py:212:<module> > stage.py:201:main > export_utils.py:216:export_to_video > format.py:589:append_data > ffmpeg.py:597:_append_data",
+  "error_type": "ValueError",
+  "offloading": "model",
+  "remote_ref": "/code/warllemedio/mv-ana-six-20261109-r3",
+  "model_gated": false,
+  "dependencies": {
+    "torch": "2.11.0+cu130",
+    "diffusers": "0.42.1",
+    "accelerate": "1.12.0",
+    "transformers": "5.4.0",
+    "huggingface-hub": "1.33.0"
+  },
+  "failed_stage": "continuation_2_complete",
+  "quantization": "nf4",
+  "quota_before": {
+    "timeUsed": "20786.100763300s",
+    "hasEverRun": true,
+    "timeReserved": "0s",
+    "totalTimeAllowed": "108000s",
+    "minimumTimeAllowed": "108000s"
+  },
+  "archive_bytes": 3667,
+  "prompt_tokens": 90,
+  "archive_sha256": "ad8349157c2c6d879f23b57de07d45160935cd8c5c6eba55d072c692d19ad87f",
+  "model_revision": "854c04a4c8a53d990b418c7478f0802c0fc8c726",
+  "elapsed_seconds": 986.418,
+  "requested_frames": 49,
+  "ram_available_now": 15796305920,
+  "gpu_reserved_bytes": 11720982528,
+  "model_weight_bytes": 34620593582,
+  "supervisor_seconds": 1008.219,
+  "gpu_allocated_bytes": 2715522048,
+  "quantized_components": [
+    "transformer",
+    "text_encoder"
+  ],
+  "tokenizer_max_length": 256,
+  "disk_free_after_download": 1003125080064,
+  "generation_elapsed_seconds": 544.82
+}

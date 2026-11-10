@@ -1,0 +1,28 @@
+{
+  "gpu": "Tesla T4, 15360 MiB\nTesla T4, 15360 MiB",
+  "slug": "mv-research-20261109-motion-first-r6",
+  "bytes": 246208,
+  "phase": "finished",
+  "state": "failed",
+  "sha256": "7e00ff7c1b0e87c6a01e9b80bd6336f30b9f508ee22b8564398eb49a88efd316",
+  "started": "2026-11-09T04:48:41.460Z",
+  "artifact": "operator/research/2026-11-09/motion-first-r6.zip",
+  "terminal": true,
+  "heartbeat": "2026-11-09T04:55:44.142Z",
+  "experiments": [
+    {
+      "error": "stable_inference: ed models/antelopev2/genderage.onnx\ndownloaded models/antelopev2/glintr100.onnx\ndownloaded models/antelopev2/scrfd_10g_bnkps.onnx\ndownloaded stable-video-diffusion-img2vid-xt/feature_extractor/preprocessor_config.json\ndownloaded stable-video-diffusion-img2vid-xt/image_encoder/config.json\ndownloaded stable-video-diffusion-img2vid-xt/image_encoder/model.fp16.safetensors\ndownloaded stable-video-diffusion-img2vid-xt/scheduler/scheduler_config.json\ndownloaded stable-video-diffusion-img2vid-xt/unet/config.json\ndownloaded stable-video-diffusion-img2vid-xt/unet/diffusion_pytorch_model.fp16.safetensors\ndownloaded stable-video-diffusion-img2vid-xt/vae/config.json\ndownloaded stable-video-diffusion-img2vid-xt/vae/diffusion_pytorch_model.fp16.safetensors\ndownloaded stable-video-diffusion-img2vid-xt/model_index.json\nTraceback (most recent call last):\n  File \"/kaggle/working/mv-research/venv-stable/lib/python3.11/site-packages/PIL/Image.py\", line 3443, in fromarray\n    typemode, rawmode, color_modes = _fromarray_typemap[typekey]\n                                     ~~~~~~~~~~~~~~~~~~^^^^^^^^^\nKeyError: ((1, 1, 384), '|u1')\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/kaggle/working/mv-research/stable_stage.py\", line 87, in <module>\n    Image.fromarray(canvas).save(poses / f'frame_{i}.png')\n    ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/kaggle/working/mv-research/venv-stable/lib/python3.11/site-packages/PIL/Image.py\", line 3447, in fromarray\n    raise TypeError(msg) from e\nTypeError: Cannot handle this data type: (1, 1, 384), |u1\n",
+      "state": "failed",
+      "engine": "StableAnimator",
+      "elapsed_seconds": 107.359
+    }
+  ],
+  "quota_before": {
+    "timeUsed": "17384.993139300s",
+    "hasEverRun": true,
+    "timeReserved": "0s",
+    "totalTimeAllowed": "108000s",
+    "minimumTimeAllowed": "108000s"
+  },
+  "total_seconds": 417.523
+}

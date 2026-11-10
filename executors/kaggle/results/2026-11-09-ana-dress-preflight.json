@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-09",
+  "state": "awaiting_product_selection",
+  "authorization": "User requested tests of the previously discussed tools; no credit purchases authorized.",
+  "presenter": {
+    "id": "ana",
+    "reference": "public/presenters/ana.webp",
+    "sha256": "7fe37f21962a108f8a4dd94d3e4e78f225e9f59e56cd34b36040b600f503208a",
+    "local_hash_matches_remote_profile": true
+  },
+  "candidate_products": [
+    {"name": "Vestido envelope", "url": "https://shopee.com.br/product/1091963030/45417039171"},
+    {"name": "Vestido regata; variant not selected", "url": "https://shopee.com.br/product/1374152508/58220381792"}
+  ],
+  "checks": {
+    "remote_supabase_read": true,
+    "motion_python_syntax": "passed",
+    "kaggle_quota_refreshed": false,
+    "seedance_current_balance": "unknown; existing adapter has no balance endpoint",
+    "seedance_adapter": "bytedance/seedance-2.0-fast; one image; 6 seconds; 720p; native audio requested",
+    "wan_s2v_integrated": false
+  },
+  "new_inference": false,
+  "new_gpu_submission": false,
+  "new_provider_generation_request": false,
+  "next_step": "Wait for the requested dress/variant selection before preparing garment inputs or submitting generation. Do not substitute another product or presenter."
+}

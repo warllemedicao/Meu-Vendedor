@@ -1,0 +1,73 @@
+# Alternativas de geração — pesquisa e experimentos de 09/11/2026
+
+> **Encerrado pelo responsável:** o usuário interrompeu por mistura de referências de anúncios. Não iniciar ou retomar ensaios sem nova instrução. Nenhum vídeo foi gerado nesta rodada; não houve aplicação de roupa na Carla. Registro final e entradas em [historico.md](./historico.md); evidências em [2026-11-09-research-stopped.json](./executors/kaggle/results/2026-11-09-research-stopped.json). Endpoint temporário encerrado com HTTP 410.
+
+## Autorização e objetivo vigente
+
+O responsável havia autorizado novos ensaios nesta conversa: “teste sua recomendação equanto vc continua buscando mais soluçoes. preciso de muitas opçoes ate encontrarmos o caminho. mas sempre registrando e eleiminando as q nao deram certo”. Essa autorização foi posteriormente interrompida pelo responsável por mistura de referências; prevalece a suspensão do bloco acima. Não houve aprovação de roupa/vídeo nem compra de créditos.
+
+Objetivo: pessoa predefinida em movimento real usando/interagindo com o produto do anúncio. Foto parada, zoom e cartão do produto não satisfazem esse objetivo. A estratégia investigada é **gerar o movimento da Carla primeiro e aplicar a roupa na sequência por um modelo de video virtual try-on**. Outra frente são modelos que recebem identidade e produto como referências separadas na mesma geração.
+
+Este documento preserva uma rodada encerrada. Só chamar uma alternativa de validada depois de inferência real e inspeção do vídeo completo. Disponibilidade de código, instalação e teste de interface não aprovam qualidade.
+
+## Matriz de opções
+
+| Opção / fonte primária | Papel | Decisão atual e condição para avançar |
+| --- | --- | --- |
+| [StableAnimator](https://github.com/Francis-Rings/StableAnimator) | Anima imagem por poses, com condicionamento de identidade | **Ensaio suspenso antes de inferência de vídeo**. Configuração pretendida: 16 quadros, 384×640, FP16; gesto controlado. Falhas de ambiente/adaptador e cancelamento estão registrados abaixo. Nenhuma qualidade visual validada. A foto cadastrada é de meio corpo; dependências SVD/Antelope têm condições próprias. |
+| [SwiftTry](https://github.com/VinAIResearch/SwiftTry) | Veste roupa diretamente em vídeo com atenção temporal/ShiftCaching | **Prioridade de investigação para a segunda etapa**. Código e quatro pesos publicados. Código BSD-3; repositório de pesos consultado não tem model card/licença explícita. Não habilitar comercialmente por inferência da licença do código. |
+| [MimicMotion](https://github.com/Tencent/MimicMotion) | Outro motor de movimento, baseado em SVD | **Candidato**, sem teste nosso nesta rodada. Versão de 16 quadros tem requisitos documentados; decodificador pode exigir CPU. Dependências/licenças próprias. |
+| [CatV2TON](https://github.com/Zheng-Chong/CatV2TON) | Provador em imagem e vídeo, pesos 256/512 | **Restrito à pesquisa**: CC BY-NC-SA. Não descartar como falha visual, pois não foi testado aqui. Fora da entrega comercial sem outra autorização dos titulares. |
+| [MagicTryOn](https://github.com/vivoCameraResearch/Magic-TryOn) | Provador em vídeo especializado em preservar roupa | **Restrito à pesquisa**: CC BY-NC-SA. A revisão atual também publica **1.3B e Turbo**, além do 14B; corrigida a análise inicial que considerava apenas 14B. Preset BF16 precisa de adaptação e teste em T4. |
+| [ViViD](https://github.com/alibaba-yuanjing-aigclab/ViViD) | Provador temporal com máscaras e DensePose | **Candidato técnico**, código/pesos e instruções publicados. Preparação é extensa; condições de uso de cada peso/componente ainda precisam de revisão. |
+| [3DV-TON](https://github.com/2y7c3/3DV-TON) | Provador com orientação 3D texturizada | **Bloqueado para fluxo próprio completo**: o README ainda lista a publicação do pipeline de orientação 3D como pendência. Demos pré-processadas não resolvem essa lacuna. |
+| [Vanast](https://github.com/snuvclab/vanast) | Pessoa + roupa + poses em geração conjunta | **Aguardar publicação executável**: repositório consultado contém README; código/pesos de inferência continuam pendentes. Não instalar um substituto e atribuir a ele os resultados do artigo. |
+| [InstructVVT](https://shaodingbao.github.io/InstructVVT/) | Edita roupa em vídeo por imagem/instrução | **Aguardar código**: página oficial informa “Code coming soon”. Demonstração não é adaptador instalável. |
+| [Virtual Fitting Room](https://immortalco.github.io/VirtualFittingRoom/) | Pessoa + roupa + movimento, com âncora para sequência longa | **Aguardar distribuição executável confirmada**: página consultada oferece artigo e resultados, sem caminho confirmado de código/pesos para este teste. |
+| [HOMIE](https://github.com/YIYANGCAI/HOMIE) | Referências separadas de pessoa/objetos na geração de vídeo | **Novo candidato para roupas e objetos**. Código Apache, checkpoint publicado e instruções reais. Wan14B + Qwen3-VL2B; consumo, FP16/offload e eventual quantização precisam ser examinados antes de T4. Não confundir com OmniShow. |
+| [Bernini-R 1.3B](https://github.com/bytedance/Bernini) | Edição de vídeo por referências separadas, incluindo roupa | **Novo candidato prioritário de arquitetura**. Código e [pesos](https://huggingface.co/ByteDance/Bernini-R-1.3B-Diffusers) Apache-2.0; caso oficial `rv2v_case1` troca camisa mantendo pessoa/movimento. Código atual fixa BF16 e importa VeOmni: ainda precisa de adaptação FP16/atenção T4. Não executar preset FlashAttention-2 nem prometer que o exemplo demonstra nosso produto. |
+| [ControlNeXt-SVD-v2](https://github.com/JIA-Lab-research/ControlNeXt/tree/main/ControlNeXt-SVD-v2) | Outro animador guiado por poses | **Candidato**, código e roteiro de inferência publicados. Base SVD e pesos auxiliares exigem revisão própria; ainda sem benchmark nosso. |
+| [FantasyTalking](https://github.com/Fantasy-AMAP/fantasy-talking) | Imagem + áudio com movimento na apresentação | **Candidato para fala com atuação**, não provador de roupa. Base Wan; custo/compatibilidade T4 precisam ser medidos. Não assumir fidelidade de produto por animar o corpo. |
+| [UniAnimate-DiT](https://github.com/ali-vilab/UniAnimate-DiT) | Animação controlada por pose com Wan | **Candidato com ressalva de hardware**. README tem configuração de menor VRAM, mas em BF16: não copiar diretamente para T4. Não foi medido aqui. |
+| [Leffa](https://github.com/franciszzj/Leffa) | Troca roupa/pose em imagem com controle de detalhes | **Componente auxiliar**, não vídeo temporal pronto. Aplicar independentemente a cada quadro pode causar cintilação; isso precisaria de solução temporal própria. |
+| [FASHN VTON 1.5](https://github.com/fashn-AI/fashn-vton-1.5) | Imagem de pessoa vestida | **Não eliminado**: o teste anterior usou outra roupa e não avalia a peça correta. Não repetir exemplo antigo. Não serve sozinho como animador ou provador temporal. |
+| [MusePose](https://github.com/TMElyralab/MusePose) | Animação corporal guiada por pose | **Pesquisa/documentação**, já catalogado anteriormente. Conferir termos dos modelos, que não se confundem com a licença MIT do código. |
+| [LTX-Video 2B 0.9.8 destilado](https://github.com/Lightricks/LTX-Video) | Alternativa menor para imagem → vídeo | **Candidato**, sem benchmark nosso. Presets multiescala/dtype precisam de adaptação. Modelo geral não recebe automaticamente roupa separada nem assegura marca/emblema. A linha 0.9.x está arquivada, mas não se confunde com LTX-2/2.5. |
+| [FramePack](https://github.com/lllyasviel/FramePack) | Sequência por contexto compacto, menor VRAM | **Não usar preset padrão na T4**: requisitos oficiais focam RTX30/40/50; baixa VRAM anunciada não prova compatibilidade com SM75. Exigiria adaptação identificada, não repetição de preset incompatível. |
+| [AnchorCrafter](https://github.com/cangcz/AnchorCrafter) | Interação humano–objeto | **Investigar por objeto**, não promessa universal. Material anterior descreve checkpoint ajustado para cinco objetos; conferir generalização e arquivos antes de usar produto do anúncio. |
+| [OmniShow](https://github.com/Correr-Zhou/OmniShow) | Pessoa + produto + áudio/pose | **Bloqueado por pesos**: autores informam que os checkpoints não foram incluídos por política interna. Rechecado nesta conversa. |
+| [HOI-Swap](https://github.com/zihuixue/HOISwap) | Troca objeto com interação das mãos | **Bloqueado por distribuição**, conforme documentação anterior e fonte oficial: não há pesos de uso imediato confirmados. |
+| [One Image Is Enough](https://github.com/SadmanPinon/one-image-is-enough) | Personalização do animador por imagem/LoRA | **Aguardar publicação**: README prevê código/pesos para dezembro/2026 e identifica restrição não comercial de pesos derivados. Corrige o resultado de busca que alegava disponibilidade imediata. |
+| [Lucy VTON](https://platform.decart.ai/models/lucy-vton) | Aplica roupa de referência em vídeo/stream | **Fora da prioridade sem créditos**: API real cobra por segundo. Não chamada nesta rodada. |
+| Wan Animate do aplicativo | Movimento com referência/vídeo condutor | **Configuração anterior reprovada tecnicamente**: encerrou na amostragem, sem MP4. Não reabilitada nesta pesquisa. |
+| SCAIL-2 do aplicativo | Movimento/substituição de pessoa | **Resultado anterior não aprovado**: roupa errada; 2 s em ~18 min. Não repetir mesma configuração esperando outra conclusão. |
+| VACE 1.3B do aplicativo | Edição por máscara | **Resultado anterior insuficiente**: MP4 entregue sem substituição convincente pela Carla. Não equivale à reprovação de toda variante VACE/14B. |
+| Hunyuan destilado | Imagem → vídeo | **Não repetir configuração longa anterior**: 2 s comprovados; 6 s falharam por VRAM. Configurações de hooks que falharam continuam excluídas. |
+
+## Registro dos ensaios desta rodada
+
+Identidade usada: `operator/hybrid-assets/carla-v2.webp`; SHA-256 `acf2757d16f9f3c724dc731250a83390eeab2901c2884455ecbf94ed0dbb40f9`. Conferida a imagem, não somente o nome do arquivo. Não usar o PNG FASHN rejeitado como referência aprovada.
+
+- **motion-first-r1 — falha de ambiente, antes de inferência:** o Kaggle falhou em `venv/ensurepip`. Notebook reportou 49,847 s; incremento posterior observado de cota 57,615 s. Não reprova o modelo. O relatório local está em `executors/kaggle/results/2026-11-09-motion-first-r1.json`. O arquivo ZIP não foi armazenado porque o bucket de vídeos não aceita ZIP; o erro resumido está preservado no banco/relatório.
+- **r2 — preparação do armazenamento:** tentativa de bucket com limite de 100 MiB recusada antes de submissão Kaggle. Nenhuma inferência/GPU desta preparação. Corrigido com bucket privado separado `mv-video-research`, sem alterar tipos permitidos no bucket do aplicativo.
+- **r3/r4 — submissão:** erro de conflito na criação de notebook; r4 registrou HTTP409. A identificação de causa como título reutilizado foi uma hipótese de diagnóstico, corroborada pelo aceite da submissão seguinte com título único. Não são falhas do modelo. Consulta remota de sessão segue HTTP403 por permissão `kernels.get`; não reenviar submissão incerta automaticamente. Capacidades de callback anteriores foram revogadas ao trocar o ensaio.
+- **r5 — falha de dependências antes de inferência:** o índice CUDA consultado não ofereceu `torchvision==0.20.1` para o Python do runtime. 94,248 s no notebook; ZIP de 809 bytes com logs entregue e baixado. Não reprova o modelo. A correção seguinte fixa também o Python.
+- **r6 — falha no adaptador de pose, antes de inferência de vídeo:** Python 3.11.11 e dependências instalados, pesos baixados. `draw_pose` retornou CHW e o adaptador tentou passar ao Pillow como HWC: `Cannot handle this data type: (1, 1, 384), |u1`. Total 417,523 s; ZIP de 246.208 bytes. A conversão foi corrigida no código, sem comprovação por vídeo.
+- **r7 — cancelado pelo responsável:** repetição com conversão corrigida, interrompida durante download de pesos, antes de gerar poses ou carregar o gerador. ZIP de 1.837 bytes, SHA-256 `93f7d21f9491ed98df34d2cb2549b4550775d7a80bf241a165c08e31120c705c`; registro interno 323,644 s. O erro vazio/`failed` interno era tratamento de cancelamento e foi explicado no relatório final. Nenhum MP4 novo.
+
+A pesquisa alternou fotos dos dois vestidos e depois preparou a camisa do Flamengo sem fechar a identificação do produto desejado. O responsável rejeitou essa condução. O PNG preparado da camisa foi somente recortado e armazenado, não vestido na Carla. **SwiftTry não executado; as 29 opções da matriz não são 29 inferências testadas.** Não reaproveitar a alternância como procedimento de validação.
+
+Preparação local exploratória do vestido envelope: SHA-256 do anúncio `3c7e647b7bb2de3cd115075e13aef87cb843cbd34185b68d1ae12b7f970326cc`, 1019×1019. Um recorte por limiar RGB conservou ruído de cabelo/pele e removeu áreas indevidas; **reprovado na inspeção antes de inferência**. Não enviar esse recorte como peça validada. O anúncio regata, 1024×1024, mostra duas estampas/modelos distintos, exigindo seleção explícita de variante. A pergunta de identificação foi enviada ao responsável; não afirmar que qualquer uma é o último vídeo sem essa identificação.
+
+Controlador temporário `video-research`: capacidade aleatória protegida por SHA-256, prazo de expiração e callback limitado ao ensaio. Notebook só recebe sua imagem e capacidade de upload/callback; não recebe credenciais administrativas. Modelos novos não foram adicionados ao seletor de produção. Não publicar URLs assinadas nem o arquivo `/tmp/mv-video-research/control.json`.
+
+## Critério de descarte e de repetição
+
+1. **Falha de preparação:** registrar dependência/versão e erro; corrigir antes de gastar nova GPU. Não classificar como defeito visual.
+2. **Falta de memória ou incompatibilidade:** reprovar aquela configuração/hardware. Nova tentativa exige alteração explícita e registro do que mudou.
+3. **Falha visual:** conferir o vídeo inteiro, rosto/biotipo, peça, mãos e continuidade. MP4 reproduzível não é aprovação.
+4. **Indisponível:** falta de pesos/código não é falha de inferência. Só reconsiderar após publicação verificável.
+5. **Restrição comercial:** não incorporar ao produto como se estivesse liberado. Um ensaio privado de pesquisa não remove a restrição.
+6. Não somar duas T4 como se fossem uma GPU de 32 GB. Não copiar BF16/FP8/presets Ampere sem verificar suporte. Não gastar em vários modelos simultaneamente antes de medir custo e identificar o primeiro gargalo.
+
+Cada evidência deve registrar fonte/revisão, entrada/hash, preparação, inferência, duração/quadros, GPU/RAM quando mensuráveis, arquivo/hash, revisão visual e decisão. “Eliminado” sempre deve indicar **o motivo e a condição concreta para reconsiderar**.

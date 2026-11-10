@@ -1,0 +1,187 @@
+{
+  "date": "2026-11-09",
+  "status": "stopped_by_owner",
+  "generation_approved": false,
+  "product_reference_mixing": true,
+  "experiments": [
+    {
+      "provider_id": "video-research-20261109-motion-first-r1",
+      "report": {
+        "gpu": "Tesla T4, 15360 MiB\nTesla T4, 15360 MiB",
+        "slug": "mv-research-20261109-motion-first-r1",
+        "error": "venv_stable: Error: Command '['/kaggle/working/mv-research/venv-stable/bin/python3', '-m', 'ensurepip', '--upgrade', '--default-pip']' returned non-zero exit status 1.\n",
+        "phase": "failed",
+        "state": "failed",
+        "started": "2026-11-09T04:39:39.502Z",
+        "artifact": "operator/research/2026-11-09/motion-first-r1.zip",
+        "terminal": true,
+        "heartbeat": "2026-11-09T04:40:35.084Z",
+        "experiments": [],
+        "quota_before": {
+          "timeUsed": "17224.599139300s",
+          "hasEverRun": true,
+          "timeReserved": "0s",
+          "totalTimeAllowed": "108000s",
+          "minimumTimeAllowed": "108000s"
+        },
+        "total_seconds": 49.847
+      }
+    },
+    {
+      "provider_id": "video-research-20261109-motion-first-r2",
+      "report": {
+        "slug": "mv-research-20261109-motion-first-r2",
+        "error": "research_bucket_limit_exceeded_before_kaggle_submission",
+        "phase": "storage_preflight",
+        "state": "failed",
+        "started": "2026-11-09T04:41:41.118Z",
+        "artifact": "operator/research/2026-11-09/motion-first-r2.zip",
+        "terminal": true,
+        "quota_before": {
+          "timeUsed": "17282.214139300s",
+          "hasEverRun": true,
+          "timeReserved": "0s",
+          "totalTimeAllowed": "108000s",
+          "minimumTimeAllowed": "108000s"
+        },
+        "gpu_submitted": false
+      }
+    },
+    {
+      "provider_id": "video-research-20261109-motion-first-r3",
+      "report": {
+        "slug": "mv-research-20261109-motion-first-r3",
+        "error": "submission_uncertain; remote status lacks kernels.get; callback capability revoked before retry with diagnostic reporting",
+        "phase": "preparing",
+        "state": "cancelled",
+        "cancel": true,
+        "started": "2026-11-09T04:42:08.712Z",
+        "artifact": "operator/research/2026-11-09/motion-first-r3.zip",
+        "terminal": true,
+        "quota_before": {
+          "timeUsed": "17282.214139300s",
+          "hasEverRun": true,
+          "timeReserved": "0s",
+          "totalTimeAllowed": "108000s",
+          "minimumTimeAllowed": "108000s"
+        }
+      }
+    },
+    {
+      "provider_id": "video-research-20261109-motion-first-r4",
+      "report": {
+        "slug": "mv-research-20261109-motion-first-r4",
+        "error": "kaggle_http_409; notebook title reused; corrected in r5",
+        "phase": "preparing",
+        "state": "rejected",
+        "started": "2026-11-09T04:43:31.358Z",
+        "artifact": "operator/research/2026-11-09/motion-first-r4.zip",
+        "terminal": true,
+        "quota_before": {
+          "timeUsed": "17282.214139300s",
+          "hasEverRun": true,
+          "timeReserved": "0s",
+          "totalTimeAllowed": "108000s",
+          "minimumTimeAllowed": "108000s"
+        }
+      }
+    },
+    {
+      "provider_id": "video-research-20261109-motion-first-r5",
+      "report": {
+        "gpu": "Tesla T4, 15360 MiB\nTesla T4, 15360 MiB",
+        "slug": "mv-research-20261109-motion-first-r5",
+        "bytes": 809,
+        "error": "install_torch: ERROR: Could not find a version that satisfies the requirement torchvision==0.20.1 (from versions: 0.1.6, 0.2.0, 0.21.0+cu124)\nERROR: No matching distribution found for torchvision==0.20.1\n",
+        "phase": "finished",
+        "state": "failed",
+        "sha256": "4cc74f5f99f42b1c3deb1c191888802ca2a07dd4c130070c635660da1b71f6b7",
+        "started": "2026-11-09T04:44:04.919Z",
+        "artifact": "operator/research/2026-11-09/motion-first-r5.zip",
+        "terminal": true,
+        "heartbeat": "2026-11-09T04:45:45.790Z",
+        "experiments": [],
+        "quota_before": {
+          "timeUsed": "17282.214139300s",
+          "hasEverRun": true,
+          "timeReserved": "0s",
+          "totalTimeAllowed": "108000s",
+          "minimumTimeAllowed": "108000s"
+        },
+        "total_seconds": 94.248
+      }
+    },
+    {
+      "provider_id": "video-research-20261109-motion-first-r6",
+      "report": {
+        "gpu": "Tesla T4, 15360 MiB\nTesla T4, 15360 MiB",
+        "slug": "mv-research-20261109-motion-first-r6",
+        "bytes": 246208,
+        "phase": "finished",
+        "state": "failed",
+        "sha256": "7e00ff7c1b0e87c6a01e9b80bd6336f30b9f508ee22b8564398eb49a88efd316",
+        "started": "2026-11-09T04:48:41.460Z",
+        "artifact": "operator/research/2026-11-09/motion-first-r6.zip",
+        "terminal": true,
+        "heartbeat": "2026-11-09T04:55:44.142Z",
+        "experiments": [
+          {
+            "error": "stable_inference: ed models/antelopev2/genderage.onnx\ndownloaded models/antelopev2/glintr100.onnx\ndownloaded models/antelopev2/scrfd_10g_bnkps.onnx\ndownloaded stable-video-diffusion-img2vid-xt/feature_extractor/preprocessor_config.json\ndownloaded stable-video-diffusion-img2vid-xt/image_encoder/config.json\ndownloaded stable-video-diffusion-img2vid-xt/image_encoder/model.fp16.safetensors\ndownloaded stable-video-diffusion-img2vid-xt/scheduler/scheduler_config.json\ndownloaded stable-video-diffusion-img2vid-xt/unet/config.json\ndownloaded stable-video-diffusion-img2vid-xt/unet/diffusion_pytorch_model.fp16.safetensors\ndownloaded stable-video-diffusion-img2vid-xt/vae/config.json\ndownloaded stable-video-diffusion-img2vid-xt/vae/diffusion_pytorch_model.fp16.safetensors\ndownloaded stable-video-diffusion-img2vid-xt/model_index.json\nTraceback (most recent call last):\n  File \"/kaggle/working/mv-research/venv-stable/lib/python3.11/site-packages/PIL/Image.py\", line 3443, in fromarray\n    typemode, rawmode, color_modes = _fromarray_typemap[typekey]\n                                     ~~~~~~~~~~~~~~~~~~^^^^^^^^^\nKeyError: ((1, 1, 384), '|u1')\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/kaggle/working/mv-research/stable_stage.py\", line 87, in <module>\n    Image.fromarray(canvas).save(poses / f'frame_{i}.png')\n    ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/kaggle/working/mv-research/venv-stable/lib/python3.11/site-packages/PIL/Image.py\", line 3447, in fromarray\n    raise TypeError(msg) from e\nTypeError: Cannot handle this data type: (1, 1, 384), |u1\n",
+            "state": "failed",
+            "engine": "StableAnimator",
+            "elapsed_seconds": 107.359
+          }
+        ],
+        "quota_before": {
+          "timeUsed": "17384.993139300s",
+          "hasEverRun": true,
+          "timeReserved": "0s",
+          "totalTimeAllowed": "108000s",
+          "minimumTimeAllowed": "108000s"
+        },
+        "total_seconds": 417.523
+      }
+    },
+    {
+      "provider_id": "video-research-20261109-motion-first-r7",
+      "report": {
+        "gpu": "Tesla T4, 15360 MiB\nTesla T4, 15360 MiB",
+        "note": "Owner stopped the research due to mixed product references. Archive only contains setup logs and two weight-download messages; inner failed/empty error was cancellation handling, not model inference failure.",
+        "slug": "mv-research-20261109-motion-first-r7",
+        "phase": "stopped_by_owner_during_weight_download",
+        "state": "cancelled",
+        "cancel": true,
+        "new_mp4": false,
+        "started": "2026-11-09T04:56:58.899Z",
+        "artifact": "operator/research/2026-11-09/motion-first-r7.zip",
+        "terminal": true,
+        "heartbeat": "2026-11-09T05:02:12.015Z",
+        "experiments": [],
+        "quota_before": {
+          "timeUsed": "17879.938620100s",
+          "hasEverRun": true,
+          "timeReserved": "0s",
+          "totalTimeAllowed": "108000s",
+          "minimumTimeAllowed": "108000s"
+        },
+        "archive_bytes": 1837,
+        "total_seconds": 307.7,
+        "archive_sha256": "93f7d21f9491ed98df34d2cb2549b4550775d7a80bf241a165c08e31120c705c",
+        "generation_started": false,
+        "archive_total_seconds": 323.644
+      }
+    }
+  ],
+  "closure": {
+    "endpoint": "video-research",
+    "endpoint_version": 12,
+    "http_status_verified": 410,
+    "quota_used_seconds": 18211.380893,
+    "quota_reserved_seconds": 0,
+    "quota_total_seconds": 108000,
+    "generation_restarted": false,
+    "new_mp4": false,
+    "swift_executed": false,
+    "commercial_or_visual_approval": false
+  }
+}

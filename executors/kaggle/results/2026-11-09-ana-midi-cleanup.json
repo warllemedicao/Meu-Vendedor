@@ -1,0 +1,54 @@
+{
+  "generation_disabled": true,
+  "legacy": [
+    {
+      "slug": "mv-ana-midi-20261109-hunyuan-r1",
+      "http_status": 404
+    },
+    {
+      "slug": "mv-ana-midi-20261109-hunyuan-r2",
+      "http_status": 404
+    },
+    {
+      "slug": "mv-ana-midi-20261109-wan-r1",
+      "http_status": 404
+    },
+    {
+      "slug": "mv-ana-midi-20261109-wan-r2",
+      "http_status": 404
+    }
+  ],
+  "states": [
+    {
+      "slug": "mv-ana-midi-20261109-hunyuan-r1",
+      "status": "CANCEL_REQUESTED",
+      "failure": null
+    },
+    {
+      "slug": "mv-ana-midi-20261109-hunyuan-r2",
+      "status": "CANCEL_REQUESTED",
+      "failure": null
+    },
+    {
+      "slug": "mv-ana-midi-20261109-wan-r1",
+      "status": "CANCEL_REQUESTED",
+      "failure": null
+    },
+    {
+      "slug": "mv-ana-midi-20261109-wan-r2",
+      "status": "CANCEL_REQUESTED",
+      "failure": null
+    }
+  ],
+  "quota": {
+    "timeUsed": "20277.195507900s",
+    "timeReserved": "0s",
+    "totalTimeAllowed": "108000s",
+    "minimumTimeAllowed": "108000s",
+    "hasEverRun": true
+  },
+  "controller_http": 410,
+  "controller_version": 19,
+  "observed_quota_delta_seconds": 2132.6783686000017,
+  "note": "Account-level quota observation, not inference time. All four notebooks report CANCEL_REQUESTED; termination not independently confirmed. Controller closed with HTTP410."
+}

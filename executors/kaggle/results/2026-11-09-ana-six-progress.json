@@ -1,0 +1,58 @@
+{
+  "updated_at": "2026-11-09T16:39:18.855978+00:00",
+  "requested": "Ana wearing the same midi dress, final 6s with quality",
+  "local_preview": {
+    "file": "artifacts/ana-six-20261109/ana-vestido-midi-camera-lenta-6s-exatos.mp4",
+    "method": "existing 2s Hunyuan seed retimed 3x with ffmpeg motion compensation; approximately last 0.21s held to complete 144 frames",
+    "new_video_model_inference": false,
+    "duration_seconds": 6,
+    "frames": 144,
+    "fps": 24,
+    "width": 480,
+    "height": 848,
+    "audio": false,
+    "bytes": 451756,
+    "sha256": "b7a54089e9e7dd58f8a166f43ecb96793656395e72ce03beba6fe0a30ea5b7e2",
+    "full_decode": "passed",
+    "visual_review": "Sampled frames preserve overall composition and dress; soft facial detail and hand variation from the 2s seed remain. Not certified for commercial fidelity."
+  },
+  "continuation_attempt": {
+    "slug": "mv-ana-six-20261109-r2",
+    "state": "submitted",
+    "inputs": {
+      "driver": {
+        "hash": "268918740bf2de47870c52ae4767551e8ac673fa371fc1557bab891d3371c65e",
+        "path": "operator/ana-vidi-20261108/inputs/ana-driver.mp4"
+      },
+      "product": {
+        "hash": "f8369d01d66b48319d3e4878e0bdd410d46923f96acbe410b1c8074423ce1c6b",
+        "path": "operator/ana-vidi-20261108/inputs/product-vidi.jpg"
+      },
+      "reference": {
+        "hash": "5df249ae228a9c7b6658fd4fd80a281c66a037ce87980f7b69682f5202ba4182",
+        "path": "operator/ana-vidi-20261108/motion/1d1ca4cd-685c-415a-82eb-419dacb3705f.png"
+      },
+      "seed_video": {
+        "hash": "e10729e4c41528e2109db1a0dc10da0b7fd6a411250f7ad47c0d78995dcf3a81",
+        "path": "operator/ana-midi-20261109/hunyuan-r2.mp4"
+      }
+    },
+    "started": "2026-11-09T16:35:52.824Z",
+    "terminal": false,
+    "kernel_id": 144028201,
+    "remote_ref": "/code/warllemedio/mv-ana-six-20261109-r2",
+    "quota_before": {
+      "timeUsed": "20277.195507900s",
+      "hasEverRun": true,
+      "timeReserved": "0s",
+      "totalTimeAllowed": "108000s",
+      "minimumTimeAllowed": "108000s"
+    }
+  },
+  "submission": {
+    "state": "submitted",
+    "remote_ref": "/code/warllemedio/mv-ana-six-20261109-r2",
+    "kernel_id": 144028201
+  },
+  "new_gpu_inference_confirmed": false
+}

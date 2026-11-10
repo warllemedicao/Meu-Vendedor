@@ -1,0 +1,76 @@
+{
+  "ended_at": "2026-11-09T17:12:38.487062+00:00",
+  "reason": "Owner asked to stop/save because approximately 5% of chat credit remained; percentage not independently measured.",
+  "new_six_second_video_complete": false,
+  "generated_work": "49 new frames; 2.04 seconds at 480x832, generated in 579.999 seconds, 582.311 with encoding.",
+  "failure": "Assembly rejected differing frame sizes: original 480x848 vs new 480x832.",
+  "preserved_private_paths": [
+    "mv-video-assets/operator/ana-six-20261109/resume/continuation-2-raw-49frames.mp4",
+    "mv-video-assets/operator/ana-six-20261109/resume/resume-four-seconds.mp4"
+  ],
+  "artifacts": [
+    {
+      "file": "artifacts/ana-six-20261109/continuation-2-raw-49frames.mp4",
+      "frames": 49,
+      "duration": "00:00:02.04",
+      "sha256": "9ce767753edb61cac8d34c38556264323167dd3de89ff42fb4a28e98d491cb4f",
+      "bytes": 91339,
+      "full_decode": "passed"
+    },
+    {
+      "file": "artifacts/ana-six-20261109/resume-four-seconds.mp4",
+      "frames": 96,
+      "duration": "00:00:04.00",
+      "sha256": "e58296ad59e4ade1b16d52d27e9878d59fd1dee86c83ca180f5b5a814a8d47fe",
+      "bytes": 417735,
+      "full_decode": "passed"
+    },
+    {
+      "file": "artifacts/ana-six-20261109/ana-vestido-midi-camera-lenta-6s-exatos.mp4",
+      "frames": 144,
+      "duration": "00:00:06.00",
+      "sha256": "b7a54089e9e7dd58f8a166f43ecb96793656395e72ce03beba6fe0a30ea5b7e2",
+      "bytes": 451756,
+      "full_decode": "passed"
+    }
+  ],
+  "software_fix": "Frame sizes now normalized to initial seed dimensions; 96-frame seed supported for one remaining 49-frame continuation. Syntax and local normalization checks passed, new GPU inference not run.",
+  "next_steps": [
+    "Do not rerun old two-continuation job.",
+    "Review preserved 4s visually, especially boundary 2s and face/hands.",
+    "After new owner instruction, configure new controller with private 4s seed path and its recorded hash, use a new attempt ID and capabilities.",
+    "Run only continuation_3 seed44; append 48 frames after dropping initial frame; confirm 144 total, normalize dimensions.",
+    "Inspect native video and transitions before approving quality; close session/controller afterwards."
+  ],
+  "last_remote_probe": {
+    "states": [
+      {
+        "slug": "mv-ana-midi-20261109-hunyuan-r2",
+        "status": "COMPLETE"
+      },
+      {
+        "slug": "mv-ana-midi-20261109-wan-r2",
+        "status": "CANCEL_REQUESTED"
+      },
+      {
+        "slug": "mv-ana-six-20261109-r3",
+        "error": "Error: kaggle_http_403"
+      }
+    ],
+    "quota": {
+      "timeUsed": "20535.741139300s",
+      "timeReserved": "0s",
+      "totalTimeAllowed": "108000s",
+      "minimumTimeAllowed": "108000s",
+      "hasEverRun": true
+    }
+  },
+  "stop_response": {
+    "cancellation": {},
+    "status": {
+      "error": "Error: kaggle_http_403"
+    }
+  },
+  "temporary_controller": "ana-six-test replaced with HTTP410; no new submissions/callbacks allowed",
+  "commercial_quality_approved": false
+}

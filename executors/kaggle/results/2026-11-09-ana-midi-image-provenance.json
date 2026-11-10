@@ -1,0 +1,44 @@
+{
+  "found": true,
+  "slug": "mv-motion-fashn-1d1ca4cd",
+  "expected_engine_from_title": "fashn",
+  "config": {
+    "id": "1d1ca4cd-685c-415a-82eb-419dacb3705f",
+    "engine": "fashn",
+    "seed": 20261108,
+    "seconds": 2,
+    "mode": "animate"
+  },
+  "blob_keys": [
+    "source",
+    "language",
+    "kernelType",
+    "slug"
+  ],
+  "engine_mentions": [
+    "scail",
+    "wan-animate",
+    "vace"
+  ],
+  "reports": [
+    {
+      "state": "completed",
+      "adapter": "fashn",
+      "native_4k": false,
+      "phase": "complete",
+      "setup_seconds": 60.431,
+      "steps_completed": 26,
+      "steps_total": 30,
+      "width": 486,
+      "height": 864,
+      "inference_seconds": 281.886,
+      "peak_gpu_bytes": 5691386880,
+      "bytes": 334269,
+      "sha256": "5df249ae228a9c7b6658fd4fd80a281c66a037ce87980f7b69682f5202ba4182",
+      "total_seconds": 343.334
+    }
+  ],
+  "files": [
+    "mv-motion/report.json"
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "runs": [
+    {
+      "file": "short_generation.mp4",
+      "seed": 42,
+      "audio": false,
+      "label": "short_generation",
+      "steps": 12,
+      "mp4_bytes": 151247,
+      "render_seconds": 593.695,
+      "generated_frames": 49,
+      "requested_frames": 49,
+      "native_frame_shape": [
+        848,
+        480,
+        3
+      ],
+      "gpu_peak_reserved_bytes": 11723079680,
+      "gpu_peak_allocated_bytes": 10614864384,
+      "total_generation_and_encode_seconds": 596.561
+    }
+  ],
+  "slug": "mv-ana-midi-20261109-hunyuan-r2",
+  "error": null,
+  "model": "hunyuanvideo-community/HunyuanVideo-1.5-Diffusers-480p_i2v_step_distilled",
+  "phase": "finished",
+  "stage": "complete",
+  "state": "completed",
+  "steps": 12,
+  "engine": "hunyuan",
+  "inputs": {
+    "driver": {
+      "hash": "268918740bf2de47870c52ae4767551e8ac673fa371fc1557bab891d3371c65e",
+      "path": "operator/ana-vidi-20261108/inputs/ana-driver.mp4"
+    },
+    "product": {
+      "hash": "f8369d01d66b48319d3e4878e0bdd410d46923f96acbe410b1c8074423ce1c6b",
+      "path": "operator/ana-vidi-20261108/inputs/product-vidi.jpg"
+    },
+    "reference": {
+      "hash": "5df249ae228a9c7b6658fd4fd80a281c66a037ce87980f7b69682f5202ba4182",
+      "path": "operator/ana-vidi-20261108/motion/1d1ca4cd-685c-415a-82eb-419dacb3705f.png"
+    }
+  },
+  "metrics": {
+    "load_seconds": 150.674,
+    "download_seconds": 186.85,
+    "installation_seconds": 30.49,
+    "model_metadata_seconds": 0.126
+  },
+  "started": "2026-11-09T15:40:47.905Z",
+  "hardware": {
+    "gpus": [
+      {
+        "name": "Tesla T4",
+        "vram_bytes": 15636037632,
+        "compute_capability": [
+          7,
+          5
+        ]
+      },
+      {
+        "name": "Tesla T4",
+        "vram_bytes": 15636037632,
+        "compute_capability": [
+          7,
+          5
+        ]
+      }
+    ],
+    "torch": "2.11.0+cu130",
+    "python": "3.13.16",
+    "cuda_available": true,
+    "disk_free_bytes": 1038218670080,
+    "ram_total_bytes": 33658150912,
+    "ram_available_bytes": 32238350336
+  },
+  "terminal": true,
+  "heartbeat": "2026-11-09T15:58:52.426Z",
+  "offloading": "model",
+  "video_path": "operator/ana-midi-20261109/hunyuan-r2.mp4",
+  "model_gated": false,
+  "video_bytes": 151247,
+  "archive_path": "operator/ana-midi-20261109/hunyuan-r2.zip",
+  "dependencies": {
+    "torch": "2.11.0+cu130",
+    "diffusers": "0.42.1",
+    "accelerate": "1.12.0",
+    "transformers": "5.4.0",
+    "huggingface-hub": "1.33.0"
+  },
+  "quantization": "nf4",
+  "quota_before": {
+    "timeUsed": "18144.517139300s",
+    "hasEverRun": true,
+    "timeReserved": "0s",
+    "totalTimeAllowed": "108000s",
+    "minimumTimeAllowed": "108000s"
+  },
+  "video_sha256": "e10729e4c41528e2109db1a0dc10da0b7fd6a411250f7ad47c0d78995dcf3a81",
+  "archive_bytes": 3419,
+  "prompt_tokens": 94,
+  "archive_sha256": "294f5f7edbf4a6fa18886795bfc13ef7a9c88ee612e1808894b177a27287d8d5",
+  "model_revision": "854c04a4c8a53d990b418c7478f0802c0fc8c726",
+  "elapsed_seconds": 1013.506,
+  "requested_frames": 49,
+  "ram_available_now": 13841682432,
+  "gpu_reserved_bytes": 11723079680,
+  "model_weight_bytes": 34620593582,
+  "supervisor_seconds": 1031.645,
+  "gpu_allocated_bytes": 1761387520,
+  "quantized_components": [
+    "transformer",
+    "text_encoder"
+  ],
+  "tokenizer_max_length": 256,
+  "disk_free_after_download": 1003125067776,
+  "generation_elapsed_seconds": 591.613,
+  "verification": {
+    "full_decode": true,
+    "bytes_and_sha256_match": true,
+    "inspected_seconds": [
+      0,
+      1,
+      1.9
+    ],
+    "visual_acceptance": false,
+    "visual_observations": "Small motion, composition and garment retained relative to prepared base. Soft face/hand details and variation; inherited redder dress than original product. No commercial fidelity approval."
+  }
+}
