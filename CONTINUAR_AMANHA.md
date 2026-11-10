@@ -1,5 +1,66 @@
 # Continuidade do projeto — próxima sessão
 
+## Próxima sessão — pedido do responsável em 10/11/2026
+
+**Instrução desta sessão: apenas salvar a mensagem abaixo, fazer commit e push. Não implementar as mudanças do site agora.** Retomar o planejamento a partir deste pedido na próxima sessão. As funcionalidades descritas são desejadas, não entregues; este registro não autoriza iniciar GPU, gerar conteúdo ou publicar em redes sociais agora.
+
+### Mensagem do responsável preservada
+
+chat vamos dar uma organizada no site temos 5 abas no site q poderiam estar apenas em uma aba porem com opção do usuario mudar o filtro "inicio oferta,dasboard, produtos, rada de tendencia, top 10"
+
+2 - qdo o usuario esclher um produto ao clicar em ver e divulgar a aba q abrir ja tem q vir alem dos dados do produto q vem hoje ferramenta para gerar video
+
+3  - qdo o usuario clicar em gera e salvar link deve abrir aa do gerador de video/imagem assim eu consigo criar o video da diulgação no propio link. qdo o video tiver pronto ele é enviado para a publicação junto com o meu link de vendedor.
+
+4 - fora do meu vendedor eu faço assim hoje.:
+
+Passo a passo para Divulgar video na shopee
+
+1 -  em criadores de conteudo eu clico no produto.
+2 - clico em compartilhe para ganhar
+3 - clico para baixar todas as imagens
+4 - pego a imagem e jogo no gemini e peço para criar um prompt de acordo com o chat.
+5 -  nesse prompt peço o chat para colocar uma pessoa gerada por inteligencia usando o produto em um ambiente de acordo com o produto, depois ele gera uma fala atratativa elogiando o produto e chamando para clicar no link
+
+""  [INSTRUÇÃO DE PROMPT PRÉ-DEFINIDO]
+
+Você atuará como um Especialista em Prompts para IAs de Vídeo (como Flow, Runway, Sora, Kling).
+
+Ao receber a imagem de um produto de vestuário:
+1. Identifique automaticamente se o produto é MASCULINO ou FEMININO e liste os detalhes visuais da peça (cor, modelo, tecido, gola, estampas, corte).
+2. Selecione o personagem adequado (homem elegante/moderno ou mulher estilosa/elegante).
+3. Crie uma fala persuasiva, atrativa e direta em português divulgando a peça e convidando o público a clicar no link para aproveitar a promoção.
+4. Gere o PROMPT FINAL em Inglês e Português pronto para ser colado nas ferramentas de geração de vídeo.
+
+Estrutura do Prompt a ser gerado:
+- Descrição detalhada do modelo vestindo a peça exata da imagem.
+- Ação/gesto do modelo exibindo o caimento e qualidade do produto.
+- Cenário coerente com a proposta da peça.
+- A fala exata em português com tom persuasivo de vendas e chamada para ação (CTA).
+- Especificações técnicas de câmera (Medium shot, realistic lighting, 4k, cinematic commercial).
+
+6 - baixo o video no google flow
+7 - volto na shopww e copio o nome do produto
+8 - clico em compartilhe e ganhe
+9 - seelciono shopee video
+10 - seleciono meu video na galeria
+11- clico em proximo
+12 - coloco o nome do produto na legenda
+13 - add as hadtags
+14  - clico em postarqueria q essee modo fosse integrado na ferramenta da shopee qdo eu for vender por ele.
+
+apenas salve essa msg em continuar amanha.md oara continuar faça o commi e git puxh
+
+### Pontos para retomar
+
+- Unificar Início/Ofertas, Dashboard, Produtos, Radar de Tendências e Top 10 em uma área com filtros de visualização.
+- Em **Ver e divulgar**, manter os dados do produto e disponibilizar a criação de vídeo/imagem no contexto do anúncio.
+- Em **Gerar e salvar link**, abrir a criação de mídia preservando produto e link de afiliado, seguindo depois para preparação da publicação com o vídeo/imagem e esse link.
+- Usar o fluxo manual descrito acima como referência: fotos do anúncio → análise/prompt bilíngue e fala → geração/importação de mídia → nome do produto, legenda, hashtags e link → publicação Shopee Vídeo.
+- Antes de implementar a etapa de publicação, verificar o mecanismo efetivamente disponível para a conta Shopee e distinguir preparação/compartilhamento de publicação integrada. A descrição do fluxo desejado não comprova que uma API de postagem já esteja disponível.
+
+## Estado entregue antes deste novo pedido
+
 > **Fotos do anúncio — 10/11/2026:** galeria e filtro de texto adicionados ao vídeo de produto. Backend `product-gallery` v2; OCR local testado com tabela de medidas/descrição e revisão manual. A coleta completa de galeria real da Shopee ainda depende da fonte e de validação com conta normal; não apresentar o teste controlado como prova dessa coleta. Estado em [GALERIA_DE_PRODUTO.md](./GALERIA_DE_PRODUTO.md).
 
 > **Prioridade atual — 10/11/2026:** modo **Vídeo de produto** implementado como entrada de `/videos`, com fotos/clipes reais, transições, aproximação, exportação sem áudio e biblioteca privada. Personagens em aba experimental separada; não retomar seus ensaios/GPU automaticamente. Ver entrega, validações e limite do teste remoto de upload em [VIDEO_DE_PRODUTO.md](./VIDEO_DE_PRODUTO.md). Os estados de 09/11 abaixo permanecem como histórico dos experimentos suspensos.
