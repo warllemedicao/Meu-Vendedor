@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
+import { ProductCampaign } from "@/components/videos/ProductCampaign";
 import { useMarketplace } from "./MarketplaceProvider";
 import { displayDate,marketplaceAction } from "@/lib/marketplace";
 import type { MarketplaceProduct } from "@/types/marketplace";
@@ -52,7 +53,7 @@ function UserProducts({userId,connectionId,lastSync,connectionError,discovery}:{
 }
 function ProductDetails({product,onClose,discovery}:{product:MarketplaceProduct;onClose:()=>void;discovery:boolean}) {
   const [busy,setBusy]=useState(false);const [url,setUrl]=useState("");const [error,setError]=useState("");const [notice,setNotice]=useState("");
-  async function generate(){if(busy)return;setBusy(true);setError("");setNotice("");try{const result=await marketplaceAction("generate_link",{productId:product.id});if(!result.url)throw new Error("Nenhum link foi retornado.");setUrl(result.url);setNotice("Link gerado pela Shopee e salvo em Meus links.");}catch(err){setError(err instanceof Error?err.message:"Não foi possível gerar o link.");}finally{setBusy(false);}}
+  async function generate(){if(busy)return;setBusy(true);setError("");setNotice("");try{const result=await marketplaceAction("generate_link",{productId:product.id});if(!result.url)throw new Error("Nenhum link foi retornado.");setUrl(result.url);setNotice("Link gerado e salvo. Continue na criação da divulgação abaixo."); requestAnimationFrame(()=>document.getElementById(`campaign-${product.id}`)?.scrollIntoView({behavior:"smooth",block:"start"}));}catch(err){setError(err instanceof Error?err.message:"Não foi possível gerar o link.");}finally{setBusy(false);}}
   async function copy(){try{await navigator.clipboard.writeText(url);setNotice("Link copiado.");}catch{setNotice("Selecione o link e copie manualmente.");}}
   async function share(){if(!navigator.share){await copy();return;}try{await navigator.share({title:product.title,url});}catch(err){if(!(err instanceof Error&&err.name==="AbortError"))setNotice("Não foi possível abrir o compartilhamento. Você pode copiar o link.");}}
   return <section aria-label={`Ficha de ${product.title}`} className="rounded-xl border border-primary bg-surface p-5">
@@ -66,5 +67,6 @@ function ProductDetails({product,onClose,discovery}:{product:MarketplaceProduct;
       {url&&<div className="mt-4 space-y-3"><label className="block text-sm">Seu link de afiliado<input readOnly value={url} onFocus={e=>e.target.select()} className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2"/></label><div className="flex flex-wrap gap-3"><button type="button" onClick={copy} className="rounded-lg border border-border px-3 py-2 text-sm">Copiar link</button><button type="button" onClick={share} className="rounded-lg border border-border px-3 py-2 text-sm">Compartilhar link</button><Link href="/afiliados" className="px-2 py-2 text-sm text-primary underline">Meus links</Link></div><p className="text-xs text-muted">Compartilhar usa as opções do seu dispositivo. Não publica automaticamente em vitrines ou redes sociais.</p></div>}
       {error&&<p role="alert" className="mt-3 text-sm text-danger">{error}</p>}{notice&&<p role="status" className="mt-3 text-sm text-primary">{notice}</p>}
       </div></div>
+    <div id={`campaign-${product.id}`} className="scroll-mt-20"><ProductCampaign product={{id:product.id,title:product.title,platform:"Shopee",imageUrl:product.image_url,productUrl:product.product_url,price:product.price_min===null?undefined:money(product.price_min),owned:true}} initialAffiliateUrl={url}/></div>
   </section>;
 }

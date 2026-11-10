@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "checks": [
+    "Top10 limita a dez",
+    "contexto do anúncio no prompt",
+    "mídia e link na publicação",
+    "desktop e mobile sem overflow",
+    "Dashboard",
+    "voltar mantém filtro",
+    "rota antiga Produtos",
+    "rascunho real em IndexedDB mantém Blob, link e legenda; chaves separadas por conta"
+  ],
+  "scope": "catálogo simulado; sem login, sem API de link, sem inferência ou postagem real"
+}

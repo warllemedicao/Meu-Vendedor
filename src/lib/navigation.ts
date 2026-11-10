@@ -18,7 +18,7 @@ import type { NavItem } from "@/types";
 export const navItems: NavItem[] = [
   {
     href: "/",
-    label: "Início · Ofertas",
+    label: "Ofertas e produtos",
     icon: House,
     titulo: "Ofertas e produtos",
     descricao: "Produtos e ofertas das integrações autorizadas.",
@@ -147,3 +147,6 @@ export function getNavItem(href: string): NavItem {
   if (!item) throw new Error(`Rota sem item de navegação: ${href}`);
   return item;
 }
+
+/** Rotas anteriores continuam acessíveis na área unificada. */
+export const mainNavItems = navItems.filter(item => !["/dashboard", "/produtos", "/tendencias", "/top-10"].includes(item.href));

@@ -1,5 +1,3 @@
-import type { Metadata } from "next";
-import { ProductCatalog } from "@/components/marketplace/ProductCatalog";
+import { CommerceHub } from "@/components/marketplace/CommerceHub";
 import { PageHeader } from "@/components/ui/PageHeader";
-export const metadata: Metadata = { title: "Produtos" };
-export default function Page(){return <><PageHeader titulo="Produtos" descricao="Consulte ofertas das contas conectadas, analise o produto e gere seu link de afiliado."/><ProductCatalog/></>;}
+export default function Page() { return <><PageHeader titulo="Ofertas e produtos" descricao="Escolha uma visualização e prepare sua divulgação." /><CommerceHub initialView="products" /></>; }

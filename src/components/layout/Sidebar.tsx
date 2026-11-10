@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navItems } from "@/lib/navigation";
+import { mainNavItems } from "@/lib/navigation";
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Menu principal" className="flex-1 overflow-y-auto px-3 py-3">
       <ul className="space-y-0.5">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const ativo = pathname === href || pathname.startsWith(`${href}/`);
+        {mainNavItems.map(({ href, label, icon: Icon }) => {
+          const ativo = pathname === href || pathname.startsWith(`${href}/`) || (href === "/" && ["/dashboard", "/produtos", "/tendencias", "/top-10"].includes(pathname));
           return (
             <li key={href}>
               <Link

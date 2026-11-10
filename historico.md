@@ -288,3 +288,12 @@ Não reiniciar os ensaios. Preservar a rejeição do resultado anterior. Qualque
 ## Registro final das correções
 
 Correções publicadas no Cloudflare `e383d328-4bfe-4cca-bf06-fe4a7042863e` e Supabase `motion-generation` v12. Inventário ajustado em `video-generation` v56 e worker v40; diagnóstico encerrado `motion-qa` v12/410. Foram aprovadas 225 verificações locais de software, TypeScript frontend/Edge, lint e build. A consulta final confirmou zero tarefas ativas e remoção da conta técnica. Nenhum ensaio de imagem/vídeo/voz ou GPU foi reiniciado. Fidelidade da camisa correta continua não testada e não aprovada.
+
+
+## 10/11/2026 — organização e divulgação integradas
+
+Após recuperar a última conversa, o responsável pediu “faça isso agora”. Implementada área única Ofertas e produtos com cinco visualizações e compatibilidade com as rotas anteriores. Ficha do anúncio agora oferece preparação de mídia; link gerado pela API é preservado no editor. Criada instrução de análise visual e prompts bilíngues para uso externo no Gemini/Flow, importação de mídia e encaminhamento do resultado da montagem interna à preparação da publicação.
+
+Publicações permite retomar o último rascunho local da conta, com mídia, legenda, hashtags e link, baixar e usar compartilhamento nativo quando suportado. Não há envio direto para Shopee Vídeo na integração disponível. Não foi automatizada a análise/geração externa e não houve inferência/GPU, teste real de API de link ou postagem. Dashboard, Radar e Top 10 usam somente os dados disponíveis do catálogo e explicam seus limites.
+
+235 testes existentes e 3 novos aprovados, TypeScript/build/lint sem erros. Teste de navegador com catálogo simulado aprovado em desktop e celular; IndexedDB validado com mídia e separação das chaves por conta. Publicado no Cloudflare `8f951b5b-ff29-4e6a-ac25-bb2069477dc3`; página inicial e Publicações verificadas por HTTP. Detalhes em [DIVULGACAO_INTEGRADA.md](./DIVULGACAO_INTEGRADA.md).

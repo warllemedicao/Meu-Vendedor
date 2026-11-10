@@ -1,8 +1,3 @@
-import type { Metadata } from "next";
-import { FeaturePage } from "@/components/ui/FeaturePage";
-
-export const metadata: Metadata = { title: "Radar de Tendências" };
-
-export default function Page() {
-  return <FeaturePage href="/tendencias" />;
-}
+import { CommerceHub } from "@/components/marketplace/CommerceHub";
+import { PageHeader } from "@/components/ui/PageHeader";
+export default function Page() { return <><PageHeader titulo="Ofertas e produtos" descricao="Escolha uma visualização e prepare sua divulgação." /><CommerceHub initialView="trends" /></>; }

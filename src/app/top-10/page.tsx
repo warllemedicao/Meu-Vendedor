@@ -1,8 +1,3 @@
-import type { Metadata } from "next";
-import { FeaturePage } from "@/components/ui/FeaturePage";
-
-export const metadata: Metadata = { title: "Top 10" };
-
-export default function Page() {
-  return <FeaturePage href="/top-10" />;
-}
+import { CommerceHub } from "@/components/marketplace/CommerceHub";
+import { PageHeader } from "@/components/ui/PageHeader";
+export default function Page() { return <><PageHeader titulo="Ofertas e produtos" descricao="Escolha uma visualização e prepare sua divulgação." /><CommerceHub initialView="top10" /></>; }

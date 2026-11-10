@@ -1,5 +1,9 @@
 # Continuidade do projeto — próxima sessão
 
+## Retomada autorizada em 10/11/2026
+
+O responsável pediu “faça isso agora”, autorizando a implementação do pedido abaixo. A área unificada e o fluxo produto → link → criação/importação → preparação da publicação foram implementados e publicados na versão Cloudflare `8f951b5b-ff29-4e6a-ac25-bb2069477dc3`. Estado e limites em [DIVULGACAO_INTEGRADA.md](./DIVULGACAO_INTEGRADA.md). A instrução de apenas registrar abaixo passa a ser histórica. Geração externa no Gemini/Flow e postagem final na Shopee continuam exigindo ação do usuário; não iniciar ensaios de GPU automaticamente.
+
 ## Próxima sessão — pedido do responsável em 10/11/2026
 
 **Instrução desta sessão: apenas salvar a mensagem abaixo, fazer commit e push. Não implementar as mudanças do site agora.** Retomar o planejamento a partir deste pedido na próxima sessão. As funcionalidades descritas são desejadas, não entregues; este registro não autoriza iniciar GPU, gerar conteúdo ou publicar em redes sociais agora.

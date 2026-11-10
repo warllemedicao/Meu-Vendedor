@@ -9,6 +9,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { importVideoProductImage } from "@/lib/video-submission";
 import { MAX_PRODUCT_MEDIA_BYTES, MAX_PRODUCT_SCENES, PRODUCT_VIDEO_BUCKET, ownedProductVideoPath, productVideoFilename, validateProductMedia, type ProductVideoOptions } from "@/lib/product-video";
 import { createProductPlayer, productRecordingType, renderProductVideo, type ProductMedia, type ProductPlayer } from "@/lib/render-product-video";
+import type { CampaignProduct } from "@/lib/product-campaign";
 import { ProductPhotoPicker } from "./ProductPhotoPicker";
 
 const field = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm";
@@ -22,10 +23,10 @@ function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
   anchor.href = url; anchor.download = filename; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
-export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (busy: boolean) => void; active: boolean }) {
+export function ProductVideoStudio({ onBusyChange, active, initialProduct, onResult }: { onBusyChange: (busy: boolean) => void; active: boolean; initialProduct?: CampaignProduct; onResult?: (blob: Blob, filename: string) => void }) {
   const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<ProductMedia[]>([]);
-  const [options, setOptions] = useState<ProductVideoOptions>(defaults);
+  const [options, setOptions] = useState<ProductVideoOptions>({ ...defaults, title: initialProduct?.title.slice(0, 80) ?? "", price: initialProduct?.price ?? "" });
   const [error, setError] = useState(""); const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false); const [importing, setImporting] = useState(false); const [saving, setSaving] = useState(false);
   const [galleryBusy, setGalleryBusy] = useState(false);
@@ -34,7 +35,7 @@ export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (bu
   const ready = prepared?.items === items && prepared?.options === options;
   const [playing, setPlaying] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
-  const [products, setProducts] = useState<Product[]>([]); const [productId, setProductId] = useState("");
+  const [products, setProducts] = useState<Product[]>(initialProduct?.owned ? [{ id: initialProduct.id, title: initialProduct.title }] : []); const [productId, setProductId] = useState(initialProduct?.owned ? initialProduct.id : "");
   const [library, setLibrary] = useState<SavedVideo[]>([]); const [libraryError, setLibraryError] = useState(""); const [libraryLoading, setLibraryLoading] = useState(false);
   const [openedVideo, setOpenedVideo] = useState<{ name: string; url: string } | null>(null);
   const [libraryBusy, setLibraryBusy] = useState("");
@@ -75,9 +76,9 @@ export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (bu
   useEffect(() => {
     if (!user) return;
     const client = getSupabase(); let alive = true;
-    void client?.from("mv_products").select("id,title").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50).then(({ data }) => { if (alive) setProducts(data ?? []); });
+    void client?.from("mv_products").select("id,title").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50).then(({ data }) => { if (alive) setProducts(initialProduct?.owned ? [{ id: initialProduct.id, title: initialProduct.title }, ...(data ?? []).filter(p => p.id !== initialProduct.id)] : data ?? []); });
     void Promise.resolve().then(() => { if (alive) return refreshLibrary(); }); return () => { alive = false; };
-  }, [user, refreshLibrary]);
+  }, [user, refreshLibrary, initialProduct?.id, initialProduct?.title, initialProduct?.owned]);
 
   function addFiles(files: File[]): boolean {
     if (locked.current) return false;
@@ -127,7 +128,9 @@ export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (bu
       const blob = await renderProductVideo(items, options, abort.current.signal, setProgress);
       if (!mounted.current) return;
       const url = URL.createObjectURL(blob); resources.current.add(url);
-      setResult(previous => { if (previous) { URL.revokeObjectURL(previous.url); resources.current.delete(previous.url); } return { blob, url, filename: productVideoFilename(options.title, crypto.randomUUID(), blob.type.startsWith("video/mp4") ? "mp4" : "webm"), saved: false }; });
+      const filename = productVideoFilename(options.title, crypto.randomUUID(), blob.type.startsWith("video/mp4") ? "mp4" : "webm");
+      onResult?.(blob, filename);
+      setResult(previous => { if (previous) { URL.revokeObjectURL(previous.url); resources.current.delete(previous.url); } return { blob, url, filename, saved: false }; });
       setNotice("Vídeo pronto. Confira o resultado e baixe ou salve na sua conta.");
     } catch (failure) {
       if (mounted.current) { if (failure instanceof DOMException && failure.name === "AbortError") setNotice("Exportação cancelada. Suas cenas continuam aqui."); else setError(failure instanceof Error ? failure.message : "Não foi possível exportar o vídeo."); }
@@ -181,7 +184,7 @@ export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (bu
               <ImagePlus className="h-7 w-7 text-primary" /><span className="font-medium">Adicionar fotos ou clipes</span><span className="text-xs text-muted">Até 8 cenas · foto até 10 MB · clipe até 50 MB</span>
             </button>
             {user && products.length > 0 && <div className="flex flex-wrap items-end gap-2">
-              <label className="min-w-0 flex-1 text-sm">Ou escolha do seu catálogo<select value={productId} onChange={e => setProductId(e.target.value)} className={field}><option value="">Selecione um produto</option>{products.map(product => <option key={product.id} value={product.id}>{product.title}</option>)}</select></label>
+              <label className="min-w-0 flex-1 text-sm">Ou escolha do seu catálogo<select value={productId} disabled={Boolean(initialProduct)} onChange={e => setProductId(e.target.value)} className={field}><option value="">Selecione um produto</option>{products.map(product => <option key={product.id} value={product.id}>{product.title}</option>)}</select></label>
               <button type="button" disabled={!productId || importing} onClick={() => void importProduct()} className={button}>{importing ? "Importando…" : "Usar foto principal"}</button>
             </div>}
             {items.length > 0 && <ol className="space-y-2">{items.map((item, index) => <li key={item.id} className="flex min-w-0 items-center gap-3 rounded-xl border border-border p-2">
