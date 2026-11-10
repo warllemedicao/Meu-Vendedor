@@ -310,3 +310,14 @@ A verificação real no backend confirmou a quarta página,20 itens e `hasNextPa
 241 testes passaram; tipos frontend/Edge, lint sem erros, build e navegador com sessão/API simuladas aprovados. Evidências, limites e detalhes em [DIVULGACAO_INTEGRADA.md](./DIVULGACAO_INTEGRADA.md). Backend marketplace v31.
 
 Frontend desta correção publicado no Cloudflare `e553299a-b481-4246-aca1-d6a64f1c94b4`.
+
+
+## 10/11/2026 — pop-up, roteiro por imagem e narrador
+
+O responsável pediu: remover aviso que não era erro; simplificar a criação em pop-up por partes; usar IA para analisar a imagem e criar fala/prompts sobre benefícios; após aprovação, preparar vídeo, link, legenda e hashtags e disponibilizar compartilhar. Perguntou se postar enviaria à loja/vitrine Shopee.
+
+Implementado assistente modal de quatro etapas, endpoint de visão autenticado e vinculado à conta, integração do Google TTS existente com composição local de vídeo narrado e aprovação explícita antes de preparar compartilhamento/rascunho. Hashtags específicas são preenchidas pela análise ou derivadas do título. Geração com personagens no Flow continua externa; não houve GPU. Fonte oficial Shopee confirma que produto deve ser vinculado ao vídeo e adicionado separadamente à Vitrine do Afiliado; não foi confirmada API disponível para executar essas operações automaticamente na conta. O compartilhamento não é tratado como postagem confirmada. Pergunta de esclarecimento sobre loja de vendedor versus vitrine ficou sem resposta até o registro.
+
+Groq `qwen/qwen3.8-27b` analisou foto real de power bank do catálogo. O rascunho requer revisão de termos como “retrátil” e “sobrecarregado”; não se declarou qualidade publicitária aprovada automaticamente. Gemini retornou saldo pré-pago esgotado, sem compra de créditos. Teste de navegador com visão/TTS simulados executou montagem/composição reais, confirmou um stream de áudio no MP4, fluxo de aprovação, compartilhamento completo e rascunho em Publicações. Nenhuma narração real foi sintetizada nesta validação e nada foi postado.
+
+246 testes, tipos, lint e build aprovados. Cloudflare `132378e4-5e85-442f-8667-d6aa4a0f939e`; Supabase `campaign-content` v2; diagnóstico HTTP410 e bloqueio anônimo HTTP401. Relatório: [ASSISTENTE_DE_DIVULGACAO.md](./ASSISTENTE_DE_DIVULGACAO.md).

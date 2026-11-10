@@ -53,3 +53,7 @@ verify_jwt = false
 [functions.product-gallery]
 # JWT verificado com auth.getUser antes de consultar o produto da própria conta.
 verify_jwt = false
+
+[functions.campaign-content]
+# Sessão validada com Auth e todas as imagens vinculadas à conta.
+verify_jwt = false

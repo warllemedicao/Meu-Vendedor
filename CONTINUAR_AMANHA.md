@@ -1,5 +1,13 @@
 # Continuidade do projeto — próxima sessão
 
+## Assistente por etapas, IA visual e narrador — 10/11/2026
+
+Novo pedido entregue: aviso informativo removido; criação em pop-up com quatro etapas (produto/roteiro → vídeo → narração/aprovação → compartilhar). IA recebe foto e prepara fala, prompts PT/EN, legenda e hashtags. Groq visão validada com foto real do catálogo; Gemini sem saldo pré-pago, OpenRouter gratuito não confirmou resposta utilizável. Usuário revisa o roteiro antes de avançar, pois a amostra teve termos que exigem correção. Google TTS existente conectado ao editor; navegador aplica voz ao vídeo/imagem e exige aprovação antes do compartilhamento completo. Teste de navegador gerou MP4 real com trilha de áudio sintético e recuperou rascunho; não confundir com síntese TTS real ou postagem.
+
+A publicação/vitrine Shopee NÃO é automática nesta integração. Produto precisa ser vinculado ao vídeo; link na legenda não substitui o vínculo. Vitrine recebe produto por seleção/importação própria na conta Shopee, conforme fontes oficiais no relatório. Pergunta sobre loja de vendedor/vitrine de afiliado ficou sem resposta nesta sessão; não presumir publicação nas duas.
+
+246 testes, tipos frontend/Edge, lint e build aprovados. Cloudflare `132378e4-5e85-442f-8667-d6aa4a0f939e`; Supabase `campaign-content` v2; diagnóstico encerrado HTTP410; endpoint sem login HTTP401. Detalhes e limites em [ASSISTENTE_DE_DIVULGACAO.md](./ASSISTENTE_DE_DIVULGACAO.md). Nenhuma GPU ou postagem real iniciada.
+
 ## Correção posterior — catálogo Shopee em 10/11/2026
 
 O responsável informou que Início/Ofertas mostrava lojas indisponíveis, pediu atualização automática ao trocar abas e acesso além da lista pequena. Confirmado: vitrine pública HTTP503; conexões privadas funcionando; corte interno de 60 produtos. Todas as visualizações agora usam a conexão Shopee quando autenticado, atualizam ao entrar e consultam páginas sem corte total de 60. Busca por nome é enviada à API. A Shopee retornou System Error código10000 para palavras; fallback explícito permite filtrar páginas da listagem geral e continuar carregando, sem fingir busca global. O cron inicial continua com sua seleção antiga, independente da navegação paginada.

@@ -28,3 +28,9 @@ export async function loadPublicationDraft(userId: string): Promise<PublicationD
 function openDrafts(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => { const request = indexedDB.open("mv-publication-drafts", 1); request.onupgradeneeded = () => request.result.createObjectStore("drafts"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
 }
+
+export function productHashtags(title: string, platform = "Shopee"): string {
+  const ignored = new Set(["para", "com", "sem", "uma", "por", "dos", "das", "mais", "tipo", "produto", "kit", "unidade"]);
+  const terms = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-zA-Z0-9]+/).filter(word => word.length > 3 && /[a-zA-Z]/.test(word) && !ignored.has(word.toLowerCase())).slice(0, 4);
+  return [...new Set([...terms.map(term => "#" + term), ...(platform === "Shopee" ? ["#Shopee"] : []), "#Achadinhos", "#Publicidade"])].join(" ");
+}

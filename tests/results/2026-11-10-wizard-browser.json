@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "audioTracks": 1,
+  "shared": {
+    "text": "Produto 0, confira os detalhes!\n\nhttps://shope.ee/teste-afiliado\n\n#Camisa #Moda #Publicidade",
+    "title": "Produto 0",
+    "files": [
+      {
+        "name": "divulgacao-6fe3886f-21b0-4f30-8415-a9f3cef6c01f.mp4",
+        "type": "video/mp4",
+        "size": 270503
+      }
+    ]
+  },
+  "checks": [
+    "mensagem removida",
+    "gerar link abre pop-up",
+    "análise preenche fala e hashtags",
+    "quatro etapas com aprovação",
+    "editar fala invalida resultado anterior e exige nova voz/aprovação",
+    "imagem transformada em vídeo com trilha de áudio",
+    "publicação completa",
+    "compartilhamento nativo recebe arquivo, legenda e link",
+    "rascunho aprovado recuperado em Publicações",
+    "desktop/mobile sem overflow"
+  ],
+  "scope": "conta, análise visual e TTS simulados; imagem para vídeo e composição com áudio executadas de verdade no navegador; áudio de teste sintético, sem postagem real"
+}

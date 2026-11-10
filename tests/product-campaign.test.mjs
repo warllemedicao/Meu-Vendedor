@@ -13,3 +13,9 @@ test('instrução exige foto exata, variantes e fala preservada nos dois idiomas
   const prompt = campaignPrompt({id:'a', title:'Camisa do anúncio', platform:'Shopee'}, 'Gola vermelha', 'Sala', 'Confira no link!', 'Homem adulto');
   for (const value of ['Camisa do anúncio', 'Gola vermelha', 'Sala', 'Confira no link!', 'Homem adulto', 'PORTUGUÊS', 'ENGLISH', 'mais de uma variante', 'Não invente características']) assert.ok(prompt.includes(value));
 });
+
+test('hashtags partem do produto e não misturam palavras vazias ou plataforma diferente', async () => {
+ const {productHashtags}=await import('../src/lib/product-campaign.ts');
+ const tags=productHashtags('Camisa Flamengo para adultos','Shopee');assert.ok(tags.includes('#Camisa'));assert.ok(tags.includes('#Flamengo'));assert.ok(tags.includes('#Publicidade'));assert.ok(!tags.includes('#para'));
+ assert.ok(!productHashtags('Garrafa térmica','Amazon').includes('#Shopee'));
+});

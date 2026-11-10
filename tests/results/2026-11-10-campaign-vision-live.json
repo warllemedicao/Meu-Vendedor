@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "title": "Carregador Portátil Mini Power Bank 10000mAh Com 02 Saídas Tipo-C / Lightning",
+  "imageUrl": "https://cf.shopee.com.br/file/sg-11134201-81zvk-mik9ovwbhszk62",
+  "details": "A imagem apresenta três power banks portáteis retangulares nas cores rosa, verde-claro e branco, cada um com uma alça de pendurar integrada. O modelo branco exibe cabos de conexão retráteis (endurecidos) na extremidade e indicações de LED para nível de carga no corpo. Ao fundo, um smartphone está em recarga, exibindo na tela um ícone de raio e a marcação de 80%. Textos na imagem confirmam a capacidade de 10000mAh e o recurso de cabo 'dois em um'. Não é possível confirmar a especificação exata das portas (Tipo-C/Lightning) apenas visualmente, devendo o usuário conferir as cores indicadas no caixa ou nas pontas dos cabos.",
+  "benefits": [
+    "Portabilidade prática com a alça de pendurar para gano de mochila ou chaveiro.",
+    "Conveniência de transporte sem cabos soltos, graças ao cabo integrado de duas em um.",
+    "Indicação visual imediata do nível de energia através dos LEDs no corpo do dispositivo."
+  ],
+  "speech": "Carregador de 10000mAh com cabo integrado e alça prática. Veja como manter seu celular sempre sobrecarregado em qualquer lugar. Confira os detalhes deste mini power bank agora mesmo!",
+  "caption": "Carregador Portátil Mini Power Bank 10000mAh Com 02 Saídas Tipo-C / Lightning. Prático, com cabo retrátil e alça de pendurar.",
+  "hashtags": [
+    "#Publicidade",
+    "#PowerBank",
+    "#CarregadorPortátil",
+    "#MiniPowerBank",
+    "#AcessoriosDeCelular",
+    "#Eletroportateis"
+  ],
+  "promptPt": "Vídeo vertical 9:16, iluminação realista e suave. Um personagem adulto jovem está sentado em um parque ao ar livre. Ele segura um carregador portátil branco com alça (power bank) e demonstra o cabo retrátil para conectar a um celular em sua mão. Ele olha para o público com naturalidade, sorrindo levemente. O cenário é limpo e moderno. A câmera foca no produto enquanto ele fala, destacando a alça e os LEDs.",
+  "promptEn": "Vertical 9:16 video, realistic and soft lighting. A young adult character is sitting in a modern outdoor park. He holds a white portable charger (power bank) with a lanyard and demonstrates the integrated retractable cable to plug it into a smartphone. He looks naturally at the camera with a slight smile. The scene is clean. The camera focuses on the product while he speaks, highlighting the lanyard and LED indicators.",
+  "provider": "groq-vision",
+  "model": "qwen/qwen3.8-27b",
+  "scope": "Análise real de uma foto do catálogo pela Groq. Imagem conferida visualmente. Roteiro é rascunho: termos como retrátil e sobrecarregado exigem revisão; não declarar benefícios automaticamente aprovados. Sem TTS real, vídeo de IA ou postagem neste diagnóstico.",
+  "diagnostic": "campaign-content-check encerrado na versão 5 e HTTP410 verificado"
+}

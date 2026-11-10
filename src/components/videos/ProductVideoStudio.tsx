@@ -23,7 +23,7 @@ function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
   anchor.href = url; anchor.download = filename; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
-export function ProductVideoStudio({ onBusyChange, active, initialProduct, onResult }: { onBusyChange: (busy: boolean) => void; active: boolean; initialProduct?: CampaignProduct; onResult?: (blob: Blob, filename: string) => void }) {
+export function ProductVideoStudio({ onBusyChange, active, initialProduct, onResult, embedded = false }: { onBusyChange: (busy: boolean) => void; active: boolean; initialProduct?: CampaignProduct; onResult?: (blob: Blob, filename: string) => void; embedded?: boolean }) {
   const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<ProductMedia[]>([]);
   const [options, setOptions] = useState<ProductVideoOptions>({ ...defaults, title: initialProduct?.title.slice(0, 80) ?? "", price: initialProduct?.price ?? "" });
@@ -171,10 +171,10 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
   }
   const blocked = busy || saving || importing || galleryBusy;
   return <div className="space-y-5">
-    <div className="rounded-xl border border-primary/20 bg-primary-soft p-4 text-sm">
+    {!embedded && <div className="rounded-xl border border-primary/20 bg-primary-soft p-4 text-sm">
       <p className="font-semibold text-primary">Seu produto em destaque, sem personagem</p>
       <p className="mt-1 text-muted">Monte um vídeo com fotos de diferentes ângulos ou clipes reais do produto sendo usado. Escolha as transições, confira a prévia e exporte.</p>
-    </div>
+    </div>}
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
       <div className="min-w-0 space-y-5">
         <Card titulo="1. Fotos e clipes do produto">
@@ -214,7 +214,7 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
         <div className="space-y-3" aria-busy={busy}>
           <button type="button" disabled={blocked || !ready || !supported || !items.length} onClick={() => void generate()} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Film className="h-5 w-5" />}{busy ? `Exportando · ${progress}%` : "Gerar vídeo do produto"}</button>
           {busy && <><progress aria-label="Progresso da exportação" value={progress} max={100} className="w-full" /><button type="button" onClick={() => abort.current?.abort()} className={button}>Cancelar exportação</button></>}
-          <p className="text-xs text-muted">{items.length * options.secondsPerScene} segundos · sem áudio · {supported?.startsWith("video/mp4") ? "MP4" : "MP4 ou WebM conforme o navegador"}. A exportação leva aproximadamente a duração do vídeo. Mantenha esta aba aberta. Sem consumo de créditos de IA.</p>
+          <p className="text-xs text-muted">{items.length * options.secondsPerScene} segundos · {embedded ? "narração na próxima etapa" : "sem áudio"} · {supported?.startsWith("video/mp4") ? "MP4" : "MP4 ou WebM conforme o navegador"}. A exportação leva aproximadamente a duração do vídeo. Mantenha esta aba aberta. Sem consumo de créditos de IA.</p>
           {supported === "" && <p role="alert" className="text-sm text-muted">Seu navegador não suporta exportação. Tente uma versão atual do Chrome, Edge ou Safari.</p>}
           {error && <p role="alert" className="rounded-xl border border-border p-3 text-sm text-red-700 dark:text-red-400">{error}</p>}
           {notice && <p role="status" className="text-sm text-primary">{notice}</p>}
@@ -224,7 +224,7 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
         <Card titulo="Prévia">
           {items.length ? <><canvas ref={canvas} aria-label="Prévia do vídeo de produto" className="mx-auto max-h-[420px] w-full rounded-xl bg-background object-contain" style={{ aspectRatio: options.format.replace(":", "/") }} /><button type="button" disabled={!ready || blocked} onClick={() => void preview()} className={`${button} mt-3 w-full`}>{playing ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}{playing ? "Parar prévia" : "Reproduzir prévia"}</button></> : <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-xl bg-background p-6 text-center text-sm text-muted"><Film className="h-10 w-10" />Adicione a primeira foto para montar seu vídeo.</div>}
         </Card>
-        {result && <Card titulo="Vídeo pronto">
+        {result && !embedded && <Card titulo="Vídeo pronto">
           <video key={result.url} src={result.url} controls playsInline preload="metadata" className="mx-auto max-h-[420px] w-full rounded-xl bg-background" />
           <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => download(result.blob, result.filename)} className={button}><Download className="h-4 w-4" />Baixar {result.filename.endsWith(".mp4") ? "MP4" : "WebM"}</button>{user && <button type="button" disabled={saving || result.saved || busy} onClick={() => void saveResult()} className={button}><Save className="h-4 w-4" />{result.saved ? "Salvo na conta" : saving ? "Salvando…" : "Salvar na conta"}</button>}</div>
           {!authLoading && !user && <p className="mt-3 text-xs text-muted">Você pode baixar agora. <Link href="/entrar" className="text-primary underline">Entre na conta</Link> antes de montar o vídeo para também salvá-lo na biblioteca.</p>}
@@ -232,7 +232,7 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
         </Card>}
       </div>
     </div>
-    {user && <Card titulo="Meus vídeos de produto" acao={<button type="button" disabled={libraryLoading} onClick={() => void refreshLibrary()} className="text-xs text-primary underline">{libraryLoading ? "Carregando…" : "Atualizar"}</button>}>
+    {user && !embedded && <Card titulo="Meus vídeos de produto" acao={<button type="button" disabled={libraryLoading} onClick={() => void refreshLibrary()} className="text-xs text-primary underline">{libraryLoading ? "Carregando…" : "Atualizar"}</button>}>
       <p className="mb-3 text-xs text-muted">Seus 20 vídeos mais recentes, salvos de forma privada na conta.</p>
       {!library.length && !libraryLoading && !libraryError && <p className="text-sm text-muted">Depois de gerar, use “Salvar na conta” para guardar seu primeiro vídeo.</p>}
       <ul className="grid gap-3 md:grid-cols-2">{library.map(item => <li key={item.name} className="min-w-0 rounded-xl border border-border p-3"><p className="truncate text-sm font-medium">{item.name.split("--")[0].replace(/-/g, " ")}</p><p className="mt-1 text-xs text-muted">{item.created_at ? new Date(item.created_at).toLocaleString("pt-BR") : "Vídeo salvo"} · {item.name.endsWith("mp4") ? "MP4" : "WebM"}</p><div className="mt-2 flex gap-3"><button type="button" disabled={Boolean(libraryBusy)} onClick={() => void openSaved(item)} className="text-sm text-primary underline disabled:opacity-50">Abrir vídeo</button><button type="button" disabled={Boolean(libraryBusy)} onClick={() => void openSaved(item, true)} className="text-sm text-primary underline disabled:opacity-50">Baixar</button></div></li>)}</ul>
