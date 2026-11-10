@@ -49,3 +49,7 @@ verify_jwt = false
 [functions.motion-generation]
 # User operations validate JWT via auth.getUser; executor callbacks use one-job capabilities.
 verify_jwt = false
+
+[functions.product-gallery]
+# JWT verificado com auth.getUser antes de consultar o produto da própria conta.
+verify_jwt = false

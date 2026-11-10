@@ -1,5 +1,7 @@
 # Meu Vendedor — Viral Commerce AI
 
+> **Fotos do anúncio — 10/11/2026:** busca de galeria quando disponível e análise local de fotos para retirar da seleção sugerida especificações, descrições longas e duplicatas. Revisão manual antes de adicionar às cenas; a loja pode disponibilizar apenas a foto principal. Detalhes em [GALERIA_DE_PRODUTO.md](./GALERIA_DE_PRODUTO.md).
+
 > **Atualização de 10/11/2026:** `/videos` abre no modo **Vídeo de produto**, com fotos/clipes reais, transições, aproximação, prévia e exportação, sem personagem ou créditos de IA. Salvamento privado na conta pelo Storage existente. Personagens continuam em área experimental separada; testes de GPU não foram retomados. Entrega e limites em [VIDEO_DE_PRODUTO.md](./VIDEO_DE_PRODUTO.md).
 
 > **Continuidade mais recente:** ensaio de 6 s encerrado a pedido do responsável; 4 s preservados para retomada, sem resultado novo de 6 s aprovado. Não iniciar GPU sem nova instrução. Ver [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md).

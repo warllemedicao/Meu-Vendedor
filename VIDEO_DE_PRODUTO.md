@@ -1,5 +1,7 @@
 # Vídeo de produto — 10/11/2026
 
+> **Melhoria posterior:** seleção de fotos do anúncio com detecção local de texto, sugestões de exclusão de especificações/descrições e remoção de duplicatas. A busca de galeria depende da disponibilidade da origem e informa quando só há capa. Ver [GALERIA_DE_PRODUTO.md](./GALERIA_DE_PRODUTO.md).
+
 ## Entrega
 
 O estúdio `/videos` abre por padrão em **Vídeo de produto**. O modo Personagens fica em aba separada, identificado como experimental; não é iniciado ao abrir o modo de produto. O responsável pediu priorizar o uso do aplicativo enquanto a atuação de personagens fica para evolução posterior.

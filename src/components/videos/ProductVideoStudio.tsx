@@ -9,6 +9,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { importVideoProductImage } from "@/lib/video-submission";
 import { MAX_PRODUCT_MEDIA_BYTES, MAX_PRODUCT_SCENES, PRODUCT_VIDEO_BUCKET, ownedProductVideoPath, productVideoFilename, validateProductMedia, type ProductVideoOptions } from "@/lib/product-video";
 import { createProductPlayer, productRecordingType, renderProductVideo, type ProductMedia, type ProductPlayer } from "@/lib/render-product-video";
+import { ProductPhotoPicker } from "./ProductPhotoPicker";
 
 const field = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm";
 const button = "inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -27,6 +28,7 @@ export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (bu
   const [options, setOptions] = useState<ProductVideoOptions>(defaults);
   const [error, setError] = useState(""); const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false); const [importing, setImporting] = useState(false); const [saving, setSaving] = useState(false);
+  const [galleryBusy, setGalleryBusy] = useState(false);
   const [progress, setProgress] = useState(0); const [supported, setSupported] = useState<string | null>(null);
   const [prepared, setPrepared] = useState<{ items: ProductMedia[]; options: ProductVideoOptions } | null>(null);
   const ready = prepared?.items === items && prepared?.options === options;
@@ -47,7 +49,7 @@ export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (bu
     const check = requestAnimationFrame(() => setSupported(productRecordingType()));
     return () => { mounted.current = false; cancelAnimationFrame(check); abort.current?.abort(); cancelAnimationFrame(frame.current); player.current?.dispose(); urls.forEach(url => URL.revokeObjectURL(url)); };
   }, []);
-  useEffect(() => { onBusyChange(busy || saving || importing); }, [busy, saving, importing, onBusyChange]);
+  useEffect(() => { onBusyChange(busy || saving || importing || galleryBusy); }, [busy, saving, importing, galleryBusy, onBusyChange]);
   const stopPreview = useCallback(() => { cancelAnimationFrame(frame.current); player.current?.pause(); setPlaying(false); }, []);
   useEffect(() => { if (!active) { const task = requestAnimationFrame(stopPreview); return () => cancelAnimationFrame(task); } }, [active, stopPreview]);
   useEffect(() => {
@@ -77,16 +79,17 @@ export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (bu
     void Promise.resolve().then(() => { if (alive) return refreshLibrary(); }); return () => { alive = false; };
   }, [user, refreshLibrary]);
 
-  function addFiles(files: File[]) {
-    if (locked.current) return;
+  function addFiles(files: File[]): boolean {
+    if (locked.current) return false;
     try {
-      if (!files.length) return;
+      if (!files.length) return false;
       if (items.length + files.length > MAX_PRODUCT_SCENES) throw new Error("Use no máximo 8 fotos ou clipes por vídeo.");
       if ([...items.map(item => item.file), ...files].reduce((sum, file) => sum + file.size, 0) > MAX_PRODUCT_MEDIA_BYTES) throw new Error("Os arquivos devem somar até 150 MB.");
       const kinds = files.map(validateProductMedia);
       const added = files.map((file, index) => { const url = URL.createObjectURL(file); resources.current.add(url); return { id: crypto.randomUUID(), file, url, kind: kinds[index] }; });
       setItems(old => [...old, ...added]); setError(""); setNotice("");
-    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível adicionar os arquivos."); }
+      return true;
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível adicionar os arquivos."); return false; }
   }
   function selectFiles(event: ChangeEvent<HTMLInputElement>) { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }
   function move(index: number, delta: number) { const next = [...items]; [next[index], next[index + delta]] = [next[index + delta], next[index]]; setItems(next); }
@@ -163,7 +166,7 @@ export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (bu
     } catch { if (mounted.current) setLibraryError("Não foi possível abrir este arquivo. Atualize a biblioteca e tente novamente."); }
     finally { if (mounted.current) setLibraryBusy(""); }
   }
-  const blocked = busy || saving || importing;
+  const blocked = busy || saving || importing || galleryBusy;
   return <div className="space-y-5">
     <div className="rounded-xl border border-primary/20 bg-primary-soft p-4 text-sm">
       <p className="font-semibold text-primary">Seu produto em destaque, sem personagem</p>
@@ -179,7 +182,7 @@ export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (bu
             </button>
             {user && products.length > 0 && <div className="flex flex-wrap items-end gap-2">
               <label className="min-w-0 flex-1 text-sm">Ou escolha do seu catálogo<select value={productId} onChange={e => setProductId(e.target.value)} className={field}><option value="">Selecione um produto</option>{products.map(product => <option key={product.id} value={product.id}>{product.title}</option>)}</select></label>
-              <button type="button" disabled={!productId || importing} onClick={() => void importProduct()} className={button}>{importing ? "Importando…" : "Usar foto"}</button>
+              <button type="button" disabled={!productId || importing} onClick={() => void importProduct()} className={button}>{importing ? "Importando…" : "Usar foto principal"}</button>
             </div>}
             {items.length > 0 && <ol className="space-y-2">{items.map((item, index) => <li key={item.id} className="flex min-w-0 items-center gap-3 rounded-xl border border-border p-2">
               <span className="w-5 shrink-0 text-center text-xs text-muted">{index + 1}</span>
@@ -190,6 +193,8 @@ export function ProductVideoStudio({ onBusyChange, active }: { onBusyChange: (bu
             </li>)}</ol>}
             <p className="text-xs text-muted">Para mostrar outros lados, adicione fotos reais desses ângulos. Para mostrar mãos usando o produto, envie um clipe já gravado. Fotos recebem movimento de aproximação; novos ângulos e mãos não são inventados.</p>
           </fieldset>
+          <div className="mt-4"><ProductPhotoPicker userId={user?.id} productId={productId} existingFiles={items.map(item => item.file)} available={MAX_PRODUCT_SCENES - items.length}
+            disabled={busy || saving || importing} onBusyChange={setGalleryBusy} onAdd={(files, title) => { const added = addFiles(files); if (added && title) setOptions(old => ({ ...old, title: old.title || title })); return added; }} /></div>
         </Card>
         <Card titulo="2. Aparência do vídeo">
           <fieldset disabled={blocked} className="space-y-4 disabled:opacity-60">

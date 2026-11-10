@@ -1,5 +1,15 @@
 # Histórico da conversa — atualizado em 10/11/2026
 
+## 10/11/2026 — aproveitar fotos do anúncio e filtrar especificações
+
+O responsável pediu aproveitar as várias fotos do anúncio, excluindo imagens de descrição/especificação. A análise confirmou que o catálogo guarda apenas a capa. Um anúncio Shopee consultado publicamente retornou HTML da aplicação, sem galeria estruturada disponível.
+
+Implementada busca da galeria do item quando a origem a expuser, com aviso explícito quando somente a capa estiver disponível. Adicionada alternativa para analisar fotos salvas do anúncio. A leitura OCR roda localmente, com arquivos hospedados no próprio site, sugerindo retirar tabelas, descrições longas e leituras incertas. Há revisão manual, descarte de duplicatas, limite de cenas e cancelamento. Não foram retomados testes de personagens/GPU nem feitas chamadas de inferência paga.
+
+Função `product-gallery` v2 publicada com autenticação e escopo por conta/produto; chamada anônima real retornou 401. 235 testes passaram. Chromium confirmou OCR real em três imagens de controle, correção manual, duplicatas e cancelamento; importação de galeria foi testada com respostas controladas, não como coleta real completa da Shopee. Evidências, limites e fluxo em [GALERIA_DE_PRODUTO.md](./GALERIA_DE_PRODUTO.md).
+
+Frontend publicado na versão Cloudflare `d1f3092b-9dbd-489b-b8d7-1a677c35b509`. A leitura OCR foi repetida na URL pública com os mesmos resultados, sem pedido a CDN externo de OCR ou API de geração e sem erro JavaScript. O aviso de somente capa e a revisão manual foram preservados.
+
 ## 10/11/2026 — priorizar vídeos de produto para uso do aplicativo
 
 O responsável perguntou sobre transições, vários ângulos do objeto e mãos manuseando-o, deixando os personagens de lado. Depois pediu análise das ferramentas no Supabase e disponibilização de um fluxo utilizável enquanto o movimento de personagens fica para evolução futura.

@@ -13,14 +13,19 @@
     "video:demo": "node scripts/generate-video-demo.mjs",
     "build:pages": "MEU_VENDEDOR_STATIC_EXPORT=1 next build --webpack",
     "deploy:cloudflare": "npm run build:pages && wrangler deploy",
-    "typecheck:edge": "tsc --noEmit -p tsconfig.edge.json"
+    "typecheck:edge": "tsc --noEmit -p tsconfig.edge.json",
+    "predev": "node scripts/prepare-product-ocr.mjs",
+    "prebuild": "node scripts/prepare-product-ocr.mjs",
+    "prebuild:pages": "node scripts/prepare-product-ocr.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
+    "@tesseract.js-data/por": "1.0.0",
     "lucide-react": "^1.68.0",
     "next": "^16.4.5",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "tesseract.js": "6.0.1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.15",

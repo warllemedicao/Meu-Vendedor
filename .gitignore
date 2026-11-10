@@ -40,3 +40,6 @@ __pycache__/
 
 # vídeos e capturas privados dos testes locais
 /artifacts/
+
+# OCR público reproduzido pelo build a partir das dependências fixadas
+/public/product-ocr/
