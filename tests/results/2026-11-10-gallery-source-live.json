@@ -1,0 +1,16 @@
+{
+  "results": [
+    {
+      "shop": "1809825869",
+      "item": "58268400732",
+      "status": 200,
+      "failures": [],
+      "url": "https://shopee.com.br/verify/traffic/error",
+      "title": "Shopee Brasil | Ofertas incríveis. Melhores preços do mercado",
+      "bodyPreview": "Página indisponível. Faça login e tente novamente.",
+      "images": [],
+      "scriptCount": 26
+    }
+  ],
+  "scope": "Navegação pública normal, sem autenticação, cookies de conta, stealth ou resolução de desafios."
+}

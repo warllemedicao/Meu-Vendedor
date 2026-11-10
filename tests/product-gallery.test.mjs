@@ -24,7 +24,7 @@ test('gallery preserves Int64 IDs and refuses arbitrary hosts, credentials and p
 test('SPA shells, blocking and redirects fall back honestly to the cover without following arbitrary pages',async()=>{
  for(const response of [()=>new Response('<html><script src="spa.js"></script></html>'),()=>new Response('blocked',{status:403}),()=>new Response(null,{status:302,headers:{Location:'https://evil.test'}})]){
   let calls=0;const result=await discoverPhotos(product,async(url,options)=>{calls++;assert.equal(options.redirect,'manual');assert.equal(url,`https://shopee.com.br/product/${product.shopId}/${product.itemId}`);return response()});
-  assert.equal(result.source,'cover');assert.deepEqual(result.urls,[product.imageUrl]);assert.match(result.warning,/apenas a foto principal/);assert.equal(calls,1);
+  assert.equal(result.source,'cover');assert.deepEqual(result.urls,[product.imageUrl]);assert.match(result.warning,/só conseguimos importar a foto principal/);assert.equal(calls,1);
  }
 });
 test('photo download checks redirects, bytes and maximum size before saving',async()=>{
@@ -42,7 +42,7 @@ test('gallery handler authenticates, scopes product lookup, deduplicates bytes a
  const req=token=>new Request('https://app.test',{method:'POST',headers:{Authorization:`Bearer ${token}`},body:JSON.stringify({productId:id,userId:'victim',url:'https://evil.test'})});
  assert.equal((await handler(req('bad'))).status,401);assert.equal(lookup,undefined);
  const response=await handler(req('valid'));assert.equal(response.status,200);assert.deepEqual(lookup,[user,id]);
- const payload=await response.json();assert.equal(payload.photos.length,1);assert.equal(stored.length,1);assert.ok(stored[0][0].startsWith(`${user}/inputs/gallery-${id}-`));
+ const payload=await response.json();assert.equal(payload.photos.length,1);assert.equal(payload.listingUrl,`https://shopee.com.br/product/${product.shopId}/${product.itemId}`);assert.equal(stored.length,1);assert.ok(stored[0][0].startsWith(`${user}/inputs/gallery-${id}-`));
  assert.equal((await handler(req('valid'))).status,429);
 });
 test('unknown product causes no external requests and response errors do not expose internals',async()=>{

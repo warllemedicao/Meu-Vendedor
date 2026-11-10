@@ -12,13 +12,14 @@ const labels = { photo: "Foto sugerida", specification: "Possível especificaç�
 const unread = (): PhotoAssessment => ({ decision: "review", reason: "Sem análise automática. Confira a foto antes de incluir.", text: "", confidence: 0 });
 const fingerprint = async (file: Blob) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await file.arrayBuffer())), b => b.toString(16).padStart(2, "0")).join("");
 
-export function ProductPhotoPicker({ userId, productId, existingFiles, available, disabled, onAdd, onBusyChange }: {
-  userId?: string; productId: string; existingFiles: File[]; available: number; disabled: boolean;
+export function ProductPhotoPicker({ userId, productId, productUrl, existingFiles, available, disabled, onAdd, onBusyChange }: {
+  userId?: string; productId: string; productUrl?: string; existingFiles: File[]; available: number; disabled: boolean;
   onAdd(files: File[], title?: string): boolean; onBusyChange(busy: boolean): void;
 }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]); const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(""); const [warning, setWarning] = useState(""); const [error, setError] = useState("");
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(""); const [returnedListing, setReturnedListing] = useState("");
+  const listing = [productUrl, returnedListing].find(value => { try { const url = new URL(value ?? ""); return url.protocol === "https:" && url.hostname === "shopee.com.br" && !url.username && !url.password; } catch { return false; } });
   const fileInput = useRef<HTMLInputElement>(null); const urls = useRef(new Set<string>());
   const controller = useRef<AbortController | null>(null); const alive = useRef(true); const locked = useRef(false);
   const previousProduct = useRef(productId);
@@ -28,7 +29,7 @@ export function ProductPhotoPicker({ userId, productId, existingFiles, available
   useEffect(() => {
     if (previousProduct.current === productId) return;
     previousProduct.current = productId; controller.current?.abort();
-    const timer = setTimeout(() => { urls.current.forEach(url => URL.revokeObjectURL(url)); urls.current.clear(); setCandidates([]); setWarning(""); setError(""); setTitle(""); }, 0);
+    const timer = setTimeout(() => { urls.current.forEach(url => URL.revokeObjectURL(url)); urls.current.clear(); setCandidates([]); setWarning(""); setError(""); setTitle(""); setReturnedListing(""); }, 0);
     return () => clearTimeout(timer);
   }, [productId]);
 
@@ -104,6 +105,7 @@ export function ProductPhotoPicker({ userId, productId, existingFiles, available
         files.push(new File([blob], `foto-do-anuncio-${index + 1}.${photo.path.split(".").pop()}`, { type: blob.type }));
       }
       if (!alive.current || next.signal.aborted) return;
+      setReturnedListing(typeof data.listingUrl === "string" ? data.listingUrl : "");
       setTitle(typeof data.productTitle === "string" ? data.productTitle.slice(0, 80) : "");
       setWarning([typeof data.warning === "string" ? data.warning : "", data.failed ? "Algumas fotos não puderam ser carregadas." : ""].filter(Boolean).join(" "));
       if (!files.length) throw new Error("Não foi possível abrir as fotos. Tente selecionar os arquivos salvos no dispositivo.");
@@ -117,6 +119,7 @@ export function ProductPhotoPicker({ userId, productId, existingFiles, available
     <p className="text-xs text-muted">Busque as fotos do produto escolhido no catálogo ou selecione fotos salvas do anúncio. Imagens com medidas, especificações ou muito texto ficam fora da seleção sugerida.</p>
     <div className="flex flex-wrap gap-2">
       {userId && <button type="button" disabled={disabled || busy || !productId || available < 1} onClick={() => void fromListing()} className={button}>Buscar fotos do anúncio</button>}
+      {listing && <a href={listing} target="_blank" rel="noopener noreferrer" className={button}>Abrir anúncio na Shopee</a>}
       <input ref={fileInput} type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="Selecionar fotos do anúncio para análise" onChange={event => void fromFiles(event)} className="sr-only" />
       <button type="button" disabled={disabled || busy || available < 1} onClick={() => fileInput.current?.click()} className={button}>Analisar fotos do dispositivo</button>
     </div>

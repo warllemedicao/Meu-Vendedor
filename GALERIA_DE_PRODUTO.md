@@ -46,3 +46,18 @@ Fontes técnicas: [Tesseract.js, instalação local](https://github.com/naptha/t
 Backend `product-gallery` v2 publicado. Frontend no Worker existente `meu-vendedor`, versão `d1f3092b-9dbd-489b-b8d7-1a677c35b509`, preservando bindings, variáveis e os dois crons. URL: https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev/videos .
 
 OCR real repetido no site público: foto limpa selecionada, especificação e descrição longa desmarcadas, correção manual, descarte de duplicata e cancelamento aprovados. Nenhum erro JavaScript ou chamada a CDN de OCR/provedor de geração; sem overflow horizontal em 390 px. Esse ensaio usa imagens técnicas locais; não demonstra extração de uma galeria comercial completa.
+
+
+## Retorno de 10/11/2026 — link no pop-up e galeria pelo anúncio
+
+O responsável pediu o botão de gerar link imediatamente abaixo de Seu link de divulgação no primeiro passo do pop-up, preenchendo a caixa, e perguntou se consultar o link do produto recuperaria mais fotos.
+
+- Botão **Gerar meu link de divulgação** adicionado no primeiro passo para produto Shopee da própria conexão. Chama `marketplace`/`generate_link`, preenche o campo e mantém o salvamento existente em Meus links. Falhas preservam o link anterior, sem afirmar sucesso. A geração externa na ficha continua disponível.
+- A coleta já usa o endereço canônico do anúncio com os IDs do produto, além da capa armazenada no catálogo. Não era uma leitura exclusivamente da imagem de API. A resposta agora informa o endereço canônico e o seletor oferece **Abrir anúncio na Shopee** também no pop-up, ao lado da busca das fotos. A opção de selecionar/analisar fotos do dispositivo permanece.
+- Corrigida a mensagem quando só a capa é recuperada: não atribui ao lojista uma ausência de fotos. Explica que a galeria não foi lida neste acesso e que o anúncio pode conter outras imagens.
+- Validação real adicional: dois anúncios públicos consultados em Chromium normal inicialmente renderizaram sem galeria. Um deles foi acompanhado por mais 15 segundos até terminar o carregamento e levou a `shopee.com.br/verify/traffic/error`, mostrando Página indisponível e pedindo login. Não foram usados cookies de conta, login, stealth ou resolução de desafios. Não há evidência de galeria completa importada nesta rodada, e não se prometeu desbloqueá-la.
+- Evidência sanitizada: `tests/results/2026-11-10-gallery-source-live.json`. Esse resultado não prova que todos os anúncios bloqueiam a leitura ou que a Shopee tenha apenas uma foto por produto.
+- Sete testes de galeria aprovados, frontend/Edge TypeScript, lint pertinente e build de 17 rotas aprovados. Navegador com sessão/API simuladas verificou botão imediatamente abaixo do campo, preenchimento automático, abertura do pop-up sem gerar link fora, acesso ao anúncio e mobile sem overflow. Não foi gerado um link real nesse teste. Evidência: `tests/results/2026-11-10-link-gallery-browser.json`.
+- Supabase `product-gallery` v3. Nenhuma mudança de esquema ou Secrets, sem inferência/GPU e sem postagem.
+
+Frontend desta correção: Cloudflare `c3582268-a693-4897-9ca6-317ddf96568c`.

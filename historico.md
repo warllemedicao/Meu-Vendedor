@@ -321,3 +321,12 @@ Implementado assistente modal de quatro etapas, endpoint de visão autenticado e
 Groq `qwen/qwen3.8-27b` analisou foto real de power bank do catálogo. O rascunho requer revisão de termos como “retrátil” e “sobrecarregado”; não se declarou qualidade publicitária aprovada automaticamente. Gemini retornou saldo pré-pago esgotado, sem compra de créditos. Teste de navegador com visão/TTS simulados executou montagem/composição reais, confirmou um stream de áudio no MP4, fluxo de aprovação, compartilhamento completo e rascunho em Publicações. Nenhuma narração real foi sintetizada nesta validação e nada foi postado.
 
 246 testes, tipos, lint e build aprovados. Cloudflare `132378e4-5e85-442f-8667-d6aa4a0f939e`; Supabase `campaign-content` v2; diagnóstico HTTP410 e bloqueio anônimo HTTP401. Relatório: [ASSISTENTE_DE_DIVULGACAO.md](./ASSISTENTE_DE_DIVULGACAO.md).
+
+
+## 10/11/2026 — gerar link no primeiro passo e verificar mais fotos
+
+O responsável aprovou o formato do assistente e pediu gerar link logo abaixo do campo Seu link de divulgação, sem precisar sair do pop-up. Perguntou se consultar o endereço do próprio produto permitiria importar mais imagens. Botão inserido, integrado a generate_link, preenchimento e salvamento em Meus links preservados.
+
+A consulta da galeria já usava o endereço canônico do anúncio. Dois anúncios foram abertos publicamente no navegador; o acompanhamento completo de um deles terminou em verificação de tráfego/Página indisponível, solicitando login e sem fotos. Não se tentou contornar a restrição e não foi afirmada coleta completa. Área de fotos ganhou acesso direto ao anúncio e mensagem precisa para o caso de só recuperar a capa. A seleção de imagens do dispositivo segue disponível.
+
+Sete testes de galeria, tipos frontend/Edge, lint, build e navegador pertinentes aprovados. Cloudflare c3582268-a693-4897-9ca6-317ddf96568c; product-gallery v3. Evidências e limites em GALERIA_DE_PRODUTO.md. Teste de botão usou API simulada; nenhuma geração de link real, mídia, GPU ou postagem nesta validação.

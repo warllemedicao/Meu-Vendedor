@@ -72,7 +72,7 @@ async function bounded(response: Response, limit: number): Promise<Uint8Array> {
 export async function discoverPhotos(product: GalleryProduct, fetcher: typeof fetch = fetch): Promise<{ urls: string[]; source: "listing" | "cover"; warning?: string }> {
   if (product.platform !== "shopee" || !/^\d{1,20}$/.test(product.shopId) || !/^\d{1,20}$/.test(product.itemId)) throw new GalleryError(422, "unsupported_source", "A busca de fotos está disponível para anúncios Shopee do seu catálogo.");
   const cover = approvedPhoto(product.imageUrl);
-  const fallback = { urls: cover ? [cover] : [], source: "cover" as const, warning: "A loja não disponibilizou a galeria nesta consulta. Encontramos apenas a foto principal; você também pode selecionar as outras fotos salvas do anúncio para análise." };
+  const fallback = { urls: cover ? [cover] : [], source: "cover" as const, warning: "Neste acesso ao anúncio, só conseguimos importar a foto principal. O anúncio pode ter outras fotos: abra-o na Shopee, salve as imagens desejadas e use Analisar fotos do dispositivo." };
   try {
     const response = await fetcher(`https://shopee.com.br/product/${product.shopId}/${product.itemId}`, { headers: { Accept: "text/html", "User-Agent": "MeuVendedor/1.0 product-gallery" }, redirect: "manual", signal: AbortSignal.timeout(12000) });
     const html = new TextDecoder().decode(await bounded(response, 3 * 1024 * 1024));

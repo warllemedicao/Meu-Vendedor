@@ -196,7 +196,7 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
             </li>)}</ol>}
             <p className="text-xs text-muted">Para mostrar outros lados, adicione fotos reais desses ângulos. Para mostrar mãos usando o produto, envie um clipe já gravado. Fotos recebem movimento de aproximação; novos ângulos e mãos não são inventados.</p>
           </fieldset>
-          <div className="mt-4"><ProductPhotoPicker userId={user?.id} productId={productId} existingFiles={items.map(item => item.file)} available={MAX_PRODUCT_SCENES - items.length}
+          <div className="mt-4"><ProductPhotoPicker userId={user?.id} productId={productId} productUrl={initialProduct?.productUrl} existingFiles={items.map(item => item.file)} available={MAX_PRODUCT_SCENES - items.length}
             disabled={busy || saving || importing} onBusyChange={setGalleryBusy} onAdd={(files, title) => { const added = addFiles(files); if (added && title) setOptions(old => ({ ...old, title: old.title || title })); return added; }} /></div>
         </Card>
         <Card titulo="2. Aparência do vídeo">

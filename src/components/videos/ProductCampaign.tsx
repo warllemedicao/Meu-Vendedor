@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { marketplaceAction } from "@/lib/marketplace";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { affiliateUrlValid, campaignPrompt, productHashtags, storePublicationDraft, type CampaignProduct } from "@/lib/product-campaign";
 import { analyzeProductCampaign, type CampaignAnalysis } from "@/lib/campaign-ai";
@@ -38,6 +39,17 @@ ${analysis.promptEn}
 DIREÇÃO APROVADA / APPROVED DIRECTION: ${scene}
 Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly in Brazilian Portuguese: ${JSON.stringify(speech)}` : campaignPrompt(product, notes, scene, speech, "Personagem adulto adequado ao produto");
   function acceptSource(blob: Blob, filename: string) { setSource({ blob, filename, id: crypto.randomUUID() }); setNarrated(null); setError(""); setStep(2); }
+  async function generateLink() {
+    if (!user || busy || !product.owned) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await marketplaceAction("generate_link", { productId: product.id });
+      if (!result.url || !affiliateUrlValid(result.url)) throw new Error("A Shopee não retornou um link válido. Tente novamente.");
+      setLinkEdit({ source: initialAffiliateUrl, value: result.url });
+      setNotice("Link gerado pela Shopee, salvo em Meus links e preenchido na divulgação.");
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível gerar seu link."); }
+    finally { setBusy(false); }
+  }
   async function analyze() {
     if (!user || busy) return; setBusy(true); setError(""); setNotice("");
     try { const value = await analyzeProductCampaign(product, user.id, notes, seconds, photo); setAnalysis(value); setSpeech(value.speech); setNarrated(null); setNotice("Foto analisada. Confira os detalhes e a fala antes de continuar."); }
@@ -60,7 +72,8 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
         <div hidden={step !== 0}><fieldset disabled={busy} className="min-w-0 space-y-4">
           <h3 className="text-lg font-semibold">1. Produto e fala do anúncio</h3>
           {product.imageUrl && <div className="rounded-xl bg-white p-3"><Image unoptimized width={240} height={160} src={product.imageUrl} alt={product.title} className="mx-auto h-40 max-w-full object-contain" /></div>}
-          <label className="block text-sm">Seu link de divulgação<input type="url" value={affiliateUrl} onChange={e => setLinkEdit({ source: initialAffiliateUrl, value: e.target.value })} placeholder="Gere na ficha do produto ou cole seu link HTTPS" className={field} /></label>
+          <label className="block text-sm">Seu link de divulgação<input type="url" value={affiliateUrl} onChange={e => setLinkEdit({ source: initialAffiliateUrl, value: e.target.value })} placeholder="Gere seu link no botão abaixo ou cole seu link HTTPS" className={field} /></label>
+          {product.owned && product.platform === "Shopee" && <button type="button" disabled={busy || !user} onClick={() => void generateLink()} className={`${button} w-full border-primary text-primary`}>{busy ? "Aguarde…" : "Gerar meu link de divulgação"}</button>}
           <label className="block text-sm">Outra foto para a IA analisar (opcional)<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e => { setPhoto(e.target.files?.[0]); setAnalysis(null); setSpeech(""); setNarrated(null); }} className="mt-2 block w-full text-sm" /></label>
           <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Duração aproximada da fala<select value={seconds} onChange={e => setSeconds(Number(e.target.value))} className={field}><option value={15}>15 segundos · apresentação rápida</option><option value={30}>30 segundos · mais detalhes</option></select></label><label className="text-sm">Detalhes confirmados (opcional)<input maxLength={1500} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex.: modelo, variante, tamanho" className={field} /></label></div>
           <button type="button" disabled={busy || !user} onClick={() => void analyze()} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{busy ? "Analisando a foto e criando a divulgação…" : "Analisar foto e criar roteiro com IA"}</button>

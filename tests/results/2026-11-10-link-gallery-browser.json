@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "checks": [
+    "abre pop-up sem precisar gerar link fora",
+    "botão de gerar link imediatamente abaixo do campo",
+    "botão preenche link retornado pela API",
+    "acesso direto ao anúncio na seleção de fotos",
+    "sem overflow no celular"
+  ],
+  "scope": "conta e resposta da API Shopee simuladas; sem gerar link real ou importar galeria real"
+}

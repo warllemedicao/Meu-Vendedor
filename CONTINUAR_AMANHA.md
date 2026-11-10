@@ -1,5 +1,13 @@
 # Continuidade do projeto — próxima sessão
 
+## Link no pop-up e fotos do anúncio — 10/11/2026
+
+Botão Gerar meu link de divulgação inserido imediatamente abaixo do campo no primeiro passo do pop-up, para produto Shopee da conexão. Gera pela API existente, preenche a caixa e preserva salvamento em Meus links. Fluxo testado no navegador com resposta controlada.
+
+Coleta já consultava o endereço do anúncio, além da capa. Teste público em navegador normal, aguardando os scripts, chegou a Página indisponível/pedido de login da Shopee, sem galeria. Não foi possível validar importação completa por esse caminho; não dizer que o anúncio possui apenas uma foto. Seletor agora oferece Abrir anúncio na Shopee e a mensagem explica corretamente o acesso limitado, preservando envio de fotos do dispositivo.
+
+Sete testes da galeria, tipos frontend/Edge, lint, build de 17 rotas e navegador com posição/preenchimento do botão e mobile aprovados. Cloudflare `c3582268-a693-4897-9ca6-317ddf96568c`; Supabase product-gallery v3. Detalhes e evidências em [GALERIA_DE_PRODUTO.md](./GALERIA_DE_PRODUTO.md). Sem geração de mídia, GPU ou postagem nesta rodada.
+
 ## Assistente por etapas, IA visual e narrador — 10/11/2026
 
 Novo pedido entregue: aviso informativo removido; criação em pop-up com quatro etapas (produto/roteiro → vídeo → narração/aprovação → compartilhar). IA recebe foto e prepara fala, prompts PT/EN, legenda e hashtags. Groq visão validada com foto real do catálogo; Gemini sem saldo pré-pago, OpenRouter gratuito não confirmou resposta utilizável. Usuário revisa o roteiro antes de avançar, pois a amostra teve termos que exigem correção. Google TTS existente conectado ao editor; navegador aplica voz ao vídeo/imagem e exige aprovação antes do compartilhamento completo. Teste de navegador gerou MP4 real com trilha de áudio sintético e recuperou rascunho; não confundir com síntese TTS real ou postagem.

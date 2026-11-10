@@ -42,7 +42,7 @@ export function createGalleryHandler(deps: GalleryDependencies) {
           } catch { failed++; }
         }
         if (!photos.length) throw new GalleryError(422, "gallery_unavailable", "Não foi possível carregar fotos deste anúncio. Selecione as fotos salvas no seu dispositivo para analisar.");
-        return { photos, source: gallery.source, productTitle: product.title, warning: gallery.warning, failed };
+        return { photos, source: gallery.source, listingUrl: `https://shopee.com.br/product/${product.shopId}/${product.itemId}`, productTitle: product.title, warning: gallery.warning, failed };
       })();
       pending.set(key, task);
       try { return json(await task); } finally { pending.delete(key); }
