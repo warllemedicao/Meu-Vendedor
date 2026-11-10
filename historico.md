@@ -1,4 +1,16 @@
-# Histórico da conversa — atualizado em 09/11/2026
+# Histórico da conversa — atualizado em 10/11/2026
+
+## 10/11/2026 — priorizar vídeos de produto para uso do aplicativo
+
+O responsável perguntou sobre transições, vários ângulos do objeto e mãos manuseando-o, deixando os personagens de lado. Depois pediu análise das ferramentas no Supabase e disponibilização de um fluxo utilizável enquanto o movimento de personagens fica para evolução futura.
+
+Foram consultadas funções e fontes remotos no Supabase, além do bucket e das políticas de acesso. Implementado **Vídeo de produto** como modo inicial do estúdio: fotos e clipes reais, ordenação, três transições, aproximação, três formatos, textos opcionais, prévia, exportação sem áudio, cancelamento, download e salvamento privado. Personagens permanecem em aba experimental, sem geração automática ou novos ensaios. Não houve consumo de inferência/GPU nem alterações de Secrets, funções ou esquema Supabase.
+
+Chromium gerou MP4 real de 4,0052 s em 720×1280; verificados também clipe como entrada, formato quadrado, cancelamento, download e layout de celular. 228 testes passaram; TypeScript frontend/Edge, lint sem erros e build estático aprovados. Biblioteca validada com respostas controladas, e RLS conferida no banco em transações revertidas. O token de gerenciamento do terminal retornou 401: não foi possível criar contas técnicas para validar upload HTTP real; nenhum usuário técnico foi criado. Isso não foi apresentado como ensaio E2E remoto do Storage.
+
+Ângulos e mãos vêm dos materiais reais enviados, não são inventados por IA nesta entrega. Detalhes e limites em [VIDEO_DE_PRODUTO.md](./VIDEO_DE_PRODUTO.md).
+
+Publicado no Worker existente na versão `b284e71c-b8af-42bd-af98-49fabad658b2`, preservando bindings e crons. Teste repetido na URL pública gerou/baixou MP4 real de 4,007233 s em 720×1280 e confirmou também clipe, formato quadrado, cancelamento e layout em 390 px, sem erro JavaScript. Nenhuma GPU ou inferência paga foi usada.
 
 ## Encerramento solicitado — 09/11/2026, preservação para próxima sessão
 
