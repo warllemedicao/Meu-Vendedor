@@ -1,5 +1,11 @@
 # Continuidade do projeto — próxima sessão
 
+## Nova fonte oficial de fotos confirmada — 10/11/2026
+
+Após pergunta sobre Compartilhar → Baixar todas as imagens do aplicativo, a consulta autenticada descobriu quatro feeds disponíveis em listItemFeeds/getItemFeedData. Vinte produtos amostrados retornaram image_link e image_link_3 com URLs distintas; duas fotos do mesmo item foram baixadas e visualmente conferidas,1024×1024 e hashes diferentes. Isto corrige/amplia a conclusão anterior baseada apenas em productOfferV2 e HTML do anúncio.
+
+A fonte ainda NÃO está integrada ao seletor do site. Não se comprovou equivalente de todas as imagens do aplicativo. Próxima implementação deve usar feeds com índice/paginação e validação estrita da identidade loja/item/conta, sem misturar variantes nem varrer todos os dados por clique. Relatório em GALERIA_DE_PRODUTO.md; evidência em tests/results/2026-11-10-affiliate-feed-images-live.json. Nenhuma alteração de app nesta investigação; diagnóstico encerrado v4/HTTP410.
+
 ## Link no pop-up e fotos do anúncio — 10/11/2026
 
 Botão Gerar meu link de divulgação inserido imediatamente abaixo do campo no primeiro passo do pop-up, para produto Shopee da conexão. Gera pela API existente, preenche a caixa e preserva salvamento em Meus links. Fluxo testado no navegador com resposta controlada.

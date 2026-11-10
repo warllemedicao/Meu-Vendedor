@@ -61,3 +61,16 @@ O responsável pediu o botão de gerar link imediatamente abaixo de Seu link de 
 - Supabase `product-gallery` v3. Nenhuma mudança de esquema ou Secrets, sem inferência/GPU e sem postagem.
 
 Frontend desta correção: Cloudflare `c3582268-a693-4897-9ca6-317ddf96568c`.
+
+
+## Descoberta posterior — imagens adicionais nos feeds da API, 10/11/2026
+
+**Este resultado amplia a conclusão anterior:** a falha de leitura da página e a imagem única em productOfferV2 não significam ausência de outra fonte oficial na API de afiliados.
+
+O responsável informou que o aplicativo oferece Compartilhar → Baixar todas as imagens e perguntou se a API permitiria acessar isso. Realizada introspecção autenticada: ProductOfferV2 expõe somente imageUrl para imagem e não apareceu operação de download de galeria. Há também listItemFeeds e getItemFeedData. A conta consultada autorizou quatro feeds; foram lidas cinco linhas por feed, 20 produtos ao todo. Todas as 20 amostras tinham image_link e image_link_3 preenchidos, com URLs diferentes.
+
+Dois URLs de um mesmo item da amostra foram baixados: JPEGs 1024×1024 com hashes diferentes e composições visualmente diferentes, conferidas no navegador. Isso comprova imagens adicionais na fonte oficial; não comprova que o feed contenha todas as fotos do botão do aplicativo, nem que todos os anúncios estejam cobertos.
+
+**Estado da implementação:** esses feeds ainda não alimentam o seletor de imagens do Meu Vendedor. Não foi alterado código do aplicativo nesta investigação. A próxima integração deve indexar/consultar os feeds de forma limitada e associar rigorosamente loja/item e conta, usando product_link para conferir a identidade; não varrer feeds inteiros em cada clique nem associar só por título. Campos adicionais podem mostrar variantes diferentes e exigem revisão humana antes do vídeo.
+
+Evidência sanitizada: tests/results/2026-11-10-affiliate-feed-images-live.json. Credenciais permaneceram no backend. Diagnóstico temporário encerrado na versão 4/HTTP410. Não foram gerados links, imagens, vídeos, GPU ou posts.
