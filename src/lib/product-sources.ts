@@ -8,7 +8,7 @@ export const productSources = [
   },
   {
     id: "mercadolivre", name: "Mercado Livre", status: "Consulta implementada · requer configuração",
-    summary: "API oficial de até 20 mais vendidos por categoria. Exige token e consulta dos detalhes de cada item/produto. Feed geral de descontos ainda não confirmado.",
+    summary: "Divulgação manual por link oficial disponível; API oficial de até 20 mais vendidos por categoria. Exige token e consulta dos detalhes de cada item/produto. Feed geral de descontos ainda não confirmado.",
     ranking: "Mais vendidos por categoria; não é um ranking de toda a loja.",
     documentation: "https://developers.mercadolivre.com.br/pt_br/mais-vendidos-no-mercado-livre",
   },
