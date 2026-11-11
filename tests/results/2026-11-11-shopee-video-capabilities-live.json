@@ -1,0 +1,96 @@
+{
+  "checkedAt": "2026-11-11T11:35:00.338Z",
+  "endpoint": "affiliate_graphql",
+  "results": [
+    {
+      "__schema": {
+        "queryType": {
+          "name": "Query",
+          "fields": [
+            {
+              "name": "shopOfferV2"
+            },
+            {
+              "name": "shopeeOfferV2"
+            },
+            {
+              "name": "productOfferV2"
+            },
+            {
+              "name": "conversionReport"
+            },
+            {
+              "name": "validatedReport"
+            },
+            {
+              "name": "partnerOrderReport"
+            },
+            {
+              "name": "listItemFeeds"
+            },
+            {
+              "name": "getItemFeedData"
+            }
+          ]
+        },
+        "mutationType": {
+          "name": "Mutation",
+          "fields": [
+            {
+              "name": "generateShortLink"
+            },
+            {
+              "name": "generateBatchShortLink"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "__schema": {
+        "queryType": {
+          "name": "Query",
+          "fields": [
+            {
+              "name": "shopOfferV2"
+            },
+            {
+              "name": "shopeeOfferV2"
+            },
+            {
+              "name": "productOfferV2"
+            },
+            {
+              "name": "conversionReport"
+            },
+            {
+              "name": "validatedReport"
+            },
+            {
+              "name": "partnerOrderReport"
+            },
+            {
+              "name": "listItemFeeds"
+            },
+            {
+              "name": "getItemFeedData"
+            }
+          ]
+        },
+        "mutationType": {
+          "name": "Mutation",
+          "fields": [
+            {
+              "name": "generateShortLink"
+            },
+            {
+              "name": "generateBatchShortLink"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "diagnosticClosed": true,
+  "diagnosticVersion": 2
+}

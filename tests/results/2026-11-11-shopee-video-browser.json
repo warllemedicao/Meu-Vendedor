@@ -1,0 +1,33 @@
+{
+  "checkedAt": "2026-11-11T11:41:03.918Z",
+  "accountAndSharing": "simulated",
+  "videoBytes": "technical fixture, not playable video",
+  "destination": "Shopee → Live e Vídeos → Vídeos",
+  "fullPayload": {
+    "title": "Camisa preta do anúncio",
+    "text": "Camisa preta do anúncio\n\nhttps://shope.ee/test\n\n#Camisa #Publicidade",
+    "files": [
+      {
+        "name": "produto.mp4",
+        "type": "video/mp4",
+        "size": 16
+      }
+    ]
+  },
+  "copyProduct": true,
+  "copyPublication": true,
+  "cancellation": true,
+  "unsupportedFallback": true,
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "pageErrors": [],
+  "realShopeePost": false
+}

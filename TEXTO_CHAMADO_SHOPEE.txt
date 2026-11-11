@@ -1,0 +1,30 @@
+QUESTION SUBJECT — ASSUNTO
+
+Shopee Video API access for an individual Brazilian affiliate without CNPJ
+
+
+QUESTION DESCRIPTION — DESCRIÇÃO
+
+Hello Shopee Open Platform Support,
+
+I am a Shopee affiliate in Brazil and an individual developer without a registered business or CNPJ.
+
+I am developing Meu Vendedor, an application that prepares videos, captions, hashtags, cover images and affiliate product selections. I want to send this content to my own Shopee Video account under Live & Video, with products from other sellers linked to the video.
+
+I cannot determine the correct developer registration:
+- Shopee Seller says applications can only be used for my own shops.
+- Third-party Partner Platform requires business registration, which I do not have.
+
+Please confirm:
+1. Can an individual Brazilian affiliate without CNPJ access Shopee Video Management APIs?
+2. Which developer account type should I choose?
+3. Can these APIs publish videos with affiliate products belonging to other sellers?
+4. What permissions, approval and account authorization are required?
+5. Can the integration upload the video, set its caption and cover, link products and create a draft or publish after my approval?
+6. Does it also support standalone photo posts?
+
+Please provide the official documentation and onboarding process, or forward this request to the team responsible for Shopee Video API access in Brazil.
+
+I have not created an application or made any Video API calls yet. This is a registration and eligibility inquiry, not an API error.
+
+Thank you.
