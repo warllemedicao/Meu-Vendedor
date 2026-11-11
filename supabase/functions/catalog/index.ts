@@ -2,17 +2,30 @@ import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { createCatalogHandler } from "./_shared/service.ts";
 
 // Credenciais ficam exclusivamente nos Secrets do Supabase.
+// MERCADO_LIVRE_API: JSON { "userId": "UUID_REAL", "accessToken": "...", "categoryId": "MLB..." }.
 // ALIEXPRESS_API: JSON { "userId": "UUID_REAL", "appKey": "...", "appSecret": "...", "trackingId": "..." }.
 // Nunca habilitar para todos os usuários: o userId é obrigatório e vincula o acesso ao titular.
 function catalogAccounts(): string | undefined {
   const raw = Deno.env.get("MV_CATALOG_ACCOUNTS");
   const aliRaw = Deno.env.get("ALIEXPRESS_API");
-  if (!aliRaw) return raw;
+  const mlRaw = Deno.env.get("MERCADO_LIVRE_API");
+  if (!aliRaw && !mlRaw) return raw;
   let accounts: Record<string, unknown>;
   try {
     const parsed: unknown = raw ? JSON.parse(raw) : {};
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("accounts");
     accounts = parsed as Record<string, unknown>;
+    if (mlRaw) {
+      const ml: unknown = JSON.parse(mlRaw);
+      if (!ml || typeof ml !== "object" || Array.isArray(ml)) throw new Error("mercadolivre");
+      const config = ml as Record<string, unknown>;
+      const userId = config.userId;
+      if (typeof userId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) throw new Error("userId");
+      const previous = accounts[userId];
+      const userConfig = previous && typeof previous === "object" && !Array.isArray(previous) ? previous as Record<string, unknown> : {};
+      accounts = { ...accounts, [userId]: { ...userConfig, mercadolivre: userConfig.mercadolivre ?? { accessToken: config.accessToken, categoryId: config.categoryId } } };
+    }
+    if (!aliRaw) return JSON.stringify(accounts);
     const ali: unknown = JSON.parse(aliRaw);
     if (!ali || typeof ali !== "object" || Array.isArray(ali)) throw new Error("aliexpress");
     const config = ali as Record<string, unknown>;
