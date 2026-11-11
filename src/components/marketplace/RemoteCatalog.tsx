@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { ProductCampaign } from "@/components/videos/ProductCampaign";
+import type { CampaignProduct } from "@/lib/product-campaign";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { catalogSearch, catalogStatus, generateAliExpressLink } from "@/lib/product-catalog";
 import { productSources } from "@/lib/product-sources";
@@ -14,11 +16,12 @@ const errorMessage = (error: unknown) => error instanceof Error ? error.message 
 export function RemoteCatalog({ platform }: { platform: string }) {
   const { user, loading } = useAuth();
   if (loading) return <p role="status">Verificando acesso aos catálogos…</p>;
-  if (!user) return null;
-  return <UserCatalog key={user.id} platform={platform} />;
+  if (!user) return <p className="text-sm text-muted">Entre na conta para verificar a configuração do catálogo automático.</p>;
+  return <UserCatalog key={user.id + platform} platform={platform} />;
 }
 
 function UserCatalog({ platform }: { platform: string }) {
+  const [selected, setSelected] = useState<CampaignProduct | null>(null);
   const [sources, setSources] = useState<CatalogSourceStatus[]>([]);
   const [results, setResults] = useState<Partial<Record<CatalogPlatform, CatalogResult>>>({});
   const [errors, setErrors] = useState<Partial<Record<CatalogPlatform, string>>>({});
@@ -35,7 +38,7 @@ function UserCatalog({ platform }: { platform: string }) {
         const statuses = await catalogStatus();
         if (!active) return;
         setSources(statuses); setError("");
-        await Promise.all(statuses.filter(source => source.configured).map(async source => {
+        await Promise.all(statuses.filter(source => source.configured && (platform === "all" || platform === source.platform)).map(async source => {
           try {
             const result = await catalogSearch(source.platform, emptyQuery);
             if (active) setResults(previous => ({ ...previous, [source.platform]: result }));
@@ -50,7 +53,7 @@ function UserCatalog({ platform }: { platform: string }) {
       if (active) setResults(previous => Object.fromEntries(Object.entries(previous).filter(([, result]) => Date.parse(result.fetchedAt) > Date.now() - 30 * 60_000)));
     }, 60_000);
     return () => { active = false; clearInterval(expiry); };
-  }, [revision]);
+  }, [revision, platform]);
 
   async function createLink(id: string, url: string) {
     if (linkBusy) return;
@@ -82,6 +85,7 @@ function UserCatalog({ platform }: { platform: string }) {
   const visibleSources = sources.filter(source => platform === "all" || platform === source.platform);
   const canSearch = visibleSources.some(source => source.configured);
   return <section aria-label="Catálogos das plataformas" className="space-y-4">
+    {selected && <section className="rounded-xl border border-primary p-4"><button type="button" className="text-sm text-primary underline" onClick={() => setSelected(null)}>Fechar produto selecionado</button><ProductCampaign key={selected.platform + selected.id} product={selected} initialAffiliateUrl={selected.platform === "AliExpress" ? affiliateLinks[selected.id] : undefined} /></section>}
     {loading && <p role="status">Consultando as fontes configuradas para sua conta…</p>}
     {error && <div role="alert" className="rounded-xl border border-border bg-surface p-4 text-sm"><p>{error}</p><button type="button" onClick={() => {setLoading(true); setRevision(value => value + 1);}} className="mt-2 text-primary underline">Verificar novamente</button></div>}
     {canSearch && <form onSubmit={event => { event.preventDefault(); void search(); }} className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-4">
@@ -109,6 +113,7 @@ function UserCatalog({ platform }: { platform: string }) {
               {product.discountPercent !== null && product.discountPercent > 0 && <p className="mt-1 text-sm text-primary">{product.discountPercent}% de desconto informado</p>}
               {product.sales !== null && <p className="mt-2 text-xs text-muted">Vendas/volume informado: {product.sales}</p>}
               {product.shop && <p className="mt-1 truncate text-xs text-muted">{product.shop}</p>}
+              <button type="button" onClick={() => setSelected({ id: product.id, title: product.title, platform: label(product.platform), imageUrl: product.imageUrl, productUrl: product.productUrl ?? undefined, price: product.price === null ? undefined : String(product.price), owned: false })} className="mt-3 block w-full rounded-lg bg-primary px-3 py-2 text-sm text-white">Preparar vídeo e divulgação</button>
               {source.platform === "aliexpress" && product.productUrl && <div className="mt-3 space-y-2">
                 <button type="button" disabled={Boolean(linkBusy)} onClick={() => void createLink(product.id, product.productUrl!)} className="rounded-lg border border-border px-3 py-2 text-sm text-primary disabled:opacity-50">{linkBusy === product.id ? "Gerando link…" : "Gerar link de afiliado"}</button>
                 {affiliateLinks[product.id] && <div className="space-y-2"><label className="block text-xs">Link de afiliado<input readOnly value={affiliateLinks[product.id]} onFocus={event => event.target.select()} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" /></label><button type="button" className="text-sm text-primary underline" onClick={() => void navigator.clipboard.writeText(affiliateLinks[product.id])}>Copiar link</button><a href={`https://www.pinterest.com/pin-builder/?url=${encodeURIComponent(affiliateLinks[product.id])}&description=${encodeURIComponent(product.title)}`} target="_blank" rel="noopener noreferrer" className="ml-3 text-sm text-primary underline">Preparar Pin no Pinterest</a></div>}

@@ -11,18 +11,20 @@ import { CampaignNarration } from "./CampaignNarration";
 const field = "mt-1 w-full rounded-xl border border-border bg-background p-3 text-sm";
 const button = "rounded-xl border border-border px-4 py-2.5 text-sm disabled:opacity-50";
 const steps = ["Produto e roteiro", "Criar vídeo", "Narração e aprovação", "Compartilhar"];
-type CampaignProps = { product: CampaignProduct; initialAffiliateUrl?: string };
+type CampaignProps = { product: CampaignProduct; initialAffiliateUrl?: string; initialSpeech?: string };
 type Media = { blob: Blob; filename: string; id: string };
 export function ProductCampaign(props: CampaignProps) {
   const { user } = useAuth();
   return <CampaignEditor key={`${user?.id ?? "guest"}-${props.product.id}`} {...props} />;
 }
-function CampaignEditor({ product, initialAffiliateUrl = "" }: CampaignProps) {
+function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" }: CampaignProps) {
   const { user } = useAuth(); const dialog = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState(0), [mode, setMode] = useState("montage"), [busy, setBusy] = useState(false);
   const [linkEdit, setLinkEdit] = useState({ source: initialAffiliateUrl, value: initialAffiliateUrl });
   const affiliateUrl = linkEdit.source === initialAffiliateUrl ? linkEdit.value : initialAffiliateUrl;
-  const [notes, setNotes] = useState(""), [speech, setSpeech] = useState(""), [seconds, setSeconds] = useState(15);
+  const [notes, setNotes] = useState(""), [speechEdit, setSpeechEdit] = useState<{ source: string; value: string } | null>(null), [seconds, setSeconds] = useState(15);
+  const speech = speechEdit?.source === initialSpeech ? speechEdit.value : initialSpeech;
+  const setSpeech = (value: string) => setSpeechEdit({ source: initialSpeech, value });
   const [analysis, setAnalysis] = useState<CampaignAnalysis | null>(null), [photo, setPhoto] = useState<File>();
   const [scene, setScene] = useState("Ambiente coerente com o produto e iluminação natural");
   const [notice, setNotice] = useState(""), [error, setError] = useState("");

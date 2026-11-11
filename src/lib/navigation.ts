@@ -18,6 +18,11 @@ import type { NavItem } from "@/types";
 /** Fonte única da navegação: usada pelo menu lateral e pelas páginas de módulo. */
 export const navItems: NavItem[] = [
   {
+    href: "/lojas", label: "Marketplaces / Lojas", icon: Store,
+    titulo: "Marketplaces / Lojas", descricao: "Links oficiais, catálogos e divulgação por plataforma.",
+    recursosPlanejados: [], dependencias: [], etapaPrevista: "Fluxos manuais disponíveis",
+  },
+  {
     href: "/",
     label: "Ofertas e produtos",
     icon: House,

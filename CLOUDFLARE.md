@@ -1,5 +1,7 @@
 # Hospedagem do Meu Vendedor no Cloudflare
 
+> **Marketplaces — 11/11/2026:** navegação das sete lojas e campanhas manuais compartilhadas. Estado, validações, publicação e limites em [MARKETPLACES.md](./MARKETPLACES.md). Este registro prevalece sobre os estados históricos de navegação abaixo.
+
 ## Estado vigente — 07/11/2026
 
 Login Google e conexão do canal YouTube confirmados pelo responsável. Nova chave Gemini aceita pelo catálogo/modelos consultados; geração de vídeo Google ainda requer teste real. Gerar vídeo foi corrigido para validar ao clicar e mostrar pendências; ElevenLabs aparece em Outra voz junto das características da voz, com prévia/exportação opcional e áudio nativo mantido na geração. Flow remoto saiu da central; Flow/Create permanecem pendentes no seletor. Frontend Cloudflare `a1a5dd36-76b7-4954-99f6-d9d5f5b72b90`; video-generation v44. Retomada e pendências em [CONTINUAR_AMANHA.md](./CONTINUAR_AMANHA.md) e [AJUSTES_ESTUDIO.md](./AJUSTES_ESTUDIO.md).
