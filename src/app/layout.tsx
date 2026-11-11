@@ -22,6 +22,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        <meta name="p:domain_verify" content="e09849018ba6b328d3d281837a3d73b4" />
         <script dangerouslySetInnerHTML={{ __html: scriptTema }} />
       </head>
       <body>
