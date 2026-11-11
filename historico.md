@@ -1,5 +1,19 @@
 # Histórico da conversa — atualizado em 11/11/2026
 
+## 11/11/2026 — Mercado Livre: divulgação manual e Secret de API futura
+
+Adicionada página `/mercado-livre` para inserir o link oficial gerado no portal Mercado Livre, título, ID e foto autorizada do produto, aproveitando o editor `ProductCampaign` já existente para roteiro, vídeo, narração e publicação. A publicação Pinterest é preparada para revisão; não há postagem automática nem geração artificial de links. Não confundir o ID do produto com link de afiliado. Sem acesso à API, não há catálogo automático nem confirmação de comissão.
+
+O Secret futuro `MERCADO_LIVRE_API` é lido somente na função autenticada `catalog`, em JSON `{"userId":"UUID_REAL","accessToken":"TOKEN_OFICIAL","categoryId":"MLB..." }`. A configuração pré-existente em `MV_CATALOG_ACCOUNTS` tem precedência. Nenhum Secret real foi criado nem credenciais inseridas; a função ainda precisa de publicação, testes e permissão oficial da API. Alterações na branch de PR #4, não na produção.
+
+## 11/11/2026 — pré-configuração AliExpress (proposta em branch, sem publicação)
+
+Solicitação: deixar a integração pronta enquanto o cadastro AliExpress Afiliados permanece em análise. O adaptador de consulta `aliexpress.affiliate.hotproduct.query` já existia; não houve acesso comercial real nem teste com credenciais.
+
+Alterações nesta branch: rota autenticada de consulta `/aliexpress` via componente RemoteCatalog, link em Configurações e alias de Secret Supabase **`ALIEXPRESS_API`** para a função privada `catalog`. O valor esperado é um JSON contendo `userId` (UUID real do Supabase Auth), `appKey`, `appSecret` e `trackingId`; somente a conta autenticada cujo UUID corresponda pode consultar. O mapa privado existente `MV_CATALOG_ACCOUNTS` tem precedência para a mesma conta. Valores ausentes ou inválidos não ativam a API; não versionar credenciais. Não confundir com `MV_PUBLIC_CATALOG_CONFIG` e não expor produtos/credenciais de afiliado em vitrine pública.
+
+**Atualização nesta branch:** adicionada operação autenticada `affiliate_link` que solicita link à API oficial, valida URL HTTPS do AliExpress e não inventa tracking. Na interface, cada produto pode gerar/copiar link e abrir o criador de Pin do Pinterest para revisão manual. Sem credenciais não há chamada real nem garantia de formato de resposta; testes de contrato pendentes.\n\n**Limitações:** cadastro ainda pendente; não há App Key/Secret/Tracking ID aprovados. Consulta não é geração de link de comissão; geração oficial de links, conexão por consentimento, publicação e integração com vídeo ainda precisam ser implementadas e validadas. Nenhuma geração de vídeo/GPU deve ser retomada sem autorização. Branch não implantada no Supabase ou Cloudflare. Testes de build/integração ainda não executados nesta sessão. As mudanças anteriores de política de privacidade e meta de verificação Pinterest constam dos PRs #2 e #3, respectivamente, e não foram registradas anteriormente neste histórico.
+
 ## 11/11/2026 — requisitos oficiais de desenvolvedor no Brasil; perfil enviado para análise
 
 **Este registro prevalece sobre as hipóteses anteriores de cadastro brasileiro de desenvolvedor com CPF.** O responsável forneceu o documento oficial **Developer account registration**, atualizado em10/09/2026. Ele separa criação do login de envio/aprovação do perfil e declara expressamente: **Individual Seller — Closed for BR**. A possibilidade de ter loja comum com CPF não significa elegibilidade ao perfil de desenvolvedor Individual Seller no Brasil. A orientação anterior de tentar esse caminho sem confirmar os requisitos foi incorreta.

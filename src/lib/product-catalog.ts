@@ -31,3 +31,9 @@ export async function catalogSearch(platform: CatalogPlatform, query: CatalogQue
   if (!Array.isArray(data?.products) || data.platform !== platform) throw new Error("O serviço retornou um catálogo inválido.");
   return data;
 }
+
+export async function generateAliExpressLink(productUrl: string): Promise<string> {
+  const data = await invoke({ action: "affiliate_link", platform: "aliexpress", productUrl }) as { url?: string };
+  if (!data?.url || !/^https:\/\//.test(data.url)) throw new Error("A API não retornou um link válido.");
+  return data.url;
+}

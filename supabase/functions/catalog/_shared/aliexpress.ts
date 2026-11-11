@@ -40,3 +40,27 @@ export async function aliexpressProducts(config: AccountConfig, query: CatalogQu
     scope: "Até 20 produtos em destaque da Affiliate API para entrega ao Brasil, ordenados por volume ou desconto informado.",
     warnings: ["Esta seleção não é o ranking global do AliExpress. Impostos, frete, cupons e preço final devem ser conferidos na loja."], fetchedAt };
 }
+
+/** Gera um link de afiliado somente pela API oficial; nunca fabrica parâmetros de rastreio. */
+export async function aliexpressAffiliateLink(config: AccountConfig, productUrl: string, fetcher: typeof fetch = fetch): Promise<string> {
+  const url = https(productUrl, ["aliexpress.com"]);
+  if (!url) throw new IntegrationError("invalid_product_url", "Informe uma URL HTTPS válida de produto AliExpress.", 400);
+  const appKey = required(config, "appKey"), secret = required(config, "appSecret"), trackingId = required(config, "trackingId");
+  const params: Record<string, string> = {
+    method: "aliexpress.affiliate.link.generate", app_key: appKey, sign_method: "md5", format: "json", v: "2.0",
+    timestamp: new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 19).replace("T", " "),
+    source_values: url, promotion_link_type: "0", tracking_id: trackingId,
+  };
+  params.sign = aliSignature(params, secret);
+  const payload = await providerJson("https://eco.taobao.com/router/rest", {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" }, body: new URLSearchParams(params).toString(),
+  }, fetcher);
+  if (payload.error_response) throw new IntegrationError("provider_rejected", "O AliExpress recusou a geração do link de afiliado.", 422);
+  const response = object(object(payload.aliexpress_affiliate_link_generate_response).resp_result);
+  if (String(response.resp_code) !== "200") throw new IntegrationError("provider_rejected", "A API não autorizou o link de afiliado.", 422);
+  const links = object(object(response.result).promotion_links).promotion_link;
+  if (!Array.isArray(links) || links.length !== 1) invalidResponse();
+  const generated = https(object(links[0]).promotion_link, ["aliexpress.com", "s.click.aliexpress.com"]);
+  if (!generated) invalidResponse();
+  return generated;
+}

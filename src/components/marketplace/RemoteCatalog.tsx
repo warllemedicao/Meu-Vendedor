@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { catalogSearch, catalogStatus } from "@/lib/product-catalog";
+import { catalogSearch, catalogStatus, generateAliExpressLink } from "@/lib/product-catalog";
 import { productSources } from "@/lib/product-sources";
 import type { CatalogPlatform, CatalogResult, CatalogSourceStatus } from "@/types/product-catalog";
 
@@ -25,6 +25,8 @@ function UserCatalog({ platform }: { platform: string }) {
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [keywords, setKeywords] = useState(""), [discountsOnly, setDiscountsOnly] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [affiliateLinks, setAffiliateLinks] = useState<Record<string,string>>({});
+  const [linkBusy, setLinkBusy] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -50,6 +52,16 @@ function UserCatalog({ platform }: { platform: string }) {
     return () => { active = false; clearInterval(expiry); };
   }, [revision]);
 
+  async function createLink(id: string, url: string) {
+    if (linkBusy) return;
+    setLinkBusy(id);
+    setErrors(previous => ({ ...previous, aliexpress: "" }));
+    try {
+      const generated = await generateAliExpressLink(url);
+      setAffiliateLinks(previous => ({ ...previous, [id]: generated }));
+    } catch (error) { setErrors(previous => ({ ...previous, aliexpress: errorMessage(error) })); }
+    finally { setLinkBusy(null); }
+  }
   async function search() {
     if (busy || loading) return;
     const targets = sources.filter(source => source.configured && (platform === "all" || platform === source.platform));
@@ -97,6 +109,10 @@ function UserCatalog({ platform }: { platform: string }) {
               {product.discountPercent !== null && product.discountPercent > 0 && <p className="mt-1 text-sm text-primary">{product.discountPercent}% de desconto informado</p>}
               {product.sales !== null && <p className="mt-2 text-xs text-muted">Vendas/volume informado: {product.sales}</p>}
               {product.shop && <p className="mt-1 truncate text-xs text-muted">{product.shop}</p>}
+              {source.platform === "aliexpress" && product.productUrl && <div className="mt-3 space-y-2">
+                <button type="button" disabled={Boolean(linkBusy)} onClick={() => void createLink(product.id, product.productUrl!)} className="rounded-lg border border-border px-3 py-2 text-sm text-primary disabled:opacity-50">{linkBusy === product.id ? "Gerando link…" : "Gerar link de afiliado"}</button>
+                {affiliateLinks[product.id] && <div className="space-y-2"><label className="block text-xs">Link de afiliado<input readOnly value={affiliateLinks[product.id]} onFocus={event => event.target.select()} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" /></label><button type="button" className="text-sm text-primary underline" onClick={() => void navigator.clipboard.writeText(affiliateLinks[product.id])}>Copiar link</button><a href={`https://www.pinterest.com/pin-builder/?url=${encodeURIComponent(affiliateLinks[product.id])}&description=${encodeURIComponent(product.title)}`} target="_blank" rel="noopener noreferrer" className="ml-3 text-sm text-primary underline">Preparar Pin no Pinterest</a></div>}
+              </div>}
               {product.productUrl ? <a href={product.productUrl} target="_blank" rel="noopener noreferrer sponsored" className="mt-4 inline-block text-sm text-primary underline">Conferir na loja<span className="sr-only">: {product.title}</span></a> : <p className="mt-4 text-xs text-muted">Link não fornecido pela consulta.</p>}
             </div>
           </li>)}</ul> : <p className="mt-4 text-sm text-muted">Nenhum produto corresponde à consulta e aos filtros atuais.</p>}

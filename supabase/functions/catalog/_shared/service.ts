@@ -1,5 +1,5 @@
 import { amazonProducts } from "./amazon.ts";
-import { aliexpressProducts } from "./aliexpress.ts";
+import { aliexpressProducts, aliexpressAffiliateLink } from "./aliexpress.ts";
 import { mercadoLivreProducts } from "./mercadolivre.ts";
 import { tiktokProducts } from "./tiktok.ts";
 import { IntegrationError, object, queryInput, required } from "./common.ts";
@@ -58,6 +58,16 @@ export function createCatalogHandler(deps: CatalogDependencies) {
       if (!userId) throw new IntegrationError("unauthorized", "Sua sessão expirou. Entre novamente.", 401);
       const body = await readLimitedObject(request), configs = accountConfigurations(deps.accounts(), userId);
       if (body.action === "status") return reply({ sources: sourceStatuses(configs) });
+      if (body.action === "affiliate_link") {
+        const config = object(configs.aliexpress);
+        for (const field of fields.aliexpress) required(config, field);
+        if (typeof body.productUrl !== "string" || body.productUrl.length > 2048) throw new IntegrationError("invalid_product_url", "URL do produto inválida.", 400);
+        const key = `${userId}:aliexpress`, current = slots.get(key);
+        if (current && (current.busy || current.until > now())) throw new IntegrationError("operation_busy", "Aguarde antes de gerar outro link.", 429);
+        slots.set(key, { until: now() + 5000, busy: true });
+        try { return reply({ url: await aliexpressAffiliateLink(config, body.productUrl, deps.fetcher) }); }
+        finally { slots.set(key, { until: now() + 5000, busy: false }); }
+      }
       if (body.action !== "search") throw new IntegrationError("invalid_action", "Operação inválida.", 400);
       if (!catalogPlatforms.includes(body.platform as CatalogPlatform)) throw new IntegrationError("invalid_platform", "Plataforma inválida.", 400);
       const platform = body.platform as CatalogPlatform;

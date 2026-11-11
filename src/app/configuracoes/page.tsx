@@ -11,6 +11,16 @@ export default function Page() {
       <PageHeader titulo="Configurações" descricao="Gerencie seu perfil e consulte informações sobre privacidade no Meu Vendedor." />
       <ProfileForm />
       <section className="mt-6 max-w-lg rounded-xl border border-border bg-surface p-5">
+        <h2 className="font-semibold">AliExpress · Integração preparada</h2>
+        <p className="mt-2 text-sm text-muted">Cadastro de afiliados em análise. A consulta será habilitada após aprovação e configuração segura do Secret ALIEXPRESS_API no Supabase.</p>
+        <Link href="/aliexpress" className="mt-3 inline-block text-sm text-primary underline">Ver catálogo AliExpress</Link>
+      </section>
+      <section className="mt-6 max-w-lg rounded-xl border border-border bg-surface p-5">
+        <h2 className="font-semibold">Mercado Livre · Divulgação disponível</h2>
+        <p className="mt-2 text-sm text-muted">Use o link oficial copiado do portal de afiliados para preparar vídeos e publicações no Pinterest. A consulta automática aguarda a API autorizada e o Secret MERCADO_LIVRE_API no Supabase.</p>
+        <Link href="/mercado-livre" className="mt-3 inline-block text-sm text-primary underline">Abrir divulgação Mercado Livre</Link>
+      </section>
+      <section className="mt-6 max-w-lg rounded-xl border border-border bg-surface p-5">
         <h2 className="font-semibold">Privacidade e dados pessoais</h2>
         <p className="mt-2 text-sm text-muted">Saiba como os dados e as integrações externas são tratados e como solicitar a exclusão de informações.</p>
         <Link href="/politica-de-privacidade" className="mt-3 inline-block text-sm text-primary underline">
