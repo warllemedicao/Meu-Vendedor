@@ -1,0 +1,156 @@
+{
+  "date": "2026-11-11",
+  "sourceCommit": "4b84b4718dfe851b74f4e475a40b972947a7a7bf",
+  "worker": "meu-vendedor",
+  "version": "d542b246-aa1e-4fda-b94a-5528d63fde1f",
+  "deployment": "577bed8b-7523-48c3-9980-c6ceeb3f705c",
+  "routes": [
+    {
+      "path": "/",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "1287a4eef1a2bd8b4e25df2d0c4650fa14e18f7dc0426bf964eae782136b2646"
+    },
+    {
+      "path": "/lojas",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "f9e1f2f8485800a647806b09b016a554540912070e94d0069da448e8ec6eeda6"
+    },
+    {
+      "path": "/shopee",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "5378b757ace5473e3d73c1127bf3f3645bf1c1352a67d8bcb5652aa9cb21b200"
+    },
+    {
+      "path": "/amazon",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "02990ec015d9b8f52fdf96cc7d1dd9dfaa2e9a07bec93c9f2e791a15bed348e2"
+    },
+    {
+      "path": "/mercado-livre",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "b7d079ca68257a48d3687763a2da4943f1a681f601f8330202124133e5160ca0"
+    },
+    {
+      "path": "/aliexpress",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "fc73fb9a0897c7d750167f71268db192d7be2ac446e6efc1b82a1b8cdeb9ebf4"
+    },
+    {
+      "path": "/tiktok-shop",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "b5df52abc46cc882d90d788db0a67a3a299d19ad0fd53722978c6dc46e5d90f2"
+    },
+    {
+      "path": "/magalu",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "e96cf4dd80c19399df9eebcd9cf6baa51d30ea0a74b4ba0bd0e037932b19819a"
+    },
+    {
+      "path": "/shein",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "f86076e5fc8e13bcebc24415544fb45603256e892aeef6f272cdf6dfbc30c527"
+    },
+    {
+      "path": "/videos",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "e38b7f8b557eb3004c7c9eb3fcd3d743dd4a270dce60e7ed60925eae2f860572"
+    },
+    {
+      "path": "/politica-de-privacidade",
+      "httpStatus": 200,
+      "matchesBuild": true,
+      "sha256": "d453ad909ab45a546dd1ec8ee59aaf9a1b9dc75054a7ece4d7f12cdb42c47b1d"
+    }
+  ],
+  "tests": {
+    "passed": 252,
+    "failed": 0,
+    "lintErrors": 0,
+    "lintPreexistingWarnings": 4,
+    "frontendTypecheck": "passed",
+    "edgeTypecheck": "passed",
+    "staticBuild": "passed"
+  },
+  "browser": {
+    "sevenManualForms": "passed with synthetic data",
+    "affiliateLinks": "preserved including percent encoding and parameter order; Mercado Livre clipboard verified",
+    "scriptTransfer": "passed",
+    "videoEditorAndFlowOption": "opened; no inference or GPU",
+    "homeAndStoreDirectory": "seven visible cards",
+    "applicationConsoleErrors": 0,
+    "desktopWidth": 1363,
+    "desktopHorizontalOverflow": false,
+    "mobile": "not verified: auxiliary Chromium stopped at a certificate privacy error; cloud browser has no viewport control"
+  },
+  "backend": [
+    {
+      "name": "catalog-auth",
+      "status": 401,
+      "error": "Missing authorization header",
+      "productCount": 0
+    },
+    {
+      "name": "marketplace-auth",
+      "status": 401,
+      "error": "unauthorized",
+      "productCount": 0
+    },
+    {
+      "name": "campaign-content-auth",
+      "status": 401,
+      "error": "Entre na conta para analisar a foto do produto.",
+      "productCount": 0
+    },
+    {
+      "name": "public-shopee",
+      "status": 503,
+      "error": "catalog_not_configured",
+      "productCount": 0
+    },
+    {
+      "name": "public-amazon",
+      "status": 503,
+      "error": "catalog_not_configured",
+      "productCount": 0
+    },
+    {
+      "name": "public-tiktok",
+      "status": 503,
+      "error": "catalog_not_configured",
+      "productCount": 0
+    }
+  ],
+  "supabase": {
+    "updated": {
+      "catalog-public": 30
+    },
+    "unchanged": {
+      "catalog": 30,
+      "marketplace": 31,
+      "campaign-content": 2
+    },
+    "bindingsAndCronsPreserved": true,
+    "postDeployLogs": {
+      "204": 3,
+      "503": 12,
+      "reason": "Public catalogs return catalog_not_configured; no configured public credentials presumed."
+    }
+  },
+  "limits": [
+    "No authenticated test account provided; private commercial queries were not executed.",
+    "AliExpress API remains Under Review.",
+    "Public catalogs are not configured; manual campaigns are available.",
+    "Magalu/SHEIN automatic affiliate catalogs not implemented.",
+    "No real AI MP4 generation or external publication performed."
+  ]
+}
