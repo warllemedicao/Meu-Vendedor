@@ -1,5 +1,11 @@
 # Histórico da conversa — atualizado em 11/11/2026
 
+## 11/11/2026 — Mercado Livre: divulgação manual e Secret de API futura
+
+Adicionada página `/mercado-livre` para inserir o link oficial gerado no portal Mercado Livre, título, ID e foto autorizada do produto, aproveitando o editor `ProductCampaign` já existente para roteiro, vídeo, narração e publicação. A publicação Pinterest é preparada para revisão; não há postagem automática nem geração artificial de links. Não confundir o ID do produto com link de afiliado. Sem acesso à API, não há catálogo automático nem confirmação de comissão.
+
+O Secret futuro `MERCADO_LIVRE_API` é lido somente na função autenticada `catalog`, em JSON `{"userId":"UUID_REAL","accessToken":"TOKEN_OFICIAL","categoryId":"MLB..." }`. A configuração pré-existente em `MV_CATALOG_ACCOUNTS` tem precedência. Nenhum Secret real foi criado nem credenciais inseridas; a função ainda precisa de publicação, testes e permissão oficial da API. Alterações na branch de PR #4, não na produção.
+
 ## 11/11/2026 — pré-configuração AliExpress (proposta em branch, sem publicação)
 
 Solicitação: deixar a integração pronta enquanto o cadastro AliExpress Afiliados permanece em análise. O adaptador de consulta `aliexpress.affiliate.hotproduct.query` já existia; não houve acesso comercial real nem teste com credenciais.
