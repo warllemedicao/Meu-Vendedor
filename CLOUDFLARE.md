@@ -2,7 +2,7 @@
 
 ## Estado da publicação — 12/11/2026
 
-A implementação do compartilhamento assistido passou localmente em testes, typechecks, lint e build estático. Nenhuma versão do Worker foi publicada nesta tarefa. `wrangler deployments list --name meu-vendedor` retorna “No access to the specified resource” (HTTP 403); portanto, versão ativa e rotas remotas não puderam ser confirmadas. O run Actions `43297591878` falhou antes do deploy por ausência das variáveis públicas Supabase. A consulta de Secrets/Variables GitHub retorna 403 e Workers Builds continua não confirmado. Não inferir que o build local foi publicado.
+A implementação do compartilhamento assistido passou localmente em testes, typechecks, lint e build estático. Nenhuma versão do Worker foi publicada nesta tarefa. `wrangler deployments list --name meu-vendedor` retorna “No access to the specified resource” (HTTP 403); portanto, versão ativa e rotas remotas não puderam ser confirmadas. O run pós-push Actions [43323420497](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43323420497) falhou antes do deploy porque as variáveis públicas Supabase estão vazias. A consulta de Secrets/Variables GitHub retorna 403 e Workers Builds continua não confirmado. Não inferir que o build local foi publicado.
 
 ## CI/CD do GitHub Actions — configuração inicial
 
