@@ -8,7 +8,7 @@ import {
 } from "@/lib/product-campaign";
 import {
   browserTimeZone, localDateTimeToIso, publicationDestinations, publicationScheduleRequest,
-  publicationTimeZones, uploadPublicationMedia,
+  publicationTimeZones, uploadPublicationMedia, type PublicationDestination,
 } from "@/lib/publication-scheduling";
 import { sharePublication, shopeeProductDestination } from "@/lib/publication-share";
 
@@ -36,7 +36,7 @@ export function PublicationComposer({
   const [choosingSchedule, setChoosingSchedule] = useState(false);
   const [dateTime, setDateTime] = useState("");
   const [timeZone, setTimeZone] = useState(browserTimeZone);
-  const [selectedDestinations, setSelectedDestinations] = useState<string[]>([
+  const [selectedDestinations, setSelectedDestinations] = useState<PublicationDestination[]>([
     product.platform === "Shopee" ? "shopee_video" : "pinterest",
   ]);
   const [mediaPath, setMediaPath] = useState("");
@@ -123,7 +123,7 @@ export function PublicationComposer({
     } finally { setBusy(false); }
   }
 
-  function toggleDestination(destination: string) {
+  function toggleDestination(destination: PublicationDestination) {
     invalidateKey();
     setSelectedDestinations(current => current.includes(destination)
       ? current.filter(item => item !== destination)

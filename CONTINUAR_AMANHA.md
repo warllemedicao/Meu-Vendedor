@@ -196,12 +196,19 @@ Os registros anteriores desta continuidade descreviam estados de piloto que fora
 
 Frontend desta correção publicado no Cloudflare `e553299a-b481-4246-aca1-d6a64f1c94b4`.
 
+### Atualização do agendamento — 12/11/2026
+
+TikTok — publicação assistida foi acrescentado como destino independente ao lado de Pinterest; “Outro aplicativo” permanece. A interface e a Edge Function agora aceitam o payload de múltiplos destinos que a interface realmente envia. A migração aditiva `20261112190000_publication_tiktok_destination.sql` e os testes locais contemplam dois registros separados para Pinterest e TikTok no mesmo horário. O vencimento continua solicitando ação manual; não existe publicação automática nem confirmação automática.
+
+Esta correção está validada apenas localmente: 262 testes, typecheck frontend, typecheck Edge Function e build estático para Cloudflare passaram; lint teve zero erros e quatro avisos preexistentes. O cenário de 20/11/2026 às 18:00 `America/Sao_Paulo` foi validado em testes, sem criação remota ou postagem real. Não foi possível consultar/aplicar migrações ou publicar a Edge Function: a API do Supabase respondeu HTTP 401. A API/listagem do Worker existente `meu-vendedor` respondeu HTTP 403 (“No access to the specified resource”). Commit/push da correção ainda pendentes; não declarar a entrega publicada.
+
 ### PRÓXIMA ETAPA — COMPARTILHAMENTO EM REDES SOCIAIS
 
 Após concluir a publicação e validação do agendamento assistido:
 
 1. **Facebook Stories:** pesquisar e confirmar permissões oficiais vigentes para compartilhar vídeos e imagens nos Stories.
-2. **TikTok:** verificar APIs oficiais, autorização, elegibilidade e permissões concedidas para compartilhar ou publicar no perfil do usuário.
+2. **TikTok:** verificar APIs oficiais, autorização, elegibilidade e permissões concedidas para compartilhar ou publicar no perfil do usuário. O destino assistido já existe; publicação pelo perfil continua pendente.
 3. **Kwai:** verificar se existe integração oficial disponível, seus requisitos e permissões de publicação.
+4. **Compartilhamento por aplicativos instalados no celular:** investigar e implementar posteriormente os mecanismos oficiais do Android e iPhone para compartilhar vídeos, legendas, hashtags e links usando aplicativos e sessões já autenticadas, sem depender de APIs de publicação quando houver suporte a compartilhamento manual.
 
-Não implementar essas integrações nesta etapa. Se não houver API oficialmente autorizada, oferecer apenas compartilhamento manual/assistido e nunca declarar postagem automática. O estado atual dos agendamentos, testes e publicações está registrado em [PUBLICACAO.md](./PUBLICACAO.md) e [historico.md](./historico.md).
+Não implementar essas melhorias futuras nesta etapa. Se não houver API oficialmente autorizada, oferecer apenas compartilhamento manual/assistido e nunca declarar postagem automática. O estado atual dos agendamentos, testes e publicações está registrado em [PUBLICACAO.md](./PUBLICACAO.md) e [historico.md](./historico.md).

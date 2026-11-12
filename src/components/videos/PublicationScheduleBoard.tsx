@@ -269,6 +269,7 @@ function PublicationCard({
       </div>
     </div>}
     {item.status === "awaiting_manual_action" && <div className="flex flex-wrap gap-3">
+      {item.destination === "tiktok_video" && <p className="w-full text-sm text-muted">No TikTok, confira o vídeo, a legenda e o link no aplicativo antes de publicar. O Meu Vendedor não publica nem confirma a postagem automaticamente.</p>}
       <button type="button" disabled={busy} onClick={() => void shareManually()} className="rounded-lg bg-primary px-4 py-2 text-sm text-white">Compartilhar manualmente</button>
       <button type="button" disabled={busy} onClick={() => void confirmPublished()} className="rounded-lg border border-border px-4 py-2 text-sm">Confirmar publicação manual</button>
       <button type="button" disabled={busy} onClick={() => void markFailed()} className="rounded-lg border border-border px-4 py-2 text-sm">Registrar falha manual</button>

@@ -846,3 +846,34 @@ O responsável autorizou implementar publicação imediata e agendamento persist
 - Estado desta implementação: código e documentação commitados e enviados, mas ainda não publicados nos serviços. GitHub CLI está autenticado. A CLI Supabase rejeitou o token local por formato inválido (`sbp_...` esperado) e não há senha de conexão do banco. Wrangler reconhece uma identidade, mas a consulta de deployments e a API Cloudflare retornaram “No access to the specified resource” para `meu-vendedor`. Não foi feita migração, deploy de Edge Function ou publicação Cloudflare; a versão remota atual não foi verificada.
 - Não declarar como publicado até confirmar a versão ativa, o cron no banco e a transição de um agendamento real de teste. Não alterar Secrets existentes.
 - Próximo trabalho de redes sociais está somente planejado no bloco **PRÓXIMA ETAPA — COMPARTILHAMENTO EM REDES SOCIAIS** deste arquivo de continuidade.
+
+## 12/11/2026 — TikTok como destino assistido e correção do agendamento
+
+### Instrução e diagnóstico
+
+O responsável pediu retomar o agendamento existente, preservar o modo assistido e adicionar TikTok como destino independente, além de validar Pinterest + TikTok para 20/11/2026 às 18:00 em `America/Sao_Paulo` (21:00 UTC). Também pediu verificar migrações, função, cron e Worker existentes, executar os testes, atualizar a documentação e publicar somente após validação. Nenhuma publicação real em rede foi autorizada.
+
+Antes das alterações foram consultados integralmente os 52 arquivos Markdown versionados, incluindo `historico.md`, `CONTINUAR_AMANHA.md`, `PUBLICACAO.md`, instruções do agente e documentos de infraestrutura. Branch `main` estava em `a4f5b02c747ffa584445e8c8e1b65e8d62dc97e8`, alinhada a `origin/main`; o arquivo não rastreado `alteracoes-pendentes.patch` e a worktree independente `feat/public-catalog-five-marketplaces` foram preservados.
+
+A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Function e constraint SQL. Também identificou uma falha que bloqueava toda criação pelo composer: ele envia `destinations` (lista), mas a Edge Function exigia `destination` singular antes de tratar a lista.
+
+### Correções e arquivos relacionados
+
+- Adicionado `tiktok_video` como opção própria de publicação assistida em `src/lib/publication-scheduling.ts`; mantido `other_app`.
+- Atualizada a tipagem de seleção do composer e adicionada orientação explícita no painel para conferir a postagem no TikTok. Nenhum envio automático ou nova API social foi implementado.
+- Atualizado `supabase/functions/publication-schedule/_shared/handler.ts` para validar a lista de destinos, permitir criação sem campo singular e validar o destino singular na edição. Mantida a validação de origem da Shopee.
+- Criada a migração aditiva `supabase/migrations/20261112190000_publication_tiktok_destination.sql`; não altera nem recria tabelas.
+- Testes exercitam o payload real da interface sem `destination` singular, o horário UTC solicitado, dois destinos, dois registros com a mesma chave/conteúdo e transições de estado independentes. PGlite aceita a nova constraint; não houve postagem real.
+- Documentação atualizada em `PUBLICACAO.md` e `CONTINUAR_AMANHA.md`. As futuras integrações de Stories do Facebook, publicação no perfil do TikTok e Kwai foram mantidas; foi acrescentada a melhoria futura de compartilhamento via Android/iPhone.
+
+### Validação local e limitações remotas
+
+- Testes focados de agendamento/banco: **8 passaram**. Suíte completa: **262 passaram, 0 falharam**.
+- `npm run typecheck` e `npm run typecheck:edge`: aprovados.
+- `npm run lint`: zero erros; quatro avisos preexistentes em controladores Kaggle.
+- `npm run build:pages`: build estático para o Worker concluído; 26 rotas geradas.
+- O teste do cenário solicitado fixa o relógio de referência para evitar que o caso passe a ser inválido quando a data de novembro de 2026 ficar no passado. A correspondência local `18:00` → `21:00 UTC` foi confirmada; a inserção equivalente no Supabase remoto ainda não foi possível.
+- Supabase remoto `jzchlrvxdaffnrgbvabv`: a API Management respondeu **HTTP 401** ao token disponível. Não há CLI Supabase instalada nem conector Supabase autorizado nesta sessão. Nenhuma migração foi aplicada ou verificada remotamente; nenhuma versão da Edge Function, cron real ou fluxo de usuário autenticado remoto foi validada.
+- Cloudflare: Wrangler reconhece a conta `2cd6c753710fbaba6b94e33ef662c9b3`, mas a listagem de deployments do Worker existente `meu-vendedor` falhou com “No access to the specified resource” (**HTTP 403**). Nenhum deploy foi executado; o Worker `gilfinanceiro` não foi consultado nem alterado.
+- Ainda não foi possível validar no navegador autenticado salvar/reabrir, editar, reagendar e cancelar dados remotos. Os testes simulados e PGlite não substituem o smoke test remoto.
+- Não houve deploy, aplicação de migrações, publicação real, alteração de Secrets, commit ou push durante a validação local. A correção não deve ser declarada concluída em produção.

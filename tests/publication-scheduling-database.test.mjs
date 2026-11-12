@@ -6,6 +6,7 @@ import { PGlite } from '@electric-sql/pglite';
 const alice = '11111111-1111-4111-8111-111111111111';
 const bob = '22222222-2222-4222-8222-222222222222';
 const publication = '33333333-3333-4333-8333-333333333333';
+const tiktokPublication = '66666666-6666-4666-8666-666666666666';
 
 test('migração isola publicações, avança vencidas uma vez e registra ações manuais idempotentes', async () => {
   const db = new PGlite();
@@ -18,18 +19,22 @@ test('migração isola publicações, avança vencidas uma vez e registra açõe
       grant execute on function auth.uid() to authenticated,anon,service_role;`);
     const migration = await readFile(new URL('../supabase/migrations/20261112180000_publication_scheduling.sql', import.meta.url), 'utf8');
     await db.exec(migration);
+    const tiktokMigration = await readFile(new URL('../supabase/migrations/20261112190000_publication_tiktok_destination.sql', import.meta.url), 'utf8');
+    await db.exec(tiktokMigration);
     await db.query('insert into auth.users(id) values($1),($2)', [alice, bob]);
     await db.query(`insert into public.mv_publications
       (id,user_id,idempotency_key,product_title,source_marketplace,affiliate_url,publication_title,
        caption,hashtags,destination,media_path,media_type,media_filename,status,scheduled_at,timezone)
       values($1,$2,$3,'Produto','Shopee','https://shopee.com.br/item','Publicação',
        'Descrição','#Publicidade','pinterest',$4,'video/mp4','produto.mp4','scheduled','2000-01-01T00:00:00Z','America/Sao_Paulo'),
+      ($6,$2,$3,'Produto','Shopee','https://shopee.com.br/item','Publicação',
+       'Descrição','#Publicidade','tiktok_video',$4,'video/mp4','produto.mp4','scheduled','2000-01-01T00:00:00Z','America/Sao_Paulo'),
        ('77777777-7777-4777-8777-777777777777',$5,'88888888-8888-4888-8888-888888888888',
         'Produto','Amazon','https://amazon.com.br/item','Rascunho futuro',
         'Descrição','#Publicidade','pinterest','22222222-2222-4222-8222-222222222222/publications/99999999-9999-4999-8999-999999999999.mp4',
         'video/mp4','produto.mp4','scheduled','2099-01-01T00:00:00Z','UTC')`,
     [publication, alice, '44444444-4444-4444-8444-444444444444',
-      `${alice}/publications/55555555-5555-4555-8555-555555555555.mp4`, bob]);
+      `${alice}/publications/55555555-5555-4555-8555-555555555555.mp4`, bob, tiktokPublication]);
 
     await db.exec('set role authenticated');
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [bob]);
@@ -39,10 +44,13 @@ test('migração isola publicações, avança vencidas uma vez e registra açõe
     await assert.rejects(db.query('insert into public.mv_publications(user_id) values($1)', [alice]), /permission denied/);
 
     await db.exec('reset role;set role service_role');
-    assert.equal((await db.query('select public.mv_process_due_publications() as count')).rows[0].count, 1);
+    assert.equal((await db.query('select public.mv_process_due_publications() as count')).rows[0].count, 2);
     assert.equal((await db.query('select public.mv_process_due_publications() as count')).rows[0].count, 0);
     assert.equal((await db.query('select status from public.mv_publications where id=$1', [publication])).rows[0].status, 'awaiting_manual_action');
+    assert.equal((await db.query('select status from public.mv_publications where id=$1', [tiktokPublication])).rows[0].status, 'awaiting_manual_action');
+    assert.equal((await db.query('select count(*)::int as count from public.mv_publications where user_id=$1 and idempotency_key=$2', [alice, '44444444-4444-4444-8444-444444444444'])).rows[0].count, 2);
     assert.equal((await db.query('select count(*)::int as count from public.mv_publication_attempts where publication_id=$1', [publication])).rows[0].count, 1);
+    assert.equal((await db.query('select count(*)::int as count from public.mv_publication_attempts where publication_id=$1', [tiktokPublication])).rows[0].count, 1);
     assert.equal((await db.query("select status from public.mv_publications where id='77777777-7777-4777-8777-777777777777'")).rows[0].status, 'scheduled');
 
     const handoffKey = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -56,6 +64,7 @@ test('migração isola publicações, avança vencidas uma vez e registra açõe
     assert.equal((await db.query('select count(*)::int as count from public.mv_publication_attempts where publication_id=$1', [publication])).rows[0].count, 2);
     assert.equal((await apply('manual_published', confirmKey)).rows[0].item.status, 'published');
     assert.equal((await apply('manual_published', confirmKey)).rows[0].item.status, 'published');
+    assert.equal((await db.query('select status from public.mv_publications where id=$1', [tiktokPublication])).rows[0].status, 'awaiting_manual_action');
     assert.equal((await db.query('select count(*)::int as count from public.mv_publication_attempts where publication_id=$1', [publication])).rows[0].count, 3);
     await assert.rejects(apply('manual_failed', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'), /publication_action_not_available/);
   } finally { await db.close(); }

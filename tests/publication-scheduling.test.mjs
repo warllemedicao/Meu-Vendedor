@@ -7,6 +7,7 @@ const alice = '11111111-1111-4111-8111-111111111111';
 const publicationId = '33333333-3333-4333-8333-333333333333';
 const key = '44444444-4444-4444-8444-444444444444';
 const mediaPath = `${alice}/publications/55555555-5555-4555-8555-555555555555.mp4`;
+const scenarioNow = Date.parse('2026-11-12T19:31:00.000Z');
 
 function request(token, body) {
   return new Request('https://example.test/functions/v1/publication-schedule', {
@@ -39,18 +40,27 @@ function validBody(overrides = {}) {
   };
 }
 
-function createHandler(calls) {
+function createHandler(calls, now = () => scenarioNow) {
   return createPublicationScheduleHandler({
     authenticate: async token => token === 'alice-token' ? alice : token === 'bob-token' ? '22222222-2222-4222-8222-222222222222' : null,
     list: async userId => { calls.push(['list', userId]); return [{ userId }]; },
-    create: async (userId, input, destinations) => { calls.push(['create', userId, input, destinations]); return [{ userId, input, destinations }]; },
+    create: async (userId, input, destinations) => {
+      calls.push(['create', userId, input, destinations]);
+      return destinations.map((destination, index) => ({
+        id: `publication-${index + 1}`, userId, destination, status: input.status,
+        scheduledAt: input.scheduledAt, idempotencyKey: input.idempotencyKey,
+      }));
+    },
     update: async (userId, id, input) => { calls.push(['update', userId, id, input]); return { userId, id }; },
     cancel: async (userId, id) => { calls.push(['cancel', userId, id]); return { userId, id }; },
     action: async (userId, id, action, requestKey) => { calls.push(['action', userId, id, action, requestKey]); return { userId, id, action }; },
-  }, ['https://example.test']);
+  }, ['https://example.test'], now);
 }
 
 test('data e horário convertem do fuso selecionado para UTC e voltam sem deslocamento', () => {
+  const scenarioIso = localDateTimeToIso('2026-11-20T18:00', 'America/Sao_Paulo', new Date(scenarioNow));
+  assert.equal(scenarioIso, '2026-11-20T21:00:00.000Z');
+  assert.equal(isoToLocalDateTime(scenarioIso, 'America/Sao_Paulo'), '2026-11-20T18:00');
   const iso = localDateTimeToIso('2030-01-15T12:00', 'America/Sao_Paulo', new Date('2029-01-01T00:00:00Z'));
   assert.equal(iso, '2030-01-15T15:00:00.000Z');
   assert.equal(isoToLocalDateTime(iso, 'America/Sao_Paulo'), '2030-01-15T12:00');
@@ -102,6 +112,26 @@ test('operações do painel são sempre vinculadas à identidade autenticada', a
   }));
   assert.equal(attempt.status, 200);
   assert.deepEqual(calls[2].slice(0, 4), ['action', alice, publicationId, 'manual_published']);
+});
+
+test('criação aceita payload da interface sem destino singular e separa Pinterest e TikTok', async () => {
+  const calls = [];
+  const handler = createHandler(calls);
+  const created = await handler(request('alice-token', validBody({
+    destination: undefined,
+    destinations: ['pinterest', 'tiktok_video'],
+    scheduledAt: '2026-11-20T21:00:00.000Z',
+    timezone: 'America/Sao_Paulo',
+  })));
+
+  assert.equal(created.status, 201);
+  const { items } = await created.json();
+  assert.equal(items.length, 2);
+  assert.deepEqual(items.map(item => item.destination), ['pinterest', 'tiktok_video']);
+  assert.deepEqual(items.map(item => item.status), ['scheduled', 'scheduled']);
+  assert.equal(new Set(items.map(item => item.id)).size, 2);
+  assert.equal(calls[0][2].scheduledAt, '2026-11-20T21:00:00.000Z');
+  assert.deepEqual(calls[0][3], ['pinterest', 'tiktok_video']);
 });
 
 test('edição e cancelamento passam apenas pelo serviço autenticado do proprietário', async () => {

@@ -1,4 +1,4 @@
-export type Destination = "shopee_video" | "pinterest" | "other_app";
+export type Destination = "shopee_video" | "pinterest" | "tiktok_video" | "other_app";
 export type ScheduleStatus = "draft" | "scheduled";
 export type PublicationAction = "share_handoff" | "manual_published" | "manual_failed";
 
@@ -35,7 +35,7 @@ export class PublicationServiceError extends Error {
 }
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const destinations = new Set<Destination>(["shopee_video", "pinterest", "other_app"]);
+const destinations: ReadonlySet<string> = new Set(["shopee_video", "pinterest", "tiktok_video", "other_app"]);
 const actions = new Set<PublicationAction>(["share_handoff", "manual_published", "manual_failed"]);
 const mimeExtensions: Record<string, string> = {
   "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
@@ -66,6 +66,10 @@ function validTimeZone(value: string): boolean {
   catch { return false; }
 }
 
+function isDestination(value: unknown): value is Destination {
+  return typeof value === "string" && destinations.has(value);
+}
+
 function scheduledAt(value: unknown, status: ScheduleStatus, now: number): string | null {
   if (status === "draft") {
     if (value !== null) throw new PublicationServiceError("Rascunhos não podem ter horário programado.", 400);
@@ -77,7 +81,7 @@ function scheduledAt(value: unknown, status: ScheduleStatus, now: number): strin
   return new Date(value).toISOString();
 }
 
-function publicationInput(body: Record<string, unknown>, userId: string, now: number): PublicationInput {
+function publicationInput(body: Record<string, unknown>, userId: string, now: number, destinationOverride?: Destination): PublicationInput {
   const status = body.status;
   if (status !== "draft" && status !== "scheduled") throw new PublicationServiceError("Estado da publicação inválido.", 400);
   const productId = body.productId;
@@ -94,10 +98,11 @@ function publicationInput(body: Record<string, unknown>, userId: string, now: nu
   const publicationTitle = string(body.publicationTitle, "título", 200, 1);
   const caption = string(body.caption, "descrição", 5000);
   const hashtags = string(body.hashtags, "hashtags", 1000);
-  if (typeof body.destination !== "string" || !destinations.has(body.destination as Destination)) {
+  const destination = destinationOverride ?? body.destination;
+  if (!isDestination(destination)) {
     throw new PublicationServiceError("Destino de publicação inválido.", 400);
   }
-  if (body.destination === "shopee_video" && sourceMarketplace !== "Shopee") {
+  if (destination === "shopee_video" && sourceMarketplace !== "Shopee") {
     throw new PublicationServiceError("Shopee Vídeo só pode ser selecionado para produtos da Shopee.", 400);
   }
   const mediaType = string(body.mediaType, "tipo de mídia", 30, 1);
@@ -117,12 +122,16 @@ function publicationInput(body: Record<string, unknown>, userId: string, now: nu
     idempotencyKey,
     productId: typeof productId === "string" ? productId : null,
     productTitle, sourceMarketplace, affiliateUrl, publicationTitle, caption, hashtags,
-    destination: body.destination as Destination, mediaPath, mediaType, mediaFilename,
+    destination, mediaPath, mediaType, mediaFilename,
     status, scheduledAt: date, timezone,
   };
 }
 
-export function createPublicationScheduleHandler(deps: PublicationDependencies, allowedOrigins: string[]) {
+export function createPublicationScheduleHandler(
+  deps: PublicationDependencies,
+  allowedOrigins: string[],
+  now: () => number = Date.now,
+) {
   return async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");
     const cors = {
@@ -145,22 +154,27 @@ export function createPublicationScheduleHandler(deps: PublicationDependencies, 
       const action = body.action;
       if (action === "list") return reply({ items: await deps.list(userId) });
       if (action === "create") {
-        const input = publicationInput(body, userId, Date.now());
         const selected = body.destinations;
-        if (!Array.isArray(selected) || selected.length < 1 || selected.length > destinations.size
-          || selected.some(value => typeof value !== "string" || !destinations.has(value as Destination))
-          || new Set(selected).size !== selected.length) {
+        if (!Array.isArray(selected) || selected.length < 1 || selected.length > destinations.size) {
           throw new PublicationServiceError("Selecione pelo menos um destino válido.", 400);
         }
-        if (selected.includes("shopee_video") && input.sourceMarketplace !== "Shopee") {
+        const selectedDestinations: Destination[] = [];
+        for (const value of selected) {
+          if (!isDestination(value) || selectedDestinations.includes(value)) {
+            throw new PublicationServiceError("Selecione pelo menos um destino válido.", 400);
+          }
+          selectedDestinations.push(value);
+        }
+        const input = publicationInput(body, userId, now(), selectedDestinations[0]);
+        if (selectedDestinations.includes("shopee_video") && input.sourceMarketplace !== "Shopee") {
           throw new PublicationServiceError("Shopee Vídeo só pode ser selecionado para produtos da Shopee.", 400);
         }
-        return reply({ items: await deps.create(userId, input, selected as Destination[]) }, 201);
+        return reply({ items: await deps.create(userId, input, selectedDestinations) }, 201);
       }
       if (action === "update") {
         const id = string(body.id, "identificador", 36, 36);
         if (!uuid.test(id)) throw new PublicationServiceError("Identificador de publicação inválido.", 400);
-        const input = publicationInput(body, userId, Date.now());
+        const input = publicationInput(body, userId, now());
         return reply({ item: await deps.update(userId, id, input) });
       }
       if (action === "cancel") {
