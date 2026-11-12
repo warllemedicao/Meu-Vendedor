@@ -1,5 +1,27 @@
 # Histórico da conversa — atualizado em 12/11/2026
 
+## 12/11/2026 — reforço da leitura obrigatória de todos os Markdown
+
+### Objetivo e instruções recebidas
+
+O responsável solicitou tornar explícita e obrigatória, em cada nova conversa/tarefa, a leitura contextual integral de todos os Markdown versionados antes de alterações de código. Não pular documentos por nome; priorizar `CONTINUAR_AMANHA.md` e os históricos; manter registro por caminho e informar limitações; verificar novamente documentos relacionados e código antes de cada modificação; e informar contradições antes de prosseguir. Scripts permanecem auxiliares e não substituem a leitura. A configuração não deve afirmar que abrir/reabrir a página dispara a leitura automaticamente.
+
+### Leitura feita antes da edição
+
+`git ls-files` encontrou 52 Markdown versionados, incluindo subpastas. O conteúdo integral dos 52 arquivos foi lido em contexto, com leituras em lotes e releituras dos registros prioritários. O conjunto consultado foi: `.github/copilot-instructions.md`, `AGENTS.md`, `AJUSTES_ESTUDIO.md`, `ARQUITETURA.md`, `ARQUITETURA_VIDEO_SINCRONIZADO.md`, `ASSISTENTE_DE_DIVULGACAO.md`, `ATUALIZACOES.md`, `AUDITORIA_GERADOR_VIDEO.md`, `AUDITORIA_IA.md`, `CATALOGO_APIS.md`, `CLOUDFLARE.md`, `CONECTORES.md`, `CONTA_E_ESTRATEGIA_GOOGLE.md`, `CONTINUAR_AMANHA.md`, `CREDITOS_DA_CONTA.md`, `DIVULGACAO_INTEGRADA.md`, `ELEVENLABS.md`, `ENTREGA_VIDEO_COM_PRODUTO.md`, `ESCOPO.md`, `GALERIA_DE_PRODUTO.md`, `GOOGLE_FLOW_E_YOUTUBE.md`, `GOOGLE_OAUTH_SETUP.md`, `GOOGLE_TTS.md`, `HISTORICO.md`, `IMAGENS_SINCRONIZADAS.md`, `INTEGRACOES.md`, `MAGIC_HOUR_AJUSTES.md`, `MARKETPLACES.md`, `MODO_GRATUITO.md`, `MOVIMENTO_E_PRODUTO.md`, `ONEMIN_E_KAGGLE.md`, `PESQUISA_MOVIMENTO_E_PRODUTO.md`, `PESQUISA_VIDEO_ALTERNATIVAS.md`, `PUBLICACAO.md`, `QUALIDADE_VISUAL_E_PROMPTS.md`, `README.md`, `REFERENCIAS_APRESENTADORES.md`, `REFERENCIA_FORNECEUP.md`, `SALDOS_E_GOOGLE_FLOW.md`, `SHOPEE_VIDEO_PUBLICACAO.md`, `SOLUCAO_VIDEO_KAGGLE.md`, `SUPABASE.md`, `TESTES_KAGGLE_E_CAPACIDADE.md`, `TESTE_ANA_MIDI.md`, `TESTE_HUNYUAN_DESTILADO.md`, `TESTE_NO_APP.md`, `VIDEOS_IA.md`, `VIDEO_DE_PRODUTO.md`, `YOUTUBE_CONEXAO.md`, `executors/google-flow/README.md`, `executors/kaggle/README.md` e `historico.md`. Registro: **52 integral, 0 parcial, 0 não lido**.
+
+### Contradição identificada e escopo
+
+`HISTORICO.md` mantém uma contagem histórica de 49 documentos e descreve a publicação da entrega de Produtos/ChatGPT como “em andamento”; o inventário Git atual tem 52 Markdown e os registros/commits mais recentes mostram a configuração anterior já enviada. Essa inconsistência foi informada antes da edição. Por escopo, `HISTORICO.md` não foi modificado; não se usou esse estado antigo para inferir o estado atual do código ou do remoto.
+
+### Alterações e validação
+
+Atualizados somente `AGENTS.md` e `.github/copilot-instructions.md` para exigir a leitura real no contexto do agente, inclusive subpastas e documentos considerados irrelevantes; registrar estado por arquivo; não iniciar alterações de código antes da leitura inicial; reler documentos pertinentes e verificar código/Git antes de cada mudança; e declarar limites/contradições sem alegar conclusão falsa. Reforçado que script de terminal e abertura da página não constituem leitura automática. `historico.md` e `CONTINUAR_AMANHA.md` recebem este registro; não foram alterados código, funcionalidades ou scripts.
+
+Validação: `scripts/read-project-docs.sh` listou 52 Markdown versionados e concluiu 52/52 leituras sem exibir conteúdo; `bash -n scripts/read-project-docs.sh`, validação JSON de `.devcontainer/devcontainer.json` e `git diff --check` passaram. O teste do script apenas verificou o auxiliar, não substituiu a leitura contextual acima. O `postStartCommand` e os demais arquivos de inicialização foram preservados. Nenhum deploy, operação paga ou acesso a serviço remoto foi necessário.
+
+Commit/push desta revisão: pendentes no momento deste registro.
+
 ## 12/11/2026 — instruções permanentes e leitura documental no Codespace
 
 Configurados `AGENTS.md` e `.github/copilot-instructions.md` para orientar o Copilot a identificar e ler os Markdown versionados antes de cada tarefa, priorizando a continuidade, o histórico e os documentos centrais. As instruções exigem declarar os documentos efetivamente lidos quando houver limites de contexto, verificar Git/código antes de inferir implementação ou publicação, resumir o estado antes de alterações, preservar trabalho local/worktrees, não alterar `gilfinanceiro`, não registrar credenciais e atualizar os dois registros de continuidade após tarefas de desenvolvimento autorizadas.

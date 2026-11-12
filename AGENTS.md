@@ -1,12 +1,15 @@
 # Instrucoes permanentes do Meu Vendedor
 
-## Contexto documental antes de cada tarefa
+## Leitura documental obrigatoria antes de cada conversa/tarefa
 
-1. Antes de executar qualquer tarefa, identifique e liste todos os arquivos Markdown versionados pelo Git (`.md`, sem diferenciar maiusculas de minusculas).
-2. Leia integralmente os documentos versionados, nesta ordem de prioridade quando existirem: `CONTINUAR_AMANHA.md`, `historico.md`, `HISTORICO.md`, `README.md`, `ARQUITETURA.md`, `SUPABASE.md`, `CLOUDFLARE.md`, `PUBLICACAO.md` e `INTEGRACOES.md`. Em seguida, leia os demais arquivos Markdown versionados.
-3. Se algum documento estiver inacessivel ou o conjunto exceder os limites de contexto, nao presuma que a leitura foi concluida. Informe quais documentos foram lidos integralmente, parcialmente ou nao foram lidos e solicite autorizacao antes de prosseguir com contexto parcial.
-4. Considere os registros mais recentes para recuperar o estado das tarefas, mas confira o codigo e o Git antes de assumir que algo foi implementado ou publicado.
-5. Antes de qualquer alteracao solicitada, apresente um resumo do estado do projeto, das pendencias e dos documentos efetivamente lidos.
+1. Assim que receber a primeira solicitacao de cada nova conversa e antes de iniciar qualquer tarefa, identifique e liste todos os arquivos Markdown versionados pelo Git (`.md`, sem diferenciar maiusculas de minusculas), incluindo subpastas.
+2. Leia efetivamente e integralmente o conteudo de cada arquivo listado. Leia em lotes quando necessario; nao pule arquivos por nome, localizacao ou aparente irrelevancia. Priorize primeiro, quando existirem, `CONTINUAR_AMANHA.md`, `historico.md`, `HISTORICO.md`, `README.md`, `ARQUITETURA.md`, `SUPABASE.md`, `CLOUDFLARE.md`, `PUBLICACAO.md` e `INTEGRACOES.md`; depois leia todos os demais Markdown.
+3. A leitura precisa ocorrer no contexto do agente. Executar um script, listar nomes, contar arquivos, redirecionar conteudo para `/dev/null` ou produzir um resumo nao substitui a leitura integral. Nenhum resumo pode substituir os documentos originais.
+4. Mantenha um registro da leitura com o caminho de cada arquivo e seu estado: integral, parcial ou nao lido. Informe esse registro antes de qualquer alteracao. Se um arquivo estiver inacessivel ou nao puder ser lido integralmente, registre-o sem declarar a etapa concluida.
+5. Se o limite de contexto impedir a leitura ou retencao de todo o conjunto, informe a limitacao e os arquivos afetados. Nao altere codigo antes de concluir a leitura integral inicial. Mantenha o registro de leitura e, antes de cada modificacao, releia integralmente os documentos relacionados, verifique o codigo atual e o Git e atualize o estado informado.
+6. Considere os registros mais recentes para recuperar decisoes arquiteturais, integracoes, funcionalidades concluidas, limitacoes e pendencias; confira o codigo e o Git antes de assumir que algo foi implementado ou publicado.
+7. Antes de qualquer modificacao, apresente um resumo do estado do projeto, das pendencias, do registro de leitura e de contradicoes identificadas. Se houver contradicao entre documentos ou divergencia entre documentacao e implementacao, informe-a antes de prosseguir e nao a resolva por suposicao.
+8. Releia os documentos relacionados e confira o codigo existente antes de cada modificacao, mesmo depois da leitura inicial completa.
 
 ## Seguranca e escopo
 
@@ -18,4 +21,4 @@
 
 ## Inicializacao do Codespace
 
-O script `scripts/read-project-docs.sh` lista e le os arquivos Markdown versionados sem exibir seu conteudo. Essa verificacao de terminal nao carrega os documentos para o contexto do Copilot. Ao receber a primeira tarefa de cada sessao, siga as instrucoes acima e faca a leitura documental no proprio contexto.
+O script `scripts/read-project-docs.sh` e apenas auxiliar: lista e le arquivos sem exibir seus conteudos. Sua execucao nao carrega os documentos para o contexto do Copilot e nunca conta como leitura efetiva. Abrir ou reabrir a pagina/chat, por si so, nao garante execucao automatica; inicie o procedimento documental assim que receber a primeira solicitacao da conversa.

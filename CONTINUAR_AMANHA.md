@@ -1,5 +1,13 @@
 # Continuidade do projeto — próxima sessão
 
+## Regra de leitura integral de Markdown — 12/11/2026
+
+Antes de qualquer tarefa numa nova conversa, identifique por Git e leia no contexto do agente **todos os Markdown versionados**, incluindo subpastas, sem excluir documentos por nome. Faça a leitura em lotes se necessário; priorize esta continuidade, `historico.md`, `HISTORICO.md`, README e documentos arquiteturais, mas depois leia todos os demais. Manter um registro por caminho com estado integral/parcial/não lido e apresentá-lo antes de modificar arquivos. Script com conteúdo descartado, mera listagem/contagem, resumo ou abertura/reabertura da página não constitui leitura do agente.
+
+Não altere código até concluir a leitura inicial integral. Antes de cada modificação, releia os documentos relacionados e confira código e Git. Se limites de contexto ou acesso impedirem a leitura, declare os arquivos afetados e a limitação; não afirme conclusão. Informe contradições entre documentos ou divergências com a implementação antes de decidir como prosseguir. Inicie o procedimento assim que receber a primeira solicitação: não há garantia de leitura automática ao abrir o chat/página.
+
+Nesta tarefa foram lidos integralmente os **52/52** Markdown versionados (0 parcial, 0 não lidos), incluindo `historico.md` e esta continuidade. O inventário completo está registrado na entrada de 12/11/2026 em `historico.md`. Foi encontrada discrepância histórica em `HISTORICO.md` (contagem 49 e status antigo “em andamento”); esse arquivo ficou fora do escopo de edição. As instruções foram atualizadas em `AGENTS.md` e `.github/copilot-instructions.md`; não houve alteração de funcionalidade. `scripts/read-project-docs.sh`, sintaxe Bash, JSON do Codespace e `git diff --check` foram validados. Concluir commit/push somente dos quatro arquivos relacionados; não alegar que a abertura da página por si só carrega os Markdown no contexto.
+
 ## Configuração permanente de contexto — 12/11/2026
 
 Foram criadas instruções em `AGENTS.md` e `.github/copilot-instructions.md` para listar e ler os arquivos Markdown versionados antes de qualquer tarefa, começando por esta continuidade e pelo histórico. Quando o conjunto exceder o contexto ou algum arquivo estiver inacessível, a próxima sessão deve informar precisamente o que leu, o que leu parcialmente e o que não conseguiu ler; não deve declarar a leitura completa. O terminal não injeta seu conteúdo no contexto do Copilot.
