@@ -8,6 +8,8 @@ export const publicationDestinations = [
   { id: "shopee_video", label: "Shopee Vídeo · ação manual" },
   { id: "pinterest", label: "Pinterest · ação manual" },
   { id: "tiktok_video", label: "TikTok · publicação assistida manual" },
+  { id: "kwai", label: "Kwai · publicação assistida manual" },
+  { id: "facebook_stories", label: "Facebook Stories · publicação assistida manual" },
   { id: "other_app", label: "Outro aplicativo · compartilhamento manual" },
 ] as const;
 

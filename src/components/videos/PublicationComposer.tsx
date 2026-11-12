@@ -10,7 +10,10 @@ import {
   browserTimeZone, localDateTimeToIso, publicationDestinations, publicationScheduleRequest,
   publicationTimeZones, uploadPublicationMedia, type PublicationDestination,
 } from "@/lib/publication-scheduling";
-import { sharePublication, shopeeProductDestination } from "@/lib/publication-share";
+import {
+  publicationShareTargets, sharePublication, shopeeProductDestination,
+  type PublicationShareTarget,
+} from "@/lib/publication-share";
 
 const field = "mt-1 w-full rounded-lg border border-border bg-background p-3 text-sm";
 
@@ -36,6 +39,7 @@ export function PublicationComposer({
   const [choosingSchedule, setChoosingSchedule] = useState(false);
   const [dateTime, setDateTime] = useState("");
   const [timeZone, setTimeZone] = useState(browserTimeZone);
+  const [shareTarget, setShareTarget] = useState<PublicationShareTarget>(product.platform === "Shopee" ? "other_app" : "pinterest");
   const [selectedDestinations, setSelectedDestinations] = useState<PublicationDestination[]>([
     product.platform === "Shopee" ? "shopee_video" : "pinterest",
   ]);
@@ -45,6 +49,7 @@ export function PublicationComposer({
   const valid = affiliateUrlValid(affiliateUrl);
   const shopee = product.platform === "Shopee";
   const productDestination = shopeeProductDestination(product.productUrl);
+  const selectedShareTarget = publicationShareTargets.find(target => target.id === shareTarget)!;
   const destinations = publicationDestinations.filter(option => option.id !== "shopee_video" || shopee);
   const timeZones = publicationTimeZones(timeZone);
 
@@ -65,11 +70,12 @@ export function PublicationComposer({
       const file = new File([media], filename, { type: media.type });
       const result = await sharePublication(navigator, { files: [file], title: publicationTitle, text });
       if (result === "shared") setNotice(shopee
-        ? "Compartilhamento entregue ao dispositivo. Na Shopee, confira o vídeo e a legenda, vincule o produto e toque em Postar. A postagem ainda não foi confirmada pelo Meu Vendedor."
-        : "Compartilhamento entregue ao dispositivo. Conclua a postagem no aplicativo escolhido.");
+        ? "Compartilhamento iniciado no seletor do dispositivo. Na Shopee, confira o vídeo e a legenda, vincule o produto e toque em Postar. A postagem ainda não foi confirmada pelo Meu Vendedor."
+        : "Compartilhamento iniciado no seletor do dispositivo. O sistema escolhe o aplicativo receptor; a postagem ainda não foi confirmada.");
+      if (result === "cancelled") setNotice("Compartilhamento cancelado. Nenhuma publicação foi confirmada.");
       if (result === "unsupported" || result === "failed") setNotice(shopee
         ? "Baixe o vídeo e copie a publicação. Abra a Shopee → Live e Vídeos → Vídeos → +, selecione o arquivo, cole a legenda e vincule o produto antes de postar."
-        : "Não foi possível compartilhar neste navegador. Baixe a mídia e copie a publicação.");
+        : "Este navegador não conseguiu compartilhar o arquivo. Baixe a mídia e selecione-a no aplicativo oficial; confira e cole o texto manualmente.");
     } finally { setBusy(false); }
   }
 
@@ -132,6 +138,7 @@ export function PublicationComposer({
 
   return <section className="space-y-3 rounded-xl border border-primary p-4" aria-label="Preparar publicação">
     <h3 className="text-lg font-semibold">{shopee ? "Compartilhar na Shopee · Live e Vídeos" : "Tudo pronto para compartilhar"}</h3>
+    <p className="text-sm text-muted">Mídia preparada. Ainda não há agendamento ou publicação; compartilhar não confirma que o vídeo foi postado.</p>
     {shopee && <div className="space-y-2 rounded-xl bg-background p-3 text-sm">
       <p className="font-semibold">Destino: Shopee → Live e Vídeos → Vídeos</p>
       <p>O botão abre as opções de compartilhamento do seu dispositivo. Se a Shopee aparecer, selecione-a. Confira a legenda e adicione este produto ao vídeo antes de tocar em Postar.</p>
@@ -150,6 +157,18 @@ export function PublicationComposer({
     <label className="block text-sm">Hashtags
       <input value={hashtags} maxLength={1000} onChange={event => { invalidateKey(); setHashtags(event.target.value); }} className={field} />
     </label>
+    <label className="block text-sm">Rede social para orientar o compartilhamento
+      <select value={shareTarget} onChange={event => {
+        const target = publicationShareTargets.find(value => value.id === event.target.value);
+        if (target) setShareTarget(target.id);
+      }} className={field}>
+        {publicationShareTargets.map(target => <option key={target.id} value={target.id}>{target.label}</option>)}
+      </select>
+    </label>
+    <p className="text-xs text-muted">A seleção não direciona o menu nativo. O navegador e o sistema escolhem os aplicativos compatíveis; podem não aceitar o MP4 nem preencher a legenda.</p>
+    {selectedShareTarget.siteUrl && <a href={selectedShareTarget.siteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">
+      Abrir site oficial de {selectedShareTarget.label}
+    </a>}
     {shopee && <div className="space-y-2 text-sm">
       <label className="block">Produto para vincular na Shopee
         <input readOnly value={product.title} onFocus={event => event.target.select()} className={field} />
@@ -160,9 +179,29 @@ export function PublicationComposer({
       }} className="text-primary underline">Copiar nome do produto</button>
       {productDestination && <a href={productDestination} target="_blank" rel="noopener noreferrer" className="ml-3 inline-block text-primary underline">Abrir produto na Shopee</a>}
     </div>}
-    <p className="break-all text-sm">Link de afiliado: {affiliateUrl || "Gere ou informe seu link antes de compartilhar."}</p>
+    <div className="space-y-2 text-sm">
+      <p className="break-all">Link de afiliado: {affiliateUrl || "Gere ou informe seu link antes de compartilhar."}</p>
+      <button type="button" disabled={!affiliateUrl} onClick={async () => {
+        try { await navigator.clipboard.writeText(affiliateUrl); setNotice("Link copiado."); }
+        catch { setNotice("Não foi possível copiar o link. Selecione-o e copie manualmente."); }
+      }} className="text-primary underline disabled:opacity-50">Copiar link</button>
+    </div>
     {!valid && <p className="text-sm text-muted">Adicione um link HTTPS válido na criação da divulgação.</p>}
     <textarea aria-label="Texto completo da publicação" readOnly value={text} className={field} rows={5} />
+    <div className="flex flex-wrap gap-3 text-sm">
+      <button type="button" onClick={async () => {
+        try { await navigator.clipboard.writeText(publicationTitle); setNotice("Título copiado."); }
+        catch { setNotice("Não foi possível copiar o título."); }
+      }} className="text-primary underline">Copiar título</button>
+      <button type="button" onClick={async () => {
+        try { await navigator.clipboard.writeText(caption); setNotice("Descrição copiada."); }
+        catch { setNotice("Não foi possível copiar a descrição."); }
+      }} className="text-primary underline">Copiar descrição</button>
+      <button type="button" onClick={async () => {
+        try { await navigator.clipboard.writeText(hashtags); setNotice("Hashtags copiadas."); }
+        catch { setNotice("Não foi possível copiar as hashtags."); }
+      }} className="text-primary underline">Copiar hashtags</button>
+    </div>
     <div className="flex flex-wrap gap-3 text-sm">
       <a href={url || undefined} download={filename} className="text-primary underline">Baixar mídia</a>
       <button type="button" disabled={!valid} onClick={async () => {
@@ -175,8 +214,8 @@ export function PublicationComposer({
       }} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">
         Publicar agora ou programar
       </button>
-      {!shopee && valid && <a href={`https://www.pinterest.com/pin-builder/?url=${encodeURIComponent(affiliateUrl)}&description=${encodeURIComponent(caption + " " + hashtags)}`} target="_blank" rel="noopener noreferrer" className="text-primary underline">Abrir criador de Pin no Pinterest</a>}
-      {!shopee && <p className="w-full text-xs text-muted">Baixe a mídia e envie-a ao Pinterest manualmente. O criador de Pin pode não preencher o link automaticamente; confira o destino e identifique a publicidade antes de publicar.</p>}
+      {shareTarget === "pinterest" && valid && <a href={`https://www.pinterest.com/pin-builder/?url=${encodeURIComponent(affiliateUrl)}&description=${encodeURIComponent(caption + " " + hashtags)}`} target="_blank" rel="noopener noreferrer" className="text-primary underline">Abrir criador de Pin no Pinterest</a>}
+      {!shopee && <p className="w-full text-xs text-muted">Se o compartilhamento não estiver disponível, baixe a mídia e selecione-a no aplicativo oficial de {selectedShareTarget.label}. Confira o destino e preencha a legenda manualmente; o Meu Vendedor não publica por você.</p>}
       {user && <button type="button" disabled={!valid || busy} onClick={() => void save("draft")} className="text-primary underline disabled:opacity-50">
         {busy ? "Salvando…" : "Salvar rascunho na conta"}
       </button>}
@@ -189,13 +228,14 @@ export function PublicationComposer({
         <button type="button" disabled={busy} onClick={() => dialog.current?.close()} className="text-primary underline">Fechar</button>
       </div>
       {!choosingSchedule ? <div className="mt-5 space-y-3">
-        <p className="text-sm text-muted">A publicação atual é manual. O compartilhamento abre o aplicativo de destino, mas não confirma que a postagem foi concluída.</p>
+        <p className="text-sm text-muted">A publicação é manual. O botão abre o seletor do dispositivo, sem garantir que {selectedShareTarget.label} apareça, aceite o vídeo ou preencha o texto.</p>
         <button type="button" disabled={busy} onClick={() => void shareNow()} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white">
-          {busy ? "Abrindo compartilhamento…" : "Compartilhar agora"}
+          {busy ? "Abrindo compartilhamento…" : `Compartilhar vídeo · ${selectedShareTarget.label}`}
         </button>
         <button type="button" onClick={() => setChoosingSchedule(true)} className="w-full rounded-xl border border-border px-4 py-3">
           Programar para depois
         </button>
+        {notice && <p role="status" className="text-sm text-primary">{notice}</p>}
         {!user && <p className="text-sm text-muted">Entre na sua conta para salvar rascunhos e agendamentos.</p>}
       </div> : <div className="mt-5 space-y-4">
         <fieldset disabled={busy || !user} className="space-y-4">

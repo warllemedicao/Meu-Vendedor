@@ -1,4 +1,4 @@
-export type Destination = "shopee_video" | "pinterest" | "tiktok_video" | "other_app";
+export type Destination = "shopee_video" | "pinterest" | "tiktok_video" | "kwai" | "facebook_stories" | "other_app";
 export type ScheduleStatus = "draft" | "scheduled";
 export type PublicationAction = "share_handoff" | "manual_published" | "manual_failed";
 
@@ -35,7 +35,7 @@ export class PublicationServiceError extends Error {
 }
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const destinations: ReadonlySet<string> = new Set(["shopee_video", "pinterest", "tiktok_video", "other_app"]);
+const destinations: ReadonlySet<string> = new Set(["shopee_video", "pinterest", "tiktok_video", "kwai", "facebook_stories", "other_app"]);
 const actions = new Set<PublicationAction>(["share_handoff", "manual_published", "manual_failed"]);
 const mimeExtensions: Record<string, string> = {
   "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",

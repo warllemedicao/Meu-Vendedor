@@ -114,24 +114,24 @@ test('operações do painel são sempre vinculadas à identidade autenticada', a
   assert.deepEqual(calls[2].slice(0, 4), ['action', alice, publicationId, 'manual_published']);
 });
 
-test('criação aceita payload da interface sem destino singular e separa Pinterest e TikTok', async () => {
+test('criação aceita os destinos sociais múltiplos como registros assistidos separados', async () => {
   const calls = [];
   const handler = createHandler(calls);
   const created = await handler(request('alice-token', validBody({
     destination: undefined,
-    destinations: ['pinterest', 'tiktok_video'],
+    destinations: ['pinterest', 'tiktok_video', 'kwai', 'facebook_stories'],
     scheduledAt: '2026-11-20T21:00:00.000Z',
     timezone: 'America/Sao_Paulo',
   })));
 
   assert.equal(created.status, 201);
   const { items } = await created.json();
-  assert.equal(items.length, 2);
-  assert.deepEqual(items.map(item => item.destination), ['pinterest', 'tiktok_video']);
-  assert.deepEqual(items.map(item => item.status), ['scheduled', 'scheduled']);
-  assert.equal(new Set(items.map(item => item.id)).size, 2);
+  assert.equal(items.length, 4);
+  assert.deepEqual(items.map(item => item.destination), ['pinterest', 'tiktok_video', 'kwai', 'facebook_stories']);
+  assert.deepEqual(items.map(item => item.status), Array(4).fill('scheduled'));
+  assert.equal(new Set(items.map(item => item.id)).size, 4);
   assert.equal(calls[0][2].scheduledAt, '2026-11-20T21:00:00.000Z');
-  assert.deepEqual(calls[0][3], ['pinterest', 'tiktok_video']);
+  assert.deepEqual(calls[0][3], ['pinterest', 'tiktok_video', 'kwai', 'facebook_stories']);
 });
 
 test('edição e cancelamento passam apenas pelo serviço autenticado do proprietário', async () => {

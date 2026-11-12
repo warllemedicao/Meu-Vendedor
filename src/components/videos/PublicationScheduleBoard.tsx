@@ -8,7 +8,10 @@ import {
   type PublicationStatus, uploadPublicationMedia,
 } from "@/lib/publication-scheduling";
 import { campaignCaption } from "@/lib/product-campaign";
-import { sharePublication } from "@/lib/publication-share";
+import {
+  fetchPublicationFile, publicationShareTargets, sharePublication,
+  type PublicationShareTarget,
+} from "@/lib/publication-share";
 import { getSupabase } from "@/lib/supabase/client";
 
 const field = "mt-1 w-full rounded-lg border border-border bg-background p-3 text-sm";
@@ -30,6 +33,7 @@ function messageFrom(value: unknown, fallback: string): string {
 export function PublicationScheduleBoard({ userId }: { userId: string }) {
   const [items, setItems] = useState<PublicationRecord[]>([]);
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
+  const [downloadUrls, setDownloadUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -43,10 +47,13 @@ export function PublicationScheduleBoard({ userId }: { userId: string }) {
     const urls = await Promise.all(next.map(async item => {
       const { data, error: signingError } = await client.storage.from("mv-video-assets").createSignedUrl(item.media_path, 300);
       if (signingError || !data?.signedUrl) throw new Error("Não foi possível acessar uma mídia privada do painel.");
-      return [item.id, data.signedUrl] as const;
+      const downloadUrl = new URL(data.signedUrl);
+      downloadUrl.searchParams.set("download", item.media_filename);
+      return [item.id, data.signedUrl, downloadUrl.toString()] as const;
     }));
     setItems(next);
-    setMediaUrls(Object.fromEntries(urls));
+    setMediaUrls(Object.fromEntries(urls.map(([id, preview]) => [id, preview])));
+    setDownloadUrls(Object.fromEntries(urls.map(([id, , download]) => [id, download])));
     setError("");
   }, []);
 
@@ -80,19 +87,23 @@ export function PublicationScheduleBoard({ userId }: { userId: string }) {
         {publicationStatusLabel(status)}: {counts[status]}
       </span>)}
     </div>
+    {counts.awaiting_manual_action > 0 && <p role="status" className="rounded-lg bg-background p-3 text-sm">
+      Lembrete no painel: {counts.awaiting_manual_action} publicação(ões) aguardam sua ação. Nenhum e-mail ou notificação externa foi enviado.
+    </p>}
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     {!items.length && !error && <p className="text-sm text-muted">Ainda não há publicações salvas na sua conta.</p>}
     <div className="space-y-3">
-      {items.map(item => <PublicationCard key={item.id} item={item} mediaUrl={mediaUrls[item.id]} userId={userId} onRefresh={refresh} onAction={completeAction} />)}
+      {items.map(item => <PublicationCard key={item.id} item={item} mediaUrl={mediaUrls[item.id]} downloadUrl={downloadUrls[item.id]} userId={userId} onRefresh={refresh} onAction={completeAction} />)}
     </div>
   </section>;
 }
 
 function PublicationCard({
-  item, mediaUrl, userId, onRefresh, onAction,
+  item, mediaUrl, downloadUrl, userId, onRefresh, onAction,
 }: {
   item: PublicationRecord;
   mediaUrl?: string;
+  downloadUrl?: string;
   userId: string;
   onRefresh(): Promise<void>;
   onAction(id: string, action: PublicationAction): Promise<void>;
@@ -108,10 +119,14 @@ function PublicationCard({
   const [caption, setCaption] = useState(item.caption);
   const [hashtags, setHashtags] = useState(item.hashtags);
   const [destination, setDestination] = useState(item.destination);
+  const [shareTarget, setShareTarget] = useState<PublicationShareTarget>(
+    () => publicationShareTargets.find(target => target.id === item.destination)?.id ?? "other_app",
+  );
   const [dateTime, setDateTime] = useState(item.scheduled_at ? isoToLocalDateTime(item.scheduled_at, item.timezone) : "");
   const [timeZone, setTimeZone] = useState(item.timezone || browserTimeZone);
   const [replacement, setReplacement] = useState<File | null>(null);
   const choices = publicationTimeZones(timeZone);
+  const selectedShareTarget = publicationShareTargets.find(target => target.id === shareTarget)!;
   const canEdit = ["draft", "scheduled", "awaiting_manual_action", "failed"].includes(item.status);
   const canCancel = canEdit;
 
@@ -181,23 +196,29 @@ function PublicationCard({
     if (!mediaUrl) { setError("A mídia privada não está disponível. Atualize o painel e tente novamente."); return; }
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await fetch(mediaUrl);
-      if (!response.ok) throw new Error("Não foi possível carregar a mídia privada.");
-      const file = new File([await response.blob()], item.media_filename, { type: item.media_type });
+      const file = await fetchPublicationFile(mediaUrl, item.media_filename, item.media_type);
       const result = await sharePublication(navigator, {
         files: [file],
         title: item.publication_title,
         text: campaignCaption(item.caption, item.affiliate_url, item.hashtags),
       });
       if (result === "shared") {
-        await onAction(item.id, "share_handoff");
-        setNotice("Conteúdo entregue ao seletor de compartilhamento. A postagem ainda não foi confirmada.");
-      } else {
-        setError(result === "cancelled" ? "O compartilhamento foi cancelado; a publicação continua aguardando ação manual."
-          : "Este navegador não conseguiu compartilhar o arquivo. Baixe a mídia e copie o texto para publicar manualmente.");
-      }
+        try {
+          await onAction(item.id, "share_handoff");
+          setNotice("Compartilhamento iniciado no seletor do dispositivo. A postagem ainda não foi confirmada.");
+        } catch (failure) {
+          setError(`Compartilhamento iniciado, mas não foi possível registrar a tentativa: ${messageFrom(failure, "erro desconhecido")}`);
+        }
+      } else if (result === "cancelled") {
+        setNotice("Compartilhamento cancelado. A publicação continua aguardando ação manual.");
+      } else setError("Este navegador não conseguiu compartilhar o arquivo. Baixe a mídia e copie o texto para publicar manualmente.");
     } catch (failure) { setError(messageFrom(failure, "Não foi possível abrir o compartilhamento.")); }
     finally { setBusy(false); }
+  }
+
+  async function copyField(value: string, label: string) {
+    try { await navigator.clipboard.writeText(value); setNotice(`${label} copiado.`); setError(""); }
+    catch { setError(`Não foi possível copiar ${label.toLocaleLowerCase("pt-BR")}.`); }
   }
 
   async function confirmPublished() {
@@ -238,7 +259,7 @@ function PublicationCard({
     {item.attempts.length > 0 && <details className="text-sm">
       <summary className="cursor-pointer text-primary">Histórico de tentativas ({item.attempts.length})</summary>
       <ol className="mt-2 list-inside list-decimal space-y-1 text-muted">
-        {item.attempts.map(attempt => <li key={attempt.id}>{formatPublicationDate(attempt.created_at, item.timezone)} · {attempt.details}</li>)}
+        {item.attempts.map(attempt => <li key={attempt.id}>{formatPublicationDate(attempt.created_at, item.timezone)} · {attempt.action === "share_handoff" ? "Compartilhamento iniciado; publicação não confirmada." : attempt.details}</li>)}
       </ol>
     </details>}
     {editing && <div className="space-y-3 rounded-lg bg-background p-3">
@@ -269,20 +290,42 @@ function PublicationCard({
       </div>
     </div>}
     {item.status === "awaiting_manual_action" && <div className="flex flex-wrap gap-3">
-      {item.destination === "tiktok_video" && <p className="w-full text-sm text-muted">No TikTok, confira o vídeo, a legenda e o link no aplicativo antes de publicar. O Meu Vendedor não publica nem confirma a postagem automaticamente.</p>}
-      <button type="button" disabled={busy} onClick={() => void shareManually()} className="rounded-lg bg-primary px-4 py-2 text-sm text-white">Compartilhar manualmente</button>
+      <label className="w-full text-sm">Rede social para orientar o compartilhamento
+        <select value={shareTarget} onChange={event => {
+          const target = publicationShareTargets.find(value => value.id === event.target.value);
+          if (target) setShareTarget(target.id);
+        }} className={field}>
+          {publicationShareTargets.map(target => <option key={target.id} value={target.id}>{target.label}</option>)}
+        </select>
+      </label>
+      <p className="w-full text-xs text-muted">A escolha não direciona o menu nativo. O navegador e o sistema escolhem os aplicativos compatíveis; podem não aceitar o MP4 nem preencher a legenda.</p>
+      {selectedShareTarget.siteUrl && <a href={selectedShareTarget.siteUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-border px-4 py-2 text-sm">
+        Abrir site oficial de {selectedShareTarget.label}
+      </a>}
+      {shareTarget === "pinterest" && <a href={`https://www.pinterest.com/pin-builder/?url=${encodeURIComponent(item.affiliate_url)}&description=${encodeURIComponent(campaignCaption(item.caption, "", item.hashtags))}`} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-border px-4 py-2 text-sm">Abrir criador de Pin</a>}
+      <button type="button" disabled={busy} onClick={() => void shareManually()} className="rounded-lg bg-primary px-4 py-2 text-sm text-white">Compartilhar vídeo · {selectedShareTarget.label}</button>
       <button type="button" disabled={busy} onClick={() => void confirmPublished()} className="rounded-lg border border-border px-4 py-2 text-sm">Confirmar publicação manual</button>
       <button type="button" disabled={busy} onClick={() => void markFailed()} className="rounded-lg border border-border px-4 py-2 text-sm">Registrar falha manual</button>
     </div>}
     {canEdit && !editing && <div className="flex flex-wrap gap-3">
       <button type="button" disabled={busy} onClick={beginEdit} className="rounded-lg border border-border px-4 py-2 text-sm">Editar / reagendar</button>
       {canCancel && <button type="button" disabled={busy} onClick={() => void cancel()} className="rounded-lg border border-border px-4 py-2 text-sm">Cancelar</button>}
-      {mediaUrl && <a href={mediaUrl} download={item.media_filename} className="rounded-lg border border-border px-4 py-2 text-sm">Baixar mídia</a>}
+      {mediaUrl && <a href={downloadUrl ?? mediaUrl} download={item.media_filename} className="rounded-lg border border-border px-4 py-2 text-sm">Baixar mídia</a>}
       <button type="button" disabled={busy} onClick={async () => {
-        try { await navigator.clipboard.writeText(campaignCaption(item.caption, item.affiliate_url, item.hashtags)); setNotice("Texto da publicação copiado."); }
-        catch { setError("Não foi possível copiar o texto da publicação."); }
-      }} className="rounded-lg border border-border px-4 py-2 text-sm">Copiar texto</button>
-      {item.destination === "pinterest" && <a href={`https://www.pinterest.com/pin-builder/?url=${encodeURIComponent(item.affiliate_url)}&description=${encodeURIComponent(campaignCaption(item.caption, "", item.hashtags))}`} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-border px-4 py-2 text-sm">Abrir criador de Pin</a>}
+        await copyField(item.publication_title, "Título");
+      }} className="rounded-lg border border-border px-4 py-2 text-sm">Copiar título</button>
+      <button type="button" disabled={busy} onClick={async () => {
+        await copyField(item.caption, "Descrição");
+      }} className="rounded-lg border border-border px-4 py-2 text-sm">Copiar descrição</button>
+      <button type="button" disabled={busy} onClick={async () => {
+        await copyField(item.hashtags, "Hashtags");
+      }} className="rounded-lg border border-border px-4 py-2 text-sm">Copiar hashtags</button>
+      <button type="button" disabled={busy} onClick={async () => {
+        await copyField(item.affiliate_url, "Link");
+      }} className="rounded-lg border border-border px-4 py-2 text-sm">Copiar link</button>
+      <button type="button" disabled={busy} onClick={async () => {
+        await copyField(campaignCaption(item.caption, item.affiliate_url, item.hashtags), "Texto completo");
+      }} className="rounded-lg border border-border px-4 py-2 text-sm">Copiar publicação</button>
     </div>}
     {notice && <p role="status" className="text-sm text-primary">{notice}</p>}
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
