@@ -1,5 +1,20 @@
 # Base Supabase — Meu Vendedor
 
+## CI/CD do GitHub Actions — configuração inicial
+
+O workflow `.github/workflows/ci-cd.yml` valida testes, lint, typechecks e build antes de qualquer publicação. Ele usa a CLI Supabase fixada em `3.1.0`, consulta o histórico remoto do projeto `jzchlrvxdaffnrgbvabv`, bloqueia divergências e operações SQL de alto risco e aplica apenas migrações pendentes com `db push --skip-vault`. Em seguida publica `publication-schedule` e as Edge Functions alteradas, respeitando o `verify_jwt` de `supabase/config.toml`, e confirma a presença remota do agendador.
+
+Configure como GitHub Actions Secrets:
+
+- `SUPABASE_ACCESS_TOKEN`: token Supabase com `projects_read`, `edge_functions_read` e `edge_functions_write`; conceda também `database_write` somente se o método de conexão escolhido exigir isso sem senha de banco.
+- `SUPABASE_DB_PASSWORD`: senha de conexão do banco, necessária pelo método `migration list`/`db push` escolhido para reconciliar e aplicar migrações remotas.
+
+O workflow nunca lista nem imprime esses valores. A URL e a chave publicável do projeto são variáveis de Actions (`NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`), não credenciais administrativas. Não usar `service_role`, `sb_secret_*` ou token administrativo em variáveis `NEXT_PUBLIC_*`.
+
+Migrações pendentes com remoção de tabelas, colunas, constraints, políticas, funções/triggers, truncamento/exclusão de linhas ou desativação de RLS param o deploy automático. Para uma mudança desse tipo, exigir revisão independente e configurar revisores obrigatórios no ambiente GitHub `supabase-high-risk-migrations`; somente então executar `workflow_dispatch` com `approve_high_risk_migrations=true`. A validação posterior exige que não reste migração local pendente. `db push` não aplica seed, roles ou configuração de Vault.
+
+**Estado de auditoria desta configuração:** o acesso atual à API de Secrets/variáveis/ambientes do GitHub foi negado (HTTP 403); não foi possível confirmar quais itens existem. O histórico remoto do Supabase também não foi revalidado neste Codespace. O guard passou nos cinco testes focados e typechecks frontend/Edge e build estático passaram; a suíte global foi interrompida em teste PGlite e o lint não concluiu. A configuração do workflow, por si só, não comprova autenticação, aplicação de migrações ou publicação de funções; registrar o resultado da execução real em `historico.md`.
+
 > **Marketplaces — 11/11/2026:** navegação das sete lojas e campanhas manuais compartilhadas. Estado, validações, publicação e limites em [MARKETPLACES.md](./MARKETPLACES.md). Este registro prevalece sobre os estados históricos de navegação abaixo.
 
 ## Estado vigente — 08/11/2026: foto falante com produto

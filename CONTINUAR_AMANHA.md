@@ -1,5 +1,17 @@
 # Continuidade do projeto — próxima sessão
 
+## CI/CD GitHub Actions — configuração em andamento (12/11/2026)
+
+Pedido: publicar automaticamente em cada push na `main`, usando GitHub Actions, Supabase `jzchlrvxdaffnrgbvabv` e o Worker Cloudflare existente `meu-vendedor`.
+
+Preparado no checkout `main` (antes de commit/push): workflow `.github/workflows/ci-cd.yml`, verificador de migrações pendentes `scripts/check-pending-migrations.mjs` e testes focados `tests/check-pending-migrations.test.mjs`. Atualizados também `SUPABASE.md`, `CLOUDFLARE.md`, `PUBLICACAO.md` e `historico.md`. A ordem definida é validações/build → histórico de migrations remoto e gate de risco → migrações pendentes sem atualizar Vault/seed/roles → `publication-schedule` e Edge Functions alteradas → Worker existente → verificações remotas. Concorrência do deploy é serializada; Workers Builds precisa estar desativado/verificado antes de habilitar o publicador Actions.
+
+**Não está concluído:** YAML/Bash do workflow, cinco testes do guard, `git diff --check`, `npm run typecheck`, `npm run typecheck:edge` e `npm run build:pages` passaram. A suíte global identificou 267 testes, mas foi interrompida no teste PGlite de claim de áudio (“Promise resolution is still pending but the event loop has already resolved”): 44 passaram e 223 foram cancelados; o teste PGlite isolado reproduziu o problema. `npm run lint` recebeu SIGTERM em duas tentativas. Ainda faltam commit/push e uma execução real bem-sucedida do Actions. A API GitHub retornou HTTP 403 ao consultar Actions Secrets/variáveis/ambientes e branch protection; não se sabe quais estão configurados. A configuração Workers Builds não foi confirmada e também requer HTTP 403 com o acesso atual. Não foram executados deploys ou migrações remotos nesta tarefa.
+
+Antes do primeiro deploy, o responsável deve configurar (sem enviar valores no chat): Secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`; variáveis `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; verificar/desligar Workers Builds para esse Worker e definir `CLOUDFLARE_WORKERS_BUILDS_DISABLED=true`. Para migrações sinalizadas como alto risco, configurar revisores obrigatórios no ambiente `supabase-high-risk-migrations` e só então habilitar `SUPABASE_HIGH_RISK_APPROVAL_CONFIGURED=true`. O workflow falha explicitamente se algum pré-requisito estiver ausente; não contornar falhas de autenticação.
+
+Após o push, acompanhar o workflow; registrar URL/ID, status de cada etapa, migrations aplicadas, estado/versão de `publication-schedule`, ID/versão Cloudflare e smoke tests. Se Secret, proteção, acesso remoto ou Workers Builds impedir a publicação, registrar a mensagem/status exatos e deixar a entrega como bloqueada/incompleta. Não declarar concluído sem pipeline real e verificações remotas aprovadas.
+
 ## Regra de leitura integral de Markdown — 12/11/2026
 
 Antes de qualquer tarefa numa nova conversa, identifique por Git e leia no contexto do agente **todos os Markdown versionados**, incluindo subpastas, sem excluir documentos por nome. Faça a leitura em lotes se necessário; priorize esta continuidade, `historico.md`, `HISTORICO.md`, README e documentos arquiteturais, mas depois leia todos os demais. Manter um registro por caminho com estado integral/parcial/não lido e apresentá-lo antes de modificar arquivos. Script com conteúdo descartado, mera listagem/contagem, resumo ou abertura/reabertura da página não constitui leitura do agente.

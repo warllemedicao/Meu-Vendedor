@@ -1,0 +1,238 @@
+name: Validate and deploy production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      approve_high_risk_migrations:
+        description: Confirm that a reviewer approved pending high-risk database migrations
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meu-vendedor-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Test, lint, typecheck, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Require public Supabase build variables
+        run: |
+          if [[ -z "$NEXT_PUBLIC_SUPABASE_URL" || -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ]]; then
+            echo "::error::Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY as GitHub Actions variables."
+            exit 1
+          fi
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Typecheck frontend and Edge Functions
+        run: |
+          npm run typecheck
+          npm run typecheck:edge
+
+      - name: Build static frontend
+        run: npm run build:pages
+
+  deploy:
+    name: Deploy Supabase and Cloudflare
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: ${{ github.event_name == 'workflow_dispatch' && inputs.approve_high_risk_migrations && 'supabase-high-risk-migrations' || 'production' }}
+    env:
+      SUPABASE_PROJECT_ID: jzchlrvxdaffnrgbvabv
+      CLOUDFLARE_WORKER_NAME: meu-vendedor
+      CLOUDFLARE_WORKER_URL: https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build deployment assets
+        run: npm run build:pages
+
+      - name: Require deployment credentials and single Cloudflare publisher
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_WORKERS_BUILDS_DISABLED: ${{ vars.CLOUDFLARE_WORKERS_BUILDS_DISABLED }}
+          SUPABASE_HIGH_RISK_APPROVAL_CONFIGURED: ${{ vars.SUPABASE_HIGH_RISK_APPROVAL_CONFIGURED }}
+        run: |
+          missing=()
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [[ -z "${!name}" ]]; then missing+=("$name"); fi
+          done
+          if ((${#missing[@]})); then
+            printf '::error::Configure these GitHub Actions Secrets before deployment: %s\n' "${missing[*]}"
+            exit 1
+          fi
+          if [[ "$CLOUDFLARE_WORKERS_BUILDS_DISABLED" != "true" ]]; then
+            echo "::error::Verify that Cloudflare Workers Builds is not publishing this Worker, then set the Actions variable CLOUDFLARE_WORKERS_BUILDS_DISABLED=true."
+            exit 1
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.approve_high_risk_migrations }}" == "true" && "$SUPABASE_HIGH_RISK_APPROVAL_CONFIGURED" != "true" ]]; then
+            echo "::error::Configure required reviewers for the supabase-high-risk-migrations environment, then set SUPABASE_HIGH_RISK_APPROVAL_CONFIGURED=true."
+            exit 1
+          fi
+
+      - name: Install pinned Supabase CLI
+        run: npm install --global supabase@3.1.0
+
+      - name: Inspect remote migration history
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          supabase migration list \
+            --remote="$SUPABASE_PROJECT_ID" \
+            --output-format json > "$RUNNER_TEMP/migrations-before.json"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.approve_high_risk_migrations }}" == "true" ]]; then
+            node scripts/check-pending-migrations.mjs "$RUNNER_TEMP/migrations-before.json" --approve-high-risk-migrations
+          else
+            node scripts/check-pending-migrations.mjs "$RUNNER_TEMP/migrations-before.json"
+          fi
+
+      - name: Review migration plan without applying changes
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          supabase db push \
+            --remote="$SUPABASE_PROJECT_ID" \
+            --skip-vault \
+            --dry-run
+
+      - name: Apply pending migrations after the safety gate
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          supabase db push \
+            --remote="$SUPABASE_PROJECT_ID" \
+            --skip-vault \
+            --yes
+
+      - name: Verify remote migration history is current
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          supabase migration list \
+            --remote="$SUPABASE_PROJECT_ID" \
+            --output-format json > "$RUNNER_TEMP/migrations-after.json"
+          node scripts/check-pending-migrations.mjs "$RUNNER_TEMP/migrations-after.json" --require-clean --approve-high-risk-migrations
+
+      - name: Deploy changed Edge Functions and publication scheduler
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" && -n "${{ github.event.before }}" && ! "${{ github.event.before }}" =~ ^0{40}$ ]]; then
+            base="${{ github.event.before }}"
+          elif git rev-parse "${GITHUB_SHA}^" >/dev/null 2>&1; then
+            base="$(git rev-parse "${GITHUB_SHA}^")"
+          else
+            base=""
+          fi
+
+          declare -A selected=()
+          if [[ -n "$base" ]]; then
+            while IFS= read -r path; do
+              if [[ "$path" == "supabase/config.toml" ]]; then
+                while IFS= read -r function_path; do
+                  selected["${function_path#supabase/functions/}"]=1
+                done < <(find supabase/functions -mindepth 1 -maxdepth 1 -type d | sort)
+              elif [[ "$path" == supabase/functions/*/* ]]; then
+                function_name="${path#supabase/functions/}"
+                function_name="${function_name%%/*}"
+                selected["$function_name"]=1
+              fi
+            done < <(git diff --name-only "$base" "$GITHUB_SHA")
+          else
+            while IFS= read -r function_path; do
+              selected["${function_path#supabase/functions/}"]=1
+            done < <(find supabase/functions -mindepth 1 -maxdepth 1 -type d | sort)
+          fi
+          selected["publication-schedule"]=1
+
+          for function_name in "${!selected[@]}"; do
+            if [[ ! -d "supabase/functions/$function_name" ]]; then
+              echo "Skipping removed Edge Function $function_name; remote functions are not deleted automatically."
+              continue
+            fi
+            echo "Deploying Edge Function: $function_name"
+            supabase functions deploy "$function_name" --remote="$SUPABASE_PROJECT_ID" --use-api
+          done
+
+          supabase functions list --remote="$SUPABASE_PROJECT_ID" > "$RUNNER_TEMP/functions-after.txt"
+          cat "$RUNNER_TEMP/functions-after.txt"
+          if ! grep -Fq "publication-schedule" "$RUNNER_TEMP/functions-after.txt"; then
+            echo "::error::Remote verification did not find publication-schedule."
+            exit 1
+          fi
+
+      - name: Deploy the existing Cloudflare Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --name "$CLOUDFLARE_WORKER_NAME"
+
+      - name: Verify Cloudflare deployment and public route
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler deployments list --name "$CLOUDFLARE_WORKER_NAME"
+          curl --fail --silent --show-error \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            "$CLOUDFLARE_WORKER_URL/" \
+            --output "$RUNNER_TEMP/worker-index.html"
+          if ! grep -qi '<html' "$RUNNER_TEMP/worker-index.html"; then
+            echo "::error::The public Worker route did not return the static HTML document."
+            exit 1
+          fi

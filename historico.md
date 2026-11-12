@@ -1,5 +1,29 @@
 # Histórico da conversa — atualizado em 12/11/2026
 
+## 12/11/2026 — configuração inicial de CI/CD GitHub Actions
+
+### Instrução e auditoria
+
+O responsável pediu publicação automática a cada push em `main`, com validações obrigatórias, migrações Supabase antes das Edge Functions e do frontend no Worker `meu-vendedor`, verificação remota, prevenção de concorrência e aprovação para alterações de alto risco. Antes de editar, foram lidos integralmente os **52/52 Markdown versionados** (0 parcial, 0 não lido), incluindo esta documentação e `CONTINUAR_AMANHA.md`. `AGENTS.md`, `.github/copilot-instructions.md`, documentação de publicação/infraestrutura, arquivos de configuração e histórico Git foram consultados. Foi confirmado que não havia `.github/workflows/`; `.node-version` fixa Node 24, `package-lock.json` está versionado, o build usa `npm run build:pages`, o Worker configurado chama-se `meu-vendedor` e `supabase/config.toml` tem ID local diferente do ID remoto solicitado. O workflow passa explicitamente `jzchlrvxdaffnrgbvabv`.
+
+`git status` mostrou `main` sincronizada com `origin/main` no commit `57aafc58024b4b1ba7f6ae64fd60435ff9f74a19`, preservando o arquivo não rastreado `alteracoes-pendentes.patch` e a worktree independente `feat/public-catalog-five-marketplaces`. Não foi alterada a outra worktree. A consulta de Secrets/variáveis/ambientes e proteção de branch na API GitHub foi recusada com HTTP 403. O registro anterior da Cloudflare também informa HTTP 403 ao consultar Workers Builds, portanto não foi possível excluir um publicador concorrente.
+
+### Configuração preparada
+
+- Criado `.github/workflows/ci-cd.yml`: push em `main` e disparo manual, concorrência serializada sem cancelar publicação em andamento, permissões GitHub mínimas (`contents: read`), Node da `.node-version`, `npm ci`, testes, lint, typechecks frontend/Edge e build estático antes do deploy.
+- Deploy ordenado: conferir migrações remotas → aplicar somente pendentes com a CLI Supabase fixada, sem atualizar Vault/seed/roles → publicar `publication-schedule` e funções alteradas → publicar no Worker existente → verificar listagem remota de funções, deployments Wrangler e rota pública.
+- Criado `scripts/check-pending-migrations.mjs` com teste focado em `tests/check-pending-migrations.test.mjs`: reconcilia versões locais/remotas, falha fechado em divergências, sinaliza operações de alto risco e exige revisão manual; verificação posterior exige zero pendências.
+- Secrets requeridos: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. Variáveis Actions públicas Supabase requeridas: `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Também são gates `CLOUDFLARE_WORKERS_BUILDS_DISABLED=true` após verificação manual e, na via de alto risco, ambiente protegido com revisores obrigatórios e `SUPABASE_HIGH_RISK_APPROVAL_CONFIGURED=true`.
+- Atualizados `SUPABASE.md`, `CLOUDFLARE.md`, `PUBLICACAO.md` e `CONTINUAR_AMANHA.md` para descrever o pipeline, permissões, gates e limites.
+
+### Validação e estado de publicação
+
+A documentação oficial Supabase foi consultada para os comandos `migration list`, `db push --skip-vault`, deploy/listagem de funções e requisitos de autenticação. A documentação oficial Cloudflare confirma uso de API token e Account ID, com permissão **Edit Cloudflare Workers** restrita à conta. CLI Supabase `3.1.0` confirmou opções `--remote`, `--dry-run`, `--skip-vault`, `--yes` e saída estruturada; nenhum acesso remoto foi executado. Nenhuma credencial foi configurada, nenhum Secret foi revelado, nenhum deploy/migration remoto foi iniciado e nenhum commit/push desta tarefa foi feito neste registro.
+
+Validações concluídas localmente: YAML do workflow e comandos Bash embutidos parseados; cinco testes focados do guard passaram; `git diff --check` passou; opções CLI verificadas; `npm run typecheck`, `npm run typecheck:edge` e `npm run build:pages` passaram. A suíte global registrou 267 testes, mas foi interrompida no teste preexistente de claim de áudio PGlite: “Promise resolution is still pending but the event loop has already resolved”; 44 passaram e 223 foram cancelados. O teste PGlite isolado reproduziu o bloqueio. `npm run lint` recebeu SIGTERM em duas tentativas e não concluiu. Não classificar a suíte completa ou o lint como aprovados.
+
+**Estado até esta anotação:** workflow criado localmente, mas ainda não validado por uma execução real do GitHub Actions. Acesso negado impede confirmar Secrets, variáveis, environment reviewers, Workers Builds, schema/histórico remoto e permissões Cloudflare/Supabase. Não declarar CI/CD funcionando até um run real completo concluir e seus resultados remotos serem registrados. Após a edição e o push, atualizar este bloco com os testes executados, hash, URL do run, status de cada etapa, migrations aplicadas, versão da Edge Function, identificador do deployment Cloudflare e bloqueios observados. Não atualizar esses resultados sem evidência.
+
 ## 12/11/2026 — reforço da leitura obrigatória de todos os Markdown
 
 ### Objetivo e instruções recebidas

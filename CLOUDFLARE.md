@@ -1,5 +1,15 @@
 # Hospedagem do Meu Vendedor no Cloudflare
 
+## CI/CD do GitHub Actions — configuração inicial
+
+O workflow `.github/workflows/ci-cd.yml` publica no Worker existente `meu-vendedor`, usando a configuração versionada em `wrangler.jsonc`, o build `npm run build:pages` e `npx wrangler deploy`. Mantém `keep_vars`, bindings, Durable Object, Static Assets e os dois Cron Triggers declarados no arquivo; não cria Worker alternativo nem altera `gilfinanceiro`. Após o deploy, consulta `wrangler deployments list` e verifica a rota pública por HTTP.
+
+Configure como GitHub Actions Secrets `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`. A documentação oficial recomenda um token de conta com permissão **Edit Cloudflare Workers**, restrito à conta que hospeda o Worker. Os valores nunca devem ser escritos em logs ou versionados.
+
+**Prevenção de publicadores concorrentes:** a consulta anterior à Cloudflare Workers Builds retornou HTTP 403 e não confirmou se há integração GitHub ativa. Por isso, o deploy falha de forma segura até o responsável verificar no painel que Workers Builds não publica `meu-vendedor` e configurar a variável Actions `CLOUDFLARE_WORKERS_BUILDS_DISABLED=true`. Não configurar um segundo publicador enquanto essa verificação estiver pendente.
+
+**Estado de auditoria desta configuração:** o workflow foi criado no checkout, mas ainda não há execução real registrada. O acesso atual às configurações do Worker não permite comprovar as permissões do token, a configuração Workers Builds ou uma publicação Cloudflare. A validação local de YAML/Bash, os cinco testes do guard, typechecks frontend/Edge e build estático passaram; a suíte global foi interrompida no teste PGlite e o lint não concluiu. Não declarar o deploy automatizado como concluído sem sucesso do Actions e verificação remota.
+
 > **12/11/2026 — Produtos e ChatGPT manual:** lojas unificadas em Produtos, sem entradas individuais no menu; briefing e prompt externo com rascunho preservado. Nenhuma OpenAI API. Estado, publicação e limites em [HISTORICO.md](./HISTORICO.md). Este registro prevalece sobre a navegação histórica abaixo.
 
 > **Marketplaces — 11/11/2026:** navegação das sete lojas e campanhas manuais compartilhadas. Estado, validações, publicação e limites em [MARKETPLACES.md](./MARKETPLACES.md). Este registro prevalece sobre os estados históricos de navegação abaixo.
