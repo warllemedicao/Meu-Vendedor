@@ -1,10 +1,5 @@
 import type { Metadata } from "next";
+import { ProductsWorkspace } from "@/components/marketplace/ProductsWorkspace";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { CommerceHub } from "@/components/marketplace/CommerceHub";
-import { MarketplaceDirectory } from "@/components/marketplace/MarketplaceDirectory";
-
-export const metadata: Metadata = { title: "Ofertas e produtos" };
-
-export default function Home() {
-  return <><PageHeader titulo="Encontre seu próximo produto" descricao="Explore ofertas, acompanhe seu catálogo e prepare sua divulgação em um só lugar." /><MarketplaceDirectory /><CommerceHub /></>;
-}
+export const metadata: Metadata = { title: "Produtos" };
+export default function Page() { return <><PageHeader titulo="Produtos" descricao="Todas as lojas, catálogos e campanhas em um só lugar." /><ProductsWorkspace /></>; }

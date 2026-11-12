@@ -7,6 +7,8 @@ import { affiliateUrlValid, campaignPrompt, productHashtags, storePublicationDra
 import { analyzeProductCampaign, type CampaignAnalysis } from "@/lib/campaign-ai";
 import { ProductVideoStudio } from "./ProductVideoStudio";
 import { PublicationComposer } from "./PublicationComposer";
+import { ManualChatGPTPrompt } from "./ManualChatGPTPrompt";
+import { useManualPromptDraft } from "@/hooks/useManualPromptDraft";
 import { CampaignNarration } from "./CampaignNarration";
 const field = "mt-1 w-full rounded-xl border border-border bg-background p-3 text-sm";
 const button = "rounded-xl border border-border px-4 py-2.5 text-sm disabled:opacity-50";
@@ -18,7 +20,7 @@ export function ProductCampaign(props: CampaignProps) {
   return <CampaignEditor key={`${user?.id ?? "guest"}-${props.product.id}`} {...props} />;
 }
 function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" }: CampaignProps) {
-  const { user } = useAuth(); const dialog = useRef<HTMLDialogElement>(null);
+  const { user } = useAuth(); const manualPrompt = useManualPromptDraft(user?.id, "campaign:" + product.platform + ":" + product.id); const dialog = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState(0), [mode, setMode] = useState("montage"), [busy, setBusy] = useState(false);
   const [linkEdit, setLinkEdit] = useState({ source: initialAffiliateUrl, value: initialAffiliateUrl });
   const affiliateUrl = linkEdit.source === initialAffiliateUrl ? linkEdit.value : initialAffiliateUrl;
@@ -34,12 +36,13 @@ function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" 
   useEffect(() => { if (!initialAffiliateUrl) return; const frame = requestAnimationFrame(() => { if (!dialog.current?.open) dialog.current?.showModal(); }); return () => cancelAnimationFrame(frame); }, [initialAffiliateUrl]);
   const caption = analysis ? (analysis.caption.includes(product.title) ? analysis.caption : `${product.title}\n${analysis.caption}`) : product.title;
   const hashtags = analysis?.hashtags.length ? [...new Set([...analysis.hashtags, "#Publicidade"])].join(" ") : productHashtags(product.title, product.platform);
-  const finalPrompt = analysis ? `${analysis.promptPt}
+  const generatedPrompt = analysis ? `${analysis.promptPt}
 
 ${analysis.promptEn}
 
 DIREÇÃO APROVADA / APPROVED DIRECTION: ${scene}
 Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly in Brazilian Portuguese: ${JSON.stringify(speech)}` : campaignPrompt(product, notes, scene, speech, "Personagem adulto adequado ao produto");
+  const finalPrompt = manualPrompt.applied || generatedPrompt;
   function acceptSource(blob: Blob, filename: string) { setSource({ blob, filename, id: crypto.randomUUID() }); setNarrated(null); setError(""); setStep(2); }
   async function generateLink() {
     if (!user || busy || !product.owned) return;
@@ -80,6 +83,8 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
           <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Duração aproximada da fala<select value={seconds} onChange={e => setSeconds(Number(e.target.value))} className={field}><option value={15}>15 segundos · apresentação rápida</option><option value={30}>30 segundos · mais detalhes</option></select></label><label className="text-sm">Detalhes confirmados (opcional)<input maxLength={1500} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex.: modelo, variante, tamanho" className={field} /></label></div>
           <button type="button" disabled={busy || !user} onClick={() => void analyze()} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{busy ? "Analisando a foto e criando a divulgação…" : "Analisar foto e criar roteiro com IA"}</button>
           {!user && <p className="text-sm text-muted">Entre na conta para analisar a imagem e gerar a voz.</p>}
+          <ManualChatGPTPrompt draft={manualPrompt} brief={{ name: product.title, store: product.platform, features: notes, benefits: analysis?.benefits.join("; "), videoType: mode === "montage" ? "Montagem com fotos e clipes" : "Vídeo externo no Flow", duration: `${seconds} segundos de fala`, format: "9:16", character: "Personagem adulto adequado ao produto", presentationStyle: scene }} />
+          {manualPrompt.applied && <label className="block text-sm">Direção manual em uso no vídeo<textarea readOnly value={manualPrompt.applied} rows={5} className={field} /></label>}
           {analysis && <div className="space-y-2 rounded-xl bg-background p-4 text-sm"><p>{analysis.details}</p>{analysis.benefits.length > 0 && <ul className="list-disc space-y-1 pl-5">{analysis.benefits.map(item => <li key={item}>{item}</li>)}</ul>}</div>}
           <label className="block text-sm">Fala do narrador · confira e ajuste<textarea value={speech} maxLength={1500} onChange={e => { setSpeech(e.target.value); setNarrated(null); }} rows={4} placeholder="A IA preenche ao analisar a foto. Você também pode escrever sua fala." className={field} /></label>
           <button type="button" disabled={busy || !speech.trim()} onClick={() => { setStep(1); setError(""); }} className={`${button} w-full`}>Aprovar roteiro e escolher o vídeo</button>

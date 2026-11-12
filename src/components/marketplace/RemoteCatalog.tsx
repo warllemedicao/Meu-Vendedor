@@ -17,7 +17,7 @@ export function RemoteCatalog({ platform }: { platform: string }) {
   const { user, loading } = useAuth();
   if (loading) return <p role="status">Verificando acesso aos catálogos…</p>;
   if (!user) return <p className="text-sm text-muted">Entre na conta para verificar a configuração do catálogo automático.</p>;
-  return <UserCatalog key={user.id + platform} platform={platform} />;
+  return <UserCatalog key={user.id} platform={platform} />;
 }
 
 function UserCatalog({ platform }: { platform: string }) {
@@ -85,7 +85,7 @@ function UserCatalog({ platform }: { platform: string }) {
   const visibleSources = sources.filter(source => platform === "all" || platform === source.platform);
   const canSearch = visibleSources.some(source => source.configured);
   return <section aria-label="Catálogos das plataformas" className="space-y-4">
-    {selected && <section className="rounded-xl border border-primary p-4"><button type="button" className="text-sm text-primary underline" onClick={() => setSelected(null)}>Fechar produto selecionado</button><ProductCampaign key={selected.platform + selected.id} product={selected} initialAffiliateUrl={selected.platform === "AliExpress" ? affiliateLinks[selected.id] : undefined} /></section>}
+    {selected && (platform === "all" || label(platform) === selected.platform) && <section className="rounded-xl border border-primary p-4"><button type="button" className="text-sm text-primary underline" onClick={() => setSelected(null)}>Fechar produto selecionado</button><ProductCampaign key={selected.platform + selected.id} product={selected} initialAffiliateUrl={selected.platform === "AliExpress" ? affiliateLinks[selected.id] : undefined} /></section>}
     {loading && <p role="status">Consultando as fontes configuradas para sua conta…</p>}
     {error && <div role="alert" className="rounded-xl border border-border bg-surface p-4 text-sm"><p>{error}</p><button type="button" onClick={() => {setLoading(true); setRevision(value => value + 1);}} className="mt-2 text-primary underline">Verificar novamente</button></div>}
     {canSearch && <form onSubmit={event => { event.preventDefault(); void search(); }} className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-4">

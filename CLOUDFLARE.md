@@ -1,5 +1,7 @@
 # Hospedagem do Meu Vendedor no Cloudflare
 
+> **12/11/2026 — Produtos e ChatGPT manual:** lojas unificadas em Produtos, sem entradas individuais no menu; briefing e prompt externo com rascunho preservado. Nenhuma OpenAI API. Estado, publicação e limites em [HISTORICO.md](./HISTORICO.md). Este registro prevalece sobre a navegação histórica abaixo.
+
 > **Marketplaces — 11/11/2026:** navegação das sete lojas e campanhas manuais compartilhadas. Estado, validações, publicação e limites em [MARKETPLACES.md](./MARKETPLACES.md). Este registro prevalece sobre os estados históricos de navegação abaixo.
 
 ## Estado vigente — 07/11/2026

@@ -417,3 +417,7 @@ Sete testes de galeria, tipos frontend/Edge, lint, build e navegador pertinentes
 O responsável perguntou se sua API daria acesso ao comando de baixar todas as imagens presente no Compartilhar do aplicativo Shopee. Introspecção autenticada confirmou imagem única em ProductOfferV2, sem comando equivalente de galeria, e revelou os feeds listItemFeeds/getItemFeedData. Quatro feeds estavam acessíveis; 20 produtos amostrados tinham image_link e image_link_3 distintos. Dois JPEGs do mesmo anúncio de short jeans foram baixados e visualmente conferidos, com composições e hashes diferentes.
 
 Resultado: existe fonte oficial de imagens adicionais pela API, ainda não integrada ao Meu Vendedor. Não se confirmou que contenha todas as fotos do app ou todos os produtos. A afirmação anterior sobre as limitações da API de ofertas não podia ser generalizada para todos os recursos da API; a documentação foi corrigida. Nenhum código de app foi modificado nesta investigação. Diagnóstico encerrado em HTTP410; relatório e evidência em GALERIA_DE_PRODUTO.md e tests/results/2026-11-10-affiliate-feed-images-live.json.
+
+## 12/11/2026 — Unificação de Produtos e ChatGPT manual
+
+Nova entrega e resultados registrados em [HISTORICO.md](./HISTORICO.md). Histórico anterior preservado.

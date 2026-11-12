@@ -10,6 +10,8 @@ import { importVideoProductImage } from "@/lib/video-submission";
 import { MAX_PRODUCT_MEDIA_BYTES, MAX_PRODUCT_SCENES, PRODUCT_VIDEO_BUCKET, ownedProductVideoPath, productVideoFilename, validateProductMedia, type ProductVideoOptions } from "@/lib/product-video";
 import { createProductPlayer, productRecordingType, renderProductVideo, type ProductMedia, type ProductPlayer } from "@/lib/render-product-video";
 import type { CampaignProduct } from "@/lib/product-campaign";
+import { ManualChatGPTPrompt } from "./ManualChatGPTPrompt";
+import { useManualPromptDraft } from "@/hooks/useManualPromptDraft";
 import { ProductPhotoPicker } from "./ProductPhotoPicker";
 
 const field = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm";
@@ -25,6 +27,8 @@ function download(blob: Blob, filename: string) {
 }
 export function ProductVideoStudio({ onBusyChange, active, initialProduct, onResult, embedded = false }: { onBusyChange: (busy: boolean) => void; active: boolean; initialProduct?: CampaignProduct; onResult?: (blob: Blob, filename: string) => void; embedded?: boolean }) {
   const { user, loading: authLoading } = useAuth();
+  const manualPrompt = useManualPromptDraft(user?.id, "product-studio:" + (initialProduct?.id ?? "manual"));
+  const [briefDetails, setBriefDetails] = useState("");
   const [items, setItems] = useState<ProductMedia[]>([]);
   const [options, setOptions] = useState<ProductVideoOptions>({ ...defaults, title: initialProduct?.title.slice(0, 80) ?? "", price: initialProduct?.price ?? "" });
   const [error, setError] = useState(""); const [notice, setNotice] = useState("");
@@ -175,6 +179,11 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
       <p className="font-semibold text-primary">Seu produto em destaque, sem personagem</p>
       <p className="mt-1 text-muted">Monte um vídeo com fotos de diferentes ângulos ou clipes reais do produto sendo usado. Escolha as transições, confira a prévia e exporte.</p>
     </div>}
+    {!embedded && <>
+      <label className="block text-sm">Descrição e características confirmadas (opcional)<textarea value={briefDetails} onChange={e => setBriefDetails(e.target.value)} maxLength={5000} rows={3} className={field} /></label>
+      <ManualChatGPTPrompt draft={manualPrompt} brief={{ name: options.title || initialProduct?.title, description: briefDetails, store: initialProduct?.platform, videoType: "Montagem de fotos/clipes ou vídeo externo no Flow", duration: `${Math.max(1,items.length) * options.secondsPerScene} segundos (${options.secondsPerScene} por cena)`, format: options.format, character: "Sem personagem na montagem local", presentationStyle: options.transition }} />
+      {manualPrompt.applied && <section className="space-y-3 rounded-xl border border-primary p-4"><h3 className="font-semibold">Prompt em uso para criação externa</h3><textarea aria-label="Prompt em uso no Flow" readOnly value={manualPrompt.applied} rows={6} className={field} /><a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener noreferrer" className="inline-block text-primary underline">Abrir Google Flow</a><p className="text-sm text-muted">Copie o prompt para o Flow e adicione o vídeo produzido pelo botão de fotos e clipes abaixo. A montagem local usa as mídias e configurações escolhidas; não interpreta instruções de texto.</p></section>}
+    </>}
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
       <div className="min-w-0 space-y-5">
         <Card titulo="1. Fotos e clipes do produto">

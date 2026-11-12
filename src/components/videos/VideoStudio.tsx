@@ -33,6 +33,8 @@ import {
 } from "@/lib/video-assets";
 import { mockVideoProvider } from "@/lib/video-provider";
 import { splitGenerationTools } from "@/lib/video-capabilities";
+import { ManualChatGPTPrompt } from "./ManualChatGPTPrompt";
+import { useManualPromptDraft } from "@/hooks/useManualPromptDraft";
 import { GoogleNarration } from "./GoogleNarration";
 import { HybridVideo, HybridLibrary, type HybridVideoHandle } from "./HybridVideo";
 import { MotionVideo, MotionLibrary, type MotionVideoHandle } from "./MotionVideo";
@@ -349,6 +351,7 @@ function toDatabaseRow(record: VideoLibraryRecord) {
 
 export function VideoStudio() {
   const { user, configured, loading: authLoading } = useAuth();
+  const manualPrompt = useManualPromptDraft(user?.id, "presenter-studio");
   const [studioView, setStudioView] = useState<"create" | "queue" | "library">("create");
   const [studioStep, setStudioStep] = useState(0);
   const [product, setProduct] = useState<VideoProductInput>(emptyProduct);
@@ -457,7 +460,8 @@ export function VideoStudio() {
   }), [product, templateId, scenePresetId, presenterId, voiceGender, voiceProfileId, emotionalToneId, advertisingStyleId, narrationMode, motionMode, durationSeconds, mode, targetAudience]);
   const suggestedScript = useMemo(() => buildAdvertisingScript(configuration), [configuration]);
   const effectiveScript = scriptEdited ? script : generationTool === "hybrid" ? buildHybridNarration(product) : suggestedScript;
-  const prompt = useMemo(() => buildVideoPrompt(configuration, effectiveScript), [configuration, effectiveScript]);
+  const generatedPrompt = useMemo(() => buildVideoPrompt(configuration, effectiveScript), [configuration, effectiveScript]);
+  const prompt = manualPrompt.applied || generatedPrompt;
   const validationError = validateVideoConfiguration(configuration, effectiveScript);
   const submissionIssue = videoSubmissionIssue({ signedIn: Boolean(user), validationError,
     hasImage: Boolean(product.imageStoragePath || productImage || product.sourceProductId && product.imageUrl), presenterReady: presenter.referenceStatus === "ready",
@@ -799,6 +803,8 @@ export function VideoStudio() {
   }
 
   async function enqueueVideoJob() {
+    if (manualPrompt.applied) { setStudioStep(2); setError("Seu prompt manual está pronto para copiar ao Google Flow. Para usar os motores integrados com direção automática, escolha Voltar ao prompt automático; a fala continua no roteiro editável."); return; }
+
     if (generationTool === "motion") {
       if (!user) { setError("Entre na sua conta para gerar o vídeo."); return; }
       setError(""); setStudioStep(1);
@@ -1337,6 +1343,8 @@ export function VideoStudio() {
 
           </div>
           <div hidden={studioStep !== 2}>
+          <ManualChatGPTPrompt draft={manualPrompt} brief={{ name: product.name, description: product.description, features: product.features, store: product.sourceProductId ? "Shopee" : "Não informada", videoType: videoTemplates.find(t => t.id === templateId)?.name, duration: `${durationSeconds} segundos`, format, character: presenter.name, presentationStyle: advertisingStyles.find(s => s.id === advertisingStyleId)?.label }} />
+          {manualPrompt.applied && <p className="mb-4 rounded-xl border border-primary p-4 text-sm">Direção manual em uso na preparação externa. <a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener noreferrer" className="text-primary underline">Abrir Google Flow</a>. Copie a direção abaixo. A fala do narrador é revisada separadamente; os motores integrados continuam disponíveis ao voltar ao prompt automático.</p>}
           <Card titulo="Roteiro e revisão">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-muted">O roteiro usa somente as informações preenchidas acima.</p>

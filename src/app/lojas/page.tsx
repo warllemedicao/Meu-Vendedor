@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MarketplaceDirectory } from "@/components/marketplace/MarketplaceDirectory";
+import { ProductsWorkspace } from "@/components/marketplace/ProductsWorkspace";
 import { PageHeader } from "@/components/ui/PageHeader";
-export const metadata: Metadata = { title: "Marketplaces / Lojas" };
-export default function Page() { return <><PageHeader titulo="Marketplaces / Lojas" descricao="Catálogos, links oficiais, vídeos e divulgação em um só lugar." /><MarketplaceDirectory /></>; }
+export const metadata: Metadata = { title: "Produtos" };
+export default function Page() { return <><PageHeader titulo="Produtos" descricao="Todas as lojas, catálogos e campanhas em um só lugar." /><ProductsWorkspace /></>; }

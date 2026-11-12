@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { marketplaceDirectory } from "@/lib/marketplace-directory";
 import { mainNavItems } from "@/lib/navigation";
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -10,7 +11,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <nav aria-label="Menu principal" className="flex-1 overflow-y-auto px-3 py-3">
       <ul className="space-y-0.5">
         {mainNavItems.map(({ href, label, icon: Icon }) => {
-          const ativo = pathname === href || pathname.startsWith(`${href}/`) || (href === "/" && ["/dashboard", "/produtos", "/tendencias", "/top-10"].includes(pathname));
+          const ativo = pathname === href || pathname.startsWith(`${href}/`) || (href === "/produtos" && ["/", "/lojas", "/dashboard", "/tendencias", "/top-10", ...marketplaceDirectory.map(item => item.href)].includes(pathname));
           return (
             <li key={href}>
               <Link

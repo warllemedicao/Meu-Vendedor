@@ -171,4 +171,4 @@ export function getNavItem(href: string): NavItem {
 }
 
 /** Rotas anteriores continuam acessíveis na área unificada. */
-export const mainNavItems = navItems.filter(item => !["/dashboard", "/produtos", "/tendencias", "/top-10"].includes(item.href));
+export const mainNavItems = navItems.filter(item => !["/", "/lojas", "/mercado-livre", "/aliexpress", "/dashboard", "/tendencias", "/top-10"].includes(item.href));
