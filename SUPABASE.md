@@ -1,5 +1,11 @@
 # Base Supabase — Meu Vendedor
 
+## Destinos sociais assistidos — implementação local (12/11/2026)
+
+O agendamento aceita TikTok (`tiktok_video`), Kwai (`kwai`), Facebook Stories (`facebook_stories`) e Pinterest, além dos destinos existentes. A Edge Function valida a mesma lista; a criação mantém um registro por destino e as proteções atuais de sessão, isolamento do usuário, RLS e idempotência.
+
+A migração `20261112200000_publication_social_destinations.sql` substitui a constraint de destinos existente para incluir os dois valores novos; não apaga registros. O guard `scripts/check-pending-migrations.mjs` classifica a operação `DROP CONSTRAINT` como alto risco. Antes de aplicá-la, verificar o histórico remoto, obter revisão independente e usar o workflow manual com ambiente protegido. A API Supabase não permitiu revalidar o histórico nesta tarefa; nenhuma migração ou Edge Function foi publicada.
+
 ## CI/CD do GitHub Actions — configuração inicial
 
 O workflow `.github/workflows/ci-cd.yml` valida testes, lint, typechecks e build antes de qualquer publicação. Ele usa a CLI Supabase fixada em `3.1.0`, consulta o histórico remoto do projeto `jzchlrvxdaffnrgbvabv`, bloqueia divergências e operações SQL de alto risco e aplica apenas migrações pendentes com `db push --skip-vault`. Em seguida publica `publication-schedule` e as Edge Functions alteradas, respeitando o `verify_jwt` de `supabase/config.toml`, e confirma a presença remota do agendador.
@@ -13,7 +19,7 @@ O workflow nunca lista nem imprime esses valores. A URL e a chave publicável do
 
 Migrações pendentes com remoção de tabelas, colunas, constraints, políticas, funções/triggers, truncamento/exclusão de linhas ou desativação de RLS param o deploy automático. Para uma mudança desse tipo, exigir revisão independente e configurar revisores obrigatórios no ambiente GitHub `supabase-high-risk-migrations`; somente então executar `workflow_dispatch` com `approve_high_risk_migrations=true`. A validação posterior exige que não reste migração local pendente. `db push` não aplica seed, roles ou configuração de Vault.
 
-**Estado de auditoria desta configuração:** o acesso à API GitHub de Secrets/variáveis/ambientes foi negado (HTTP 403). A execução real [43297281147](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43297281147) falhou antes dos testes por falta das variáveis públicas `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; o job de deploy foi skipped. O histórico remoto Supabase não foi revalidado, nenhuma migração ou função foi publicada. O guard passou nos cinco testes focados e typechecks frontend/Edge/build estático passaram localmente; a suíte global foi interrompida em PGlite e o lint não concluiu. Registrar os resultados posteriores em `historico.md`.
+**Estado de auditoria desta configuração:** o acesso à API GitHub de Variables/Secrets/ambientes foi negado (HTTP 403). Os runs [43297281147](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43297281147) e [43297591878](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43297591878) falharam antes das validações pela ausência das variáveis públicas `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; deploy foi skipped. Histórico remoto Supabase não revalidado; nenhuma migração ou função publicada. Localmente, 269 testes, lint (quatro avisos preexistentes), typechecks frontend/Edge e build estático passaram.
 
 > **Marketplaces — 11/11/2026:** navegação das sete lojas e campanhas manuais compartilhadas. Estado, validações, publicação e limites em [MARKETPLACES.md](./MARKETPLACES.md). Este registro prevalece sobre os estados históricos de navegação abaixo.
 

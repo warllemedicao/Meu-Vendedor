@@ -1,5 +1,32 @@
 # Histórico da conversa — atualizado em 12/11/2026
 
+## 12/11/2026 — compartilhamento social assistido e destinos de agendamento
+
+### Estado e preservação
+
+O pedido ampliou a publicação assistida para TikTok, Kwai, Facebook Stories e Pinterest, com Web Share API, fallback de download/cópia, múltiplos destinos, confirmação manual e validação local antes de commit/push/deploy. Antes da alteração, foram lidos os 52/52 Markdown versionados (integral, sem arquivos parciais/não lidos); os documentos de continuidade, publicação, Supabase e Cloudflare foram relidos antes da atualização documental. No início, `main` estava em `603edacb4c00f369b4a0943792abb916b67a057e`, alinhada a `origin/main`, com apenas `alteracoes-pendentes.patch` não rastreado; esse patch e a worktree separada foram preservados.
+
+`HISTORICO.md` ainda indica 49 Markdown e um status de publicação antigo. Isso é divergência histórica já identificada e não foi usado para inferir o estado atual.
+
+### Implementação local
+
+- Adicionados destinos de agendamento `kwai` e `facebook_stories` à interface e à validação da Edge Function; mantém um registro independente por destino.
+- Criada a migration aditiva `20261112200000_publication_social_destinations.sql` para ampliar a constraint existente.
+- UI de composição e painel agora orientam escolha de rede, exibem sites oficiais comuns e permitem copiar título, descrição, hashtags e link. Web Share só tenta enviar o arquivo quando `navigator.canShare` aceita os dados; download/cópia ficam disponíveis como alternativa.
+- Erro ao obter mídia privada é informado. Cancelar o seletor não registra handoff. Um handoff aparece como “Compartilhamento iniciado”, sem alterar o status para publicado. Só confirmação expressa marca “Publicada · confirmada manualmente”.
+- Painel mostra lembrete local quando há itens vencidos e explicita que nenhum e-mail/push foi enviado. Nenhuma API de postagem foi adicionada; nenhum post real foi criado.
+- O guard classifica a troca da constraint como alto risco. Aplicação exige revisão independente, ambiente protegido e execução manual aprovada; não foi feita tentativa remota sem credenciais/permissão.
+
+### Validação e publicação
+
+`npm test`: 269 aprovados, zero falhas/cancelamentos. Testes focalizados de scheduling/DB/share: 14 aprovados. `npm run typecheck`, `npm run typecheck:edge`, `npm run lint` (0 erros, 4 avisos preexistentes), `npm run build:pages` e `git diff --check` passaram. A falha PGlite anterior não se reproduziu na suíte completa.
+
+O último Actions consultado antes do push desta alteração foi [43297591878](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43297591878): falhou em `Require public Supabase build variables`; testes e deploy foram skipped. Variables/Secrets GitHub retornam HTTP 403. Wrangler lista identidade da conta, mas não permite listar o Worker (`403`); Supabase remoto não foi revalidado (histórico anterior: HTTP 401). Workers Builds também não foi confirmado. Nenhuma migration, Edge Function, Worker ou rede social foi publicada; versões remotas não foram declaradas.
+
+**Pendente:** configurar `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, Secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`; verificar/desligar Workers Builds e configurar `CLOUDFLARE_WORKERS_BUILDS_DISABLED=true`; configurar aprovadores do ambiente de alto risco. Só então reconciliar/aplicar migration, publicar Edge Function/Worker e validar rotas/versões.
+
+Commit da implementação: `e714aafd2e77d5e9ef9524ba3637303558ff52b2` (`feat: add assisted social sharing`). O registro foi atualizado após a criação do commit; push será tentado após este commit documental. Nenhum deploy de produção foi realizado.
+
 ## 12/11/2026 — configuração inicial de CI/CD GitHub Actions
 
 ### Instrução e auditoria
