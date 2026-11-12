@@ -1,5 +1,13 @@
 # Histórico da conversa — atualizado em 12/11/2026
 
+## 12/11/2026 — instruções permanentes e leitura documental no Codespace
+
+Configurados `AGENTS.md` e `.github/copilot-instructions.md` para orientar o Copilot a identificar e ler os Markdown versionados antes de cada tarefa, priorizando a continuidade, o histórico e os documentos centrais. As instruções exigem declarar os documentos efetivamente lidos quando houver limites de contexto, verificar Git/código antes de inferir implementação ou publicação, resumir o estado antes de alterações, preservar trabalho local/worktrees, não alterar `gilfinanceiro`, não registrar credenciais e atualizar os dois registros de continuidade após tarefas de desenvolvimento autorizadas.
+
+Criado `scripts/read-project-docs.sh`, que enumera os Markdown rastreados pelo Git e lê os arquivos acessíveis sem exibir conteúdo. O relatório lista os nomes e o resultado da leitura; portanto, não imprime segredos que eventualmente estejam no conteúdo. O script e `postStartCommand` foram configurados em `.devcontainer/devcontainer.json`. O comando é somente leitura: não modifica arquivos, cria commits, faz deploy ou aciona operações pagas.
+
+O estado inicial tinha 50 arquivos Markdown versionados; com os dois novos arquivos de instruções, o total passa a 52. Nesta sessão foram lidos integralmente `README.md`, `ARQUITETURA.md`, `SUPABASE.md`, `CLOUDFLARE.md`, `PUBLICACAO.md`, `INTEGRACOES.md` e `CONTINUAR_AMANHA.md`; o trecho inicial recente de `historico.md` foi consultado, mas o histórico completo e os demais Markdown não foram incorporados ao contexto desta sessão por limite de contexto. O script passou em `bash -n`, o `devcontainer.json` foi analisado como JSON válido e, com os novos arquivos incluídos no índice Git, a execução leu 52/52 documentos sem exibir seus conteúdos. O estado Git antes/depois da varredura foi igual e o hash de `alteracoes-pendentes.patch` permaneceu igual. Nenhum deploy, operação paga ou alteração remota foi executado. O script de terminal não equivale à leitura pelo Copilot; a leitura contextual completa continua sendo responsabilidade do agente em cada nova sessão.
+
 ## 12/11/2026 — auditoria, adaptação isolada e limpeza documental
 
 ### 1. Objetivo da atividade
