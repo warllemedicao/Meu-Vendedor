@@ -20,7 +20,7 @@ Atualizados somente `AGENTS.md` e `.github/copilot-instructions.md` para exigir 
 
 Validação: `scripts/read-project-docs.sh` listou 52 Markdown versionados e concluiu 52/52 leituras sem exibir conteúdo; `bash -n scripts/read-project-docs.sh`, validação JSON de `.devcontainer/devcontainer.json` e `git diff --check` passaram. O teste do script apenas verificou o auxiliar, não substituiu a leitura contextual acima. O `postStartCommand` e os demais arquivos de inicialização foram preservados. Nenhum deploy, operação paga ou acesso a serviço remoto foi necessário.
 
-Commit/push desta revisão: pendentes no momento deste registro.
+Commit de configuração: `a37958f` (`docs: require contextual reading of all Markdown`), com push confirmado para `origin/main`. Este registro de confirmação será publicado em commit documental separado.
 
 ## 12/11/2026 — instruções permanentes e leitura documental no Codespace
 
