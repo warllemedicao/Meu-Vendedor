@@ -1,4 +1,348 @@
-# Histórico da conversa — atualizado em 11/11/2026
+# Histórico da conversa — atualizado em 12/11/2026
+
+## 12/11/2026 — auditoria, adaptação isolada e limpeza documental
+
+### 1. Objetivo da atividade
+
+Reconciliar as alterações locais antigas relacionadas a Produtos e catálogo público com a versão mais recente de `origin/main`, preservando a implementação atual de `ProductsWorkspace`, o fluxo manual do ChatGPT e as alterações locais até haver autorização. Depois, a pedido do responsável, restaurar somente seis arquivos antigos no checkout local da branch `main`, mantendo backup e worktree de adaptação. Por fim, consolidar no histórico o trabalho, resultados e pendências. Não implementar funcionalidades além da adaptação já autorizada; não publicar durante estas tarefas.
+
+### 2. Instruções recebidas do responsável
+
+As mensagens abaixo são reproduzidas integralmente quando o conteúdo original estava disponível. A primeira referência a um anexo não contém o texto anexado no histórico recuperável.
+
+#### Mensagem inicial sobre sete alterações e publicação
+
+> Analise as 7 alterações locais que ainda aparecem no GitHub Codespaces.
+>
+> Execute primeiro `git fetch origin` e depois verifique `git status -sb` e `git diff`.
+>
+> Identifique quais alterações pertencem à implementação solicitada: unificação dos marketplaces na aba Produtos e integração manual com ChatGPT.
+>
+> Verifique também a exclusão de `TEXTO_CHAMADO_SHOPEE.txt`. Não confirme essa exclusão sem verificar sua finalidade.
+>
+> Antes de qualquer commit:
+>
+> 1. Leia os arquivos Markdown relevantes.
+> 2. Revise as diferenças dos 7 arquivos.
+> 3. Execute os testes necessários.
+> 4. Verifique se existem credenciais ou dados sensíveis.
+> 5. Confirme se essas alterações já foram implementadas em outro commit.
+> Se as alterações forem válidas, apresente um resumo e solicite minha autorização para realizar commit e push.
+>
+> Verifique se a Edge Function `catalog` precisa ser atualizada no Supabase e se o Worker `meu-vendedor` está publicado com o código mais recente no Cloudflare.
+>
+> Não descarte alterações, não faça reset e não publique nada antes de concluir a análise.
+>
+> Informe exatamente o que está pendente.
+
+#### Mensagem original de anexo
+
+`#attachment:Pasted text #1`
+
+Mensagem original não disponível para recuperação integral.
+
+#### Missão de reconciliação recebida
+
+> MISSÃO: RECONCILIAR ALTERAÇÕES LOCAIS DO MEU VENDEDOR SEM PERDER FUNCIONALIDADES
+>
+> Analise as seis alterações locais pendentes e os seis commits existentes em origin/main.
+>
+> Não faça commit, push ou deploy antes de concluir o diagnóstico.
+>
+> 1. Preserve as alterações locais em um backup seguro, sem sobrescrever arquivos.
+> 2. Identifique a versão mais recente de cada componente.
+> 3. Mantenha ProductsWorkspace como interface principal da página Produtos.
+> 4. Verifique quais funcionalidades de Mercado Livre e AliExpress podem ser aproveitadas da implementação local.
+> 5. Não substitua componentes recentes por versões antigas.
+> 6. Confirme se a integração manual com ChatGPT continua funcionando.
+> 7. Verifique se o catálogo público pode ser ampliado sem utilizar credenciais privadas de usuários.
+> 8. Confirme quais mudanças precisam ser aplicadas à função catalog-public do Supabase.
+> 9. Execute testes de integração, TypeScript, lint e build.
+> 10. Apresente um relatório das alterações que devem ser mantidas, descartadas ou adaptadas.
+> Não altere o Worker gilfinanceiro.
+>
+> Ao terminar o diagnóstico, solicite autorização antes de modificar a branch main ou publicar qualquer componente.
+
+#### Autorização para adaptação isolada
+
+> isolated
+
+Autorizou preparar a adaptação em branch/worktree isolado, sem modificar `main`, sem commit/push e sem deploy.
+
+#### Pedido de auditoria dos seis arquivos
+
+> ## MISSÃO — AUDITORIA DOS ARQUIVOS PENDENTES NO CONTROLE DO CÓDIGO-FONTE
+> Antes de limpar, confirmar ou descartar qualquer alteração, preciso que você analise os seis arquivos modificados que continuam aparecendo no Controle do Código-Fonte do VS Code.
+>
+> **Arquivos pendentes:**
+>
+> 1. `src/app/produtos/page.tsx`
+> 2. `src/components/marketplace/PublicProductCatalog.tsx`
+> 3. `src/lib/navigation.ts`
+> 4. `supabase/functions/catalog/_shared/public-catalog.ts`
+> 5. `supabase/functions/catalog/_shared/types.ts`
+> 6. `tests/public-catalog.test.mjs`
+>
+> ### ETAPA 1 — VERIFICAR SE A LÓGICA JÁ EXISTE
+> Para cada arquivo:
+>
+> - Explique o que foi modificado e qual funcionalidade essa alteração pretendia implementar.
+> - Verifique se a mesma funcionalidade já existe na versão mais recente de `origin/main`.
+> - Identifique o commit que implementou essa funcionalidade, quando existir.
+> - Verifique se a lógica também está contemplada na adaptação que você está preparando na worktree isolada.
+> - Diferencie código já implementado, código parcialmente implementado e código ainda necessário.
+>
+> ### ETAPA 2 — ANALISAR OS RISCOS
+> Para cada arquivo, responda:
+>
+> 1. O que acontece se descartarmos a alteração local?
+> 2. Alguma funcionalidade deixará de funcionar?
+> 3. Existe risco de perder integração com Shopee, Amazon, Mercado Livre, AliExpress, TikTok Shop ou ChatGPT?
+> 4. O que acontece se confirmarmos a alteração antiga em um novo commit?
+> 5. Existe risco de conflito, regressão, erro de compilação ou incompatibilidade com a arquitetura atual?
+> 6. Essa alteração é necessária para o funcionamento da nova adaptação?
+>
+> ### ETAPA 3 — APRESENTAR UMA TABELA COMPARATIVA
+> Monte uma tabela contendo:
+>
+> - Nome do arquivo.
+> - Funcionalidade da alteração local.
+> - Situação na `origin/main`.
+> - Situação na worktree isolada.
+> - Risco de descartar.
+> - Risco de incluir.
+> - Recomendação: manter, adaptar ou descartar.
+>
+> ### ETAPA 4 — CONCLUSÃO
+> Responda objetivamente:
+>
+> - Os seis arquivos antigos podem ser restaurados para o estado do Git sem perda de funcionalidades?
+> - A lógica deles já está implementada na versão mais recente ou na nova adaptação?
+> - Existe alguma alteração que ainda precisamos aproveitar antes de limpar?
+> - Qual é o procedimento mais seguro para deixar o Controle de Código-Fonte limpo?
+> - Os backups existentes são suficientes para recuperar as alterações caso seja necessário?
+>
+> **REGRAS IMPORTANTES:**
+>
+> - Continue preservando a adaptação na worktree isolada.
+> - Não exclua, restaure ou modifique os seis arquivos pendentes.
+> - Não execute commit, push, merge ou deploy.
+> - Não modifique a branch `main`.
+> - Não altere o Worker `gilfinanceiro`.
+> - Não apresente suposições como funcionalidades já implementadas: verifique no código e nos testes.
+> - Se a implementação atual ainda não estiver concluída, informe claramente o que falta.
+>
+> **Neste momento, quero apenas o diagnóstico. Não execute nenhuma limpeza sem minha autorização.**
+
+#### Autorização de limpeza controlada
+
+> Autorizo a limpeza controlada dos seis arquivos antigos da branch main local, conforme o diagnóstico apresentado.
+>
+> Antes de executar:
+>
+> 1. Confirme novamente a integridade do backup externo e da worktree `feat/public-catalog-five-marketplaces`.
+> 2. Verifique se não surgiram novas alterações nos seis arquivos desde a auditoria.
+> 3. Confirme que todas as funcionalidades necessárias desses arquivos foram preservadas na worktree.
+> Se todas as verificações passarem:
+>
+> 1. Restaure exclusivamente os seis arquivos antigos no checkout da main local.
+> 2. Preserve os backups e todos os demais arquivos.
+> 3. Não modifique a worktree isolada.
+> 4. Não faça commit, push, merge ou deploy.
+> 5. Não atualize a main local para origin/main nesta etapa.
+> 6. Não altere o Worker gilfinanceiro.
+> Ao concluir, apresente o resultado de `git status --short` da main e da worktree, confirmando quais arquivos continuam pendentes.
+>
+> Se houver qualquer divergência, interrompa a operação e solicite autorização.
+>
+> Aguarde minha próxima autorização antes de atualizar a main ou publicar o projeto.
+
+#### Pedido desta atualização documental
+
+> # MEU VENDEDOR — ATUALIZAR HISTÓRICO E CONSOLIDAR RELATÓRIOS
+> **Repositório:** `warllemedicao/Meu-Vendedor`
+> **Branch principal:** `main`
+> **Arquivo de destino:** `historico.md`
+>
+> ## MISSÃO
+> Registrar no arquivo `historico.md` o histórico completo e verificável dos trabalhos realizados nesta sessão, incluindo as instruções recebidas, relatórios produzidos, alterações no código, testes, decisões e pendências.
+>
+> **Não iniciar novas funcionalidades nesta etapa.**
+>
+> ### ETAPA 1 — VERIFICAR O ESTADO DO GITHUB
+>
+> 1. Consultar `git status`, branch atual, commits recentes e worktrees existentes.
+> 2. Verificar se o trabalho anterior foi concluído, commitado, enviado ao GitHub e publicado.
+> 3. Identificar alterações locais pendentes e possíveis conflitos.
+> 4. Não descartar alterações sem verificar sua origem.
+> 5. Preservar backups existentes.
+>
+> ### ETAPA 2 — RECUPERAR OS RELATÓRIOS E AS INSTRUÇÕES
+> Consultar:
+>
+> - Histórico disponível da conversa com o agente.
+> - Instruções e prompts recebidos.
+> - Relatórios técnicos produzidos.
+> - Commits e alterações realizadas.
+> - Resultados de testes, lint, TypeScript e build.
+> - Registros de publicação no Supabase e Cloudflare, quando existirem.
+> Registrar as instruções e mensagens **integralmente quando o conteúdo original estiver disponível**.
+>
+> Quando uma mensagem não puder ser recuperada, registrar somente o que for comprovável, indicando claramente:
+>
+> `Mensagem original não disponível para recuperação integral.`
+>
+> Não inventar conversas, relatórios, resultados ou comandos.
+>
+> ### ETAPA 3 — ATUALIZAR `historico.md`
+> Criar uma seção datada de **12/11/2026**, preservando todo o conteúdo anterior.
+>
+> Organizar o registro com:
+>
+> 1. Objetivo da atividade.
+> 2. Instruções recebidas do responsável.
+> 3. Relatórios do Copilot.
+> 4. Arquivos criados, modificados ou excluídos.
+> 5. Alterações implementadas.
+> 6. Testes executados e resultados.
+> 7. Commits e branches envolvidos.
+> 8. Publicações realizadas ou pendentes.
+> 9. Problemas encontrados e soluções.
+> 10. Pendências e próximos passos.
+> Registrar também:
+>
+> **AliExpress**
+>
+> - O responsável iniciou o cadastro de aplicativo na categoria API de afiliados.
+> - O portal apresentou a mensagem: "As informações do seu perfil não foram aprovadas".
+> - A consulta de progresso mostra a etapa atual `Under Review`.
+> - A criação do aplicativo ainda não foi concluída.
+> - App Key, App Secret e Tracking ID não foram confirmados.
+> - Não declarar a integração comercial como funcional.
+> **Segurança**
+>
+> - Nunca registrar senhas, tokens, App Secrets ou credenciais privadas.
+> - Não expor dados sensíveis em relatórios ou commits.
+>
+> ### ETAPA 4 — VERIFICAR CONSISTÊNCIA
+> Conferir se o histórico corresponde ao estado real do repositório.
+>
+> Distinguir explicitamente:
+>
+> - Implementado.
+> - Testado.
+> - Publicado.
+> - Pendente.
+> - Não verificado.
+> Não declarar como publicado algo que exista somente em uma branch ou worktree local.
+>
+> ### ETAPA 5 — SALVAR NO GITHUB
+> Se não houver conflitos ou alterações de terceiros que impeçam a operação:
+>
+> 1. Atualizar somente `historico.md`.
+> 2. Revisar o diff.
+> 3. Criar commit específico para a documentação.
+> 4. Enviar ao GitHub na branch apropriada, respeitando a situação atual das branches.
+> 5. Não realizar deploy no Supabase ou Cloudflare, pois esta tarefa é exclusivamente documental.
+> Caso a branch principal não possa ser atualizada com segurança, informar o bloqueio e não forçar push, merge ou descarte.
+>
+> ### RELATÓRIO FINAL
+> Informar:
+>
+> - Branch utilizada.
+> - Commit criado e seu hash.
+> - Confirmação do push.
+> - Localização da nova seção no `historico.md`.
+> - Quais mensagens e relatórios foram recuperados integralmente.
+> - Quais informações não puderam ser recuperadas.
+> - Situação atual do trabalho anterior.
+> - Pendências para a próxima etapa.
+> **Não encerrar apenas com alterações locais. O objetivo é deixar o histórico atualizado e salvo no GitHub, quando for seguro fazê-lo.**
+
+### 3. Relatórios produzidos pelo Copilot
+
+**Diagnóstico inicial de marketplace:** identificou `97102cf` como commit que já reunia a página Produtos em `ProductsWorkspace` e o fluxo manual ChatGPT. A exclusão de `TEXTO_CHAMADO_SHOPEE.txt` não foi confirmada; o arquivo foi restaurado na atividade anterior. O relatório concluiu que a expansão pública local não estava conectada à interface mais recente e não recomendou publicar sem adaptação.
+
+**Relatório de reconciliação:** identificou seis commits à frente em `origin/main`, preservou o patch local, comparou os adaptadores/autenticação e concluiu que o endpoint adequado para vitrine pública era `catalog-public`, separado do catálogo privado `catalog`. Indicou que a vitrine pública não deveria usar credenciais de usuários e que credenciais/aprovações comerciais reais ainda faltavam.
+
+**Relatório da adaptação isolada:** a worktree `feat/public-catalog-five-marketplaces` foi criada em `97102cf`. A página inicial e `/dashboard` mantiveram as três fontes existentes; somente Produtos passou a oferecer as fontes públicas Shopee, Amazon, TikTok Shop, Mercado Livre e AliExpress. A adaptação alterou UI, `catalog-public`, tipos, testes e documentação; manteve `ProductsWorkspace`, os catálogos privados autenticados e a integração manual ChatGPT. O endpoint não foi implantado e não houve uso de credenciais comerciais reais.
+
+**Auditoria arquivo a arquivo:** recomendou descartar o diff antigo da rota e navegação, e aproveitar/adaptar os trechos de catálogo público, tipos e testes somente na implementação isolada. Registrou riscos de reintroduzir `CommerceHub` como página principal e de expandir inadvertidamente a vitrine inicial.
+
+**Relatório da limpeza autorizada:** backup externo e `alteracoes-pendentes.patch` tinham SHA-256 idêntico (`5e483d41749a208cb78dd3585afb83037c109e4ef7670e3da05ba81e62c49bb1`). O diff dos seis arquivos coincidia com o backup e passou em `git apply --reverse --check`. Só os seis caminhos foram restaurados; o patch local permaneceu. A worktree isolada ficou inalterada.
+
+As respostas anteriores completas não estão todas disponíveis neste contexto após o resumo de conversa. Os fatos acima são os itens recuperáveis e corroborados pelo estado Git, pelo checkpoint da sessão e pelos resultados registrados.
+
+### 4. Arquivos, commits e branches
+
+- **Branch principal:** antes da atualização documental, checkout local `main` estava no commit `989d346`, seis commits atrás de `origin/main`, sem alterações rastreadas e com o arquivo não rastreado `alteracoes-pendentes.patch`.
+- **Atualização segura da base:** `git fetch origin` confirmou `origin/main` em `97102cf`; `main` era ancestral direto, sem commits locais exclusivos. `git merge --ff-only origin/main` avançou a branch sem conflito até `97102cf`. Esse fast-forward trouxe os seis commits publicados; não foi feito merge de divergência nem descarte.
+- **Commits remotos relevantes:** `fd00cf2` (adaptadores e catálogo privado), `4b84b47` (diretório compartilhado/campanhas manuais), `ebfb35f` (registro de marketplaces) e `97102cf` (ProductsWorkspace e integração manual ChatGPT), além de `43cf4a7` e `988b80b` para Pinterest/política de privacidade.
+- **Worktree isolada:** branch `feat/public-catalog-five-marketplaces`, base `97102cf`, alterações não commitadas. Também existe `feat/public-catalog-mercado-aliexpress`, apontada para `97102cf`, sem worktree ativo. Nenhum commit foi criado nessas branches nesta sessão.
+- **Arquivos da adaptação isolada:** `CATALOGO_APIS.md`, `ESCOPO.md`, `src/components/marketplace/ProductsWorkspace.tsx`, `src/components/marketplace/PublicProductCatalog.tsx`, `supabase/functions/catalog/_shared/public-catalog.ts`, `supabase/functions/catalog/_shared/types.ts` e `tests/public-catalog.test.mjs`.
+- **Arquivos antigos restaurados no checkout local:** `src/app/produtos/page.tsx`, `src/components/marketplace/PublicProductCatalog.tsx`, `src/lib/navigation.ts`, `supabase/functions/catalog/_shared/public-catalog.ts`, `supabase/functions/catalog/_shared/types.ts` e `tests/public-catalog.test.mjs`.
+- **Backup preservado:** `alteracoes-pendentes.patch` e o backup externo `Meu-Vendedor-local-changes-2026-11-12.patch`, iguais no SHA-256 já registrado. Nenhum arquivo de backup foi sobrescrito ou removido.
+- **Integração manual ChatGPT:** código em `ManualChatGPTPrompt`, `manual-chatgpt.ts`, `useManualPromptDraft` e usos em ProductCampaign/estúdios permanece em `origin/main` desde `97102cf`; inclui briefing sanitizado, cópia/abertura manual e rascunho local. Não envia dados automaticamente ao ChatGPT.
+- **Worker `gilfinanceiro`:** não modificado.
+
+### 5. Alterações implementadas na worktree
+
+**Implementado localmente, ainda não publicado:** a interface Produtos fornece Mercado Livre e AliExpress pela lista `platforms` do `PublicProductCatalog`, sem substituir ProductsWorkspace. A interface pública inicial mantém Shopee/Amazon/TikTok Shop. `catalog-public` usa providers existentes e configuração central `MV_PUBLIC_CATALOG_CONFIG`; não seleciona conta, sessão ou segredo de usuário. A configuração requer um acesso de serviço autorizado para Mercado Livre e aplicação aprovada para AliExpress. Links pessoais de afiliado não são fabricados; parâmetros de rastreamento são removidos da saída pública.
+
+**Testes acrescentados:** configuração ausente não inventa catálogo; casos positivos simulados para Mercado Livre e AliExpress verificam credenciais de serviço, ausência de encaminhamento do token visitante e remoção de rastreio. Esses mocks validam contrato local, não autorização comercial nem disponibilidade real dos provedores.
+
+### 6. Testes e problemas encontrados
+
+Na validação da worktree isolada:
+
+- Primeira execução direcionada de testes de catálogo: 13 aprovados e 5 falharam; TypeScript Edge encontrou iteração sobre o mapa de campos sem indexação pela plataforma.
+- Correção aplicada: validação passou a iterar `fields[platform]`.
+- Reexecução direcionada: 18/18 testes passaram; TypeScript Edge passou.
+- `npm test`: 255/255 testes passaram.
+- `npm run typecheck`: passou.
+- `npm run typecheck:edge`: passou.
+- `npm run lint`: zero erros; quatro avisos preexistentes em `executors/kaggle/ana_midi_controller.ts`, `ana_six_controller.ts` e `research_controller.ts`.
+- `npm run build:pages`: passou; build estático gerou 26 rotas.
+- `git diff --check`: passou.
+
+Os resultados acima foram produzidos para a worktree isolada em `origin/main` com a adaptação não publicada. Não são evidência de acesso comercial real, nem de teste de implantação.
+
+### 7. Publicações e situação externa
+
+- **Código da adaptação:** não commitado, não enviado ao GitHub e não implantado.
+- **Supabase:** o handler local correto para ampliar a vitrine é `catalog-public` (`supabase/functions/catalog-public/index.ts` importa o handler compartilhado). Não foi feito deploy. No último diagnóstico registrado, o endpoint hospedado não aceitava Mercado Livre/AliExpress (`invalid_platform`); as fontes públicas existentes retornavam `catalog_not_configured` sem configuração central. Esse estado remoto não foi revalidado nesta atualização documental.
+- **Cloudflare Worker `meu-vendedor`:** nenhum deploy nesta sessão. O estado/versão atual não foi verificado novamente; um identificador citado em documentação anterior é registro histórico, não confirmação atual.
+- **Worker `gilfinanceiro`:** sem alteração e sem publicação.
+- Os deployments históricos de outras funcionalidades descritos em seções anteriores permanecem como registros da época, não como afirmação de versão atual.
+
+### 8. Segurança
+
+Não registrar nem versionar senhas, tokens, App Secrets, chaves de API ou credenciais privadas. A configuração da vitrine ampliada só pode receber acessos centrais autorizados para esse uso; não copiar tokens privados de usuários. Os testes usam valores fictícios. Nenhuma credencial real foi lida ou adicionada durante esta tarefa.
+
+### 9. AliExpress — informação comunicada pelo responsável
+
+Em 12/11/2026, o responsável informou que:
+
+- iniciou o cadastro de aplicativo na categoria API de afiliados;
+- o portal apresentou: **“As informações do seu perfil não foram aprovadas”**;
+- a consulta de progresso mostra a etapa atual `Under Review`;
+- a criação do aplicativo ainda não foi concluída;
+- App Key, App Secret e Tracking ID não foram confirmados.
+
+Consequentemente, **a integração comercial AliExpress não está confirmada como funcional**. A existência de adaptador e testes simulados não equivale a aprovação, credenciais, chamada comercial real ou publicação. Esse estado do portal foi informado pelo responsável e não foi verificado independentemente nesta tarefa.
+
+### 10. Pendências e próximos passos
+
+1. A adaptação de catálogo público permanece somente na worktree isolada; requer revisão/autorização antes de integrar.
+2. Aguardar resolução da análise do perfil e conclusão do cadastro de aplicação AliExpress; confirmar credenciais pelo canal seguro, nunca no chat ou Git.
+3. Confirmar acesso de serviço Mercado Livre autorizado para vitrine pública; nunca reutilizar token privado de usuário.
+4. Confirmar autorização/licença das fontes e configurar somente segredos centrais permitidos.
+5. Após autorização separada, publicar `catalog-public` e o frontend/Worker apropriado, executar smoke tests reais e verificar as versões hospedadas. Não publicar `catalog` privado como substituto da função pública.
+6. Nenhuma operação de publicação ou deploy foi autorizada por este registro documental.
+
+### 11. Estado Git desta atualização documental
+
+O `git fetch origin` mostrou `main` local ancestral direto de `origin/main` (`989d346` → `97102cf`) e sem commits locais exclusivos. Foi feito fast-forward somente, sem conflito. Após o fast-forward, permaneceu o backup não rastreado `alteracoes-pendentes.patch`; a worktree de adaptação não foi alterada. Esta seção documenta que o arquivo é o único conteúdo planejado para o commit documental; hash do commit e resultado do push devem ser informados no relatório final da execução.
 
 ## 11/11/2026 — Mercado Livre: divulgação manual e Secret de API futura
 
