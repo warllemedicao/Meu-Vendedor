@@ -1,5 +1,5 @@
 export type CampaignProduct = { id: string; title: string; platform: string; imageUrl?: string | null; productUrl?: string; price?: string; owned?: boolean };
-export type PublicationDraft = { product: CampaignProduct; affiliateUrl: string; caption: string; hashtags: string; media: Blob; filename: string };
+export type PublicationDraft = { product: CampaignProduct; affiliateUrl: string; caption: string; hashtags: string; media: Blob; filename: string; publicationTitle?: string };
 export function affiliateUrlValid(value: string): boolean {
   try { const url = new URL(value); return url.protocol === "https:" && !url.username && !url.password; } catch { return false; }
 }

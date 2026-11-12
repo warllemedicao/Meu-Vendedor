@@ -181,3 +181,13 @@ Frontend Cloudflare publicado na versão `627f251b-955c-4175-a065-f00bce5c26d4`;
 Os registros anteriores desta continuidade descreviam estados de piloto que foram superados pela entrega acima. Para histórico de outras funcionalidades, consultar [ATUALIZACOES.md](./ATUALIZACOES.md) e os documentos específicos. A situação vigente do fluxo de vídeo é sempre a descrita em [ENTREGA_VIDEO_COM_PRODUTO.md](./ENTREGA_VIDEO_COM_PRODUTO.md).
 
 Frontend desta correção publicado no Cloudflare `e553299a-b481-4246-aca1-d6a64f1c94b4`.
+
+### PRÓXIMA ETAPA — COMPARTILHAMENTO EM REDES SOCIAIS
+
+Após concluir a publicação e validação do agendamento assistido:
+
+1. **Facebook Stories:** pesquisar e confirmar permissões oficiais vigentes para compartilhar vídeos e imagens nos Stories.
+2. **TikTok:** verificar APIs oficiais, autorização, elegibilidade e permissões concedidas para compartilhar ou publicar no perfil do usuário.
+3. **Kwai:** verificar se existe integração oficial disponível, seus requisitos e permissões de publicação.
+
+Não implementar essas integrações nesta etapa. Se não houver API oficialmente autorizada, oferecer apenas compartilhamento manual/assistido e nunca declarar postagem automática. O estado atual dos agendamentos, testes e publicações está registrado em [PUBLICACAO.md](./PUBLICACAO.md) e [historico.md](./historico.md).

@@ -765,3 +765,52 @@ Resultado: existe fonte oficial de imagens adicionais pela API, ainda não integ
 ## 12/11/2026 — Unificação de Produtos e ChatGPT manual
 
 Nova entrega e resultados registrados em [HISTORICO.md](./HISTORICO.md). Histórico anterior preservado.
+
+## 12/11/2026 — Publicação imediata e agendamento multiplataforma
+
+### Objetivo e instruções recebidas
+
+O responsável autorizou implementar publicação imediata e agendamento persistente no Meu Vendedor. A solicitação abrange preparar produto e marketplace de origem, link de afiliado, mídia, título, descrição e hashtags; escolher destino, data, horário e fuso; acompanhar rascunhos, agendamentos, ação manual, processamento, conclusão, falhas e cancelamentos; editar, reagendar e cancelar antes da execução; impedir duplicidade; isolar dados por usuário; validar datas e publicar somente por APIs oficiais cuja autorização esteja realmente implementada. Para os demais destinos, o sistema deve solicitar ação manual e nunca afirmar publicação automática. Também foi solicitado atualizar este histórico e `CONTINUAR_AMANHA.md`, validar o projeto e publicar somente os componentes necessários. Facebook Stories, TikTok e Kwai ficam apenas como planejamento futuro. O Worker `gilfinanceiro` não deve ser alterado.
+
+### Auditoria e relatório técnico
+
+- O fluxo existente em `PublicationComposer` usa Web Share, download e cópia. Uma resposta bem-sucedida do seletor de compartilhamento não confirma uma postagem.
+- O rascunho anterior guardava um único item no IndexedDB do navegador; não era persistente no servidor e um novo salvamento substituía o anterior.
+- Shopee Vídeo e Pinterest continuam dependendo de ação no aplicativo/site. A integração YouTube pode solicitar o escopo `youtube.upload`, mas o próprio aplicativo informa que publicação pelo Meu Vendedor ainda está em preparação; não foi encontrado fluxo de upload. TikTok não está habilitado para publicação no app e depende de aprovação. Não há integração de publicação Facebook/Kwai comprovada.
+- Decisão de segurança: nenhum destino foi habilitado para postagem automática nesta entrega. Shopee Vídeo é selecionável somente para produto da Shopee; Pinterest e outro aplicativo usam modo assistido. No vencimento, a publicação deve passar a “Aguardando ação manual”.
+- Não foram consultados ou alterados Secrets, credenciais privadas, contas comerciais ou configurações remotas nesta implementação local. O estado efetivo das versões remotas precisa ser confirmado separadamente.
+
+### Arquivos criados ou modificados
+
+- Criados `supabase/migrations/20261112180000_publication_scheduling.sql` e `supabase/migrations/20261112180100_publication_scheduler_cron.sql`.
+- Criada a Edge Function autenticada `supabase/functions/publication-schedule/` e sua configuração em `supabase/config.toml`.
+- Criados `src/lib/publication-scheduling.ts`, `src/lib/publication-time.ts` e `src/components/videos/PublicationScheduleBoard.tsx`.
+- Modificados `src/components/videos/PublicationComposer.tsx`, `src/components/videos/PublicationWorkspace.tsx` e `src/lib/product-campaign.ts`.
+- Criados `tests/publication-scheduling.test.mjs` e `tests/publication-scheduling-database.test.mjs`; atualizado `tests/helpers/video-db.mjs` para excluir apenas a migração `pg_cron` real dos testes PGlite e testá-la com stubs controlados.
+- Atualizados `PUBLICACAO.md` e `CONTINUAR_AMANHA.md`. Conteúdo histórico anterior foi preservado.
+
+### Alterações implementadas
+
+- O botão “Publicar agora ou programar” apresenta as opções de compartilhar agora ou programar. O compartilhamento continua usando o fluxo existente e apresenta mensagens que não confundem entrega ao seletor com publicação concluída.
+- O agendamento cria uma publicação por destino, com chave de idempotência; persiste conteúdo e horário UTC, guarda o fuso IANA selecionado e mantém as mídias em `mv-video-assets`, bucket privado existente, com caminho validado para o proprietário.
+- Foram adicionadas tabelas de publicações e tentativas, RLS de leitura por proprietário e mutações somente pelo backend autenticado. A Edge Function verifica a sessão antes de operar e associa cada consulta ao usuário autenticado.
+- A migração instala uma rotina `pg_cron` por minuto. A função SQL bloqueia e transiciona itens vencidos uma única vez para “Aguardando ação manual” e registra a tentativa. Ela não chama nenhuma rede social.
+- O painel apresenta estados, conteúdo, mídia assinada temporária, tentativas e ações de compartilhamento/manual; permite edição, substituição de mídia, reagendamento e cancelamento. Confirmação de publicação exige declaração explícita do usuário e fica identificada como confirmação manual.
+- A conversão de fuso rejeita datas passadas, datas inválidas e horários locais inexistentes na mudança de horário. Não foram implementadas integrações de Facebook Stories, TikTok ou Kwai.
+
+### Testes e verificações
+
+- Testes focados de conversão, autenticação, isolamento, criação, edição, cancelamento e ações manuais: **7 testes passaram**.
+- Testes PostgreSQL PGlite cobrem RLS, transição única de vencidas, idempotência e configuração de cron. PGlite não contém a extensão real `pg_cron`; a migração do cron foi validada com stubs controlados. O agendamento real remoto ainda depende de aplicação/consulta no Supabase.
+- Suíte completa `npm test`: **261 testes passaram, 0 falharam**.
+- `npm run typecheck` e `npm run typecheck:edge`: aprovados.
+- `npm run lint`: zero erros; quatro avisos preexistentes em controladores Kaggle (`ana_midi_controller.ts`, `ana_six_controller.ts`, `research_controller.ts`).
+- `npm run build:pages`: build estático Cloudflare concluído com 26 rotas.
+- O primeiro teste completo encontrou a migração `pg_cron` incompatível com o PGlite usado por testes preexistentes. A migração de extensão foi separada; o helper agora omite somente esse arquivo real e o teste dedicado substitui a extensão por stubs. A suíte completa foi executada novamente e passou.
+
+### Branch, publicação e pendências
+
+- Branch local analisada: `main`, inicialmente no commit `90477a0`, sincronizada com `origin/main`. O arquivo não rastreado `alteracoes-pendentes.patch` foi preservado. A worktree `feat/public-catalog-five-marketplaces` e o Worker `gilfinanceiro` não foram alterados.
+- Estado desta implementação: código e documentação locais, testados. GitHub CLI está autenticado. A CLI Supabase rejeitou o token local por formato inválido (`sbp_...` esperado) e não há senha de conexão do banco. Wrangler reconhece uma identidade, mas a consulta de deployments e a API Cloudflare retornaram “No access to the specified resource” para `meu-vendedor`. Não foi feita migração, deploy de Edge Function ou publicação Cloudflare; a versão remota atual não foi verificada.
+- Não declarar como publicado até confirmar a versão ativa, o cron no banco e a transição de um agendamento real de teste. Não alterar Secrets existentes.
+- Próximo trabalho de redes sociais está somente planejado no bloco **PRÓXIMA ETAPA — COMPARTILHAMENTO EM REDES SOCIAIS** deste arquivo de continuidade.

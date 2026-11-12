@@ -57,3 +57,7 @@ verify_jwt = false
 [functions.campaign-content]
 # Sessão validada com Auth e todas as imagens vinculadas à conta.
 verify_jwt = false
+
+[functions.publication-schedule]
+# Todas as operações validam explicitamente a sessão do usuário.
+verify_jwt = false
