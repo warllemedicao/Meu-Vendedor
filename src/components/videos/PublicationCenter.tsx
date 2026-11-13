@@ -25,7 +25,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
   const [uploaded, setUploaded] = useState<File | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  useEffect(() => { if (defaultTitle) setTitle(defaultTitle); }, [defaultTitle]);
+  useEffect(() => { void Promise.resolve().then(() => { if (defaultTitle) setTitle(defaultTitle); }); }, [defaultTitle]);
   const video = uploaded ? { blob: uploaded, filename: uploaded.name } : generated;
   const isMp4 = video?.blob.type === "video/mp4" || video?.filename.toLowerCase().endsWith(".mp4");
   function validate() {
