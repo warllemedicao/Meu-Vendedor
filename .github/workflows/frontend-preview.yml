@@ -3,9 +3,11 @@ name: Preview frontend (isolated Cloudflare Worker)
 on:
   push:
     branches:
-      - recovery/prepare-frontend-2026-11-13
+      - fix/google-flow-external-video-button
     paths:
       - .github/workflows/frontend-preview.yml
+      - src/components/auth/AccountHub.tsx
+      - src/components/videos/ProductVideoStudio.tsx
   workflow_dispatch:
 
 permissions:
@@ -32,7 +34,7 @@ jobs:
       - name: Refuse main and missing configuration
         shell: bash
         run: |
-          if [[ "$GITHUB_REF" != "refs/heads/recovery/prepare-frontend-2026-11-13" ]]; then
+          if [[ "$GITHUB_REF" != "refs/heads/fix/google-flow-external-video-button" ]]; then
             echo "::error::This preview may only build the recovery branch."
             exit 1
           fi
