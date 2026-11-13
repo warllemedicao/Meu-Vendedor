@@ -10,7 +10,6 @@ import { accountIntegrationNotes, marketplaceIntegrationNotes } from "@/lib/acco
 import { marketplaceAction, displayDate } from "@/lib/marketplace";
 import { shopeeSummaryState } from "@/lib/marketplace-status";
 import { Badge } from "@/components/ui/Badge";
-import { GoogleFlowConnection } from "./GoogleFlowConnection";
 import { YouTubeConnection } from "./YouTubeConnection";
 
 const sections = [{ id: "acesso", label: "Meu acesso" }, { id: "google", label: "Google e redes" }, { id: "lojas", label: "Lojas" }] as const;
@@ -103,7 +102,6 @@ export function AccountHub() {
         {!user && <button type="button" onClick={() => { window.location.hash = "acesso"; setSection("acesso"); }} className="mt-3 text-sm text-primary underline">Ir para meu acesso</button>}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <GoogleFlowConnection key={`flow:${user?.id ?? "anonymous"}`} />
         <YouTubeConnection key={`youtube:${user?.id ?? "anonymous"}`} />
         {accountIntegrationNotes.map((integration) => <article key={integration.name} className="rounded-xl border border-border bg-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{integration.name}</h3><Badge>{integration.status}</Badge></div>
