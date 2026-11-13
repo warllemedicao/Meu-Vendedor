@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: https://jzchlrvxdaffnrgbvabv.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - name: Checkout
@@ -41,8 +41,8 @@ jobs:
 
       - name: Require public Supabase build variables
         run: |
-          if [[ -z "$NEXT_PUBLIC_SUPABASE_URL" || -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ]]; then
-            echo "::error::Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY as GitHub Actions variables."
+          if [[ -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ]]; then
+            echo "::error::Configure NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY as a GitHub Actions variable."
             exit 1
           fi
 
@@ -75,7 +75,7 @@ jobs:
       SUPABASE_PROJECT_ID: jzchlrvxdaffnrgbvabv
       CLOUDFLARE_WORKER_NAME: meu-vendedor
       CLOUDFLARE_WORKER_URL: https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev
-      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: https://jzchlrvxdaffnrgbvabv.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - name: Checkout

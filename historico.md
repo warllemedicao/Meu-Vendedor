@@ -1,5 +1,29 @@
 # Histórico da conversa — atualizado em 13/11/2026
 
+## 13/11/2026 — URL Supabase do Actions e primeira versão de Automações
+
+### Causa e correção do build
+
+O log do Actions `43430717533` mostrou `NEXT_PUBLIC_SUPABASE_URL` terminando em `/rest/v1/`. O cliente Supabase e os endpoints de Auth/Functions precisam da raiz do projeto; a URL de REST impede compor corretamente esses endpoints e explica a falha transversal observada em login e integrações. A API pública na raiz retornou `external.google: true`, mas isso não valida OAuth real, Client ID/Secret, redirect allowlist nem uma sessão de usuário.
+
+Em `.github/workflows/ci-cd.yml`, os jobs de validação e deploy agora usam a raiz conhecida `https://jzchlrvxdaffnrgbvabv.supabase.co` em vez de `vars.NEXT_PUBLIC_SUPABASE_URL`. A publishable key continua sendo exigida da variável GitHub. A API GitHub retornou 403 ao consultar variables/secrets; portanto não foi possível confirmar se o valor remoto atual ainda está malformado e não houve alteração de configurações ou credenciais externas. Esta mudança corrige a URL dos builds executados por esse workflow sem modificar o Secret/Variable remoto.
+
+### Automações disponibilizadas com limites explícitos
+
+`src/app/automacoes/page.tsx` e `src/components/automations/AutomationWorkspace.tsx` substituem a página placeholder por uma primeira interface funcional sobre a sincronização Shopee existente. A página consulta o endpoint de status sem expor segredo, distingue falha/estado desconhecido da ausência confirmada de credencial, mostra última sincronização/erro e habilita a sincronização manual somente quando uma credencial está confirmada. A atualização manual reutiliza a ação existente de sincronização por usuário.
+
+O Worker está configurado no código para acionar o cron marketplace a cada 30 minutos; a Edge Function seleciona no máximo duas conexões com sincronização antiga por invocação. A execução agendada da versão atual em produção não está confirmada, portanto a interface deixa isso explícito. Publicações continuam assistidas, aguardando ação manual; o backend depende das quatro migrations pendentes e de publicação aprovada. Não há postagem social automática nem motor genérico de regras “quando X, faça Y”. O gerador de vídeos IA não foi modificado e esta página não inicia serviços pagos.
+
+### Validação e estado de produção
+
+- 279 testes passaram, zero falhas/cancelamentos, usando `node --experimental-strip-types --test --test-concurrency=1 tests/*.test.mjs`. O script `npm test` do checkout contém `--test-isolation=none`, opção incompatível com o Node 22.15.0 instalado; o manifesto não foi alterado.
+- `npm run typecheck`, `npm run typecheck:edge`, ESLint focalizado e `git diff --check` passaram. `npm run lint` também passou sem erros, com quatro avisos preexistentes nos controladores Kaggle.
+- `npm run build:pages` passou em cópia temporária com configuração pública fictícia e 26 rotas, incluindo `/automacoes`. O binding Linux opcional `@tailwindcss/oxide-linux-x64-gnu@4.3.4` ausente foi colocado apenas numa sobreposição temporária; o diretório de build foi removido depois. Nenhuma dependência/lockfile do projeto foi alterada e o `.next` existente foi preservado.
+- Nenhum teste visual, login OAuth real, sincronização autenticada real ou verificação de cron em produção foi feito. A build local não prova publicação.
+- Nenhuma migration, escrita em produção, alteração de Variable/Secret, deploy, commit ou push ocorreu até o registro inicial desta seção. A branch era `main` em `9ebb661`; a alteração preexistente staged de `package-lock.json` foi preservada.
+
+O bloqueio de publicação conhecido segue inalterado: quatro migrations pendentes, duas de alto risco; o gate interrompe antes de dry-run/aplicação e deploy. A execução segura ainda requer revisão independente e ambiente protegido com revisores obrigatórios. Não se deve aprovar workflow de alto risco, contornar o gate, aplicar migrations manualmente ou fazer deploy alternativo. O timeout de inatividade do Codespace é 30 minutos; não foi alterado e não há garantia de execução contínua se o ambiente suspender.
+
 ## 13/11/2026 — auditoria de login, Shopee, Pinterest e central de conexões
 
 ### Ajuste final dos controles Shopee

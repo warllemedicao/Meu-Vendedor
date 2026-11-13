@@ -1,5 +1,17 @@
 # Continuidade do projeto — próxima sessão
 
+## Correção da URL Supabase e primeira versão de Automações — 13/11/2026
+
+**Estado local validado; commit/push ainda pendentes neste registro.** A branch `main` estava em `9ebb661`. `package-lock.json` tinha alteração staged preexistente e foi preservado, fora do escopo desta tarefa.
+
+O log do Actions `43430717533` registrou `NEXT_PUBLIC_SUPABASE_URL` com `/rest/v1/`, enquanto Auth, Functions e os demais SDKs precisam da raiz do projeto. O workflow `.github/workflows/ci-cd.yml` agora fixa a URL raiz do projeto Supabase conhecido nos jobs de validação e deploy; continua exigindo a publishable key por variável GitHub. A consulta de variables/secrets permanece bloqueada por 403, então o valor atual da variável remota não foi confirmado nem alterado. O endpoint público na raiz informou `external.google: true`; isso não confirma OAuth de usuário, Client ID/Secret ou allowlist de redirects.
+
+`/automacoes` agora mostra a sincronização Shopee já existente, consulta status sem retornar segredos, explicita estado desconhecido em caso de falha e permite sincronizar manualmente somente com credencial confirmada. Também informa que o Worker está configurado para executar a cada 30 minutos, mas a execução no Worker de produção não foi confirmada. Publicações permanecem assistidas/manual; o agendador depende das migrations e da publicação do backend. Não foi implementado um motor de regras genérico nem postagem social automática. O gerador de vídeos IA não foi alterado.
+
+**Validação:** 279/279 testes, typecheck frontend e Edge, lint sem erros (quatro avisos preexistentes) e build estático isolado com 26 rotas passaram. O comando configurado `npm test` usa uma opção que o Node 22.15.0 deste ambiente não reconhece; foi usada a forma compatível já validada (`node --experimental-strip-types --test --test-concurrency=1 tests/*.test.mjs`). O primeiro build encontrou o binding Linux opcional do Tailwind ausente; o pacote `4.3.4` foi instalado apenas numa sobreposição temporária, usada para o build, e removida. Nenhum lockfile/dependência foi alterado.
+
+**Produção e pendências:** nenhuma migration, gravação em banco, mudança de credencial/Secret, deploy, commit ou push foi feito até este registro. O gate segue com quatro migrations pendentes, duas classificadas de alto risco; o ambiente de aprovação ainda precisa de revisores obrigatórios e revisão independente. Nenhum deploy alternativo será usado. Login OAuth real, credenciais privadas e execução atual do cron permanecem não verificados. O Codespace está configurado para timeout de inatividade de 30 minutos; não foi alterado e há risco de suspensão se ficar inativo. Consultar [historico.md](./historico.md) para o registro detalhado.
+
 ## Auditoria de acesso e conexões — 13/11/2026
 
 Os commits de código `67d1dfe` e documentação `893c423` estão enviados à `main`. A alteração preexistente de `package-lock.json` continua staged no checkout e foi excluída dos commits desta tarefa.
