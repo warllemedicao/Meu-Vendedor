@@ -1,0 +1,83 @@
+import { createClient } from "npm:@supabase/supabase-js@2.119.0";
+
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+};
+const respond = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), { status, headers: cors });
+const MAX_BYTES = 20 * 1024 * 1024;
+const PAGE_ID = "1420652961139104";
+const API_VERSION = "v27.0";
+function failure(code: string, message: string, status = 400) {
+  return respond(status, { ok: false, code, message });
+}
+async function graphResponse(response: Response) {
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.error) {
+    const code = typeof body.error?.code === "number" ? body.error.code : response.status;
+    throw new Error("Meta API error (" + code + "): " + String(body.error?.message ?? "request failed").slice(0, 250));
+  }
+  return body;
+}
+Deno.serve(async (request: Request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  if (request.method !== "POST") return failure("method_not_allowed", "Método não permitido.", 405);
+  const token = Deno.env.get("META_PAGE_ACCESS_TOKEN");
+  if (!token) return failure("meta_not_configured", "Configure META_PAGE_ACCESS_TOKEN no Supabase.", 503);
+  const url = Deno.env.get("SUPABASE_URL");
+  const anon = Deno.env.get("SUPABASE_ANON_KEY");
+  const authorization = request.headers.get("authorization") ?? "";
+  if (!url || !anon || !authorization.startsWith("Bearer ")) return failure("unauthorized", "Faça login para publicar.", 401);
+  const client = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: { user }, error } = await client.auth.getUser(authorization.slice(7));
+  if (error || !user || user.is_anonymous) return failure("unauthorized", "Sessão inválida.", 401);
+  if (request.headers.get("content-length") && Number(request.headers.get("content-length")) > MAX_BYTES + 10000) {
+    return failure("file_too_large", "MP4 deve ter no máximo 20 MB.", 413);
+  }
+  let form: FormData;
+  try { form = await request.formData(); }
+  catch { return failure("invalid_form", "Envie um formulário com o MP4.", 400); }
+  const file = form.get("video");
+  const description = form.get("description");
+  if (!(file instanceof File) || file.size === 0 || file.size > MAX_BYTES ||
+      file.type !== "video/mp4" || !file.name.toLowerCase().endsWith(".mp4")) {
+    return failure("invalid_video", "Selecione um MP4 válido de até 20 MB.");
+  }
+  if (typeof description !== "string" || description.length > 2200) return failure("invalid_description", "Legenda inválida.");
+  const base = `https://graph.facebook.com/${API_VERSION}/${PAGE_ID}/video_reels`;
+  let videoId: string | undefined;
+  try {
+    const start = await graphResponse(await fetch(base, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ upload_phase: "start" }),
+    }));
+    videoId = start.video_id;
+    if (typeof videoId !== "string" || !/^\d+$/.test(videoId) || typeof start.upload_url !== "string" ||
+        !start.upload_url.startsWith("https://rupload.facebook.com/")) throw new Error("Meta não retornou uma sessão de upload válida.");
+    const upload = await fetch(start.upload_url, {
+      method: "POST",
+      headers: {
+        Authorization: `OAuth ${token}`,
+        offset: "0",
+        file_size: String(file.size),
+        "Content-Type": "application/octet-stream",
+      },
+      body: await file.arrayBuffer(),
+    });
+    await graphResponse(upload);
+    // Meta accepts finish requests after upload, but processing/publication may be asynchronous.
+    const finish = await graphResponse(await fetch(base, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ upload_phase: "finish", video_id: videoId, video_state: "PUBLISHED", description }),
+    }));
+    return respond(200, { ok: true, video_id: videoId, meta_response: finish, status: "submitted", message: "Envio concluído. Confira o Reel na Página para confirmar a publicação." });
+  } catch (error) {
+    // Never include access tokens, raw Meta responses or private video bytes in logs.
+    return failure("meta_publish_failed", error instanceof Error ? error.message : "Falha ao publicar Reel.", 502);
+  }
+});
