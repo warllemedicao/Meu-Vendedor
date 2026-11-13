@@ -1,5 +1,24 @@
 # Continuidade do projeto — próxima sessão
 
+## Preparação de recuperação protegida — 13/11/2026
+
+**Estado desta sessão:** o objetivo foi preparar, sem executar, uma publicação manual e restrita para frontend, `marketplace` e `youtube-connection`. O workflow principal e seu gate de migrations não foram modificados. Nenhuma migration, escrita de banco, alteração de Secret/credencial ou publicação foi executada.
+
+Preparação local em `main` baseada em `ae76a06`, ainda não commitada nesta anotação:
+
+- `.github/workflows/frontend-recovery.yml`: `workflow_dispatch` somente em `main`, confirmação explícita, permissões mínimas, concorrência compartilhada `meu-vendedor-production`, testes/lint/typechecks/build, preflight remoto e environment protegido `frontend-recovery`.
+- `scripts/check-recovery-compatibility.mjs` e `scripts/recovery-schema-contract.sql`: falham fechados se o histórico divergir, se houver migration pendente não autorizada, se as tabelas/RPCs requeridas estiverem ausentes, se `marketplace`/`youtube-connection` não estiverem ativas, se Secrets obrigatórios estiverem ausentes ou se Google Auth estiver desabilitado. A consulta SQL usa `db query --read-only` e verifica somente metadados; não retorna IDs de usuários nem valores de Secrets.
+- `tests/check-recovery-compatibility.test.mjs`: cobre migrations inesperadas, contratos de schema falsos/sem resultado, funções, Secrets e Auth.
+- A publicação exige revisores configurados, proíbe autoaprovação e bypass administrativo, requer SHAs-base para rollback e verifica que o runtime/config do Worker não mudou em relação ao baseline informado. Faz deploy apenas das duas Edge Functions allowlisted e do Worker existente com o build validado; não executa migrations.
+
+**Acesso remoto não confirmado:** não foi possível consultar nesta sessão o estado atual do projeto Supabase, versões das Edge Functions, Secrets ou conexões Shopee/YouTube. Registros anteriores anotam bloqueio de acesso administrativo; não são evidência atual do banco. Portanto tabelas, RPCs e registros permanecem **não verificados remotamente**. O workflow vai verificar isso em execução e bloquear se não puder confirmar. O environment `frontend-recovery` com revisores obrigatórios, prevenção de autoaprovação e bypass administrativo desativado também ainda não foi confirmado; ausência de proteção impede publicação.
+
+**Validação local:** 289/289 testes passaram em Node 24; `npm run lint` sem erros (quatro avisos preexistentes nos controladores Kaggle); typechecks frontend e Edge aprovados; YAML, sintaxe JavaScript e SQL somente leitura aprovados. Build estático isolado passou e gerou 26 rotas usando URL raiz `https://jzchlrvxdaffnrgbvabv.supabase.co` e chave fictícia. O binding Linux opcional do Tailwind foi instalado apenas em diretório temporário. A configuração buildada não prova credencial válida nem compatibilidade remota.
+
+Branch `main` e `origin/main` estavam iguais em `ae76a06`; `package-lock.json` já estava staged antes desta tarefa e foi preservado fora do escopo. Nenhum commit/push ou despacho do workflow foi feito ainda. **Não iniciar publicação** até o responsável autorizar a próxima ordem e até serem confirmados, em ambiente protegido, as credenciais de acesso necessárias, contratos remotos e configuração de revisores. Quatro migrations (`20261112180000`, `20261112180100`, `20261112190000`, `20261112200000`) permanecem pendentes conforme o último Actions conhecido; nenhuma foi aplicada. O rollback requer versão Cloudflare anterior identificada e SHA confiável de origem das Edge Functions.
+
+## Correção da URL Supabase e primeira versão de Automações — 13/11/2026
+
 ## Correção da URL Supabase e primeira versão de Automações — 13/11/2026
 
 **Commit e push concluídos:** `85e562c` (`fix: restore Supabase URL and automation access`) está em `origin/main`. A alteração preexistente de `package-lock.json` continua staged e foi excluída do commit.

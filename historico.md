@@ -1,5 +1,37 @@
 # Histórico da conversa — atualizado em 13/11/2026
 
+## 13/11/2026 — preparação do workflow protegido de recuperação
+
+### Objetivo e escopo
+
+O responsável autorizou preparar um fluxo manual para restaurar frontend, Shopee e YouTube sem aplicar nenhuma das quatro migrations pendentes, sem alterar dados ou Secrets e sem desabilitar o gate do workflow principal. Não foi autorizado executar o workflow nem publicar. O workflow de produção existente permaneceu intacto.
+
+### Verificações e limitações remotas
+
+O checkout `main` e `origin/main` estavam alinhados no commit `ae76a06ddd1d0467309f099999a83c33864c464f`. Não foi possível confirmar por acesso remoto nesta sessão a existência atual de tabelas/RPCs, status/versões de Edge Functions, Secrets, conexões Shopee/YouTube ou o ambiente de aprovação. Registros anteriores indicam limitações de acesso administrativo, mas não foram tratados como observação atual. Não foram impressos nem modificados valores de credenciais. O build local usa chave fictícia e não valida autenticação de produção.
+
+Código e migrations locais confirmam que `marketplace` usa conexões/segredos, produtos, sincronizações, links e RPCs Shopee; `youtube-connection` usa conexões/estados OAuth e RPCs de início/finalização/desconexão. Foi acrescentado um contrato SQL exclusivamente de leitura para verificar presença dos objetos necessários via `to_regclass`/`to_regprocedure`. A resposta agregada é somente booleana, sem IDs ou conteúdo de registros. Essa verificação está preparada para o Actions, mas não foi executada contra o Supabase real.
+
+### Preparação
+
+- Criado `.github/workflows/frontend-recovery.yml`, manual e restrito a `main`, com testes, lint, typechecks frontend/Edge, build estático, preflight remoto e upload do build validado.
+- O pipeline preserva o gate principal, usa concorrência `meu-vendedor-production`, não aplica migrations e allowlista somente `marketplace` e `youtube-connection`, sem publicar `publication-schedule`.
+- Antes de permitir o job de publicação, exige environment `frontend-recovery` com revisores obrigatórios, bloqueio de autoaprovação e bypass administrativo desativado. A existência/configuração real desse environment não pôde ser confirmada; a falta de proteção bloqueia a execução.
+- O deploy Cloudflare usa o Worker existente e o runtime deve ser idêntico a um SHA-base fornecido e alcançável em `main`. O workflow captura deployment anterior e produz registro/artefato para rollback; a fonte de rollback das Edge Functions também deve ser um SHA verificado. Não há rollback automático nem identificação remota de versão nesta preparação.
+- Criados `scripts/check-recovery-compatibility.mjs` e `scripts/recovery-schema-contract.sql`. O checker exige histórico compatível, ausência de migrations inesperadas, schema SQL Shopee/YouTube, Edge Functions ativas, nomes de Secrets obrigatórios e Google Auth habilitado; executa novamente o preflight antes e depois do deploy. Não lê valores de Secrets ou dados pessoais.
+- Criado `tests/check-recovery-compatibility.test.mjs` com cenários de contrato ausente/falso, migration não permitida, função/Secret ausente e Google Auth desabilitado.
+- Não houve alteração no gerador de vídeos, em `package-lock.json`, no workflow principal ou nos dados/credenciais existentes. O lockfile já estava staged antes do trabalho e foi preservado fora do escopo.
+
+### Validação local e estado de produção
+
+- 289 testes aprovados em Node 24; `npm run lint` sem erros e quatro avisos preexistentes nos controladores Kaggle.
+- `npm run typecheck` e `npm run typecheck:edge` aprovados.
+- Workflow YAML, checker JavaScript, `git diff --check` e leitura estática da consulta SQL somente leitura aprovados.
+- Build estático isolado aprovado com 26 rotas e URL Supabase raiz; a chave de build era fictícia. O binding Linux opcional de Tailwind foi instalado apenas em diretório temporário após falha ambiental inicial.
+- A suíte e o build locais não provam conexão, OAuth, estado de credenciais, compatibilidade do backend remoto ou versão publicada. Não houve query remota, migration, deploy, commit ou push até esta anotação.
+
+Último Actions conhecido: [43436587851](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43436587851) bloqueou no gate por quatro migrations pendentes (`20261112180000`, `20261112180100`, `20261112190000`, `20261112200000`), com as duas últimas classificadas como alto risco. Essa informação é histórica, não foi revalidada nesta sessão. Nenhuma migration foi aplicada. A recuperação permanece não publicada e aguarda acesso/proteção remotos e próxima autorização expressa para continuar.
+
 ## 13/11/2026 — URL Supabase do Actions e primeira versão de Automações
 
 ### Causa e correção do build
