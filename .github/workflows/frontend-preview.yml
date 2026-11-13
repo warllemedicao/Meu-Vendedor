@@ -8,6 +8,7 @@ on:
       - .github/workflows/frontend-preview.yml
       - src/components/auth/AccountHub.tsx
       - src/components/videos/ProductVideoStudio.tsx
+      - tests/google-auth.test.mjs
   workflow_dispatch:
 
 permissions:
