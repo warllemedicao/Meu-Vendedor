@@ -1,5 +1,101 @@
 # Histórico da conversa — atualizado em 13/11/2026
 
+## 13/11/2026 — Ordem Técnica 04: recuperação do login Google
+
+### Escopo e diagnóstico
+
+O responsável autorizou corrigir somente o login Google e preservar o acesso às ferramentas Google existentes, sem reorganizar interface, modificar Shopee/marketplaces/gerador de vídeos, alterar credenciais, aplicar migrations ou publicar. Antes da alteração, foram lidos integralmente os 52 Markdown versionados (52 integrais, 0 parciais, 0 não lidos), incluindo os documentos prioritários; `CONTINUAR_AMANHA.md` e este histórico foram relidos antes dos registros.
+
+Em `google-auth.ts`, falha HTTP/rede na leitura de `/auth/v1/settings` já era classificada como `unavailable`, distinta de `disabled` (`external.google === false`). A regressão estava em `AuthForm.tsx`: tanto o botão de login como o de vinculação Google só permitiam OAuth no estado `enabled`, bloqueando tentativa após falha transitória, ainda que isso não provasse que o provedor estava desabilitado. Foi adicionada a regra `canAttemptGoogleSignIn`: permite tentativa em `enabled` e `unavailable`, mas não durante `loading` nem após confirmação `disabled`. A mensagem de indisponibilidade informa corretamente que o estado não pôde ser verificado e preserva a opção de tentar. Login por e-mail/senha, opção de seleção de conta, callback, PKCE e sessão não foram modificados.
+
+### Acesso às rotas e ferramentas
+
+- `AuthProvider` continua assinando `onAuthStateChange` e recuperando sessão com `getSession`; `src/lib/supabase/client.ts` continua com PKCE, persistência, renovação e detecção do retorno OAuth.
+- `/contas` usa `AccountRedirect` para `/entrar#lojas`; `AccountHub` apresenta abas Acesso, Google e redes e Lojas. Google Flow e YouTube continuam incluídos na seção Google e exigem autenticação para suas ações.
+- `VideoStudio` renderiza `GoogleNarration` para usuário autenticado. Os componentes e APIs de Flow, YouTube e áudio/narração não foram alterados. Isso confirma presença e caminhos no código, não conexão ou autorização remota atual.
+
+### Arquivos e validação
+
+Alterados somente `src/components/auth/AuthForm.tsx`, `src/lib/google-auth.ts` e `tests/google-auth.test.mjs`. Os testes de regressão verificam estados permitidos para tentativa, preservação do botão, PKCE/recuperação de sessão, redirect `/contas` e presença dos componentes Google na central.
+
+- Testes focados de Google Auth, YouTube, Flow e central: **25/25 aprovados**.
+- Suíte completa: **297/297 aprovados**, executada com `node --experimental-strip-types --test --test-concurrency=1 tests/*.test.mjs`.
+- `npm run typecheck` e `npm run typecheck:edge`: aprovados.
+- `npm run lint`: zero erros; quatro avisos preexistentes em controladores Kaggle.
+- Build estático: 26 rotas em cópia temporária; o bundle contém a URL raiz `https://jzchlrvxdaffnrgbvabv.supabase.co`. A API do GitHub retornou **403** ao consultar a variável `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; a chave real não estava disponível. Foi usado um valor efêmero somente para verificar compilação/embedding, nunca como credencial nem evidência de funcionamento em produção. O binding Tailwind Linux ausente foi instalado em overlay temporário; nenhum manifesto ou lockfile foi alterado.
+- `git diff --check`: aprovado.
+
+### Configuração remota, publicação e pendências
+
+A URL raiz do Supabase está fixada nos jobs de build de `.github/workflows/ci-cd.yml`. Não foi possível verificar a variável pública da chave por API GitHub (403), consultar a configuração atual de Auth/redirect allowlist no Supabase, fazer login real ou confirmar a configuração OAuth. Registros históricos registram estados diferentes do provedor em datas anteriores; não foram tratados como evidência atual. Portanto, a correção remove o bloqueio de interface causado por `unavailable`, mas não comprova login funcional em produção. O estado atual das ferramentas Google remotas continua não verificado.
+
+Commit `aaa0c07` (`fix: allow Google OAuth after availability failures`) foi enviado a `origin/recovery/prepare-frontend-2026-11-13`. `package-lock.json` staged preexistente foi preservado e excluído. `main` não foi alterada. Nenhuma migration, escrita de banco, mudança de Secret/credencial, deploy de Edge Function ou deploy Cloudflare foi executado. A publicação continua pendente de validação remota e autorização expressa; manter o gate de migrations intacto.
+
+## 13/11/2026 — correção do workflow protegido (Ordem Técnica 02)
+
+### Escopo e preservação
+
+O responsável autorizou corrigir o workflow manual de recuperação, executar preflight apenas local/read-only quando possível, testar os scripts e fazer commit/push somente em `recovery/prepare-frontend-2026-11-13`. Deploy, migrações, alterações de banco/credenciais e integração na `main` foram expressamente proibidos.
+
+Antes das alterações desta ordem, a branch `recovery/prepare-frontend-2026-11-13` e `origin/recovery/prepare-frontend-2026-11-13` estavam em `7334998938e271870bfe214fb6d879a48068dd1d`; `origin/main` estava em `ae76a06ddd1d0467309f099999a83c33864c464f`. O registro anterior que apontava `41c7786` como ponta remota da branch estava desatualizado. O checkout local da branch `main` não foi alterado nesta ordem. `package-lock.json` já estava staged antes do trabalho e permaneceu staged, fora dos commits planejados.
+
+### Correções realizadas
+
+- `.github/workflows/frontend-recovery.yml`: o passo `Verify only compatible backend contracts` recebe explicitamente o `SUPABASE_ACCESS_TOKEN`, a URL raiz do projeto e a chave publicável.
+- O environment `frontend-recovery` é consultado com `github.token` e permissão `contents: read`, mínima para um token com acesso de leitura ao repositório. A verificação exige revisores, `prevent_self_review` habilitado e `can_admins_bypass == false`; falha fechada se a API não permitir confirmar qualquer requisito. A consulta anterior do environment retornou 404 e a leitura das APIs de Variables/Secrets retornou 403. Isso não confirma se o environment existe/protegido nem a origem configurada da chave. A documentação oficial do endpoint GET environment indica acesso para leitores do repositório: https://docs.github.com/en/rest/deployments/environments#get-a-deployment-environment.
+- A versão exata Supabase CLI `3.1.0` oferece `db query --remote --read-only --output-format json --file`; o workflow manteve esse método estritamente read-only. O SQL verifica metadados e não seleciona IDs de usuários ou valores de Secrets.
+- O checker passa a recusar versão ausente/inválida de `marketplace` ou `youtube-connection`; versão numérica não é prova de SHA de origem. O rollback de Edge Functions exige input de SHA de origem verificado independentemente e alcançável em `main`. Nenhum SHA foi inventado.
+- A chave pública é lida do GitHub Secret, com fallback para Actions Variable, sem ser impressa. O acesso remoto 403 impediu confirmar qual fonte está configurada.
+- Criado `tests/frontend-recovery-workflow.test.mjs`; acrescentado caso para rejeitar versão de função desconhecida em `tests/check-recovery-compatibility.test.mjs`. O workflow continua sem aplicar migrations, sem função `publication-schedule` no allowlist e sem alterar/desativar o gate principal.
+
+### Estado remoto observado e limitações
+
+Não havia `SUPABASE_ACCESS_TOKEN`, senha do banco ou sessão Supabase CLI no ambiente local. A consulta sem autenticação à configuração Auth retornou HTTP 401. Assim, o contrato SQL não foi executado remotamente; não foram confirmados Google Auth, tabelas/RPCs, status/versões atuais das funções, presença de Secrets (inclusive `MV_CREDENTIAL_ENCRYPTION_KEY`), registros Shopee/YouTube ou compatibilidade da branch `main` com o backend atual. A fonte da chave publicável no GitHub e os revisores do environment também não foram confirmados. Os quatro migrations pendentes são evidência anterior do workflow principal, não uma nova leitura remota desta ordem. Nenhuma credencial foi exibida/alterada.
+
+### Validação e estado de publicação
+
+- Suíte completa: **295/295 testes aprovados**, executada com `node --experimental-strip-types --test --test-concurrency=1`; `npm test` não funciona com o Node 22.15.0 local porque o script passa `--test-isolation=none`.
+- `npm run lint`: sem erros, com quatro avisos preexistentes nos controladores Kaggle.
+- Os testes focalizados de workflow/checker e validação YAML foram executados; `git diff --check` foi verificado antes do commit. A CLI `3.1.0` confirmou as flags documentadas do comando SQL read-only.
+- Testes locais não demonstram estado/compatibilidade remota. Não houve despacho do workflow, SQL remoto, migração, escrita, publicação de Edge Function ou Cloudflare, nem alteração de `main`.
+
+**Commit e push:** `a4347fa815731997f22ae35f2664042213d29886` (`fix: correct protected recovery preflight`) foi enviado a `origin/recovery/prepare-frontend-2026-11-13`, contendo somente workflow, checker e testes. Os registros `historico.md` e `CONTINUAR_AMANHA.md` foram publicados em commits documentais separados. `origin/main` segue em `ae76a06`. A alteração staged preexistente de `package-lock.json` foi preservada e excluída. Não houve despacho do workflow. Aguardam-se acesso remoto de leitura e proteção verificável antes de qualquer futura publicação; a ordem não autoriza deploy.
+
+## 13/11/2026 — preparação do workflow protegido de recuperação
+
+### Objetivo e escopo
+
+O responsável autorizou preparar um fluxo manual para restaurar frontend, Shopee e YouTube sem aplicar nenhuma das quatro migrations pendentes, sem alterar dados ou Secrets e sem desabilitar o gate do workflow principal. Não foi autorizado executar o workflow nem publicar. O workflow de produção existente permaneceu intacto.
+
+### Verificações e limitações remotas
+
+O checkout `main` e `origin/main` estavam alinhados no commit `ae76a06ddd1d0467309f099999a83c33864c464f`. Não foi possível confirmar por acesso remoto nesta sessão a existência atual de tabelas/RPCs, status/versões de Edge Functions, Secrets, conexões Shopee/YouTube ou o ambiente de aprovação. Registros anteriores indicam limitações de acesso administrativo, mas não foram tratados como observação atual. Não foram impressos nem modificados valores de credenciais. O build local usa chave fictícia e não valida autenticação de produção.
+
+Código e migrations locais confirmam que `marketplace` usa conexões/segredos, produtos, sincronizações, links e RPCs Shopee; `youtube-connection` usa conexões/estados OAuth e RPCs de início/finalização/desconexão. Foi acrescentado um contrato SQL exclusivamente de leitura para verificar presença dos objetos necessários via `to_regclass`/`to_regprocedure`. A resposta agregada é somente booleana, sem IDs ou conteúdo de registros. Essa verificação está preparada para o Actions, mas não foi executada contra o Supabase real.
+
+### Preparação
+
+- Criado `.github/workflows/frontend-recovery.yml`, manual e restrito a `main`, com testes, lint, typechecks frontend/Edge, build estático, preflight remoto e upload do build validado.
+- O pipeline preserva o gate principal, usa concorrência `meu-vendedor-production`, não aplica migrations e allowlista somente `marketplace` e `youtube-connection`, sem publicar `publication-schedule`.
+- Antes de permitir o job de publicação, exige environment `frontend-recovery` com revisores obrigatórios, bloqueio de autoaprovação e bypass administrativo desativado. A existência/configuração real desse environment não pôde ser confirmada; a falta de proteção bloqueia a execução.
+- O deploy Cloudflare usa o Worker existente e o runtime deve ser idêntico a um SHA-base fornecido e alcançável em `main`. O workflow captura deployment anterior e produz registro/artefato para rollback; a fonte de rollback das Edge Functions também deve ser um SHA verificado. Não há rollback automático nem identificação remota de versão nesta preparação.
+- Criados `scripts/check-recovery-compatibility.mjs` e `scripts/recovery-schema-contract.sql`. O checker exige histórico compatível, ausência de migrations inesperadas, schema SQL Shopee/YouTube, Edge Functions ativas, nomes de Secrets obrigatórios e Google Auth habilitado; executa novamente o preflight antes e depois do deploy. Não lê valores de Secrets ou dados pessoais.
+- Criado `tests/check-recovery-compatibility.test.mjs` com cenários de contrato ausente/falso, migration não permitida, função/Secret ausente e Google Auth desabilitado.
+- Não houve alteração no gerador de vídeos, em `package-lock.json`, no workflow principal ou nos dados/credenciais existentes. O lockfile já estava staged antes do trabalho e foi preservado fora do escopo.
+- Após conferir logs recentes, o workflow de recuperação foi ajustado para receber `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` como GitHub Secret, em vez de Actions Variable, para evitar que o runner imprima o valor nos logs. A existência/configuração desse Secret não foi verificada. O pipeline principal ainda utiliza a variável preexistente e não foi alterado.
+
+### Validação local e estado de produção
+
+- 289 testes aprovados em Node 24; `npm run lint` sem erros e quatro avisos preexistentes nos controladores Kaggle.
+- `npm run typecheck` e `npm run typecheck:edge` aprovados.
+- Workflow YAML, checker JavaScript, `git diff --check` e leitura estática da consulta SQL somente leitura aprovados.
+- Build estático isolado aprovado com 26 rotas e URL Supabase raiz; a chave de build era fictícia. O binding Linux opcional de Tailwind foi instalado apenas em diretório temporário após falha ambiental inicial.
+- A suíte e o build locais não provam conexão, OAuth, estado de credenciais, compatibilidade do backend remoto ou versão publicada. Não houve query remota, migration, deploy, commit ou push até esta anotação.
+
+O run recente [43437031422](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43437031422), no commit-base `ae76a06`, confirmou quatro migrations pendentes (`20261112180000`, `20261112180100`, `20261112190000`, `20261112200000`) e bloqueou no gate por alto risco nas duas últimas. O deploy não alcançou dry-run, aplicação ou publicação. Um push à `main` inicia o workflow principal automaticamente; por isso a preparação foi enviada a um branch dedicado, sem atualizar `main` nem iniciar pipeline de produção. Também foi constatado que o workflow principal imprime o valor da publishable key por ela estar configurada como variável; o valor não será repetido aqui. O workflow de recuperação passou a exigir o mesmo nome como Secret, mas essa configuração não foi verificada.
+
+Commits `730d8776f60db79d8e7347542512e2a260173790` e `41c7786d1107463c66df8ce2ded3197253e19a5a` foram enviados ao branch `recovery/prepare-frontend-2026-11-13`, confirmado no remoto em `41c7786d1107463c66df8ce2ded3197253e19a5a`. `origin/main` permaneceu em `ae76a06`. O workflow manual só poderá ser executado depois de revisão e integração autorizada em `main`. `package-lock.json` staged preexistente foi preservado e não está incluído. Nenhuma migration, consulta de dados pessoais, alteração de Secret ou deploy foi executado. A recuperação permanece bloqueada até acesso/configuração remotos e nova autorização expressa.
+
 ## 13/11/2026 — URL Supabase do Actions e primeira versão de Automações
 
 ### Causa e correção do build

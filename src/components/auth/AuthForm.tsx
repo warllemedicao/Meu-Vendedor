@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "./AuthProvider";
 import { authErrorMessage } from "@/lib/auth-errors";
-import { googleAuthAvailability, googleSignInOptions, type GoogleAuthAvailability } from "@/lib/google-auth";
+import { canAttemptGoogleSignIn, googleAuthAvailability, googleSignInOptions, type GoogleAuthAvailability } from "@/lib/google-auth";
 
 type Mode = "login" | "signup" | "reset";
 const input = "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2";
@@ -33,7 +33,7 @@ export function AuthForm() {
   }, [configured, user, googleRevision]);
   async function enterWithGoogle() {
     const supabase = getSupabase();
-    if (!supabase || busy || googleAvailability !== "enabled") return;
+    if (!supabase || busy || !canAttemptGoogleSignIn(googleAvailability)) return;
     setBusy(true); setError(""); setMessage("");
     try {
       const { error } = await supabase.auth.signInWithOAuth(googleSignInOptions(window.location.origin));
@@ -70,9 +70,9 @@ export function AuthForm() {
   if (user) return <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
     <p>Você está conectado como <strong>{user.email}</strong>.</p>
     <p className="text-sm">Cadastro: {user.email_confirmed_at ? "e-mail confirmado" : "confirmação pendente"}. Google: {user.identities?.some(i => i.provider === "google") ? "identidade vinculada" : "identidade ainda não vinculada"}.</p>
-    <p className="text-sm text-muted">{googleAvailability === "disabled" ? "O login Google ainda está desabilitado na configuração do aplicativo." : googleAvailability === "enabled" ? "O aplicativo permite login Google." : "Verificando configuração Google…"}</p>
+    <p className="text-sm text-muted">{googleAvailability === "disabled" ? "O login Google ainda está desabilitado na configuração do aplicativo." : googleAvailability === "enabled" ? "O aplicativo permite login Google." : googleAvailability === "unavailable" ? "Não foi possível verificar a configuração Google; você ainda pode tentar vincular a conta." : "Verificando configuração Google…"}</p>
     <button type="button" disabled={busy} onClick={async () => { setBusy(true); const ok = await refreshUser(); setMessage(ok ? "Cadastro atualizado diretamente no servidor." : "Não foi possível atualizar o cadastro. Entre novamente se sua sessão expirou."); setGoogleRevision(v => v + 1); setBusy(false); }} className="text-sm text-primary underline">Atualizar cadastro</button>
-    {!user.identities?.some(i => i.provider === "google") && <button type="button" disabled={busy || googleAvailability !== "enabled"} onClick={() => void enterWithGoogle()} className="block rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-50">Entrar com a mesma conta Google</button>}
+    {!user.identities?.some(i => i.provider === "google") && <button type="button" disabled={busy || !canAttemptGoogleSignIn(googleAvailability)} onClick={() => void enterWithGoogle()} className="block rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-50">Entrar com a mesma conta Google</button>}
     {message && <p role="status" className="text-sm text-muted">{message}</p>}
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     <Link href="/afiliados" className="inline-block text-primary underline">Organizar meus links</Link>
@@ -82,10 +82,10 @@ export function AuthForm() {
     <h2 className="text-lg font-semibold">{mode === "reset" ? "Recuperar senha" : mode === "signup" ? "Sua conta no Meu Vendedor" : "Bem-vindo de volta"}</h2>
     <p className="mt-1 text-sm text-muted">Entre no Meu Vendedor e gerencie suas conexões nesta página.</p>
     {mode !== "reset" && <div className="mt-5">
-      <button type="button" disabled={busy || googleAvailability !== "enabled"} onClick={() => void enterWithGoogle()} className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="button" disabled={busy || !canAttemptGoogleSignIn(googleAvailability)} onClick={() => void enterWithGoogle()} className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60">
         <span aria-hidden className="text-lg font-bold text-primary">G</span>Continuar com Google
       </button>
-      <p role="status" className="mt-2 text-xs text-muted">{googleAvailability === "loading" ? "Verificando acesso Google…" : googleAvailability === "disabled" ? "Login Google em preparação. Você pode entrar com e-mail." : googleAvailability === "unavailable" ? "Não foi possível verificar o acesso Google." : "Permite entrar com sua conta Google. Outros serviços pedem autorização quando necessário."}</p>
+      <p role="status" className="mt-2 text-xs text-muted">{googleAvailability === "loading" ? "Verificando acesso Google…" : googleAvailability === "disabled" ? "Login Google em preparação. Você pode entrar com e-mail." : googleAvailability === "unavailable" ? "Não foi possível verificar o acesso Google. Você pode tentar; se não iniciar, verifique novamente ou entre com e-mail." : "Permite entrar com sua conta Google. Outros serviços pedem autorização quando necessário."}</p>
       {(googleAvailability === "disabled" || googleAvailability === "unavailable") && <button type="button" disabled={busy} onClick={() => setGoogleRevision((value) => value + 1)} className="mt-2 text-xs text-primary underline">Verificar novamente</button>}
       <p className="mt-4 text-center text-xs text-muted">ou use seu e-mail</p>
     </div>}

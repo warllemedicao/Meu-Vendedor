@@ -1,0 +1,80 @@
+name: Publish approved frontend only
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_frontend_only:
+        description: Publish the already-approved frontend without Supabase migrations or Edge Functions
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meu-vendedor-production
+  cancel-in-progress: false
+
+jobs:
+  frontend-only:
+    name: Publish frontend with existing Worker runtime
+    if: github.ref == 'refs/heads/main' && inputs.confirm_frontend_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://jzchlrvxdaffnrgbvabv.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require correct branch and credentials
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" || -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "::error::Wrong branch or missing configuration."
+            exit 1
+          fi
+          # This release is only approved when Worker runtime/config matches the original main baseline.
+          git diff --exit-code ae76a06ddd1d0467309f099999a83c33864c464f HEAD -- worker/ wrangler.jsonc
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Test Google login
+        run: node --experimental-strip-types --test tests/google-auth.test.mjs
+
+      - name: Build approved frontend
+        run: npm run build:pages
+
+      - name: Deploy existing Worker with updated frontend assets
+        run: npx --yes wrangler@4.161.0 deploy --config wrangler.jsonc --name meu-vendedor
+
+      - name: Verify login page responds
+        run: |
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 2 --retry-all-errors \
+            https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev/entrar \
+            --output "$RUNNER_TEMP/entrar.html"
+          grep -qi '<html' "$RUNNER_TEMP/entrar.html"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '### Frontend-only production release'
+            echo 'No Supabase migration or Edge Function commands are included.'
+            echo 'Existing Worker runtime, bindings and cron configuration are used.'
+            echo "Commit: $GITHUB_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"

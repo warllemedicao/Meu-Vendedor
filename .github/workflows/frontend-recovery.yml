@@ -1,0 +1,396 @@
+name: Protected frontend recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_recovery_publication:
+        description: Explicitly request publication after all checks and required-reviewer approval
+        required: true
+        default: false
+        type: boolean
+      rollback_commit:
+        description: Full commit SHA independently verified as the source of the currently published Edge Functions
+        required: false
+        type: string
+      worker_runtime_commit:
+        description: Full commit SHA independently verified as the source of the currently published Worker runtime and config
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meu-vendedor-production
+  cancel-in-progress: false
+
+env:
+  SUPABASE_PROJECT_ID: jzchlrvxdaffnrgbvabv
+  CLOUDFLARE_WORKER_NAME: meu-vendedor
+  CLOUDFLARE_WORKER_URL: https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev
+  NEXT_PUBLIC_SUPABASE_URL: https://jzchlrvxdaffnrgbvabv.supabase.co
+
+jobs:
+  validate:
+    name: Test and build recovery frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Checkout selected main commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Require main branch and build configuration
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::Recovery runs must use the current main branch."
+            exit 1
+          fi
+          if [[ -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ]]; then
+            echo "::error::Configure NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY as a GitHub Actions Secret or Variable."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Typecheck frontend and Edge Functions
+        run: |
+          npm run typecheck
+          npm run typecheck:edge
+
+      - name: Build static frontend
+        run: npm run build:pages
+
+      - name: Verify the project URL was bundled without printing the key
+        shell: bash
+        run: |
+          if ! grep -R -F -q "$NEXT_PUBLIC_SUPABASE_URL" out/_next; then
+            echo "::error::The root Supabase project URL was not found in the static JavaScript bundle."
+            exit 1
+          fi
+          echo "Supabase root URL is present in the static bundle; the public key was validated by next.config.ts and was not printed."
+
+      - name: Upload static build for the protected publish job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: frontend-recovery-${{ github.sha }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 7
+
+  inspect-backend:
+    name: Read-only backend compatibility checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout selected main commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Require read-only inspection credentials
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "$SUPABASE_ACCESS_TOKEN" || -z "$SUPABASE_DB_PASSWORD" || -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ]]; then
+            echo "::error::A required Supabase inspection credential or public build configuration is missing."
+            exit 1
+          fi
+
+      - name: Install pinned Supabase CLI
+        run: npm install --global supabase@3.1.0
+
+      - name: Inspect remote migration history without applying changes
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          node scripts/run-supabase-cli.mjs migration list \
+            --remote="$SUPABASE_PROJECT_ID" \
+            --output-format json > "$RUNNER_TEMP/recovery-migrations.json"
+
+      - name: Verify Shopee and YouTube database contracts read-only
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          node scripts/run-supabase-cli.mjs db query \
+            --remote="$SUPABASE_PROJECT_ID" \
+            --read-only \
+            --output-format json \
+            --file scripts/recovery-schema-contract.sql \
+            > "$RUNNER_TEMP/recovery-schema-contract.json"
+
+      - name: Verify only compatible backend contracts
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          NEXT_PUBLIC_SUPABASE_URL: https://jzchlrvxdaffnrgbvabv.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          node scripts/check-recovery-compatibility.mjs \
+            "$RUNNER_TEMP/recovery-migrations.json" \
+            "$RUNNER_TEMP/recovery-schema-contract.json" \
+            "$RUNNER_TEMP/recovery-backend-before.json"
+
+      - name: Publish read-only compatibility summary
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/recovery-backend-before.json" ]]; then
+            {
+              echo '### Recovery backend preflight (read-only)'
+              echo '```json'
+              cat "$RUNNER_TEMP/recovery-backend-before.json"
+              echo '```'
+              echo 'No migration or database write was run.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  verify-protected-approval:
+    name: Require configured recovery reviewers
+    if: inputs.confirm_recovery_publication
+    needs: [validate, inspect-backend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Fail closed unless the recovery environment has required reviewers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          response="$RUNNER_TEMP/recovery-environment.json"
+          if ! gh api "repos/$GITHUB_REPOSITORY/environments/frontend-recovery" > "$response"; then
+            echo "::error::Create and protect the frontend-recovery environment with at least one required reviewer before publication."
+            exit 1
+          fi
+          if ! jq -e '[.protection_rules[]? | select(.type == "required_reviewers" and (.reviewers | length > 0))] | length > 0' "$response" >/dev/null; then
+            echo "::error::The frontend-recovery environment has no required reviewers. Publication is blocked."
+            exit 1
+          fi
+          if ! jq -e '[.protection_rules[]? | select(.type == "required_reviewers" and .prevent_self_review == true)] | length > 0' "$response" >/dev/null; then
+            echo "::error::The frontend-recovery environment must prevent self-review. Publication is blocked."
+            exit 1
+          fi
+          if ! jq -e '.can_admins_bypass == false' "$response" >/dev/null; then
+            echo "::error::Administrators must not be able to bypass frontend-recovery protection rules."
+            exit 1
+          fi
+          echo "Required reviewer protection is configured."
+
+  publish:
+    name: Publish compatible recovery components
+    if: inputs.confirm_recovery_publication
+    needs: [validate, inspect-backend, verify-protected-approval]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: frontend-recovery
+    permissions:
+      contents: read
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Checkout selected main commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install locked dependencies and pinned Supabase CLI
+        run: |
+          npm ci
+          npm install --global supabase@3.1.0
+
+      - name: Require deployment credentials and verified function rollback source
+        env:
+          ROLLBACK_COMMIT: ${{ inputs.rollback_commit }}
+          WORKER_RUNTIME_COMMIT: ${{ inputs.worker_runtime_commit }}
+        shell: bash
+        run: |
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" || -z "$SUPABASE_ACCESS_TOKEN" || -z "$SUPABASE_DB_PASSWORD" || -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ]]; then
+            echo "::error::A required deployment Secret or public build variable is missing."
+            exit 1
+          fi
+          for commit_name in rollback_commit worker_runtime_commit; do
+            if [[ "$commit_name" == "rollback_commit" ]]; then
+              commit="$ROLLBACK_COMMIT"
+            else
+              commit="$WORKER_RUNTIME_COMMIT"
+            fi
+            if [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]] || ! git cat-file -e "$commit^{commit}" 2>/dev/null; then
+              echo "::error::Provide a full $commit_name SHA that is present in this repository and independently verified against the currently published service."
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$commit" origin/main; then
+              echo "::error::$commit_name must be reachable from main."
+              exit 1
+            fi
+          done
+          if ! git diff --quiet "$WORKER_RUNTIME_COMMIT" "$GITHUB_SHA" -- worker/ wrangler.jsonc; then
+            echo "::error::The recovery commit changes Worker runtime/configuration relative to the independently verified production baseline. A frontend-only release is blocked."
+            exit 1
+          fi
+
+      - name: Recheck backend compatibility immediately before publication
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/recovery-release"
+          node scripts/run-supabase-cli.mjs migration list \
+            --remote="$SUPABASE_PROJECT_ID" \
+            --output-format json > "$RUNNER_TEMP/recovery-migrations-before.json"
+          node scripts/run-supabase-cli.mjs db query \
+            --remote="$SUPABASE_PROJECT_ID" \
+            --read-only \
+            --output-format json \
+            --file scripts/recovery-schema-contract.sql \
+            > "$RUNNER_TEMP/recovery-schema-contract-before.json"
+          node scripts/check-recovery-compatibility.mjs \
+            "$RUNNER_TEMP/recovery-migrations-before.json" \
+            "$RUNNER_TEMP/recovery-schema-contract-before.json" \
+            "$RUNNER_TEMP/recovery-release/backend-before.json"
+
+      - name: Download validated static build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: frontend-recovery-${{ github.sha }}
+          path: out/
+
+      - name: Capture current Cloudflare deployment for rollback
+        run: |
+          mkdir -p "$RUNNER_TEMP/recovery-release"
+          npx wrangler deployments list --name "$CLOUDFLARE_WORKER_NAME" --json \
+            > "$RUNNER_TEMP/recovery-release/cloudflare-before.json"
+
+      - name: Deploy only the approved recovery Edge Functions
+        run: |
+          for function_name in marketplace youtube-connection; do
+            echo "Deploying allowlisted compatible function: $function_name"
+            node scripts/run-supabase-cli.mjs functions deploy "$function_name" \
+              --remote="$SUPABASE_PROJECT_ID" \
+              --use-api
+          done
+
+      - name: Deploy the existing Worker with the validated frontend
+        run: npx wrangler deploy --name "$CLOUDFLARE_WORKER_NAME" --message "Recovery release $GITHUB_SHA"
+
+      - name: Verify remote function and Worker deployments
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: https://jzchlrvxdaffnrgbvabv.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          ROLLBACK_COMMIT: ${{ inputs.rollback_commit }}
+          WORKER_RUNTIME_COMMIT: ${{ inputs.worker_runtime_commit }}
+        run: |
+          node scripts/run-supabase-cli.mjs migration list \
+            --remote="$SUPABASE_PROJECT_ID" \
+            --output-format json > "$RUNNER_TEMP/recovery-migrations-after.json"
+          node scripts/run-supabase-cli.mjs db query \
+            --remote="$SUPABASE_PROJECT_ID" \
+            --read-only \
+            --output-format json \
+            --file scripts/recovery-schema-contract.sql \
+            > "$RUNNER_TEMP/recovery-schema-contract-after.json"
+          node scripts/check-recovery-compatibility.mjs \
+            "$RUNNER_TEMP/recovery-migrations-after.json" \
+            "$RUNNER_TEMP/recovery-schema-contract-after.json" \
+            "$RUNNER_TEMP/recovery-release/backend-after.json"
+          npx wrangler deployments list --name "$CLOUDFLARE_WORKER_NAME" --json \
+            > "$RUNNER_TEMP/recovery-release/cloudflare-after.json"
+          for route in / /entrar/ /contas/; do
+            case "$route" in
+              /) expected="out/index.html"; name="home" ;;
+              /entrar/) expected="out/entrar.html"; name="login" ;;
+              /contas/) expected="out/contas.html"; name="accounts" ;;
+            esac
+            if [[ ! -f "$expected" && -f "${expected%.html}/index.html" ]]; then
+              expected="${expected%.html}/index.html"
+            fi
+            if [[ ! -f "$expected" ]]; then
+              echo "::error::The static build is missing the expected $name page."
+              exit 1
+            fi
+            curl --fail --silent --show-error --location \
+              --retry 5 --retry-delay 2 --retry-all-errors \
+              "$CLOUDFLARE_WORKER_URL$route" \
+              --output "$RUNNER_TEMP/recovery-release/worker-$name.html"
+            if ! cmp -s "$expected" "$RUNNER_TEMP/recovery-release/worker-$name.html"; then
+              echo "::error::The public Worker $name page does not match the validated build artifact."
+              exit 1
+            fi
+          done
+          {
+            echo "Commit: $GITHUB_SHA"
+            echo "Rollback Edge Functions source commit: $ROLLBACK_COMMIT"
+            echo "Worker runtime/config baseline commit: $WORKER_RUNTIME_COMMIT"
+            echo "Worker rollback command: npx wrangler rollback <previous-version-id> --name $CLOUDFLARE_WORKER_NAME --yes"
+            echo "Edge Function rollback: checkout the verified rollback commit and redeploy marketplace and youtube-connection with Supabase CLI."
+            echo "Migrations applied: none."
+          } > "$RUNNER_TEMP/recovery-release/release.txt"
+
+      - name: Publish release record
+        if: always()
+        env:
+          ROLLBACK_COMMIT: ${{ inputs.rollback_commit }}
+          WORKER_RUNTIME_COMMIT: ${{ inputs.worker_runtime_commit }}
+        run: |
+          if [[ -d "$RUNNER_TEMP/recovery-release" ]]; then
+            {
+              echo '### Protected recovery release record'
+              echo "Commit: \`$GITHUB_SHA\`"
+              echo "Rollback function source: \`$ROLLBACK_COMMIT\`"
+              echo "Worker runtime baseline: \`$WORKER_RUNTIME_COMMIT\` (verified unchanged)"
+              echo 'Migrations applied: **none**'
+              echo 'Functions allowlist: \`marketplace\`, \`youtube-connection\`'
+              echo 'Cloudflare rollback: use the previous version ID in the attached deployment record with \`wrangler rollback\`.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload rollback and release records
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: recovery-release-${{ github.sha }}
+          path: ${{ runner.temp }}/recovery-release/
+          if-no-files-found: warn
+          retention-days: 30
