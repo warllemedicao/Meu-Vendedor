@@ -2,8 +2,9 @@ import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { IntegrationError, validateCredentials, fetchShopeeProducts, generateShopeeLink, fetchShopeePage, validateBrowseQuery } from "./_shared/shopee.ts";
 import { readLimitedObject } from "./_shared/http.ts";
 import { encryptionKey, encryptCredentials, decryptCredentials, secretMatches } from "./_shared/credentials.ts";
+import { publicConnectionStatus } from "./_shared/status.ts";
 
-type Connection = { id:string;user_id:string;platform_id:string;status:string;last_sync_at:string|null };
+type Connection = { id:string;user_id:string;platform_id:string;status:"connected"|"error"|"disconnected";last_sync_at:string|null;last_error_code:string|null;sync_scope:string };
 const appUrl = "https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev";
 const origins = new Set([appUrl,"http://localhost:3000"]);
 const db = createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -12,7 +13,13 @@ function checked<T>(result:{data:T;error:unknown}):T {
   return result.data;
 }
 async function getConnection(userId:string):Promise<Connection|null> {
-  return checked(await db.from("mv_connections").select("id,user_id,platform_id,status,last_sync_at").eq("user_id",userId).eq("platform_id","shopee").maybeSingle()) as Connection|null;
+  return checked(await db.from("mv_connections").select("id,user_id,platform_id,status,last_sync_at,last_error_code,sync_scope").eq("user_id",userId).eq("platform_id","shopee").maybeSingle()) as Connection|null;
+}
+async function connectionStatus(userId:string) {
+  const connection=await getConnection(userId);
+  if(!connection)return publicConnectionStatus(null,false);
+  const secret=checked(await db.from("mv_connection_secrets").select("connection_id").eq("connection_id",connection.id).maybeSingle());
+  return publicConnectionStatus(connection,Boolean(secret));
 }
 async function credentialsFor(connectionId:string,userId:string,key:CryptoKey) {
   const row=checked(await db.from("mv_connection_secrets").select("encrypted_value").eq("connection_id",connectionId).single());
@@ -111,7 +118,8 @@ Deno.serve(async(request:Request) => {
     if(error || !user)throw new IntegrationError("unauthorized","Sua sessão expirou. Entre novamente.",401);
     const body=await readLimitedObject(request);
     if(body.platform!=="shopee")throw new IntegrationError("not_implemented","Esta plataforma ainda depende de integração e liberação próprias.",400);
-    if(!["connect","sync","disconnect","generate_link","browse_products"].includes(String(body.action)))throw new IntegrationError("invalid_action","Operação inválida.",400);
+    if(!["connect","sync","disconnect","generate_link","browse_products","status"].includes(String(body.action)))throw new IntegrationError("invalid_action","Operação inválida.",400);
+    if(body.action === "status") return reply(await connectionStatus(user.id));
     if(body.action === "browse_products") return reply(await browse(user.id, body));
     return reply(await perform(String(body.action),user.id,body));
   } catch(error) {

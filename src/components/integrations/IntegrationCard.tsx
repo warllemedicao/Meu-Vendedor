@@ -3,11 +3,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { ConnectionControls } from "@/components/marketplace/ConnectionControls";
 
-export function IntegrationCard({ connector }: { connector: ConnectorDefinition }) {
+export function IntegrationCard({ connector, credentialsStored }: { connector: ConnectorDefinition; credentialsStored?: boolean | null }) {
   return (
     <Card titulo={connector.name}>
       <p className="text-sm text-muted">{connector.description}</p>
-      <ConnectionControls platform={connector.id}/>
+      <ConnectionControls platform={connector.id} credentialsStored={credentialsStored}/>
       <details className="mt-4"><summary className="cursor-pointer text-sm text-primary">Requisitos e documentação da plataforma</summary>
       <div className="mt-4 flex flex-wrap gap-2">
         <a href={connector.portalUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-background">Acessar portal <span className="sr-only">oficial de {connector.name} (nova aba)</span></a>

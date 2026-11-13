@@ -13,6 +13,9 @@ test('conexões: somente backend escreve, credenciais nunca são lidas por usuá
   assert.equal((await db.query('select public.mv_acquire_connector_lock($1,$2) as ok',[alice,crypto.randomUUID()])).rows[0].ok,false);
   const products=[{external_id:'1:2',shop_id:'1',item_id:'2',title:'Produto',product_url:'https://shopee.com.br/product/1/2',sales:'10',price_min:5,price_max:5}];
   const cid=(await db.query('select public.mv_publish_shopee_sync($1,$2,$3::jsonb,$4) as id',[alice,lock,JSON.stringify(products),'v1.encrypted-fixture'])).rows[0].id;
+  const storedSecret=(await db.query('select encrypted_value from public.mv_connection_secrets where connection_id=$1',[cid])).rows[0].encrypted_value;
+  await db.query('select public.mv_publish_shopee_sync($1,$2,$3::jsonb,null)',[alice,lock,JSON.stringify(products)]);
+  assert.equal((await db.query('select encrypted_value from public.mv_connection_secrets where connection_id=$1',[cid])).rows[0].encrypted_value,storedSecret);
   await assert.rejects(db.query('select public.mv_publish_shopee_sync($1,$2,$3::jsonb,$4)',[bob,lock,'[]','encrypted']),/connector_lock_expired/);
   const pid=(await db.query('select id from public.mv_products where connection_id=$1',[cid])).rows[0].id;
   const link=(await db.query('select public.mv_save_generated_link($1,$2,$3,$4) as link',[alice,lock,pid,'https://s.shopee.com.br/example'])).rows[0].link;

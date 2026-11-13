@@ -4,12 +4,15 @@ import { useState, type FormEvent } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useMarketplace } from "./MarketplaceProvider";
 import { marketplaceAction, displayDate } from "@/lib/marketplace";
+import { shopeeCredentialAction } from "@/lib/marketplace-status";
 import { Badge } from "@/components/ui/Badge";
-export function ConnectionControls({platform}:{platform:string}) {
+export function ConnectionControls({platform,credentialsStored=null}:{platform:string;credentialsStored?:boolean|null}) {
   const {user,loading:authLoading}=useAuth();const {connections,loading,error:loadError,refresh}=useMarketplace();
   const [formOpen,setFormOpen]=useState(false);const [busy,setBusy]=useState(false);const [confirm,setConfirm]=useState(false);
   const [error,setError]=useState("");const [notice,setNotice]=useState("");
   const connection=connections.find(x=>x.platform_id===platform);
+  const credentialAction=shopeeCredentialAction(Boolean(connection),credentialsStored);
+  const credentialActionLabels={connect:"Conectar Shopee",checking:"Verificando credenciais…",verify:"Verificar conexão",configure:"Cadastrar credenciais"} as const;
   async function connect(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();if(busy)return;const form=event.currentTarget;const values=new FormData(form);
     const appId=String(values.get("appId")??"");const secret=String(values.get("secret")??"");
@@ -31,8 +34,9 @@ export function ConnectionControls({platform}:{platform:string}) {
     {loading?<p role="status" className="text-sm">Verificando conexão…</p>:loadError?<p role="alert" className="text-sm text-danger">{loadError} <button type="button" onClick={refresh} className="underline">Tentar novamente</button></p>:<Badge tone={connection?.status==="error"?"danger":"neutral"}>{connection?.status==="connected"?"Conta conectada":connection?.status==="error"?"Conexão precisa de atenção":"Não conectado"}</Badge>}
     {connection && <div className="text-xs text-muted"><p>Última atualização: {displayDate(connection.last_sync_at)}</p><p className="mt-1">{connection.sync_scope}</p>{connection.last_error_code&&<p className="mt-1 text-danger">A última sincronização falhou. Os dados anteriores podem estar desatualizados.</p>}</div>}
     <div className="flex flex-wrap gap-2">
-      <button type="button" disabled={busy||loading||Boolean(loadError)} onClick={()=>{setFormOpen(x=>!x);setError("");}} className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-background disabled:opacity-50">{connection?"Atualizar credenciais":"Conectar Shopee"}</button>
-      {connection && <><button type="button" disabled={busy||loading} onClick={()=>act("sync")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Atualizar produtos</button><Link href="/produtos" className="rounded-lg border border-border px-3 py-2 text-sm">Ver produtos</Link><button type="button" disabled={busy||loading} onClick={()=>setConfirm(true)} className="px-2 text-sm text-danger underline">Desconectar</button></>}
+      <button type="button" disabled={busy||loading||Boolean(loadError)||credentialAction==="checking"} onClick={()=>{if(credentialAction==="verify"){setFormOpen(false);void act("sync");}else{setFormOpen(x=>!x);setError("");}}} className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-background disabled:opacity-50">{credentialActionLabels[credentialAction]}</button>
+      {connection && credentialsStored === true && <button type="button" disabled={busy||loading} onClick={()=>{setFormOpen(x=>!x);setError("");}} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Atualizar credenciais (opcional)</button>}
+      {connection && <><Link href="/produtos" className="rounded-lg border border-border px-3 py-2 text-sm">Ver produtos</Link><button type="button" disabled={busy||loading} onClick={()=>setConfirm(true)} className="px-2 text-sm text-danger underline">Desconectar</button></>}
     </div>
     {formOpen && <form onSubmit={connect} className="space-y-3 rounded-lg border border-border bg-background p-4">
       <p className="text-sm">Use as credenciais da <a href="https://affiliate.shopee.com.br/open_api/home" target="_blank" rel="noopener noreferrer" className="text-primary underline">Open API oficial de afiliados</a>. A senha da conta Shopee não é solicitada.</p>

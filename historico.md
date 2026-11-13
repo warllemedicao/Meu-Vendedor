@@ -1,5 +1,52 @@
 # Histórico da conversa — atualizado em 13/11/2026
 
+## 13/11/2026 — auditoria de login, Shopee, Pinterest e central de conexões
+
+### Ajuste final dos controles Shopee
+
+Na revisão dos controles, foi separado o fluxo **Verificar conexão** da atualização opcional das credenciais. O estado desconhecido mantém o formulário bloqueado; um segredo confirmado encaminha para verificação mesmo se a lista de conexões estiver temporariamente vazia, evitando sugerir recadastro por divergência transitória entre consultas. A substituição de credenciais só fica disponível explicitamente como opcional quando o backend confirma que o segredo está armazenado. Teste focado cobre conexão existente/ausente e credencial confirmada/ausente/desconhecida.
+
+Validação final após esse ajuste: **279 testes aprovados**, `npm run typecheck`, `npm run typecheck:edge` e build estático isolado com 26 rotas aprovados; `npm run lint` sem erros e quatro avisos preexistentes nos controladores Kaggle; `git diff HEAD --check` aprovado. O build usou apenas configuração pública fictícia em cópia temporária, removida ao final. Nenhuma credencial foi consultada, alterada ou exibida. A correção continua local, sem commit, push ou deploy.
+
+### Objetivo e preservação
+
+O responsável pediu investigar regressões percebidas no login/cadastro, exibição das credenciais Shopee, informações Pinterest e cobertura da central, preservando todos os dados existentes. Solicitou ainda testes, atualização documental e publicação somente após as verificações e aprovações exigidas. Nenhuma consulta/escrita de produção, alteração de Secret, migração, deployment, commit ou push foi executado nesta etapa.
+
+Antes das alterações, os 52 Markdown versionados foram lidos integralmente no contexto (52 integrais, 0 parciais, 0 não lidos). O registro completo de caminhos e a leitura prioritária estão anotados na continuidade desta sessão. `main`/`origin/main` estavam em `b233ef2`; nenhuma worktree paralela estava ativa. O código e os testes abaixo permanecem locais. A alteração preexistente de `package-lock.json` está staged e foi preservada, não faz parte desta entrega.
+
+### Resultado da auditoria
+
+- **Login:** `AuthForm`, `AuthProvider`, `AccountButton`, `AccountHub`, cliente Supabase e rotas mantêm código de e-mail/senha, cadastro, recuperação, OAuth Google com PKCE e sessão. A revisão Git não identificou commit que removesse esses fluxos. Foi identificada uma causa concreta para uma janela sem botão: `AccountButton` retornava somente “Carregando conta…” enquanto o provedor verificava a sessão. A alteração local mantém **Entrar** visível durante essa verificação. Isso corrige o comportamento no código atual, mas não prova sozinho a causa do sintoma no Worker publicado.
+- **Google:** a configuração OAuth remota, client/redirect allowlists e habilitação atual do provedor não foram consultadas. `GOOGLE_OAUTH_SETUP.md` registra confirmação de login, enquanto `CONTA_E_ESTRATEGIA_GOOGLE.md` e `INTEGRACOES.md` contêm estados de provedor desabilitado/pendente; são registros históricos contraditórios. Nenhuma versão deve ser escolhida como estado atual sem consulta autorizada.
+- **Shopee:** as credenciais permanecem cifradas no backend por usuário conforme o código e a sync com payload nulo preserva o segredo existente. Não havia acesso ao banco/API Supabase para confirmar se a credencial específica continua armazenada, sua associação ou status. O histórico também contém contagens diferentes de conexões em datas distintas. A UI anterior não distinguia a existência do segredo cifrado do status de conexão, podendo apresentar “não conectada” quando a consulta falhava; isso não comprova que as credenciais foram apagadas.
+- **Pinterest:** o código disponível prepara Pins e oferece conclusão manual; não foi encontrado fluxo OAuth/API de publicação na central. O histórico registra rejeição anterior da solicitação do aplicativo, mas credenciais, tokens, autorização e estado atual de aprovação não foram consultados. A interface local separa preparação manual de aprovação/conexão não confirmada.
+- **Central:** a tela reunia alguns conectores e controles, mas não apresentava o inventário e as pendências de todas as plataformas previstas. A central local agora lista e descreve serviços/conectores existentes: Google Login/Flow, Gemini, YouTube, Shopee Affiliate/Video, Amazon, Mercado Livre, AliExpress, SHEIN, Magalu, TikTok/TikTok Shop, Pinterest, Instagram, Facebook, Kwai, ElevenLabs e outros provedores de vídeo/voz. Não foram criadas APIs fictícias: controles de conexão só permanecem onde há fluxo no código; outros cartões informam dependências ou ação manual.
+
+### Arquivos alterados nesta auditoria local
+
+- `src/components/auth/AccountButton.tsx`: mantém “Entrar” visível durante a leitura da sessão.
+- `src/components/auth/AccountHub.tsx`, `src/components/integrations/IntegrationCard.tsx`, `src/components/marketplace/ConnectionControls.tsx`, `src/lib/account-integrations.ts`: amplia o inventário da central, exibe etapas concluídas/pendentes e estados desconhecidos sem converter erro de consulta em ausência de credenciais; controles Shopee separam verificação de atualização opcional.
+- `src/lib/marketplace-status.ts`, `src/lib/marketplace.ts`, `src/types/marketplace.ts`, `supabase/functions/marketplace/index.ts`, `supabase/functions/marketplace/_shared/status.ts`: ação autenticada e somente de leitura para estado Shopee; a consulta filtra pelo usuário da sessão e verifica existência do registro secreto sem retornar ciphertext/secret.
+- `tests/account-status.test.mjs`: cobre falha/estado desconhecido, resposta sem segredo, inventário da central e decisão de ação sem sugerir recadastro quando o estado não foi confirmado.
+- `tests/marketplace-database.test.mjs`: assegura que sync sem novos dados de credenciais preserve o segredo cifrado existente.
+- `next.config.ts`, `tests/next-config.test.mjs`: impede build estático quando as variáveis públicas Supabase necessárias estão ausentes e testa esse bloqueio.
+- `historico.md` e `CONTINUAR_AMANHA.md`: este registro e a continuidade. `package-lock.json` não foi modificado por esta tarefa.
+
+### Validação
+
+- Suíte final: **279 testes passaram, 0 falharam/cancelaram** (`node --experimental-strip-types --test --test-concurrency=1 tests/*.test.mjs`).
+- `npm run typecheck` e `npm run typecheck:edge`: aprovados.
+- `npm run lint`: zero erros; quatro avisos preexistentes nos controladores Kaggle.
+- `npm run build:pages`: aprovado em cópia temporária isolada, com configuração pública fictícia e **26 rotas** estáticas. O primeiro ensaio isolado revelou binding opcional Linux do Tailwind ausente do `node_modules`; a dependência exata foi instalada apenas em sobreposição temporária e removida após o build. O `.next` preexistente do checkout não foi sobrescrito.
+- `git diff --check`: aprovado.
+- Não houve validação em navegador visual desktop/celular, login Google real, consulta de usuário/credenciais no banco ou teste autenticado de produção. Os testes e build local não comprovam que o Worker publicou o código nem que as credenciais específicas existam.
+
+### Configuração remota, publicação e pendências
+
+As variáveis públicas Supabase não estão no ambiente local e não existe `.env.local`; os valores não foram exibidos nem fabricados como configuração de produção. O run [GitHub Actions 43349901129](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43349901129) passou testes, lint, typecheck e build, mas parou antes de qualquer migração/deploy porque o gate encontrou migrations de alto risco pendentes. Não foi feita aplicação manual nem aprovação para contornar o gate. A versão Cloudflare observada na auditoria foi `239a29ad-f5dc-4085-9b17-49fb5702576b`, sem associação confirmada ao commit esperado; as rotas públicas `/`, `/entrar` e `/contas` responderam HTTP 200, sem teste de sessão no navegador.
+
+Próximos passos: (1) obter acesso administrativo/autorizado ao Supabase existente e consultar, sem revelar segredo, a configuração OAuth e a existência/associação/status da conexão Shopee; não solicitar recadastro antes; (2) conferir credenciais e aprovação Pinterest no portal autorizado; (3) revisar migrations e aprovação no ambiente protegido sem remover gates; (4) publicar somente após preflight e aprovação e confirmar hash/versão ativa; (5) testar desktop/celular com conta autorizada. Até essas verificações, o estado real de credenciais Shopee, OAuth atual, aprovação Pinterest e publicação desta correção permanece **não verificado**.
+
 ## 13/11/2026 — diagnóstico e correção do GitHub Actions
 
 ### Estado confirmado antes da correção
