@@ -3,12 +3,15 @@ name: Preview frontend (isolated Cloudflare Worker)
 on:
   push:
     branches:
-      - fix/google-flow-external-video-button
+      - feat/publication-center-preview
     paths:
       - .github/workflows/frontend-preview.yml
       - src/components/auth/AccountHub.tsx
       - src/components/videos/ProductVideoStudio.tsx
       - tests/google-auth.test.mjs
+      - src/components/videos/PublicationCenter.tsx
+      - src/lib/publication-package.ts
+      - tests/publication-package.test.mjs
   workflow_dispatch:
 
 permissions:
@@ -35,7 +38,7 @@ jobs:
       - name: Refuse main and missing configuration
         shell: bash
         run: |
-          if [[ "$GITHUB_REF" != "refs/heads/fix/google-flow-external-video-button" ]]; then
+          if [[ "$GITHUB_REF" != "refs/heads/feat/publication-center-preview" ]]; then
             echo "::error::This preview may only build the recovery branch."
             exit 1
           fi
@@ -55,6 +58,12 @@ jobs:
 
       - name: Validate Google authentication
         run: node --experimental-strip-types --test tests/google-auth.test.mjs
+
+      - name: Validate publication package
+        run: node --experimental-strip-types --test tests/publication-package.test.mjs
+
+      - name: Check TypeScript
+        run: npm run typecheck
 
       - name: Build frontend with public Supabase configuration
         run: npm run build:pages
