@@ -49,6 +49,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
     if (video.blob.size > 20 * 1024 * 1024) { setError("O envio direto ao Facebook aceita MP4 de até 20 MB nesta versão."); return; }
     const description = validate();
     if (description === null) return;
+    if (!window.confirm("Publicar este Reel agora na Página Shopee baratinha? A publicação será pública.")) return;
     const client = getSupabase();
     if (!client) { setError("Supabase indisponível."); return; }
     const { data: { session } } = await client.auth.getSession();
@@ -60,7 +61,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
       form.set("description", description);
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/facebook-reels`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}`, apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "" },
+        headers: { Authorization: `Bearer ${session.access_token}`, apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "" },
         body: form,
       });
       const result = await response.json();
