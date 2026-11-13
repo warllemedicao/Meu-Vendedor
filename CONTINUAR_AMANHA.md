@@ -16,7 +16,9 @@ Branch de trabalho: `recovery/prepare-frontend-2026-11-13`. O commit-base e o re
 
 **Validação local após as correções:** suíte completa executada diretamente com Node: 295/295 testes aprovados. `npm run lint` passou sem erros, com quatro avisos preexistentes nos controladores Kaggle. O comando configurado `npm test` não é compatível com o Node 22.15.0 local por usar `--test-isolation=none`; a suíte foi executada com o runner Node compatível. CLI `3.1.0` e flags read-only confirmadas. Os testes locais não comprovam acesso/compatibilidade remota. Não houve migração, escrita no banco, deploy, despacho do workflow, alteração de Secret ou credencial.
 
-**Próximo passo:** a ordem autorizava commit/push somente na branch de recuperação após validar; concluir revisão final, preservar o lockfile staged e enviar apenas workflow, checker, testes e estes dois registros documentais à branch de recuperação. Não publicar nem integrar à `main`. Continuam necessárias credenciais/acesso autorizados e configuração verificável de aprovação antes de qualquer execução de publicação; aguardar a próxima ordem para deploy.
+**Commit e push:** `a4347fa815731997f22ae35f2664042213d29886` (`fix: correct protected recovery preflight`) foi enviado a `origin/recovery/prepare-frontend-2026-11-13`. O commit contém somente workflow, checker, dois arquivos de teste e estes registros documentais. Após o push, `HEAD` e `origin/recovery/prepare-frontend-2026-11-13` coincidem em `a4347fa`; `origin/main` permanece em `ae76a06`. `package-lock.json` continua staged e excluído. Não houve despacho do workflow.
+
+**Próximo passo:** aguardar a próxima ordem. Não publicar nem integrar à `main`. Continuam necessárias credenciais/acesso autorizados, confirmação do backend e configuração verificável de aprovação antes de qualquer execução de publicação.
 
 ## Preparação de recuperação protegida — 13/11/2026
 
