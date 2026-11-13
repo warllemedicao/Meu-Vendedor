@@ -1,5 +1,35 @@
 # Histórico da conversa — atualizado em 13/11/2026
 
+## 13/11/2026 — correção do workflow protegido (Ordem Técnica 02)
+
+### Escopo e preservação
+
+O responsável autorizou corrigir o workflow manual de recuperação, executar preflight apenas local/read-only quando possível, testar os scripts e fazer commit/push somente em `recovery/prepare-frontend-2026-11-13`. Deploy, migrações, alterações de banco/credenciais e integração na `main` foram expressamente proibidos.
+
+Antes das alterações desta ordem, a branch `recovery/prepare-frontend-2026-11-13` e `origin/recovery/prepare-frontend-2026-11-13` estavam em `7334998938e271870bfe214fb6d879a48068dd1d`; `origin/main` estava em `ae76a06ddd1d0467309f099999a83c33864c464f`. O registro anterior que apontava `41c7786` como ponta remota da branch estava desatualizado. O checkout local da branch `main` não foi alterado nesta ordem. `package-lock.json` já estava staged antes do trabalho e permaneceu staged, fora dos commits planejados.
+
+### Correções realizadas
+
+- `.github/workflows/frontend-recovery.yml`: o passo `Verify only compatible backend contracts` recebe explicitamente o `SUPABASE_ACCESS_TOKEN`, a URL raiz do projeto e a chave publicável.
+- O environment `frontend-recovery` é consultado com `github.token` e permissão `contents: read`, mínima para um token com acesso de leitura ao repositório. A verificação exige revisores, `prevent_self_review` habilitado e `can_admins_bypass == false`; falha fechada se a API não permitir confirmar qualquer requisito. A consulta anterior do environment retornou 404 e a leitura das APIs de Variables/Secrets retornou 403. Isso não confirma se o environment existe/protegido nem a origem configurada da chave. A documentação oficial do endpoint GET environment indica acesso para leitores do repositório: https://docs.github.com/en/rest/deployments/environments#get-a-deployment-environment.
+- A versão exata Supabase CLI `3.1.0` oferece `db query --remote --read-only --output-format json --file`; o workflow manteve esse método estritamente read-only. O SQL verifica metadados e não seleciona IDs de usuários ou valores de Secrets.
+- O checker passa a recusar versão ausente/inválida de `marketplace` ou `youtube-connection`; versão numérica não é prova de SHA de origem. O rollback de Edge Functions exige input de SHA de origem verificado independentemente e alcançável em `main`. Nenhum SHA foi inventado.
+- A chave pública é lida do GitHub Secret, com fallback para Actions Variable, sem ser impressa. O acesso remoto 403 impediu confirmar qual fonte está configurada.
+- Criado `tests/frontend-recovery-workflow.test.mjs`; acrescentado caso para rejeitar versão de função desconhecida em `tests/check-recovery-compatibility.test.mjs`. O workflow continua sem aplicar migrations, sem função `publication-schedule` no allowlist e sem alterar/desativar o gate principal.
+
+### Estado remoto observado e limitações
+
+Não havia `SUPABASE_ACCESS_TOKEN`, senha do banco ou sessão Supabase CLI no ambiente local. A consulta sem autenticação à configuração Auth retornou HTTP 401. Assim, o contrato SQL não foi executado remotamente; não foram confirmados Google Auth, tabelas/RPCs, status/versões atuais das funções, presença de Secrets (inclusive `MV_CREDENTIAL_ENCRYPTION_KEY`), registros Shopee/YouTube ou compatibilidade da branch `main` com o backend atual. A fonte da chave publicável no GitHub e os revisores do environment também não foram confirmados. Os quatro migrations pendentes são evidência anterior do workflow principal, não uma nova leitura remota desta ordem. Nenhuma credencial foi exibida/alterada.
+
+### Validação e estado de publicação
+
+- Suíte completa: **295/295 testes aprovados**, executada com `node --experimental-strip-types --test --test-concurrency=1`; `npm test` não funciona com o Node 22.15.0 local porque o script passa `--test-isolation=none`.
+- `npm run lint`: sem erros, com quatro avisos preexistentes nos controladores Kaggle.
+- Os testes focalizados de workflow/checker e validação YAML foram executados; `git diff --check` foi verificado antes do commit. A CLI `3.1.0` confirmou as flags documentadas do comando SQL read-only.
+- Testes locais não demonstram estado/compatibilidade remota. Não houve despacho do workflow, SQL remoto, migração, escrita, publicação de Edge Function ou Cloudflare, nem alteração de `main`.
+
+**Estado ao final da edição documental:** alterações locais aguardando commit/push somente para `recovery/prepare-frontend-2026-11-13`; o lockfile staged não deve ser incluído. Aguardam-se acesso remoto de leitura e proteção verificável antes de qualquer futura publicação. Esta ordem não autoriza deploy e deve aguardar a próxima instrução.
+
 ## 13/11/2026 — preparação do workflow protegido de recuperação
 
 ### Objetivo e escopo

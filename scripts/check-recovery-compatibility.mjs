@@ -110,9 +110,13 @@ export async function inspectRecoveryCompatibility({
     if (!row || String(row.status ?? "").toLowerCase() !== "active") {
       throw new Error(`Required remote Edge Function is missing or not active: ${name}.`);
     }
+    const version = Number(row.version);
+    if (!Number.isSafeInteger(version) || version < 1) {
+      throw new Error(`Required remote Edge Function version is unknown: ${name}.`);
+    }
     functionStates[name] = {
       active: true,
-      version: Number.isFinite(Number(row.version)) ? Number(row.version) : null,
+      version,
     };
   }
 

@@ -109,6 +109,17 @@ test("blocks when a required function or backend Secret is absent", async (t) =>
       /Required backend Secret names are absent: MV_CREDENTIAL_ENCRYPTION_KEY/,
     );
   });
+  await t.test("function version is unknown", async () => {
+    const unknownVersion = functions.map((row) =>
+      row.slug === "marketplace" ? { ...row, version: null } : row);
+    await assert.rejects(
+      inspectRecoveryCompatibility({
+        ...baseInput,
+        fetchImpl: mockFetch({ functionRows: unknownVersion }),
+      }),
+      /Required remote Edge Function version is unknown: marketplace/,
+    );
+  });
 });
 
 test("blocks when Google Auth is not enabled", async () => {

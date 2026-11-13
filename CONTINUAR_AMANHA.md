@@ -1,5 +1,23 @@
 # Continuidade do projeto — próxima sessão
 
+## Correção do workflow de recuperação — Ordem Técnica 02
+
+Branch de trabalho: `recovery/prepare-frontend-2026-11-13`. O commit-base e o remoto desta branch estavam em `7334998938e271870bfe214fb6d879a48068dd1d`; `origin/main` permaneceu em `ae76a06ddd1d0467309f099999a83c33864c464f`. A anotação anterior que identificava `41c7786` como ponta remota da branch estava desatualizada. O checkout local da branch `main` não foi alterado nesta ordem. `package-lock.json` já estava staged antes do trabalho e foi preservado, sem inclusão nos arquivos desta ordem.
+
+**Correções preparadas localmente:**
+
+- `.github/workflows/frontend-recovery.yml` passa explicitamente `SUPABASE_ACCESS_TOKEN`, URL raiz e chave publicável ao checker de compatibilidade. A chave usa Secret quando configurado e fallback para Actions Variable; seu valor não é impresso.
+- A consulta de proteção do environment usa `github.token` com `contents: read`, permissão mínima válida para leitura do repositório e metadados do environment. O workflow exige revisores, bloqueia autoaprovação e bypass administrativo; qualquer erro/ausência de confirmação interrompe a publicação. O environment `frontend-recovery` não foi confirmado remotamente (consulta anterior 404; leitura de Variables/Secrets 403), portanto não há autorização nem evidência de proteção configurada.
+- A Supabase CLI fixada em `3.1.0` documenta `db query --remote --read-only --output-format json --file`; o método foi mantido. A query verifica apenas metadados de schema. Não foi executada contra o Supabase remoto nesta ordem.
+- `scripts/check-recovery-compatibility.mjs` agora bloqueia se a versão remota de qualquer função obrigatória for ausente ou inválida. O workflow só allowlista `marketplace` e `youtube-connection`; não publica `publication-schedule`.
+- Adicionados testes do checker e contrato de segurança do workflow em `tests/check-recovery-compatibility.test.mjs` e `tests/frontend-recovery-workflow.test.mjs`.
+
+**Estado remoto e bloqueios:** não há `SUPABASE_ACCESS_TOKEN` nem senha do banco no ambiente local e não existe sessão Supabase CLI autenticada. As APIs GitHub de Variables/Secrets retornaram 403 e a consulta de `frontend-recovery` retornou 404; não foi possível determinar a fonte real da chave pública ou confirmar os revisores. A configuração pública `/auth/v1/settings` respondeu 401 sem chave; Google Auth não foi confirmado. Nenhuma query SQL remota foi executada; compatibilidade do banco, estado/versões das Edge Functions, presença de `MV_CREDENTIAL_ENCRYPTION_KEY` e demais Secrets, conexões Shopee/YouTube e SHA de origem/rollback das funções permanecem não verificados. Não inventar versões nem SHAs.
+
+**Validação local após as correções:** suíte completa executada diretamente com Node: 295/295 testes aprovados. `npm run lint` passou sem erros, com quatro avisos preexistentes nos controladores Kaggle. O comando configurado `npm test` não é compatível com o Node 22.15.0 local por usar `--test-isolation=none`; a suíte foi executada com o runner Node compatível. CLI `3.1.0` e flags read-only confirmadas. Os testes locais não comprovam acesso/compatibilidade remota. Não houve migração, escrita no banco, deploy, despacho do workflow, alteração de Secret ou credencial.
+
+**Próximo passo:** a ordem autorizava commit/push somente na branch de recuperação após validar; concluir revisão final, preservar o lockfile staged e enviar apenas workflow, checker, testes e estes dois registros documentais à branch de recuperação. Não publicar nem integrar à `main`. Continuam necessárias credenciais/acesso autorizados e configuração verificável de aprovação antes de qualquer execução de publicação; aguardar a próxima ordem para deploy.
+
 ## Preparação de recuperação protegida — 13/11/2026
 
 **Estado desta sessão:** o objetivo foi preparar, sem executar, uma publicação manual e restrita para frontend, `marketplace` e `youtube-connection`. O workflow principal e seu gate de migrations não foram modificados. Nenhuma migration, escrita de banco, alteração de Secret/credencial ou publicação foi executada.
