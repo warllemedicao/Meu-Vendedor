@@ -1,3 +1,17 @@
+## 13/11/2026 — Facebook Login for Business OAuth (implementação em andamento)
+
+- Meta App ID 4694062620828917; Meta Configuration ID 1130763936339224 (identificador público da configuração, não é token); Página alvo Shopee baratinha, ID 1420652961139104.
+- Implementado fluxo OAuth próprio: Edge Function `facebook-connect` POST `start/status/disconnect` autenticados por JWT Supabase e GET `/callback` com state aleatório de uso único, validade de 10 min e troca server-side do authorization code. O callback exige a Página configurada na lista de Páginas autorizadas e armazena token da Página cifrado AES-GCM com chave secreta. Não enviar tokens ao frontend.
+- Migration `20261113230000_facebook_oauth_connections.sql` aplicada ao projeto Supabase; tabelas `facebook_oauth_states` e `facebook_page_connections` com RLS habilitado, sem grants para anon/authenticated. Verificação SQL confirmou RLS=true nas duas tabelas.
+- `facebook-connect` ACTIVE v2 implantada no Supabase com `verify_jwt=false` **porque o callback OAuth da Meta não envia JWT**; cada ação POST autentica JWT dentro da função, e GET callback exige state único registrado no banco. Sem secrets completos, função responde `oauth_not_configured` (503).
+- Frontend `PublicationCenter.tsx` atualizado na branch para mostrar Conectar/Desconectar Facebook e status. **Ainda não houve build, testes de navegador nem confirmação de deploy preview do frontend**.
+- `facebook-reels/index.ts` atualizado **somente no GitHub** para preferir token cifrado associado ao usuário e manter fallback legado com UID allowlist. **Não implantar a nova versão de facebook-reels antes de testes e secrets; produção atual segue versão anterior.**
+- URL EXATA para cadastrar em Meta → Facebook Login → Configurações → URIs de redirecionamento OAuth válidos:
+  `https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/facebook-connect/callback`
+- Secrets ainda exigidos no Supabase (não registrar valores em GitHub/chat): `META_APP_SECRET`, `META_LOGIN_CONFIG_ID=1130763936339224`, `META_OAUTH_RETURN_URL=https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/facebook-connect/callback`, `META_OAUTH_SITE_URL` (origem HTTPS do site onde deve voltar, preferencialmente preview para primeiro teste), `META_TOKEN_ENCRYPTION_KEY` (32 bytes criptograficamente aleatórios codificados em Base64). `META_APP_ID`, `META_PAGE_ID` e `META_GRAPH_API_VERSION` já usados na integração anterior, verificar existência sem expor valores.
+- ATENÇÃO: houve exposição anterior de credenciais em captura de tela. Revogar/rotacionar credenciais afetadas e atualizar secrets; não copiar dados da captura nem colocá-los no código.
+- Próximos passos: configurar secrets pelo painel Supabase, cadastrar URL OAuth na Meta, testar botão preview, callback, conexão, desconexão, expiração, isolamento entre contas e fluxo de publicação, executar suíte e só então implantar `facebook-reels` revisada e aprovar merge. Não afirmar que publicação está funcional sem teste real.
+
 ## 13/11/2026 — Correção diagnóstica do bloqueio Facebook Reels
 
 - Confirmado no código que HTTP 403 `forbidden` ocorre quando `auth.getUser()` retorna UID diferente de `META_ALLOWED_USER_ID`; a Meta não recebe o vídeo nessa situação. Supabase confirma três contas Auth, sem determinar qual é a conta autorizada.
