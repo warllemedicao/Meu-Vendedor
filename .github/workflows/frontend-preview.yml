@@ -1,0 +1,90 @@
+name: Preview frontend (isolated Cloudflare Worker)
+
+on:
+  push:
+    branches:
+      - recovery/prepare-frontend-2026-11-13
+    paths:
+      - .github/workflows/frontend-preview.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meu-vendedor-frontend-preview
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    name: Build and publish static preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://jzchlrvxdaffnrgbvabv.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout selected preview commit
+        uses: actions/checkout@v4
+
+      - name: Refuse main and missing configuration
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/recovery/prepare-frontend-2026-11-13" ]]; then
+            echo "::error::This preview may only build the recovery branch."
+            exit 1
+          fi
+          if [[ -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "::error::Required GitHub Actions configuration is missing."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Google authentication
+        run: node --experimental-strip-types --test tests/google-auth.test.mjs
+
+      - name: Build frontend with public Supabase configuration
+        run: npm run build:pages
+
+      - name: Create isolated static-only Worker configuration
+        shell: bash
+        run: |
+          cat > wrangler.frontend-preview.generated.jsonc <<'EOF'
+          {
+            "$schema": "node_modules/wrangler/config-schema.json",
+            "name": "meu-vendedor-preview",
+            "compatibility_date": "2026-11-03",
+            "workers_dev": true,
+            "assets": {
+              "directory": "./out",
+              "html_handling": "auto-trailing-slash",
+              "not_found_handling": "404-page"
+            }
+          }
+          EOF
+          node -e "const c=require('./wrangler.frontend-preview.generated.jsonc'); if(c.name==='meu-vendedor'||c.main||c.triggers||c.durable_objects||c.browser) process.exit(1)"
+
+      - name: Publish preview only (no production Worker or database changes)
+        run: npx --yes wrangler@4.161.0 deploy --config wrangler.frontend-preview.generated.jsonc
+
+      - name: Summarize preview limitations
+        run: |
+          {
+            echo '### Meu Vendedor frontend preview'
+            echo 'Preview Worker: `meu-vendedor-preview` (separate from production `meu-vendedor`).'
+            echo 'The Cloudflare deployment step prints the preview URL.'
+            echo 'Only static frontend assets are deployed; no cron triggers, Durable Objects, browser binding, or Worker API routes are configured.'
+            echo 'Google OAuth requires the preview /entrar URL to be allowlisted in Supabase Auth Redirect URLs.'
+            echo 'This preview uses the existing Supabase project: authenticated user actions can affect real data. Test with care.'
+            echo 'No Supabase migrations, Edge Function deployments, or production Worker deployment occur.'
+          } >> "$GITHUB_STEP_SUMMARY"
