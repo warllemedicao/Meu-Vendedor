@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Copy, Download, ExternalLink, Share2, Upload } from "lucide-react";
 import { PUBLICATION_DESTINATIONS, publicationCaption, publicationPackageText, type PublicationPlatform } from "@/lib/publication-package";
 import { Card } from "@/components/ui/Card";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { getSupabase } from "@/lib/supabase/client";
 
 type VideoFile = { blob: Blob; filename: string };
 const button = "inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -13,6 +15,8 @@ function saveBlob(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 export function PublicationCenter({ generated, defaultTitle = "" }: { generated: VideoFile | null; defaultTitle?: string }) {
+  const { user } = useAuth();
+  const [publishing, setPublishing] = useState(false);
   const [platform, setPlatform] = useState<PublicationPlatform>("kwai");
   const [title, setTitle] = useState(defaultTitle);
   const [link, setLink] = useState("");
@@ -38,6 +42,34 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
     saveBlob(new Blob([publicationPackageText(platform, title, link, hashtags, video.filename)], { type: "text/plain;charset=utf-8" }), "publicacao-" + platform + ".txt");
     setNotice("Arquivo de legenda e instruções baixado. Baixe também o vídeo.");
   }
+  async function publishFacebook() {
+    if (publishing || platform !== "facebook") return;
+    if (!user) { setError("Entre na sua conta para publicar na Página."); return; }
+    if (!video || !isMp4) { setError("Selecione um MP4 para publicar no Facebook."); return; }
+    if (video.blob.size > 20 * 1024 * 1024) { setError("O envio direto ao Facebook aceita MP4 de até 20 MB nesta versão."); return; }
+    const description = validate();
+    if (description === null) return;
+    const client = getSupabase();
+    if (!client) { setError("Supabase indisponível."); return; }
+    const { data: { session } } = await client.auth.getSession();
+    if (!session) { setError("Sua sessão expirou. Entre novamente."); return; }
+    setPublishing(true); setError(""); setNotice("Enviando vídeo à Meta. Não feche esta página.");
+    try {
+      const form = new FormData();
+      form.set("video", new File([video.blob], video.filename, { type: "video/mp4" }));
+      form.set("description", description);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/facebook-reels`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}`, apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "" },
+        body: form,
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.message || "A Meta recusou a publicação.");
+      setNotice(`Reel enviado à Meta (ID: ${result.video_id}). Confira a Página para confirmar que foi publicado.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível publicar. Confira a Página antes de tentar novamente.");
+    } finally { setPublishing(false); }
+  }
   async function share() {
     if (!video) { setError("Selecione um vídeo para compartilhar."); return; }
     const text = validate(); if (text === null) return;
@@ -51,7 +83,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
   }
   return <Card titulo="Central de Publicação · publicação assistida">
     <div className="space-y-4">
-      <p className="text-sm text-muted">Prepare o vídeo, o link de afiliado e a legenda para cada rede. O Meu Vendedor não publica automaticamente nem garante links clicáveis nas legendas.</p>
+      <p className="text-sm text-muted">Prepare o vídeo, o link de afiliado e a legenda. O envio direto está disponível somente para Reels da Página Facebook; nas demais redes a publicação é assistida. Links na legenda podem não ser clicáveis.</p>
       <label className="block text-sm font-medium">Rede social
         <select aria-label="Rede social de destino" value={platform} onChange={e => { setPlatform(e.target.value as PublicationPlatform); setNotice(""); }} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2">
           {(Object.keys(PUBLICATION_DESTINATIONS) as PublicationPlatform[]).map(key => <option key={key} value={key}>{PUBLICATION_DESTINATIONS[key].label}</option>)}
@@ -73,6 +105,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
       <p className="text-xs text-muted">{video ? (isMp4 ? "MP4 pronto para baixar." : "Arquivo WebM: não será renomeado para MP4. Use um navegador com exportação MP4 ou converta em ferramenta compatível antes de publicar.") : "Gere um vídeo acima ou selecione um vídeo já produzido."}</p>
       <p className="text-xs text-muted">{PUBLICATION_DESTINATIONS[platform].hint}</p>
       <div className="flex flex-wrap gap-2">
+        {platform === "facebook" && <button type="button" disabled={!video || !isMp4 || publishing || !user} onClick={() => void publishFacebook()} className={button}><Upload className="h-4 w-4" />{publishing ? "Enviando Reel…" : "Publicar Reel no Facebook"}</button>}
         <button type="button" onClick={() => void copy()} className={button}><Copy className="h-4 w-4" />Copiar legenda e link</button>
         <button type="button" disabled={!video} onClick={() => video && saveBlob(video.blob, video.filename)} className={button}><Download className="h-4 w-4" />Baixar vídeo</button>
         <button type="button" disabled={!video} onClick={downloadPackage} className={button}><Download className="h-4 w-4" />Baixar pacote TXT</button>
