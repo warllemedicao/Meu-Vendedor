@@ -84,6 +84,6 @@ Deno.serve(async req => {
   const { error } = await db.from("facebook_oauth_states").insert({ state_hash: await hash(state), user_id: user.id, expires_at: new Date(Date.now() + 10 * 60_000).toISOString() });
   if (error) return fail(500, "storage_failed");
   const auth = new URL("https://www.facebook.com/" + VERSION + "/dialog/oauth");
-  auth.search = new URLSearchParams({ client_id: APP_ID, redirect_uri: redirectUri, state, response_type: "code", config_id: CONFIG_ID, scope: "pages_show_list,pages_read_engagement,pages_manage_posts" }).toString();
+  auth.search = new URLSearchParams({ client_id: APP_ID, redirect_uri: redirectUri, state, response_type: "code", config_id: CONFIG_ID }).toString();
   return json(200, { ok: true, authorization_url: auth.toString() });
 });
