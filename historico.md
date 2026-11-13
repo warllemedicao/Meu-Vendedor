@@ -21,6 +21,7 @@ Código e migrations locais confirmam que `marketplace` usa conexões/segredos, 
 - Criados `scripts/check-recovery-compatibility.mjs` e `scripts/recovery-schema-contract.sql`. O checker exige histórico compatível, ausência de migrations inesperadas, schema SQL Shopee/YouTube, Edge Functions ativas, nomes de Secrets obrigatórios e Google Auth habilitado; executa novamente o preflight antes e depois do deploy. Não lê valores de Secrets ou dados pessoais.
 - Criado `tests/check-recovery-compatibility.test.mjs` com cenários de contrato ausente/falso, migration não permitida, função/Secret ausente e Google Auth desabilitado.
 - Não houve alteração no gerador de vídeos, em `package-lock.json`, no workflow principal ou nos dados/credenciais existentes. O lockfile já estava staged antes do trabalho e foi preservado fora do escopo.
+- Após conferir logs recentes, o workflow de recuperação foi ajustado para receber `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` como GitHub Secret, em vez de Actions Variable, para evitar que o runner imprima o valor nos logs. A existência/configuração desse Secret não foi verificada. O pipeline principal ainda utiliza a variável preexistente e não foi alterado.
 
 ### Validação local e estado de produção
 
@@ -30,7 +31,9 @@ Código e migrations locais confirmam que `marketplace` usa conexões/segredos, 
 - Build estático isolado aprovado com 26 rotas e URL Supabase raiz; a chave de build era fictícia. O binding Linux opcional de Tailwind foi instalado apenas em diretório temporário após falha ambiental inicial.
 - A suíte e o build locais não provam conexão, OAuth, estado de credenciais, compatibilidade do backend remoto ou versão publicada. Não houve query remota, migration, deploy, commit ou push até esta anotação.
 
-Último Actions conhecido: [43436587851](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43436587851) bloqueou no gate por quatro migrations pendentes (`20261112180000`, `20261112180100`, `20261112190000`, `20261112200000`), com as duas últimas classificadas como alto risco. Essa informação é histórica, não foi revalidada nesta sessão. Nenhuma migration foi aplicada. A recuperação permanece não publicada e aguarda acesso/proteção remotos e próxima autorização expressa para continuar.
+O run recente [43437031422](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43437031422), no commit-base `ae76a06`, confirmou quatro migrations pendentes (`20261112180000`, `20261112180100`, `20261112190000`, `20261112200000`) e bloqueou no gate por alto risco nas duas últimas. O deploy não alcançou dry-run, aplicação ou publicação. Um push à `main` inicia o workflow principal automaticamente; não houve push para evitar publicar sem autorização. Também foi constatado que o workflow principal imprime o valor da publishable key por ela estar configurada como variável; o valor não será repetido aqui. O workflow de recuperação passou a exigir o mesmo nome como Secret, mas essa configuração não foi verificada.
+
+Commit inicial de preparação `730d8776f60db79d8e7347542512e2a260173790` criado localmente, sem push. Os ajustes de mascaramento e de documentação permanecem pendentes de commit nesta anotação. `package-lock.json` staged preexistente foi preservado e não está incluído. Nenhuma migration, consulta de dados pessoais, alteração de Secret ou deploy foi executado. A recuperação permanece bloqueada até acesso/configuração remotos e nova autorização expressa.
 
 ## 13/11/2026 — URL Supabase do Actions e primeira versão de Automações
 
