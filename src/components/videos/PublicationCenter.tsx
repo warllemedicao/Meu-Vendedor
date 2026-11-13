@@ -17,8 +17,6 @@ function saveBlob(blob: Blob, filename: string) {
 export function PublicationCenter({ generated, defaultTitle = "" }: { generated: VideoFile | null; defaultTitle?: string }) {
   const { user } = useAuth();
   const [publishing, setPublishing] = useState(false);
-  const [facebookConnecting, setFacebookConnecting] = useState(false);
-  const [facebookPage, setFacebookPage] = useState<string | null>(null);
   const [authorizationBlocked, setAuthorizationBlocked] = useState(false);
   const [platform, setPlatform] = useState<PublicationPlatform>("kwai");
   const [title, setTitle] = useState(defaultTitle);
@@ -28,44 +26,6 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   useEffect(() => { if (defaultTitle) setTitle(defaultTitle); }, [defaultTitle]);
-  useEffect(() => {
-    if (!user) { setFacebookPage(null); return; }
-    const client = getSupabase();
-    if (!client) return;
-    let active = true;
-    void client.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return;
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/facebook-connect`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}`, apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "", "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "status" }),
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (active) setFacebookPage(data.connected ? data.page?.page_name ?? "Página conectada" : null);
-    }).catch(() => {});
-    return () => { active = false; };
-  }, [user]);
-  async function facebookConnection(action: "start" | "disconnect") {
-    const client = getSupabase();
-    if (!client || !user) { setError("Entre no Meu Vendedor antes de conectar o Facebook."); return; }
-    setFacebookConnecting(true); setError("");
-    try {
-      const { data: { session } } = await client.auth.getSession();
-      if (!session) throw new Error("Sessão expirada. Entre novamente.");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/facebook-connect`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}`, apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "", "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.code === "oauth_not_configured" ? "A conexão ainda depende das configurações seguras da Meta no Supabase." : "Não foi possível conectar o Facebook.");
-      if (action === "start") { window.location.assign(data.authorization_url); return; }
-      setFacebookPage(null); setNotice("Conexão do Facebook removida do Meu Vendedor.");
-    } catch (e) { setError(e instanceof Error ? e.message : "Falha ao conectar."); }
-    finally { setFacebookConnecting(false); }
-  }
-
   const video = uploaded ? { blob: uploaded, filename: uploaded.name } : generated;
   const isMp4 = video?.blob.type === "video/mp4" || video?.filename.toLowerCase().endsWith(".mp4");
   function validate() {
@@ -150,12 +110,6 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
       </label>
       <p className="text-xs text-muted">{video ? (isMp4 ? "MP4 pronto para baixar." : "Arquivo WebM: não será renomeado para MP4. Use um navegador com exportação MP4 ou converta em ferramenta compatível antes de publicar.") : "Gere um vídeo acima ou selecione um vídeo já produzido."}</p>
       <p className="text-xs text-muted">{PUBLICATION_DESTINATIONS[platform].hint}</p>
-      {platform === "facebook" && <div className="rounded-xl border border-border p-3 space-y-2 text-sm">
-        <p className="font-medium">Conexão com Facebook</p>
-        <p>{facebookPage ? `Conectado: ${facebookPage}` : "Nenhuma Página conectada por OAuth."}</p>
-        <button type="button" className={button} disabled={!user || facebookConnecting} onClick={() => void facebookConnection(facebookPage ? "disconnect" : "start")}>{facebookConnecting ? "Aguarde…" : facebookPage ? "Desconectar Facebook" : "Conectar Facebook"}</button>
-        <p className="text-xs text-muted">A conexão OAuth está em implantação. A publicação direta existente ainda utiliza o token de Página configurado no servidor até a migração ser validada.</p>
-      </div>}
       <div className="flex flex-wrap gap-2">
         {platform === "facebook" && <button type="button" disabled={!video || !isMp4 || publishing || !user} onClick={() => void publishFacebook()} className={button}><Upload className="h-4 w-4" />{publishing ? "Enviando Reel…" : "Publicar Reel no Facebook"}</button>}
         <button type="button" onClick={() => void copy()} className={button}><Copy className="h-4 w-4" />Copiar legenda e link</button>
