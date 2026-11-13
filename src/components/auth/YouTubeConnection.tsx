@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/Badge";
-import { Youtube } from "lucide-react";
+import { Play } from "lucide-react";
 
 type Channel = { id: string; title: string };
 type ConnectionView = { configured: boolean; connected: boolean; status: string; email?: string; channel?: Channel; channels?: Channel[]; checkedAt?: string; uploadAuthorized?: boolean };
@@ -80,7 +80,7 @@ export function YouTubeConnection({ compact = false }: { compact?: boolean }) {
   }
   if (compact) return <article className="rounded-xl border border-border bg-surface p-4">
     <div className="flex items-center gap-3">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white"><Youtube className="h-6 w-6" aria-hidden="true" /></span>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white"><Play className="h-6 w-6" aria-hidden="true" /></span>
       <div className="min-w-0 flex-1"><h3 className="font-semibold">YouTube</h3><p className="truncate text-xs text-muted">{view?.channel?.title ?? (view?.connected ? "Conectado" : "Não conectado")}</p></div>
       <button type="button" disabled={!user || busy || !view?.configured} onClick={() => void act("start")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{busy ? "Aguarde…" : view?.connected ? "Reconectar" : "Conectar"}</button>
     </div>
