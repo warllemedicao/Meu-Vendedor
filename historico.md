@@ -1,3 +1,9 @@
+## 13/11/2026 — Central de Publicação assistida (branch de teste)
+
+Branch `feat/publication-center-preview`, baseada na correção de Google Flow `fix/google-flow-external-video-button` (PR #6 ainda independente). Abaixo do gerador de vídeo de produto foi adicionada Central de Publicação com destinos Kwai, TikTok, Facebook e WhatsApp, nome do produto, URL de afiliado opcional, hashtags editáveis, copiar legenda, baixar vídeo e pacote TXT, escolher MP4/WebM externo e compartilhar arquivo via Web Share API quando o dispositivo suportar. A publicação final é manual; nenhum acesso às contas ou API de postagem foi criado. Links nas legendas não têm garantia de serem clicáveis. WhatsApp Status e Stories dependem de seleção no aplicativo de destino.
+
+**Exportação MP4:** o renderizador existente usa MediaRecorder e já produz MP4 somente se suportado pelo navegador. Em navegadores que produzam WebM, o arquivo é identificado corretamente; não há conversão/transcodificação para MP4 nem renomeação enganosa. O pacote TXT é complementar ao arquivo de vídeo, não um ZIP. Sem banco, migrações, Edge Functions, novos serviços ou produção nesta branch. Testes e build devem ser confirmados na execução de prévia antes de merge.
+
 ## 13/11/2026 — Google Flow externo no gerador de vídeo
 
 Decisão atual do responsável: manter a geração de vídeos interna como alternativa, mas oferecer **Abrir Google Flow** na aba **Vídeos → Vídeo de produto**, próximo a **Gerar vídeo do produto**. O usuário prepara e copia o prompt no Meu Vendedor, abre o site oficial do Flow em nova aba, gera e baixa o vídeo lá e retorna para adicioná-lo como clipe. **Não é uma integração automática nem uma conexão remota de conta.**
