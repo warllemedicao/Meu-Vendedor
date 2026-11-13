@@ -12,7 +12,7 @@ import { shopeeSummaryState } from "@/lib/marketplace-status";
 import { Badge } from "@/components/ui/Badge";
 import { YouTubeConnection } from "./YouTubeConnection";
 import { FacebookConnection } from "./FacebookConnection";
-import { Instagram, Pin, Music2, Video, Sparkles, ExternalLink } from "lucide-react";
+import { Camera, Pin, Music2, Video, Sparkles, ExternalLink } from "lucide-react";
 
 const sections = [{ id: "acesso", label: "Meu acesso" }, { id: "google", label: "Google e redes" }, { id: "lojas", label: "Lojas" }] as const;
 type Section = typeof sections[number]["id"];
@@ -102,7 +102,7 @@ export function AccountHub() {
         <FacebookConnection key={`facebook:${user?.id ?? "anonymous"}`} />
         <YouTubeConnection key={`youtube:${user?.id ?? "anonymous"}`} compact />
         {[
-          { name: "Instagram", icon: Instagram, href: "/videos", status: "Publicação manual" },
+          { name: "Instagram", icon: Camera, href: "/videos", status: "Publicação manual" },
           { name: "Pinterest", icon: Pin, href: "https://www.pinterest.com/pin-builder/", status: "Publicação manual" },
           { name: "TikTok", icon: Music2, href: "/videos", status: "Publicação manual" },
           { name: "Kwai", icon: Video, href: "/videos", status: "Publicação manual" },
