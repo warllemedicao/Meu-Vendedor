@@ -13,6 +13,7 @@ import type { CampaignProduct } from "@/lib/product-campaign";
 import { ManualChatGPTPrompt } from "./ManualChatGPTPrompt";
 import { useManualPromptDraft } from "@/hooks/useManualPromptDraft";
 import { ProductPhotoPicker } from "./ProductPhotoPicker";
+import { PublicationCenter } from "./PublicationCenter";
 
 const field = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm";
 const button = "inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -260,6 +261,7 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
         </Card>}
       </div>
     </div>
+    {!embedded && <PublicationCenter generated={result ? { blob: result.blob, filename: result.filename } : null} defaultTitle={options.title || initialProduct?.title || ""} />}
     {user && !embedded && <Card titulo="Meus vídeos de produto" acao={<button type="button" disabled={libraryLoading} onClick={() => void refreshLibrary()} className="text-xs text-primary underline">{libraryLoading ? "Carregando…" : "Atualizar"}</button>}>
       <p className="mb-3 text-xs text-muted">Seus 20 vídeos mais recentes, salvos de forma privada na conta.</p>
       {!library.length && !libraryLoading && !libraryError && <p className="text-sm text-muted">Depois de gerar, use “Salvar na conta” para guardar seu primeiro vídeo.</p>}
