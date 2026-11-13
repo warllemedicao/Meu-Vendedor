@@ -1,3 +1,9 @@
+## 13/11/2026 — Google Flow externo no gerador de vídeo
+
+Decisão atual do responsável: manter a geração de vídeos interna como alternativa, mas oferecer **Abrir Google Flow** na aba **Vídeos → Vídeo de produto**, próximo a **Gerar vídeo do produto**. O usuário prepara e copia o prompt no Meu Vendedor, abre o site oficial do Flow em nova aba, gera e baixa o vídeo lá e retorna para adicioná-lo como clipe. **Não é uma integração automática nem uma conexão remota de conta.**
+
+A conexão experimental de navegador remoto Google Flow foi retirada da interface **Google e redes** para não induzir o usuário a tentar o fluxo antigo. Os arquivos de backend foram preservados, sem executar a integração remota. Não houve alteração de banco, migrações, Edge Functions ou credenciais. O gerador local e o login Google permanecem intactos.
+
 # Histórico da conversa — atualizado em 13/11/2026
 
 ## 13/11/2026 — Ordem Técnica 04: recuperação do login Google
