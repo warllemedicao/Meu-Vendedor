@@ -1,5 +1,21 @@
 # Continuidade do projeto — próxima sessão
 
+## Início público e simplificação de Produtos — 13/11/2026
+
+Implementação no branch `feat/public-home-and-products-navigation`, baseada em `main` (`b233ef2`). Commit `790f45a` (`feat: add public home and simplify product filters`) foi enviado e confirmado em `origin/feat/public-home-and-products-navigation`. Não houve merge na `main`.
+
+`/` agora apresenta `PublicHome` publicamente, sem redirecionamento para login e sem dados de usuário. A navegação pública inclui “Início”; no menu do aplicativo, “Início” é o primeiro item e usa o ícone `House`. A política de privacidade também permanece pública e seu texto esclarece que a interação com Pinterest é manual.
+
+Em `/produtos`, a seleção “Todas as lojas” foi removida. O workspace seleciona uma loja por vez (Shopee como padrão, inclusive para `?loja=all` legado ou filtro inválido), consulta somente o catálogo público selecionado e mantém os filtros, catálogos, campanhas e rotas individuais das sete lojas. Os usos agregados de `PublicProductCatalog` sem filtro continuam agregando. Nenhum dado, integração, API, regra de autenticação ou migração Supabase foi removido ou alterado. `ESCOPO.md` descreve as rotas atuais.
+
+**Validação:** 279 testes passaram com `node --experimental-strip-types --test tests/*.test.mjs`; lint passou sem erros, com quatro avisos preexistentes nos executores Kaggle; `npm run typecheck` e `npm run typecheck:edge` passaram. `npm run build` e `npm run build:pages` passaram. O smoke test do export confirmou o conteúdo institucional, a política pública, a ausência de “Todas as lojas” em Produtos e as sete rotas de marketplaces.
+
+O script `npm test` não funciona com o Node `v22.15.0` disponível porque usa `--test-isolation=none`, opção incompatível com essa versão; `.node-version` pede Node 24. A suíte completa foi executada diretamente com os demais parâmetros e passou. O primeiro build encontrou o binding nativo Linux ausente do Tailwind; foi restaurado localmente com `npm install --no-save --package-lock=false @tailwindcss/oxide-linux-x64-gnu@4.3.4`. O hash do `package-lock.json` permaneceu igual ao observado antes da instalação, e o arquivo modificado preexistente ficou fora do commit. O npm reportou oito avisos moderados de auditoria; não foi executado `npm audit fix`.
+
+**Publicação bloqueada:** `wrangler deployments list --name meu-vendedor` não pôde consultar a Cloudflare porque `CLOUDFLARE_API_TOKEN` não está disponível. Assim, não foi possível comparar a versão/configuração efetivamente publicada com a configuração local. A versão informada pelo responsável (`8ae8ba48-09c8-4429-8655-a0fbe4535536`) não foi substituída; não houve deploy, migração Supabase ou alteração em configuração/Secrets. O registro anterior do Actions ainda aponta quatro migrations pendentes, duas classificadas como alto risco; manter o gate até revisão autorizada.
+
+**Próximos passos:** executar `npm test` com Node 24; obter acesso Cloudflare autorizado e comparar deployments/configuração antes de considerar qualquer publicação. Não aplicar migrations nem publicar automaticamente enquanto a versão ativa, o publicador único e as aprovações pendentes não forem verificados. A worktree permanece no branch de feature; `package-lock.json` continua modificado localmente e não foi incluído no commit.
+
 ## Correção do CI/CD — 13/11/2026
 
 O primeiro ajuste, commit `a208ffa`, adicionou captura sanitizada de erros; o run [43343806058](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43343806058) expôs `SQLSTATE 28P01` ao usar `--password`. Como o responsável confirmou que a CLI autentica usando apenas `SUPABASE_DB_PASSWORD` no ambiente, o commit `54da8811aedf8d7701756bc4b2f234939a7f0d6e` removeu o argumento explícito de `migration list` e `db push`. O Secret existente foi preservado. A CLI `supabase@3.1.0` e os comandos/argumentos restantes foram verificados.

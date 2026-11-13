@@ -1,5 +1,30 @@
 # Histórico da conversa — atualizado em 13/11/2026
 
+## 13/11/2026 — Início público e simplificação de Produtos
+
+### Implementação
+
+No branch `feat/public-home-and-products-navigation`, baseado em `main` no commit `b233ef2`, a rota `/` passou a reutilizar `PublicHome` como apresentação institucional pública, acessível a visitantes e usuários autenticados. O menu público e o menu principal do aplicativo mostram “Início” primeiro; no menu do aplicativo usa o ícone `House`. A política de privacidade permanece pública e foi alinhada ao compartilhamento manual no Pinterest. A página pública não lê nem exibe dados privados de usuários.
+
+Em `/produtos`, foi removido o estado agregador “Todas as lojas”. O usuário seleciona um marketplace por vez; Shopee é o padrão para entradas sem seleção, valor inválido e links antigos com `?loja=all`. A consulta da vitrine pública filtra as fontes pela loja atual. Usos de `PublicProductCatalog` sem filtro preservam a agregação existente. Catálogos, campanhas, dados e rotas individuais (`/shopee`, `/amazon`, `/mercado-livre`, `/aliexpress`, `/tiktok-shop`, `/magalu` e `/shein`) foram mantidos. Nenhum banco, registro, API, integração, regra de autenticação, migration ou configuração Cloudflare foi modificado.
+
+`ESCOPO.md` foi atualizado para não descrever `/` como catálogo. Foram adicionados testes para a ordem/ícone da navegação, rotas públicas, escolha de loja e seleção das fontes públicas.
+
+### Validação
+
+- 279 testes aprovados, sem falhas/cancelamentos, executados por `node --experimental-strip-types --test tests/*.test.mjs`.
+- `npm run lint` aprovado sem erros; quatro avisos preexistentes em executores Kaggle.
+- `npm run typecheck` e `npm run typecheck:edge` aprovados.
+- `npm run build` e `npm run build:pages` aprovados. Smoke test do export confirmou a página inicial e a política pública, o conteúdo institucional exigido, a remoção de “Todas as lojas” em Produtos e as sete rotas individuais.
+- `npm test` não inicia no Node `v22.15.0` instalado porque o script passa `--test-isolation=none`; `.node-version` fixa Node 24. O runner completo foi executado diretamente sem essa opção incompatível e passou.
+- O primeiro build falhou por falta do pacote opcional `@tailwindcss/oxide-linux-x64-gnu`; a dependência local correspondente a `4.3.4` foi restaurada com `--no-save --package-lock=false`. O hash do lockfile preexistente permaneceu inalterado; o npm reportou oito avisos moderados de auditoria. Nenhuma correção automática de dependências foi executada.
+
+### Commit, push e publicação
+
+Commit `790f45a` (`feat: add public home and simplify product filters`) contém somente 18 arquivos da implementação, testes e atualização de escopo. Foi enviado a `origin/feat/public-home-and-products-navigation`; não houve merge na `main`. A modificação preexistente em `package-lock.json` permaneceu fora do commit.
+
+Não houve deploy. A consulta read-only `wrangler deployments list --name meu-vendedor` foi bloqueada pela ausência de `CLOUDFLARE_API_TOKEN`; portanto, não foi possível comparar a versão publicada nem comprovar que um deploy seria seguro. A versão informada pelo responsável (`8ae8ba48-09c8-4429-8655-a0fbe4535536`) não foi substituída. Nenhuma migration Supabase foi executada. Continuam pendentes a comparação autorizada do deployment, a revisão das migrations de alto risco registradas no CI e a execução de `npm test` com Node 24.
+
 ## 13/11/2026 — diagnóstico e correção do GitHub Actions
 
 ### Estado confirmado antes da correção
