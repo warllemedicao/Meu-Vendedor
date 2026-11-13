@@ -1,5 +1,9 @@
 export type GoogleAuthAvailability = "enabled" | "disabled" | "unavailable";
 
+export function canAttemptGoogleSignIn(availability: GoogleAuthAvailability | "loading"): boolean {
+  return availability === "enabled" || availability === "unavailable";
+}
+
 export async function googleAuthAvailability(
   supabaseUrl: string,
   publishableKey: string,
