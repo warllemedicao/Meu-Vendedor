@@ -48,7 +48,7 @@ Deno.serve(async req => {
   if (url.pathname.endsWith("/callback") && req.method === "GET") {
     const state = url.searchParams.get("state") ?? "";
     const code = url.searchParams.get("code") ?? "";
-    const finish = (status: string) => Response.redirect(SITE_URL + "/videos?facebook=" + encodeURIComponent(status), 303);
+    const finish = (status: string) => Response.redirect(SITE_URL + "/entrar?facebook=" + encodeURIComponent(status) + "#google", 303);
     if (!state || !code || state.length > 200 || code.length > 3000) return finish("cancelled");
     const stateHash = await hash(state);
     const { data: consumed, error: stateError } = await db.from("facebook_oauth_states").update({ consumed_at: new Date().toISOString() }).eq("state_hash", stateHash).is("consumed_at", null).gt("expires_at", new Date().toISOString()).select("user_id").maybeSingle();
