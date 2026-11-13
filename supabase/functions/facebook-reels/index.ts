@@ -50,6 +50,7 @@ Deno.serve(async (request: Request) => {
     return failure("invalid_video", "Selecione um MP4 válido de até 20 MB.");
   }
   if (typeof description !== "string" || description.length > 2200) return failure("invalid_description", "Legenda inválida.");
+  if (Deno.env.get("META_PAGE_ID") !== PAGE_ID) return failure("page_mismatch", "META_PAGE_ID não corresponde à Página autorizada.", 503);
   const base = `https://graph.facebook.com/${API_VERSION}/${PAGE_ID}/video_reels`;
   let videoId: string | undefined;
   try {
@@ -78,9 +79,12 @@ Deno.serve(async (request: Request) => {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ upload_phase: "finish", video_id: videoId, video_state: "PUBLISHED", description }),
     }));
-    return respond(200, { ok: true, video_id: videoId, meta_response: finish, status: "submitted", message: "Envio concluído. Confira o Reel na Página para confirmar a publicação." });
+    if (finish.success !== true) throw new Error("A Meta não confirmou a solicitação de publicação.");
+    return respond(200, { ok: true, video_id: videoId, status: "submitted", message: "Envio concluído. Confira o Reel na Página para confirmar a publicação." });
   } catch (error) {
     // Never include access tokens, raw Meta responses or private video bytes in logs.
-    return failure("meta_publish_failed", error instanceof Error ? error.message : "Falha ao publicar Reel.", 502);
+    const message = error instanceof Error ? error.message : "";
+    const code = message.match(/Meta API error \\((\\d+)\\)/)?.[1];
+    return failure("meta_publish_failed", code ? `Meta recusou a operação (código ${code}). Verifique token, permissões e formato do vídeo.` : "Não foi possível concluir a publicação. Verifique a Página antes de tentar novamente.", 502);
   }
 });
