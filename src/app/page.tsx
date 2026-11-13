@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { ProductsWorkspace } from "@/components/marketplace/ProductsWorkspace";
-import { PageHeader } from "@/components/ui/PageHeader";
-export const metadata: Metadata = { title: "Produtos" };
-export default function Page() { return <><PageHeader titulo="Produtos" descricao="Todas as lojas, catálogos e campanhas em um só lugar." /><ProductsWorkspace /></>; }
+import { PublicHome } from "@/components/marketing/PublicHome";
+
+export const metadata: Metadata = {
+  title: "Meu Vendedor — Produtos e divulgação de afiliados",
+  description: "Organize produtos, links de afiliado e materiais de divulgação no Meu Vendedor.",
+};
+
+export default function Page() {
+  return <PublicHome />;
+}

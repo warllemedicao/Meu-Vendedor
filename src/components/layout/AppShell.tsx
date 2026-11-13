@@ -1,14 +1,19 @@
 "use client";
 
 import { X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { isStandalonePublicRoute } from "@/lib/public-routes";
 import { Brand } from "./Brand";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
   const fechar = () => setMenuAberto(false);
+
+  if (isStandalonePublicRoute(pathname)) return <>{children}</>;
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">

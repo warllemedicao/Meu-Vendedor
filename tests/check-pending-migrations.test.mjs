@@ -49,6 +49,21 @@ test("flags pending constraint-removal operations", () => {
   });
 });
 
+test("flags migrations that unschedule an existing cron job", () => {
+  withMigrations({
+    "20261112180100_scheduler.sql": "select cron.unschedule(existing_job);",
+  }, directory => {
+    const result = inspectPendingMigrations({
+      migrations: [{ local: "20261112180100", remote: "" }],
+    }, directory);
+
+    assert.deepEqual(result.highRisk, [{
+      version: "20261112180100",
+      file: "20261112180100_scheduler.sql",
+    }]);
+  });
+});
+
 test("flags destructive statements even when their keywords appear near SQL strings", () => {
   withMigrations({
     "20261112190100_cleanup.sql": "select '--'; drop table public.temporary_items;",

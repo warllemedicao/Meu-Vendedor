@@ -1,5 +1,13 @@
 # Publicações — Meu Vendedor
 
+## Página inicial pública e revisão Pinterest — 13/11/2026
+
+O código local agora apresenta uma página institucional pública em `/`; a vitrine de produtos permanece em `/produtos`. A política de privacidade esclarece que Pinterest é compartilhamento manual pelo criador oficial de Pins: não há conexão da conta, consulta de pastas ou publicação automática pelo Meu Vendedor. As ferramentas e dados privados continuam nas rotas existentes.
+
+Antes da alteração, a URL pública do Worker respondeu HTTP 200 para `/` e `/politica-de-privacidade`, sem redirecionamentos; a página inicial servida ainda era a de produtos. Isso não reproduziu o redirecionamento ao login relatado anteriormente, mas também não demonstrava uma página institucional. A nova versão foi validada localmente, não publicada. `wrangler whoami` reconheceu a conta, porém a listagem de deployments do Worker `meu-vendedor` retornou HTTP 403; não foi feito deploy e não há confirmação de qual versão está ativa.
+
+As quatro migrations pendentes não foram aplicadas. O run [43349901129](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43349901129) parou antes de aplicação por duas constraints de alto risco; a revisão está em [SUPABASE.md](./SUPABASE.md). Não houve publicação no Supabase, Cloudflare ou Pinterest.
+
 ## CI/CD — diagnóstico e correção do workflow (13/11/2026)
 
 O commit `54da8811aedf8d7701756bc4b2f234939a7f0d6e` alterou as chamadas de banco para usar exclusivamente `SUPABASE_DB_PASSWORD` no ambiente, sem `--password`; o Secret permaneceu inalterado. A CLI 3.1.0 aceita os comandos e flags restantes.

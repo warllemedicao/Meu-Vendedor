@@ -1,5 +1,15 @@
 # Base Supabase — Meu Vendedor
 
+## Revisão das quatro migrações pendentes — 13/11/2026
+
+O run [43349901129](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43349901129) autenticou e encontrou `20261112180000`, `20261112180100`, `20261112190000` e `20261112200000` pendentes. Nenhuma foi aplicada nesta revisão; não houve consulta ao esquema ou aos valores de produção, portanto compatibilidade e conteúdo remoto continuam sem confirmação.
+
+- `20261112180000_publication_scheduling.sql` cria tabelas de publicações/tentativas, índices, RLS e funções restritas a `service_role`. A leitura estática não detecta remoção de tabela/coluna existente.
+- `20261112180100_publication_scheduler_cron.sql` instala `pg_cron`, remove um job chamado `mv-publication-scheduler` caso exista e agenda outro com o mesmo nome. Isso pode substituir uma configuração desse job que já esteja no banco. O gate agora classifica `cron.unschedule` como alto risco e requer o caminho manual protegido.
+- `20261112190000_publication_tiktok_destination.sql` e `20261112200000_publication_social_destinations.sql` removem e recriam a constraint de destino, ampliando a lista permitida. O gate já as bloqueia como alto risco. Linhas existentes fora da nova lista fariam a validação da constraint falhar; sem leitura dos dados não é possível determinar se isso ocorrerá.
+
+Não aprovar nem aplicar essas migrations por esta análise. Uma revisão independente e inspeção autorizada do estado remoto são necessárias antes de qualquer execução protegida. A mudança no verificador apenas torna o bloqueio mais conservador; não altera arquivos SQL nem o banco.
+
 ## Diagnóstico do CI/CD — 13/11/2026
 
 O commit `a208ffa` adicionou captura/redação de erros do Supabase CLI. No run [43343806058](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43343806058), as validações passaram, mas a chamada `migration list --password ...` falhou com `SQLSTATE 28P01`. Embora a CLI 3.1.0 aceite o argumento `--password`, o responsável confirmou que a autenticação funciona quando a senha é fornecida somente por `SUPABASE_DB_PASSWORD` no ambiente. O diagnóstico da própria CLI também orientou usar essa variável.

@@ -6,7 +6,7 @@
 
 Definição confirmada pelo responsável em 04/11/2026 e estado técnico revisado em 06/11/2026. Documento de produto; funcionalidades futuras não devem ser apresentadas como implementadas. Os planos antigos são mantidos como histórico, mas o quadro abaixo representa a situação atual.
 
-Atualização do catálogo: o responsável acrescentou SHEIN e AliExpress à pesquisa e à página inicial de produtos. A rota `/` agora tem catálogo no código, sem redirecionamento ao dashboard. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram implementadas na função `catalog`, condicionadas à publicação/configuração por usuário e validação real; Magalu/SHEIN ainda sem contrato de afiliados confirmado. O CRUD de links continua com as cinco plataformas originais. Situação atual em `CATALOGO_APIS.md`; a tabela e os planos antigos abaixo preservam o escopo anterior.
+Atualização do catálogo: o responsável acrescentou SHEIN e AliExpress à pesquisa de produtos. A rota `/` apresenta uma página institucional pública; o catálogo e as campanhas continuam em `/produtos`, sem exigir login para consultar a vitrine pública. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram implementadas na função `catalog`, condicionadas à publicação/configuração por usuário e validação real; Magalu/SHEIN ainda sem contrato de afiliados confirmado. O CRUD de links continua com as cinco plataformas originais. Situação atual em `CATALOGO_APIS.md`; a tabela e os planos antigos abaixo preservam o escopo anterior.
 
 ## Intenção
 
@@ -22,7 +22,7 @@ A referência ForneceUp orienta a apresentação e a organização visual. O foc
 
 | Página | Finalidade planejada | Situação real |
 | --- | --- | --- |
-| Apresentação pública | Explicar o produto, plataformas contempladas e acesso ao app; ajuda e dúvidas frequentes | `/` exibe a vitrine pública de três lojas; fontes comerciais ainda não configuradas |
+| Apresentação pública | Explicar o produto, plataformas contempladas e acesso ao app; ajuda e dúvidas frequentes | `/` apresenta o produto, acesso, privacidade e limites do compartilhamento; catálogo público em `/produtos` |
 | Dashboard | Resumo de contas, produtos, links e resultados; filtros por plataforma e período | Reutiliza a vitrine pública; métricas agregadas reais ainda pendentes |
 | Contas Conectadas | Mostrar plataformas, requisitos, capacidades, autorizações e erros; conectar e revogar quando houver fluxo real | Cinco plataformas no catálogo; conector Shopee implementado, sem credencial real validada |
 | Produtos | Reunir produtos de fontes autorizadas; pesquisa, categoria, plataforma e favoritos | Catálogo Shopee sincronizado quando houver conexão válida; demais fontes privadas dependem de credenciais |

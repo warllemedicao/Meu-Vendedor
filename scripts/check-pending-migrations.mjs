@@ -8,6 +8,7 @@ const highRiskPatterns = [
   /\bDELETE\s+FROM\b/i,
   /\bALTER\s+TABLE\b[^;]*\bDROP\s+(?:CONSTRAINT|COLUMN)\b/is,
   /\bALTER\s+TABLE\b[^;]*\b(?:DISABLE\s+ROW\s+LEVEL\s+SECURITY|NO\s+FORCE\s+ROW\s+LEVEL\s+SECURITY)\b/is,
+  /\bcron\s*\.\s*unschedule\s*\(/i,
 ];
 
 function readMigrationRows(payload) {

@@ -1,5 +1,39 @@
 # Histórico da conversa — atualizado em 13/11/2026
 
+## 13/11/2026 — página institucional pública e análise de migrations pendentes
+
+### Estado e instruções
+
+Retomada da solicitação para revisar as quatro migrations pendentes sem aplicá-las, disponibilizar uma página inicial institucional e manter recursos privados protegidos. `main` estava em `b233ef2`, alinhada a `origin/main`, sem alterações rastreadas; o arquivo não rastreado `alteracoes-pendentes.patch` e a worktree paralela foram preservados.
+
+Antes da alteração, todos os 52 Markdown versionados constavam como lidos integralmente (0 parcial, 0 não lido); os documentos relacionados, rotas atuais, shell, política, helper de migrations, testes e os quatro arquivos SQL foram relidos. Nenhuma migration, chamada de alteração remota ou deploy foi executado.
+
+A URL pública atual respondeu HTTP 200 e zero redirecionamentos em `/` e `/politica-de-privacidade`; o título servido em `/` era “Produtos”. Assim, o redirecionamento ao login reportado anteriormente não se reproduziu, mas a página inicial ainda não explicava institucionalmente o produto. `wrangler whoami` reconheceu a conta Cloudflare, enquanto a listagem de deployments do Worker `meu-vendedor` falhou com HTTP 403. A publicação não pôde ser verificada nem realizada.
+
+Foi encontrada divergência na política de privacidade: dizia que Pinterest poderia consultar pastas e criar Pins após conexão/autorização, mas o código oferece somente preparação de texto/link e abertura manual do criador de Pins. A política foi corrigida conforme o comportamento verificado. A pesquisa de revisão confirmou quatro migrations pendentes: `20261112180000`, `20261112180100`, `20261112190000` e `20261112200000`. Não foram lidos dados ou constraints do banco remoto; por isso não se afirma compatibilidade com os valores existentes.
+
+### Implementações
+
+- Criada `src/components/marketing/PublicHome.tsx` com descrição factual de pesquisa pública, organização de links e preparação de conteúdo; CTAs para `/entrar` e `/produtos`, além de política de privacidade e contato.
+- A rota `/` agora renderiza a apresentação institucional. A listagem e campanhas de produtos permanecem na rota `/produtos`.
+- Criado `src/lib/public-routes.ts`; apenas `/` e `/politica-de-privacidade` usam layout público sem shell de navegação. As demais rotas permanecem no shell atual; nenhum controle de autenticação ou autorização de operações privadas foi removido ou ampliado. O shell visual não é uma barreira de segurança.
+- Atualizado `src/app/politica-de-privacidade/page.tsx`: declara ausência de conexão/automação Pinterest e informa que o usuário abre o site para concluir a ação. O link de retorno agora aponta à página inicial.
+- `scripts/check-pending-migrations.mjs` agora classifica `cron.unschedule` como alto risco. A migration `20261112180100_publication_scheduler_cron.sql` remove um job com nome `mv-publication-scheduler`, se existir, antes de agendar outro. Este caso não era detectado pelo gate anterior.
+- Criado teste para a classificação da operação cron e testes para garantir que somente páginas públicas escolhidas usam layout standalone, mantendo as rotas privadas no shell.
+- Atualizados `ESCOPO.md`, `SUPABASE.md`, `PUBLICACAO.md`, este arquivo e `CONTINUAR_AMANHA.md`.
+
+### Revisão das migrations e limites
+
+`20261112180000_publication_scheduling.sql` cria tabelas, RLS, índices e funções de backend; sua compatibilidade com objetos existentes não foi verificada. `20261112180100_publication_scheduler_cron.sql` substitui um job homônimo e agora é bloqueada como alto risco. `20261112190000_publication_tiktok_destination.sql` e `20261112200000_publication_social_destinations.sql` removem/recriam a constraint de destino; continuam classificadas como alto risco. Se dados existentes contiverem valores não permitidos, a criação da nova constraint pode falhar; os dados não foram consultados. Nenhuma aprovação ou aplicação foi feita.
+
+### Validação e estado de publicação
+
+`npm test`: **275 aprovados, 0 falhas**. Testes focados de migrations e rotas: **8/8**. ESLint focado passou; `npm run lint` passou sem erros, com quatro avisos preexistentes em controladores Kaggle. `npm run typecheck` e `npm run typecheck:edge` passaram. `npm run build:pages` passou e gerou as 26 rotas estáticas. Onze verificações do HTML exportado confirmaram título/links da home, declaração de compartilhamento manual, ausência do shell na home, política com data e espaçamento atualizados e rotas `/produtos` e `/videos` preservadas. `git diff --check` passou.
+
+A classificação local do guard, usando as quatro versões pendentes, confirmou 4 pendentes e 3 de alto risco: cron unschedule e as duas substituições de constraint. Não houve consulta a valores/esquema de produção, aplicação ou aprovação de migration. A nova página ainda não foi publicada. O acesso ao Worker retornou 403 na listagem; nenhum deploy Cloudflare/Supabase/Pinterest foi feito. A execução Actions mais recente relevante é [43349901129](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43349901129), que parou no gate antes de aplicação.
+
+**Pendente:** conferir o diff final; obter acesso/verificação de publicação autorizada antes de qualquer deploy; revisar independentemente as migrations e inspecionar o banco remotamente antes de qualquer aprovação protegida. Preservar secrets, migrations pendentes, patch local, worktree paralela e `gilfinanceiro`. Não foi criado commit nem feito push desta tarefa.
+
 ## 13/11/2026 — diagnóstico e correção do GitHub Actions
 
 ### Estado confirmado antes da correção

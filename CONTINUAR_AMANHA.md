@@ -1,5 +1,19 @@
 # Continuidade do projeto — próxima sessão
 
+## Página institucional pública e revisão das migrations — 13/11/2026
+
+Criada localmente uma página institucional em `/`, com links para entrar/criar conta, explorar a vitrine em `/produtos`, privacidade e contato. A política agora descreve corretamente o Pinterest como fluxo manual pelo criador oficial de Pins, sem conexão de conta nem publicação automática. Apenas `/` e `/politica-de-privacidade` dispensam o shell de navegação; as demais rotas mantêm o shell existente. Nenhum controle de autenticação ou autorização de operações privadas foi removido ou ampliado; o shell visual não é uma barreira de segurança.
+
+A verificação HTTP anterior às mudanças encontrou `/` e `/politica-de-privacidade` com HTTP 200 e zero redirecionamentos; o conteúdo de `/` ainda era a página de Produtos. Portanto, o redirecionamento ao login não foi reproduzido na versão pública consultada, mas a página institucional foi implementada somente no código local e ainda não está publicada.
+
+A análise estática das quatro migrations pendentes não consultou nem alterou dados de produção. `20261112180100_publication_scheduler_cron.sql` pode remover e recriar `mv-publication-scheduler`; o verificador agora classifica `cron.unschedule` como alto risco, além das duas migrations que substituem constraints (`20261112190000` e `20261112200000`). Nenhuma migration foi aprovada ou aplicada. Não tentar contornar o gate.
+
+**Publicação bloqueada:** `wrangler whoami` identifica a conta, mas a leitura de deployments do Worker `meu-vendedor` retorna HTTP 403. Não há caminho de deploy seguro confirmado. A senha de banco não está disponível nesta sessão e o schema/valores remotos não foram inspecionados. Não declarar produção atualizada.
+
+**Validação local:** `npm test` 275/275; testes focados de migrations/rotas 8/8; typecheck frontend e Edge aprovados; `npm run lint` sem erros (quatro avisos preexistentes); `npm run build:pages` gerou 26 rotas; 11 verificações do HTML exportado passaram; `git diff --check` aprovado. O guard identificou 3 das 4 migrations pendentes como alto risco.
+
+Próximos passos: conferir o diff final; se houver autorização para publicar, primeiro obter acesso de leitura/deploy e confirmar que não existe publicador concorrente. Não aplicar as migrations nesta etapa nem aprovar o gate automaticamente. O patch `alteracoes-pendentes.patch`, a worktree paralela e o projeto `gilfinanceiro` devem permanecer intactos.
+
 ## Correção do CI/CD — 13/11/2026
 
 O primeiro ajuste, commit `a208ffa`, adicionou captura sanitizada de erros; o run [43343806058](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43343806058) expôs `SQLSTATE 28P01` ao usar `--password`. Como o responsável confirmou que a CLI autentica usando apenas `SUPABASE_DB_PASSWORD` no ambiente, o commit `54da8811aedf8d7701756bc4b2f234939a7f0d6e` removeu o argumento explícito de `migration list` e `db push`. O Secret existente foi preservado. A CLI `supabase@3.1.0` e os comandos/argumentos restantes foram verificados.
