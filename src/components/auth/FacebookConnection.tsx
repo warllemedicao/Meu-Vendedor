@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Facebook } from "lucide-react";
+import { UsersRound } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
 
@@ -49,12 +49,14 @@ export function FacebookConnection() {
     if (!user) return;
     const url = new URL(window.location.href);
     const result = url.searchParams.get("facebook");
-    if (result) {
-      setMessage(messages[result] ?? "Não foi possível concluir a autorização.");
-      url.searchParams.delete("facebook");
-      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-    }
-    void refresh();
+    void Promise.resolve().then(() => {
+      if (result) {
+        setMessage(messages[result] ?? "Não foi possível concluir a autorização.");
+        url.searchParams.delete("facebook");
+        window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+      }
+      void refresh();
+    });
   }, [user, refresh]);
   async function act(action: "start" | "disconnect") {
     if (busy) return;
@@ -74,7 +76,7 @@ export function FacebookConnection() {
   }
   return <article className="rounded-xl border border-border bg-surface p-4">
     <div className="flex items-center gap-3">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white"><Facebook className="h-6 w-6" aria-hidden="true" /></span>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white"><UsersRound className="h-6 w-6" aria-hidden="true" /></span>
       <div className="min-w-0 flex-1">
         <h3 className="font-semibold">Facebook</h3>
         <p className="truncate text-xs text-muted">{status?.connected ? status.page?.page_name ?? "Conectado" : "Não conectado"}</p>
