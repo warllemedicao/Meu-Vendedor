@@ -9,6 +9,10 @@ export const marketplaceDirectory = [
 ] as const;
 export type ManualMarketplaceId = typeof marketplaceDirectory[number]["id"];
 
+export function getMarketplaceSelection(value: string | null): ManualMarketplaceId {
+  return marketplaceDirectory.find(item => item.id === value)?.id ?? "shopee";
+}
+
 export function marketplaceById(id: ManualMarketplaceId) {
   return marketplaceDirectory.find(item => item.id === id)!;
 }

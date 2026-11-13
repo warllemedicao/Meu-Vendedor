@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { marketplaceDirectory, officialAffiliateUrl, manualCampaignSpeech } from '../src/lib/marketplace-directory.ts';
+import { getMarketplaceSelection, marketplaceDirectory, officialAffiliateUrl, manualCampaignSpeech } from '../src/lib/marketplace-directory.ts';
 import { campaignCaption } from '../src/lib/product-campaign.ts';
 
 test('manual campaigns preserve signed affiliate URLs for every marketplace', () => {
@@ -19,4 +19,14 @@ test('manual campaign script identifies advertising and avoids invented price or
   assert.match(speech, /Publicidade/);
   assert.match(speech, /comissão/);
   assert.doesNotMatch(speech, /R\$|\d+%|mais vendido|últimas unidades/i);
+});
+
+test('Products selects a single marketplace and maps legacy aggregate values to Shopee', () => {
+  assert.equal(getMarketplaceSelection('all'), 'shopee');
+  assert.equal(getMarketplaceSelection(null), 'shopee');
+  assert.equal(getMarketplaceSelection('unknown'), 'shopee');
+  assert.ok(marketplaceDirectory.every(item => item.id !== 'all'));
+  for (const item of marketplaceDirectory) {
+    assert.equal(getMarketplaceSelection(item.id), item.id);
+  }
 });

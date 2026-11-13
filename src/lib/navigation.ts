@@ -18,19 +18,19 @@ import type { NavItem } from "@/types";
 /** Fonte única da navegação: usada pelo menu lateral e pelas páginas de módulo. */
 export const navItems: NavItem[] = [
   {
+    href: "/",
+    label: "Início",
+    icon: House,
+    titulo: "Início",
+    descricao: "Apresentação pública do Meu Vendedor e acesso às ferramentas.",
+    recursosPlanejados: [],
+    dependencias: [],
+    etapaPrevista: "Disponível",
+  },
+  {
     href: "/lojas", label: "Marketplaces / Lojas", icon: Store,
     titulo: "Marketplaces / Lojas", descricao: "Links oficiais, catálogos e divulgação por plataforma.",
     recursosPlanejados: [], dependencias: [], etapaPrevista: "Fluxos manuais disponíveis",
-  },
-  {
-    href: "/",
-    label: "Ofertas e produtos",
-    icon: House,
-    titulo: "Ofertas e produtos",
-    descricao: "Produtos e ofertas das integrações autorizadas.",
-    recursosPlanejados: ["Catálogo das sete plataformas com fontes oficiais"],
-    dependencias: ["Acesso autorizado às APIs de produtos"],
-    etapaPrevista: "Catálogo inicial",
   },
   {
     href: "/mercado-livre",
@@ -171,4 +171,4 @@ export function getNavItem(href: string): NavItem {
 }
 
 /** Rotas anteriores continuam acessíveis na área unificada. */
-export const mainNavItems = navItems.filter(item => !["/", "/lojas", "/mercado-livre", "/aliexpress", "/dashboard", "/tendencias", "/top-10"].includes(item.href));
+export const mainNavItems = navItems.filter(item => !["/lojas", "/mercado-livre", "/aliexpress", "/dashboard", "/tendencias", "/top-10"].includes(item.href));

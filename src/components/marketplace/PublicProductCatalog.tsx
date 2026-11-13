@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ProductCampaign } from "@/components/videos/ProductCampaign";
 import type { CampaignProduct } from "@/lib/product-campaign";
+import { getPublicCatalogSources, homePlatforms } from "@/lib/public-product-catalog";
 import type { PublicCatalogResult, PublicPlatform } from "@/types/product-catalog";
 
-export const homePlatforms = [{ id: "shopee", name: "Shopee" }, { id: "amazon", name: "Amazon" }, { id: "tiktok", name: "TikTok Shop" }] as const;
 const label = (id: string) => homePlatforms.find(source => source.id === id)?.name ?? id;
 
 export function PublicProductCatalog({ view = "offers", platformFilter, excludeShopee = false }: { view?: "offers" | "dashboard" | "trends" | "top10"; platformFilter?: string; excludeShopee?: boolean }) {
@@ -15,12 +15,13 @@ export function PublicProductCatalog({ view = "offers", platformFilter, excludeS
   const [sort, setSort] = useState(view === "top10" || view === "trends" ? "sales" : "default"), [discounts, setDiscounts] = useState(false);
   const [results, setResults] = useState<Partial<Record<PublicPlatform, PublicCatalogResult>>>({});
   const [errors, setErrors] = useState<Partial<Record<PublicPlatform, string>>>({});
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState<Partial<Record<PublicPlatform, boolean>>>({});
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
+    const sources = getPublicCatalogSources(platformFilter, excludeShopee);
     const load = async () => {
-      await Promise.all(homePlatforms.map(async source => {
+      await Promise.all(sources.map(async source => {
         try {
           const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
           if (!base) throw new Error("A vitrine ainda não está configurada.");
@@ -31,9 +32,10 @@ export function PublicProductCatalog({ view = "offers", platformFilter, excludeS
           if (active) { setResults(previous => ({ ...previous, [source.id]: data })); setErrors(previous => ({ ...previous, [source.id]: undefined })); }
         } catch (error) {
           if (active) setErrors(previous => ({ ...previous, [source.id]: error instanceof Error ? error.message : "Não foi possível atualizar esta loja." }));
+        } finally {
+          if (active) setLoaded(previous => ({ ...previous, [source.id]: true }));
         }
       }));
-      if (active) setLoading(false);
     };
     void load();
     // Refazer a leitura ao manter a página aberta, sem apresentar ofertas vencidas como atuais.
@@ -42,10 +44,11 @@ export function PublicProductCatalog({ view = "offers", platformFilter, excludeS
     window.addEventListener("online", refresh);
     window.addEventListener("focus", refresh);
     return () => { active = false; controller.abort(); clearInterval(timer); window.removeEventListener("online", refresh); window.removeEventListener("focus", refresh); };
-  }, []);
+  }, [excludeShopee, platformFilter]);
 
   const selectedPlatform = platformFilter ?? platform;
-  const visibleSources = homePlatforms.filter(source => (!excludeShopee || source.id !== "shopee") && (selectedPlatform === "all" || source.id === selectedPlatform));
+  const visibleSources = getPublicCatalogSources(selectedPlatform, excludeShopee);
+  const loading = visibleSources.some(source => !loaded[source.id]);
   const products = visibleSources.flatMap(source => results[source.id]?.products ?? []).filter(product =>
     product.title.toLocaleLowerCase("pt-BR").includes(keyword.toLocaleLowerCase("pt-BR")) && (!discounts || (product.discountPercent !== null && product.discountPercent > 0)),
   ).sort((a, b) => {
@@ -65,7 +68,7 @@ export function PublicProductCatalog({ view = "offers", platformFilter, excludeS
       <label className="text-sm">Ordenar<select value={sort} onChange={event => setSort(event.target.value)} className="mt-1 block rounded-lg border border-border bg-background px-3 py-2"><option value="default">Seleção de cada loja</option><option value="sales">Vendas informadas nesta seleção</option><option value="discount">Maior desconto informado</option></select></label>
       <label className="flex items-center gap-2 py-2 text-sm"><input type="checkbox" checked={discounts} onChange={event => setDiscounts(event.target.checked)} />Com desconto</label>
     </div>
-    {loading && <p role="status" className="text-sm text-muted">Carregando produtos das três lojas…</p>}
+    {loading && <p role="status" className="text-sm text-muted">{platformFilter === undefined ? "Carregando produtos das três lojas…" : "Carregando produtos da loja selecionada…"}</p>}
     {products.length > 0 && <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{displayed.map(product => <li key={`${product.platform}:${product.id}`} className="overflow-hidden rounded-xl border border-border bg-surface">
       <div className="flex h-52 items-center justify-center bg-white p-4">{product.imageUrl ? <Image unoptimized src={product.imageUrl} alt={product.title} width={300} height={210} className="h-full w-full object-contain" /> : <span className="text-sm text-slate-500">Imagem não fornecida</span>}</div>
       <div className="p-4"><p className="text-xs font-semibold text-primary">{label(product.platform)}</p><h2 className="mt-2 line-clamp-3 text-sm font-semibold">{product.title}</h2>

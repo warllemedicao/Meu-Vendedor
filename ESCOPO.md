@@ -1,12 +1,14 @@
 # Escopo do produto e das páginas — Meu Vendedor
 
+> **13/11/2026 — Início e Produtos:** `/` apresenta a página institucional pública; `/produtos` permite selecionar uma loja por vez, sem o agregador redundante “Todas as lojas”. As páginas individuais de marketplaces permanecem disponíveis.
+
 > **12/11/2026 — Produtos e ChatGPT manual:** lojas unificadas em Produtos, sem entradas individuais no menu; briefing e prompt externo com rascunho preservado. Nenhuma OpenAI API. Estado, publicação e limites em [HISTORICO.md](./HISTORICO.md). Este registro prevalece sobre a navegação histórica abaixo.
 
 > **Conta e estratégia Google — 06/11/2026:** acesso e lojas centralizados em `/entrar`; fluxo OAuth Google implementado, mas provedor remoto ainda desabilitado e dependente de Client ID/Secret. Links externos do Flow removidos do estúdio. Nova direção: geração via navegador no servidor e publicação integrada, ainda não implantadas. Estado vigente e ativação em [CONTA_E_ESTRATEGIA_GOOGLE.md](./CONTA_E_ESTRATEGIA_GOOGLE.md).
 
 Definição confirmada pelo responsável em 04/11/2026 e estado técnico revisado em 06/11/2026. Documento de produto; funcionalidades futuras não devem ser apresentadas como implementadas. Os planos antigos são mantidos como histórico, mas o quadro abaixo representa a situação atual.
 
-Atualização do catálogo: o responsável acrescentou SHEIN e AliExpress à pesquisa e à página inicial de produtos. A rota `/` agora tem catálogo no código, sem redirecionamento ao dashboard. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram implementadas na função `catalog`, condicionadas à publicação/configuração por usuário e validação real; Magalu/SHEIN ainda sem contrato de afiliados confirmado. O CRUD de links continua com as cinco plataformas originais. Situação atual em `CATALOGO_APIS.md`; a tabela e os planos antigos abaixo preservam o escopo anterior.
+Atualização do catálogo: o responsável acrescentou SHEIN e AliExpress à pesquisa e à área de produtos. A apresentação institucional fica em `/`; o catálogo é acessado por `/produtos` ou pelas páginas de cada marketplace, sem redirecionamento ao dashboard. Consultas Amazon, Mercado Livre, TikTok Shop e AliExpress foram implementadas na função `catalog`, condicionadas à publicação/configuração por usuário e validação real; Magalu/SHEIN ainda sem contrato de afiliados confirmado. O CRUD de links continua com as cinco plataformas originais. Situação atual em `CATALOGO_APIS.md`; a tabela e os planos antigos abaixo preservam o escopo anterior.
 
 ## Intenção
 
@@ -22,10 +24,10 @@ A referência ForneceUp orienta a apresentação e a organização visual. O foc
 
 | Página | Finalidade planejada | Situação real |
 | --- | --- | --- |
-| Apresentação pública | Explicar o produto, plataformas contempladas e acesso ao app; ajuda e dúvidas frequentes | `/` exibe a vitrine pública de três lojas; fontes comerciais ainda não configuradas |
+| Apresentação pública | Explicar o produto, plataformas contempladas e acesso ao app; ajuda e dúvidas frequentes | `/` exibe a página institucional pública; `/politica-de-privacidade` também é pública |
 | Dashboard | Resumo de contas, produtos, links e resultados; filtros por plataforma e período | Reutiliza a vitrine pública; métricas agregadas reais ainda pendentes |
 | Contas Conectadas | Mostrar plataformas, requisitos, capacidades, autorizações e erros; conectar e revogar quando houver fluxo real | Cinco plataformas no catálogo; conector Shopee implementado, sem credencial real validada |
-| Produtos | Reunir produtos de fontes autorizadas; pesquisa, categoria, plataforma e favoritos | Catálogo Shopee sincronizado quando houver conexão válida; demais fontes privadas dependem de credenciais |
+| Produtos | Consultar produtos de uma loja por vez; pesquisa, categoria, plataforma e favoritos | `/produtos` e as páginas individuais preservam os catálogos e campanhas disponíveis por marketplace |
 | Afiliados / Meus links | Cadastrar links próprios, associar produto, plataforma e campanha; editar e arquivar | CRUD manual implementado com Supabase e RLS |
 | Relatórios | Exibir métricas disponíveis por origem e período, com data de atualização | Página de apresentação; sem métricas reais |
 | Configurações | Perfil, preferências e gestão das permissões do usuário | Perfil implementado com Supabase Auth e RLS |
