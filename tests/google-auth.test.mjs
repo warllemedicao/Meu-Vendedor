@@ -28,13 +28,14 @@ test('OAuth solicita somente identidade e retorna ao próprio site, sem autoriza
  assert.throws(()=>googleSignInOptions('javascript:alert(1)'));
 });
 
-test('formulário mantém login Google, recuperação PKCE e ferramentas Google navegáveis na central',async()=>{
- const [form,provider,client,hub,redirect]=await Promise.all([
+test('formulário mantém login Google e PKCE, com Flow externo no estúdio',async()=>{
+ const [form,provider,client,hub,redirect,studio]=await Promise.all([
   readFile(new URL('../src/components/auth/AuthForm.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/components/auth/AuthProvider.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/lib/supabase/client.ts',import.meta.url),'utf8'),
   readFile(new URL('../src/components/auth/AccountHub.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/components/auth/AccountRedirect.tsx',import.meta.url),'utf8'),
+  readFile(new URL('../src/components/videos/ProductVideoStudio.tsx',import.meta.url),'utf8'),
  ]);
  assert.match(form,/Continuar com Google/);
  assert.match(form,/canAttemptGoogleSignIn\(googleAvailability\)/);
@@ -42,7 +43,9 @@ test('formulário mantém login Google, recuperação PKCE e ferramentas Google 
  assert.match(provider,/auth\.getSession\(\)/);
  assert.match(provider,/eventReceived/);
  assert.match(client,/flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true/);
- assert.match(hub,/<GoogleFlowConnection/);
+ assert.doesNotMatch(hub,/<GoogleFlowConnection/);
+ assert.match(studio,/Abrir Google Flow/);
+ assert.match(studio,/https:\/\/labs\.google\/fx\/tools\/flow/);
  assert.match(hub,/<YouTubeConnection/);
  assert.match(redirect,/router\.replace\("\/entrar#lojas"\)/);
 });
