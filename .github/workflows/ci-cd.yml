@@ -129,8 +129,9 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          supabase migration list \
+          node scripts/run-supabase-cli.mjs migration list \
             --remote="$SUPABASE_PROJECT_ID" \
+            --password "$SUPABASE_DB_PASSWORD" \
             --output-format json > "$RUNNER_TEMP/migrations-before.json"
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.approve_high_risk_migrations }}" == "true" ]]; then
             node scripts/check-pending-migrations.mjs "$RUNNER_TEMP/migrations-before.json" --approve-high-risk-migrations
@@ -143,8 +144,9 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          supabase db push \
+          node scripts/run-supabase-cli.mjs db push \
             --remote="$SUPABASE_PROJECT_ID" \
+            --password "$SUPABASE_DB_PASSWORD" \
             --skip-vault \
             --dry-run
 
@@ -153,8 +155,9 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          supabase db push \
+          node scripts/run-supabase-cli.mjs db push \
             --remote="$SUPABASE_PROJECT_ID" \
+            --password "$SUPABASE_DB_PASSWORD" \
             --skip-vault \
             --yes
 
@@ -163,8 +166,9 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          supabase migration list \
+          node scripts/run-supabase-cli.mjs migration list \
             --remote="$SUPABASE_PROJECT_ID" \
+            --password "$SUPABASE_DB_PASSWORD" \
             --output-format json > "$RUNNER_TEMP/migrations-after.json"
           node scripts/check-pending-migrations.mjs "$RUNNER_TEMP/migrations-after.json" --require-clean --approve-high-risk-migrations
 
@@ -206,10 +210,10 @@ jobs:
               continue
             fi
             echo "Deploying Edge Function: $function_name"
-            supabase functions deploy "$function_name" --remote="$SUPABASE_PROJECT_ID" --use-api
+            node scripts/run-supabase-cli.mjs functions deploy "$function_name" --remote="$SUPABASE_PROJECT_ID" --use-api
           done
 
-          supabase functions list --remote="$SUPABASE_PROJECT_ID" > "$RUNNER_TEMP/functions-after.txt"
+          node scripts/run-supabase-cli.mjs functions list --remote="$SUPABASE_PROJECT_ID" > "$RUNNER_TEMP/functions-after.txt"
           cat "$RUNNER_TEMP/functions-after.txt"
           if ! grep -Fq "publication-schedule" "$RUNNER_TEMP/functions-after.txt"; then
             echo "::error::Remote verification did not find publication-schedule."
