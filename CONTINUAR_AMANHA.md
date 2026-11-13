@@ -1,3 +1,12 @@
+## 13/11/2026 — UI compacta: Facebook em Conta e conexões
+
+- Solicitação: retirar a autorização Facebook do Estúdio de Vídeos e mover para Conta e conexões → Google e redes; exibir cartões compactos com ícone, nome, status mínimo e ação de conexão.
+- Criado `src/components/auth/FacebookConnection.tsx`: status via Supabase JWT, conectar/desconectar, tratamento do retorno OAuth, sem tokens expostos ao navegador.
+- `AccountHub.tsx` simplificado: Facebook e YouTube conectáveis, outras redes com nome/ícone e link para fluxo manual, sem sugerir OAuth inexistente. `YouTubeConnection` ganhou prop `compact` mantendo fluxo de conexão e seleção de canal.
+- Removido bloco de login Facebook do `PublicationCenter.tsx`; geração, seleção de vídeo e publicação mantidas.
+- Callback OAuth `facebook-connect` atualizado para voltar a `/entrar?facebook=...#google`; função implantada ACTIVE v8 no Supabase. Nenhuma publicação Reel realizada.
+- Alterações commitadas na branch `feat/facebook-reels-publishing`; ainda é necessário validar CI/build e publicação do frontend preview. Não afirmar que a interface em Cloudflare já foi atualizada.
+
 ## 13/11/2026 — Facebook Login for Business OAuth (implementação em andamento)
 
 - Meta App ID 4694062620828917; Meta Configuration ID 1130763936339224 (identificador público da configuração, não é token); Página alvo Shopee baratinha, ID 1420652961139104.
