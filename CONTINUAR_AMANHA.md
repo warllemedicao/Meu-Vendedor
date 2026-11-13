@@ -1,3 +1,10 @@
+## 13/11/2026 — Correção diagnóstica do bloqueio Facebook Reels
+
+- Confirmado no código que HTTP 403 `forbidden` ocorre quando `auth.getUser()` retorna UID diferente de `META_ALLOWED_USER_ID`; a Meta não recebe o vídeo nessa situação. Supabase confirma três contas Auth, sem determinar qual é a conta autorizada.
+- Atualizada `src/components/videos/PublicationCenter.tsx` para apresentar, somente ao usuário autenticado que receber esse erro, o próprio UID Supabase e opção de copiá-lo, com instrução para configurar o Secret somente após confirmar que é a conta proprietária. A restrição do backend não foi removida.
+- Commit de código `ff603e18da3f38a6cace45f247db258cc55090b3` enviado à branch `feat/facebook-reels-publishing`. Workflow de preview configurado para disparar nessa branch; validar resultado da implantação e testes antes de declarar disponibilidade.
+- **Bloqueio ainda pendente:** conector Supabase não permite editar Secrets, e não há comprovação de qual das três contas é a autorizada. É necessária confirmação da conta e atualização segura de `META_ALLOWED_USER_ID` no painel Supabase. Não publicar teste nem integrar à main até essa validação.
+
 
 
 > **PONTO DE RETOMADA PRIORITÁRIO — 13/11/2026:** Integração Facebook Reels em `feat/facebook-reels-publishing`, PR #8. Edge Function `facebook-reels` ACTIVE v4 e preview Cloudflare implantado, porém teste real bloqueado com **“Esta conta não está autorizada a publicar na Página.”**. A conta autenticada no preview provavelmente não corresponde ao UUID do Secret `META_ALLOWED_USER_ID`; conferir ambos com segurança, sem ler/exibir token da Meta. Existem três UIDs no Supabase, e a allowlist atual permite somente um. Vídeo de teste `Yellow_string_lights_blinking_f29cb7bd.mp4` (MP4 ~1,26 MB, 7,93 s, 1280×720). **Não há publicação confirmada.** O responsável solicitou PAUSA: nesta sessão atualizar somente `.md` com commit e push; não modificar código nem fazer deploy. Na próxima sessão, diagnosticar UID/sessão, executar testes e validar upload e publicação real antes de liberar produção. Detalhes em [historico.md](./historico.md).
