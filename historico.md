@@ -36,6 +36,20 @@ O push de `a208ffa` iniciou [Actions 43343806058](https://github.com/warllemedic
 
 **Próximo passo:** responsável autorizado deve conferir, em ambiente protegido, se `SUPABASE_DB_PASSWORD` corresponde à senha atual do banco Supabase e atualizar a configuração somente se necessário e autorizado. Não compartilhar o valor. Depois, reexecutar o workflow mantendo a aprovação de migrations de alto risco desmarcada; se o guard identificar risco alto, interromper para revisão independente. O despacho manual anterior retornou HTTP 403 (`Resource not accessible by integration`).
 
+### Correção env-only e resultado do Actions — 13/11/2026
+
+O responsável informou que, com Supabase CLI 3.1.0, `--password "$SUPABASE_DB_PASSWORD"` falha na autenticação PostgreSQL (`SQLSTATE 28P01`), enquanto a variável `SUPABASE_DB_PASSWORD` configurada no ambiente, sem o argumento, autentica e lista o histórico. O log do run anterior também trazia a orientação da própria CLI para configurar corretamente essa variável. A opção `--password` existe na CLI; a correção foi usar o método de ambiente que funciona neste workflow, não alterar credenciais.
+
+Antes da alteração, foram lidos integralmente os 52 Markdown versionados; `main` estava em `88e39ec`, alinhada a `origin/main`. O arquivo não rastreado `alteracoes-pendentes.patch` (SHA-256 `5e483d41749a208cb78dd3585afb83037c109e4ef7670e3da05ba81e62c49bb1`) e a worktree paralela foram preservados.
+
+O commit `54da8811aedf8d7701756bc4b2f234939a7f0d6e` (`fix: use Supabase DB password from environment`) removeu `--password` das duas chamadas `migration list` e das chamadas `db push` de dry-run/aplicação em `.github/workflows/ci-cd.yml`. O Secret `SUPABASE_DB_PASSWORD` continua mapeado como variável de ambiente nas etapas, sem ser lido ou alterado. `tests/run-supabase-cli.test.mjs` foi ajustado para confirmar que a senha chega ao subprocesso pelo ambiente, não por argumentos, e permanece redigida. Não houve alteração em `scripts/check-pending-migrations.mjs`, na regra de risco ou na aprovação manual protegida.
+
+A versão exata `supabase@3.1.0` foi executada localmente para consultar `migration list`, `db push`, `functions deploy` e `functions list --help`. Foram confirmadas as opções usadas; nenhuma consulta remota foi feita localmente. Validação: 8 testes focados aprovados; ESLint dos scripts/testes, sintaxe Node, parse YAML e `git diff --check` aprovados.
+
+O push iniciou [Actions 43349901129](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43349901129), no commit `54da8811aedf8d7701756bc4b2f234939a7f0d6e`. Testes, lint, typecheck, build e preflight passaram. A autenticação env-only funcionou e foram listadas quatro migrações pendentes: `20261112180000`, `20261112180100`, `20261112190000` e `20261112200000`. O guard classificou duas como alto risco porque removem constraints: `20261112190000_publication_tiktok_destination.sql` e `20261112200000_publication_social_destinations.sql`. A execução parou no gate, antes do dry-run e de qualquer aplicação. As etapas de aplicação, deploy de Edge Functions e Cloudflare foram puladas.
+
+**Resultado e limite:** a falha de autenticação foi resolvida pelo uso da variável de ambiente; a publicação de produção não foi concluída. Nenhuma migration foi aplicada, manual ou automaticamente; nenhum deploy foi confirmado; nenhuma senha/Secret foi redefinido ou alterado; nenhuma aprovação foi dada. Qualquer continuação exige revisão independente das duas migrations e, se expressamente autorizada, execução pelo ambiente manual protegido. `gilfinanceiro` não foi alterado.
+
 ## 12/11/2026 — compartilhamento social assistido e destinos de agendamento
 
 ### Estado e preservação

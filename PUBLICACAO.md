@@ -2,11 +2,11 @@
 
 ## CI/CD — diagnóstico e correção do workflow (13/11/2026)
 
-A execução [43341403130](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43341403130) passou pelas validações, build e preflight, mas falhou em `Inspect remote migration history`. O código `a208ffa` adicionou captura sanitizada de stdout/stderr e passagem explícita de `SUPABASE_DB_PASSWORD`. A compatibilidade dos comandos e flags foi verificada usando `supabase@3.1.0`; não foi encontrada incompatibilidade de CLI.
+O commit `54da8811aedf8d7701756bc4b2f234939a7f0d6e` alterou as chamadas de banco para usar exclusivamente `SUPABASE_DB_PASSWORD` no ambiente, sem `--password`; o Secret permaneceu inalterado. A CLI 3.1.0 aceita os comandos e flags restantes.
 
-O novo run [43343806058](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43343806058), disparado pelo push de `a208ffa`, passou testes, lint, typecheck e build, mas voltou a falhar em `Inspect remote migration history`. A CLI informou `DbConnectError` e `FATAL: password authentication failed for user "postgres"` (`SQLSTATE 28P01`). Portanto, o Supabase recebeu uma senha de banco que não autenticou; os logs não permitem distinguir entre valor desatualizado, valor incorreto ou outra divergência de configuração. Não se deve compartilhar ou registrar a senha.
+O run [43349901129](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43349901129) passou testes, lint, typecheck, build e preflight. `migration list` autenticou e encontrou quatro migrações pendentes. O guard bloqueou o deploy em `Inspect remote migration history` ao sinalizar como alto risco `20261112190000_publication_tiktok_destination.sql` e `20261112200000_publication_social_destinations.sql` (remoção de constraints). Dry-run, aplicação de migrações, deploy de Edge Functions e deploy Cloudflare foram pulados. Nenhuma migration foi aplicada e a publicação segue incompleta.
 
-O erro aconteceu antes de revisar/aplicar migrations; as etapas de Edge Functions e Cloudflare foram puladas. Nenhuma migration, Edge Function ou Worker foi publicado. Nenhuma senha foi redefinida ou alterada. Próximo passo: responsável autorizado deve conferir o valor protegido de `SUPABASE_DB_PASSWORD` contra a senha atual do banco; após eventual correção autorizada, reexecutar o workflow sem aprovação automática de migrations de alto risco. O despacho manual anterior com `approve_high_risk_migrations=false` recebeu HTTP 403 (`Resource not accessible by integration`).
+Validação local: 8 testes focados, ESLint, parse YAML, sintaxe Node e `git diff --check` passaram. O trabalho está enviado na `main`; para prosseguir com as duas migrações de alto risco, é necessária revisão independente e o caminho manual protegido, sem aprovação automática. Não aplicar migrations manualmente nem contornar o guard.
 
 ## Compartilhamento social assistido — implementação local (12/11/2026)
 

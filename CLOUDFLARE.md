@@ -2,7 +2,7 @@
 
 ## CI/CD — estado após correção (13/11/2026)
 
-O commit `a208ffa` corrige a captura segura de erros do Supabase CLI no workflow. O run [43343806058](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43343806058) passou validações e build, mas falhou na autenticação do banco Supabase durante `Inspect remote migration history` (`SQLSTATE 28P01`). As etapas seguintes, incluindo deploy do Worker, foram puladas. Nenhuma publicação Cloudflare foi confirmada; a versão remota atual permanece não verificada. Após conferir/corrigir autorizadamente `SUPABASE_DB_PASSWORD` e reexecutar o workflow, confirmar deployments e rota pública antes de declarar publicação.
+O commit `54da8811aedf8d7701756bc4b2f234939a7f0d6e` corrigiu a autenticação do Supabase no workflow para usar `SUPABASE_DB_PASSWORD` somente como variável de ambiente. No run [43349901129](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43349901129), as validações e o preflight passaram e a consulta de migrações autenticou. O guard interrompeu o deploy ao classificar duas das quatro pendências como alto risco; por isso o dry-run, a aplicação, as funções e o Worker Cloudflare foram pulados. Nenhuma versão Cloudflare foi publicada ou verificada nesta execução. O commit e o workflow estão ativos na `main`, mas a publicação de produção segue bloqueada até revisão independente e aprovação protegida das migrações sinalizadas.
 
 ## Estado da publicação — 12/11/2026
 

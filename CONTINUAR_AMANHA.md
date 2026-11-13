@@ -2,15 +2,18 @@
 
 ## Correção do CI/CD — 13/11/2026
 
-O workflow de produção foi corrigido e enviado à `main` no commit `a208ffa` (`fix: surface sanitized Supabase CLI errors`). A CLI Supabase 3.1.0 foi validada: `migration list --remote --password --output-format json`, `db push --remote --password --skip-vault --dry-run/--yes` e `functions deploy/list --remote` com `--use-api` são suportados. Não foi identificada incompatibilidade de comando ou argumento.
+O primeiro ajuste, commit `a208ffa`, adicionou captura sanitizada de erros; o run [43343806058](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43343806058) expôs `SQLSTATE 28P01` ao usar `--password`. Como o responsável confirmou que a CLI autentica usando apenas `SUPABASE_DB_PASSWORD` no ambiente, o commit `54da8811aedf8d7701756bc4b2f234939a7f0d6e` removeu o argumento explícito de `migration list` e `db push`. O Secret existente foi preservado. A CLI `supabase@3.1.0` e os comandos/argumentos restantes foram verificados.
 
-O workflow passa `SUPABASE_DB_PASSWORD` explicitamente nas operações de banco e usa `scripts/run-supabase-cli.mjs` para capturar stdout/stderr, redigir senha/token e preservar o código de saída. O guard `scripts/check-pending-migrations.mjs` e o gate manual protegido de alto risco permanecem intactos; nenhuma migration é aprovada automaticamente.
+O run [43349901129](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43349901129) confirmou que a autenticação por ambiente funcionou e listou quatro pendências: `20261112180000`, `20261112180100`, `20261112190000` e `20261112200000`. O guard bloqueou a publicação porque classificou duas como alto risco:
 
-Validação local: 8 testes focados passaram; lint dos arquivos novos, sintaxe Node, YAML e invocação da CLI passaram. O commit documental `7f05a15` também foi enviado à `origin/main`. O despacho manual com `approve_high_risk_migrations=false` recebeu HTTP 403 (`Resource not accessible by integration`), mas o push do código iniciou o run [43343806058](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43343806058). Testes, lint, typecheck e build passaram; o deploy falhou em `Inspect remote migration history` com `DbConnectError`: `FATAL: password authentication failed for user "postgres"` (`SQLSTATE 28P01`). O workflow recebeu a variável/Secret, mas a autenticação do banco rejeitou a senha. O log não revela se o valor configurado está desatualizado, incorreto ou contém outro problema de configuração; a senha não foi lida nem alterada.
+- `20261112190000_publication_tiktok_destination.sql`
+- `20261112200000_publication_social_destinations.sql`
 
-A falha ocorreu antes do dry-run e da aplicação de migrations. Nenhuma migration, Edge Function ou publicação Cloudflare foi executada. Próximo passo: um responsável deve conferir, diretamente nas configurações protegidas, se `SUPABASE_DB_PASSWORD` corresponde à senha atual do banco Supabase, sem compartilhar o valor no chat e sem redefinir credenciais nesta tarefa. Após correção autorizada, reexecutar o workflow com aprovação de alto risco desmarcada. Se o guard sinalizar migration de alto risco, interromper e seguir a revisão independente já documentada.
+Ambas removem constraints. O gate interrompeu o workflow antes do dry-run e da aplicação. **Nenhuma migração foi aplicada; nenhuma Edge Function ou versão Cloudflare foi publicada; não foi concedida aprovação automática nem manual.** O job de testes, lint, typecheck e build passou.
 
-O patch não rastreado `alteracoes-pendentes.patch` foi preservado (SHA-256 `5e483d41749a208cb78dd3585afb83037c109e4ef7670e3da05ba81e62c49bb1`); a worktree paralela `feat/public-catalog-five-marketplaces` não foi modificada. Nenhuma credencial foi redefinida e `gilfinanceiro` não foi alterado.
+Testes locais: 8/8 focados; ESLint, parse YAML, sintaxe Node e `git diff --check` passaram. Não redefinir credenciais nem aplicar migrations manualmente. Próximo passo é aguardar revisão independente; qualquer publicação futura precisa usar o ambiente protegido e aprovação explicitamente autorizada, mantendo o gate.
+
+O patch não rastreado `alteracoes-pendentes.patch` foi preservado (SHA-256 `5e483d41749a208cb78dd3585afb83037c109e4ef7670e3da05ba81e62c49bb1`); a worktree paralela `feat/public-catalog-five-marketplaces` não foi modificada. `gilfinanceiro` não foi alterado.
 
 ## Compartilhamento assistido e agendamento social — 12/11/2026
 
