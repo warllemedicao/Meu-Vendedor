@@ -17,6 +17,7 @@ function saveBlob(blob: Blob, filename: string) {
 export function PublicationCenter({ generated, defaultTitle = "" }: { generated: VideoFile | null; defaultTitle?: string }) {
   const { user } = useAuth();
   const [publishing, setPublishing] = useState(false);
+  const [authorizationBlocked, setAuthorizationBlocked] = useState(false);
   const [platform, setPlatform] = useState<PublicationPlatform>("kwai");
   const [title, setTitle] = useState(defaultTitle);
   const [link, setLink] = useState("");
@@ -54,7 +55,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
     if (!client) { setError("Supabase indisponível."); return; }
     const { data: { session } } = await client.auth.getSession();
     if (!session) { setError("Sua sessão expirou. Entre novamente."); return; }
-    setPublishing(true); setError(""); setNotice("Enviando vídeo à Meta. Não feche esta página.");
+    setPublishing(true); setError(""); setAuthorizationBlocked(false); setNotice("Enviando vídeo à Meta. Não feche esta página.");
     try {
       const form = new FormData();
       form.set("video", new File([video.blob], video.filename, { type: "video/mp4" }));
@@ -65,6 +66,10 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
         body: form,
       });
       const result = await response.json();
+      if (response.status === 403 && result.code === "forbidden") {
+        setAuthorizationBlocked(true);
+        throw new Error("A conta conectada não corresponde ao usuário autorizado para esta Página. Confira o UID abaixo e atualize META_ALLOWED_USER_ID no Supabase, sem compartilhar tokens.");
+      }
       if (!response.ok || !result.ok) throw new Error(result.message || "A Meta recusou a publicação.");
       setNotice(`Reel enviado à Meta (ID: ${result.video_id}). Confira a Página para confirmar que foi publicado.`);
     } catch (e) {
@@ -114,6 +119,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
         <a href={PUBLICATION_DESTINATIONS[platform].url} target="_blank" rel="noopener noreferrer" className={button}><ExternalLink className="h-4 w-4" />Abrir {PUBLICATION_DESTINATIONS[platform].label}</a>
       </div>
       {error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{error}</p>}
+      {authorizationBlocked && user && <div className="rounded-xl border border-border p-3 text-sm space-y-2" role="status"><p>UID da conta conectada (Supabase Auth): <code className="break-all select-all">{user.id}</code></p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(user.id).then(() => setNotice("UID copiado.")).catch(() => setError("Selecione e copie o UID exibido."))}>Copiar UID</button><p>Em Supabase → Edge Functions → Secrets, configure META_ALLOWED_USER_ID com este UUID somente se esta for a conta proprietária autorizada. Depois entre novamente e teste. Não envie token ou senha.</p></div>}
       {notice && <p role="status" className="text-sm text-primary">{notice}</p>}
     </div>
   </Card>;
