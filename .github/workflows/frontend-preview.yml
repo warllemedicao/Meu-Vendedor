@@ -72,7 +72,7 @@ jobs:
             }
           }
           EOF
-          node -e "const c=require('./wrangler.frontend-preview.generated.jsonc'); if(c.name==='meu-vendedor'||c.main||c.triggers||c.durable_objects||c.browser) process.exit(1)"
+          node -e "const fs=require('node:fs'); const c=JSON.parse(fs.readFileSync('wrangler.frontend-preview.generated.jsonc','utf8')); if(c.name!=='meu-vendedor-preview'||c.main||c.triggers||c.durable_objects||c.browser) process.exit(1)"
 
       - name: Publish preview only (no production Worker or database changes)
         run: npx --yes wrangler@4.161.0 deploy --config wrangler.frontend-preview.generated.jsonc
