@@ -1,5 +1,19 @@
 # Continuidade do projeto — próxima sessão
 
+## Ordem Técnica 04 — recuperação do login Google — 13/11/2026
+
+**Correção preparada e enviada**, sem deploy, migration, alteração de credenciais ou mudança na `main`. Branch `recovery/prepare-frontend-2026-11-13`; commit `aaa0c07` (`fix: allow Google OAuth after availability failures`).
+
+**Causa no código:** a consulta de `/auth/v1/settings` distingue `disabled` de `unavailable`, mas o formulário desabilitava OAuth nos dois estados. Agora o login Google pode ser tentado quando o provedor está confirmado como habilitado ou quando a consulta falha; permanece bloqueado enquanto carrega e quando Supabase confirma `external.google: false`. A mensagem de indisponibilidade não afirma que o provedor foi desativado. Login por e-mail/senha, fluxo OAuth/PKCE, persistência de sessão e configuração de credenciais não foram alterados.
+
+**Rotas e ferramentas existentes:** `/contas` redireciona para `/entrar#lojas`; `AccountHub` contém as seções de acesso, Google/redes e lojas. Google Flow e YouTube estão renderizados na seção Google; suas ações dependem de sessão/autorização próprias. `VideoStudio` ainda renderiza `GoogleNarration` para usuário autenticado. Não foram alteradas APIs dessas ferramentas, Shopee, áudio/narração ou gerador de vídeos.
+
+**Validação local:** 297/297 testes passaram com `node --experimental-strip-types --test --test-concurrency=1 tests/*.test.mjs`; os testes focados de Auth/Flow/YouTube/central passaram 25/25. `npm run typecheck` e `npm run typecheck:edge` passaram. `npm run lint` teve zero erros e quatro avisos Kaggle preexistentes. O build estático produziu 26 rotas em cópia temporária e o bundle confirmou a URL raiz `https://jzchlrvxdaffnrgbvabv.supabase.co`. Como a chave de produção não estava acessível, foi usado somente um valor de compilação temporário; esse build não comprova autenticação ou configuração de produção. O binding nativo Tailwind ausente foi instalado em overlay temporário, sem alterar manifestos/lockfile.
+
+**Bloqueio remoto:** a leitura da variável `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` via GitHub API retornou 403. Não foi possível confirmar a configuração atual do provedor Google, a allowlist de redirects nem executar login real. Registros históricos têm resultados distintos de Google Auth; nenhum confirma o estado atual. A URL raiz está definida nos workflows, mas a variável da chave não pôde ser verificada. As ferramentas permanecem acessíveis no código, sem comprovação de conexão remota atual.
+
+`package-lock.json` permanece staged conforme estado preexistente e não foi incluído no commit. Nenhuma migration, alteração de banco/Secret, publicação de Edge Function ou deploy Cloudflare foi executado. **Próximo passo:** obter acesso de leitura autorizado à configuração atual do Supabase/GitHub, validar redirects e login real e aguardar nova autorização antes de qualquer publicação. Não integrar na `main` nem executar deploy nesta etapa.
+
 ## Correção do workflow de recuperação — Ordem Técnica 02
 
 Branch de trabalho: `recovery/prepare-frontend-2026-11-13`. O commit-base e o remoto desta branch estavam em `7334998938e271870bfe214fb6d879a48068dd1d`; `origin/main` permaneceu em `ae76a06ddd1d0467309f099999a83c33864c464f`. A anotação anterior que identificava `41c7786` como ponta remota da branch estava desatualizada. O checkout local da branch `main` não foi alterado nesta ordem. `package-lock.json` já estava staged antes do trabalho e foi preservado, sem inclusão nos arquivos desta ordem.

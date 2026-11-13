@@ -1,5 +1,36 @@
 # Histórico da conversa — atualizado em 13/11/2026
 
+## 13/11/2026 — Ordem Técnica 04: recuperação do login Google
+
+### Escopo e diagnóstico
+
+O responsável autorizou corrigir somente o login Google e preservar o acesso às ferramentas Google existentes, sem reorganizar interface, modificar Shopee/marketplaces/gerador de vídeos, alterar credenciais, aplicar migrations ou publicar. Antes da alteração, foram lidos integralmente os 52 Markdown versionados (52 integrais, 0 parciais, 0 não lidos), incluindo os documentos prioritários; `CONTINUAR_AMANHA.md` e este histórico foram relidos antes dos registros.
+
+Em `google-auth.ts`, falha HTTP/rede na leitura de `/auth/v1/settings` já era classificada como `unavailable`, distinta de `disabled` (`external.google === false`). A regressão estava em `AuthForm.tsx`: tanto o botão de login como o de vinculação Google só permitiam OAuth no estado `enabled`, bloqueando tentativa após falha transitória, ainda que isso não provasse que o provedor estava desabilitado. Foi adicionada a regra `canAttemptGoogleSignIn`: permite tentativa em `enabled` e `unavailable`, mas não durante `loading` nem após confirmação `disabled`. A mensagem de indisponibilidade informa corretamente que o estado não pôde ser verificado e preserva a opção de tentar. Login por e-mail/senha, opção de seleção de conta, callback, PKCE e sessão não foram modificados.
+
+### Acesso às rotas e ferramentas
+
+- `AuthProvider` continua assinando `onAuthStateChange` e recuperando sessão com `getSession`; `src/lib/supabase/client.ts` continua com PKCE, persistência, renovação e detecção do retorno OAuth.
+- `/contas` usa `AccountRedirect` para `/entrar#lojas`; `AccountHub` apresenta abas Acesso, Google e redes e Lojas. Google Flow e YouTube continuam incluídos na seção Google e exigem autenticação para suas ações.
+- `VideoStudio` renderiza `GoogleNarration` para usuário autenticado. Os componentes e APIs de Flow, YouTube e áudio/narração não foram alterados. Isso confirma presença e caminhos no código, não conexão ou autorização remota atual.
+
+### Arquivos e validação
+
+Alterados somente `src/components/auth/AuthForm.tsx`, `src/lib/google-auth.ts` e `tests/google-auth.test.mjs`. Os testes de regressão verificam estados permitidos para tentativa, preservação do botão, PKCE/recuperação de sessão, redirect `/contas` e presença dos componentes Google na central.
+
+- Testes focados de Google Auth, YouTube, Flow e central: **25/25 aprovados**.
+- Suíte completa: **297/297 aprovados**, executada com `node --experimental-strip-types --test --test-concurrency=1 tests/*.test.mjs`.
+- `npm run typecheck` e `npm run typecheck:edge`: aprovados.
+- `npm run lint`: zero erros; quatro avisos preexistentes em controladores Kaggle.
+- Build estático: 26 rotas em cópia temporária; o bundle contém a URL raiz `https://jzchlrvxdaffnrgbvabv.supabase.co`. A API do GitHub retornou **403** ao consultar a variável `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; a chave real não estava disponível. Foi usado um valor efêmero somente para verificar compilação/embedding, nunca como credencial nem evidência de funcionamento em produção. O binding Tailwind Linux ausente foi instalado em overlay temporário; nenhum manifesto ou lockfile foi alterado.
+- `git diff --check`: aprovado.
+
+### Configuração remota, publicação e pendências
+
+A URL raiz do Supabase está fixada nos jobs de build de `.github/workflows/ci-cd.yml`. Não foi possível verificar a variável pública da chave por API GitHub (403), consultar a configuração atual de Auth/redirect allowlist no Supabase, fazer login real ou confirmar a configuração OAuth. Registros históricos registram estados diferentes do provedor em datas anteriores; não foram tratados como evidência atual. Portanto, a correção remove o bloqueio de interface causado por `unavailable`, mas não comprova login funcional em produção. O estado atual das ferramentas Google remotas continua não verificado.
+
+Commit `aaa0c07` (`fix: allow Google OAuth after availability failures`) foi enviado a `origin/recovery/prepare-frontend-2026-11-13`. `package-lock.json` staged preexistente foi preservado e excluído. `main` não foi alterada. Nenhuma migration, escrita de banco, mudança de Secret/credencial, deploy de Edge Function ou deploy Cloudflare foi executado. A publicação continua pendente de validação remota e autorização expressa; manter o gate de migrations intacto.
+
 ## 13/11/2026 — correção do workflow protegido (Ordem Técnica 02)
 
 ### Escopo e preservação
