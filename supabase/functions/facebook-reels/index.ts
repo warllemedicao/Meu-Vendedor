@@ -84,7 +84,7 @@ Deno.serve(async (request: Request) => {
   } catch (error) {
     // Never include access tokens, raw Meta responses or private video bytes in logs.
     const message = error instanceof Error ? error.message : "";
-    const code = message.match(/Meta API error [(]([0-9]+)[)])?.[1];
+    const code = message.includes("Meta API error") ? "API" : null;
     return failure("meta_publish_failed", code ? `Meta recusou a operação (código ${code}). Verifique token, permissões e formato do vídeo.` : "Não foi possível concluir a publicação. Verifique a Página antes de tentar novamente.", 502);
   }
 });
