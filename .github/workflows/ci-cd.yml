@@ -131,7 +131,6 @@ jobs:
         run: |
           node scripts/run-supabase-cli.mjs migration list \
             --remote="$SUPABASE_PROJECT_ID" \
-            --password "$SUPABASE_DB_PASSWORD" \
             --output-format json > "$RUNNER_TEMP/migrations-before.json"
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.approve_high_risk_migrations }}" == "true" ]]; then
             node scripts/check-pending-migrations.mjs "$RUNNER_TEMP/migrations-before.json" --approve-high-risk-migrations
@@ -146,7 +145,6 @@ jobs:
         run: |
           node scripts/run-supabase-cli.mjs db push \
             --remote="$SUPABASE_PROJECT_ID" \
-            --password "$SUPABASE_DB_PASSWORD" \
             --skip-vault \
             --dry-run
 
@@ -157,7 +155,6 @@ jobs:
         run: |
           node scripts/run-supabase-cli.mjs db push \
             --remote="$SUPABASE_PROJECT_ID" \
-            --password "$SUPABASE_DB_PASSWORD" \
             --skip-vault \
             --yes
 
@@ -168,7 +165,6 @@ jobs:
         run: |
           node scripts/run-supabase-cli.mjs migration list \
             --remote="$SUPABASE_PROJECT_ID" \
-            --password "$SUPABASE_DB_PASSWORD" \
             --output-format json > "$RUNNER_TEMP/migrations-after.json"
           node scripts/check-pending-migrations.mjs "$RUNNER_TEMP/migrations-after.json" --require-clean --approve-high-risk-migrations
 

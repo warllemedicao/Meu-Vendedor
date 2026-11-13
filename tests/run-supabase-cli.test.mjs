@@ -47,7 +47,7 @@ test("reports sanitized stdout and stderr while preserving the CLI exit code", (
       cliPath,
       [
         "#!/usr/bin/env node",
-        `process.stdout.write(JSON.stringify({ error: "database connection refused", password: process.env.SUPABASE_DB_PASSWORD }));`,
+        `process.stdout.write(JSON.stringify({ args: process.argv.slice(2), error: "database connection refused", password: process.env.SUPABASE_DB_PASSWORD }));`,
         `process.stderr.write(\`Authorization: Bearer \${process.env.SUPABASE_ACCESS_TOKEN}\\n\`);`,
         "process.exitCode = 17;",
       ].join("\n"),
@@ -60,8 +60,6 @@ test("reports sanitized stdout and stderr while preserving the CLI exit code", (
         new URL("../scripts/run-supabase-cli.mjs", import.meta.url).pathname,
         "migration",
         "list",
-        "--password",
-        databasePassword,
       ],
       {
         encoding: "utf8",
@@ -76,9 +74,12 @@ test("reports sanitized stdout and stderr while preserving the CLI exit code", (
 
     assert.equal(result.status, 17);
     assert.match(result.stderr, /migration list.*exit code 17/);
+    assert.match(result.stderr, /"args":\["migration","list"\]/);
+    assert.doesNotMatch(result.stderr, /--password/);
     assert.match(result.stderr, /database connection refused/);
     assert.match(result.stderr, /Authorization: Bearer \[REDACTED\]/);
     assert.doesNotMatch(result.stderr, /sbp_test-token-value|db-test-password/);
+    assert.match(result.stderr, /"password":"\[REDACTED\]"/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
