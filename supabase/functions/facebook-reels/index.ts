@@ -25,8 +25,7 @@ async function graphResponse(response: Response) {
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (request.method !== "POST") return failure("method_not_allowed", "Método não permitido.", 405);
-  const token = Deno.env.get("META_PAGE_ACCESS_TOKEN");
-  if (!token) return failure("meta_not_configured", "Configure META_PAGE_ACCESS_TOKEN no Supabase.", 503);
+  const legacyToken = Deno.env.get("META_PAGE_ACCESS_TOKEN");
   const url = Deno.env.get("SUPABASE_URL");
   const anon = Deno.env.get("SUPABASE_ANON_KEY");
   const authorization = request.headers.get("authorization") ?? "";
@@ -34,9 +33,32 @@ Deno.serve(async (request: Request) => {
   const client = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: { user }, error } = await client.auth.getUser(authorization.slice(7));
   if (error || !user || user.is_anonymous) return failure("unauthorized", "Sessão inválida.", 401);
-  const allowedUserId = Deno.env.get("META_ALLOWED_USER_ID");
-  if (!allowedUserId) return failure("owner_not_configured", "Configure META_ALLOWED_USER_ID no Supabase.", 503);
-  if (user.id !== allowedUserId) return failure("forbidden", "Esta conta não está autorizada a publicar na Página.", 403);
+  // Prefer the page explicitly authorized by this Supabase user through OAuth.
+  let token: string | undefined;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const encryptionKey = Deno.env.get("META_TOKEN_ENCRYPTION_KEY");
+  if (serviceKey && encryptionKey) {
+    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+    const { data: connection } = await admin.from("facebook_page_connections")
+      .select("page_id,token_ciphertext,token_iv").eq("user_id", user.id).maybeSingle();
+    if (connection?.page_id === PAGE_ID) {
+      try {
+        const decode = (value: string) => Uint8Array.from(atob(value), char => char.charCodeAt(0));
+        const keyBytes = decode(encryptionKey);
+        if (keyBytes.byteLength !== 32) throw new Error("Invalid encryption key");
+        const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["decrypt"]);
+        const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv: decode(connection.token_iv) }, key, decode(connection.token_ciphertext));
+        token = new TextDecoder().decode(clear);
+      } catch { return failure("connection_invalid", "Reconecte o Facebook antes de publicar.", 409); }
+    }
+  }
+  if (!token) {
+    const allowedUserId = Deno.env.get("META_ALLOWED_USER_ID");
+    if (!allowedUserId) return failure("owner_not_configured", "Configure META_ALLOWED_USER_ID no Supabase.", 503);
+    if (user.id !== allowedUserId) return failure("forbidden", "Esta conta não está autorizada a publicar na Página.", 403);
+    token = legacyToken;
+  }
+  if (!token) return failure("meta_not_configured", "Conecte o Facebook ou configure o token da Página.", 503);
   if (request.headers.get("content-length") && Number(request.headers.get("content-length")) > MAX_BYTES + 10000) {
     return failure("file_too_large", "MP4 deve ter no máximo 20 MB.", 413);
   }
