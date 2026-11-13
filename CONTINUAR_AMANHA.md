@@ -1,5 +1,15 @@
 # Continuidade do projeto — próxima sessão
 
+## Autenticação Supabase — build estático protegido — 13/11/2026
+
+Em `feat/public-home-and-products-navigation` (`ff2eaa0`), a rota de produção `/entrar` ainda exibe “Acesso de usuários em preparação”. O formulário Supabase já existe no código; esse aviso é selecionado por `hasSupabaseConfig`, que depende de `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` incorporadas durante o build. A página publicada confirma que o bundle ativo foi compilado sem a configuração, mas não identifica qual publicador ou ambiente gerou esse artefato.
+
+O workflow Actions `43349901129` concluiu testes, lint, typecheck e build; os logs da etapa de validação mostram ambas as variáveis de build presentes. O job de deploy parou no gate de duas migrações de alto risco antes do dry-run/aplicação e antes do deploy Cloudflare. A listagem read-only atual do Worker identificou `239a29ad-f5dc-4085-9b17-49fb5702576b` (13/11/2026 07:00 UTC); a rota pública continua servindo o aviso. O estado atual das variáveis no GitHub não pôde ser consultado pela API (403). A verificação de `/auth/v1/settings` sem chave publicável retornou 401; o estado atual do provedor Google não foi confirmado.
+
+Correção local: `next.config.ts` agora falha fechado em `build:pages` quando ambas as variáveis públicas estão ausentes. O build normal de desenvolvimento/Next permanece disponível sem Supabase. Nenhuma variável, chave, Secret ou configuração remota foi alterada. Testes do guard: 2/2; suíte completa por `node --experimental-strip-types --test tests/*.test.mjs`: 281/281; lint direcionado e `npm run typecheck` passaram. O comando `npm run build:pages` foi executado sem variáveis e falhou exatamente no novo guard; não foi possível validar um build estático válido neste ambiente.
+
+**Pendências:** gerar o build/deploy somente com as variáveis públicas corretas disponíveis no ambiente autorizado; publicar apenas o Worker existente, sem executar `supabase db push` nem o workflow de CI/CD que pode aplicar as migrações pendentes; depois conferir `/entrar`, as abas e as páginas institucionais/produtos na URL pública. A autenticação real por e-mail/Google, cadastro, recuperação e logout ainda não foi testada nesta rodada. Não afirmar produção corrigida.
+
 ## Início público e simplificação de Produtos — 13/11/2026
 
 Implementação no branch `feat/public-home-and-products-navigation`, baseada em `main` (`b233ef2`). Commit `790f45a` (`feat: add public home and simplify product filters`) foi enviado e confirmado em `origin/feat/public-home-and-products-navigation`. Não houve merge na `main`.

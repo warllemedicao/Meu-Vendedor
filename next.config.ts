@@ -6,6 +6,9 @@ const publicUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 if (Boolean(publicKey) !== Boolean(publicUrl)) {
   throw new Error("Configure juntas a URL e a chave publicável do Supabase.");
 }
+if (process.env.MEU_VENDEDOR_STATIC_EXPORT === "1" && !publicKey && !publicUrl) {
+  throw new Error("Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY antes do build estático.");
+}
 if (publicKey) {
   let isPublic = publicKey.startsWith("sb_publishable_");
   if (!isPublic && publicKey.startsWith("eyJ")) {

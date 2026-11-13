@@ -1,5 +1,15 @@
 # Hospedagem do Meu Vendedor no Cloudflare
 
+## Autenticação Supabase — build fail-closed (13/11/2026)
+
+A rota pública de produção `/entrar` ainda entrega a mensagem “Acesso de usuários em preparação”. O fluxo de autenticação existe no frontend, mas o bundle ativo não contém a configuração pública Supabase. Como o Next.js incorpora `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` durante o build, alterar somente variáveis de runtime do Worker não corrige um bundle estático.
+
+`next.config.ts` agora interrompe `build:pages` se ambas as variáveis estiverem ausentes; o build normal do Next.js não foi restringido. O workflow GitHub Actions já injeta as variáveis públicas no build e sua etapa de validação mais recente passou com elas presentes. O job de deploy foi bloqueado posteriormente pelo gate de migrações de alto risco; nenhuma migração ou versão Cloudflare foi publicada por esse run. A API do GitHub não permitiu listar as variáveis (403), e não foi alterada configuração remota.
+
+Consulta read-only do Worker em 13/11/2026: versão listada `239a29ad-f5dc-4085-9b17-49fb5702576b`; a página pública ainda apresenta o aviso. Não houve deploy nesta tarefa. O endpoint Supabase Auth sem chave publicável respondeu 401, portanto o estado atual do Google OAuth e dos redirects não foi confirmado.
+
+**Para publicar:** disponibilizar as duas variáveis públicas no ambiente autorizado de build e usar somente um caminho de deploy do Worker que não aplique migrações. Não executar o workflow completo enquanto suas migrações de alto risco não tiverem a revisão/aprovação exigidas. Validar o novo bundle e os fluxos de autenticação na URL de produção antes de declarar a correção concluída. Nunca colocar chaves administrativas em `NEXT_PUBLIC_*`.
+
 ## CI/CD — estado após correção (13/11/2026)
 
 O commit `54da8811aedf8d7701756bc4b2f234939a7f0d6e` corrigiu a autenticação do Supabase no workflow para usar `SUPABASE_DB_PASSWORD` somente como variável de ambiente. No run [43349901129](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43349901129), as validações e o preflight passaram e a consulta de migrações autenticou. O guard interrompeu o deploy ao classificar duas das quatro pendências como alto risco; por isso o dry-run, a aplicação, as funções e o Worker Cloudflare foram pulados. Nenhuma versão Cloudflare foi publicada ou verificada nesta execução. O commit e o workflow estão ativos na `main`, mas a publicação de produção segue bloqueada até revisão independente e aprovação protegida das migrações sinalizadas.

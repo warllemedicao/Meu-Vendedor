@@ -1,5 +1,25 @@
 # Histórico da conversa — atualizado em 13/11/2026
 
+## 13/11/2026 — diagnóstico da autenticação e proteção do build Cloudflare
+
+### Diagnóstico
+
+Na branch `feat/public-home-and-products-navigation`, cujo HEAD antes da correção era `ff2eaa0863d580233c2407de934370d4c22ada75`, o código do formulário de autenticação e do cliente Supabase já estava presente. A rota pública de produção `/entrar` retorna o aviso “Acesso de usuários em preparação”, que corresponde à configuração pública Supabase ausente no bundle estático. Como `NEXT_PUBLIC_*` é incorporado no build do Next.js, variáveis definidas apenas no runtime do Worker não corrigem um artefato existente. A observação da página comprova o estado do bundle, não a origem específica do publicador.
+
+O job de validação do Actions `43349901129` passou, e o log de sua etapa de validação mostra as duas variáveis públicas de build presentes. O job de deploy encontrou quatro migrações pendentes, bloqueou duas classificadas como alto risco e parou antes de dry-run, aplicação, Edge Functions e deploy do Worker. Portanto, os registros antigos de variáveis vazias não descrevem o job atual. A API GitHub para consultar Variables retornou 403. O endpoint público de configurações Auth respondeu 401 sem chave; Google OAuth, Site URL e redirect allowlist não foram revalidados.
+
+A consulta read-only ao Worker encontrou a versão `239a29ad-f5dc-4085-9b17-49fb5702576b`, criada em 13/11/2026 às 07:00 UTC. Não foi feito deploy nesta tarefa. O bundle servido continua mostrando o aviso, portanto a publicação atual não foi corrigida.
+
+### Alteração e validação
+
+`next.config.ts` agora exige `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` quando `MEU_VENDEDOR_STATIC_EXPORT=1`. Isso evita que `npm run build:pages` produza silenciosamente um frontend sem autenticação; o build normal continua permitido sem a configuração. Foi criado `tests/next-config.test.mjs` com casos de build estático sem configuração e build normal.
+
+Validação: 2 testes focados passaram; suíte completa executada com o runner compatível do Node 22 (`node --experimental-strip-types --test tests/*.test.mjs`) passou 281/281; ESLint nos arquivos alterados e `npm run typecheck` passaram. `npm test` continua incompatível com o Node local `v22.15.0` devido à flag `--test-isolation=none`. `npm run build:pages`, sem as variáveis, falhou intencionalmente no novo guard após preparar os dados OCR. Não houve build estático válido, fluxo real de autenticação, alteração em Supabase/Cloudflare ou exposição de credenciais privadas.
+
+### Git e pendências
+
+O trabalho foi feito em `feat/public-home-and-products-navigation`; a alteração preexistente em `package-lock.json` foi preservada e excluída do escopo. Nenhuma migration foi aplicada. O workflow de CI/CD não deve ser disparado para publicar esta correção enquanto o gate de alto risco permanecer, pois esse fluxo pode executar `db push`. Para concluir, um responsável autorizado deve disponibilizar as variáveis públicas no build e publicar somente o Worker existente por caminho sem migrações; então verificar o bundle em produção, estado do provedor Google/URLs de retorno e fluxos reais com conta de teste apropriada. Não declarar a autenticação restaurada até essas verificações.
+
 ## 13/11/2026 — Início público e simplificação de Produtos
 
 ### Implementação
