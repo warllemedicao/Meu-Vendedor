@@ -1,3 +1,7 @@
+
+
+> **PONTO DE RETOMADA PRIORITÁRIO — 13/11/2026:** Integração Facebook Reels em `feat/facebook-reels-publishing`, PR #8. Edge Function `facebook-reels` ACTIVE v4 e preview Cloudflare implantado, porém teste real bloqueado com **“Esta conta não está autorizada a publicar na Página.”**. A conta autenticada no preview provavelmente não corresponde ao UUID do Secret `META_ALLOWED_USER_ID`; conferir ambos com segurança, sem ler/exibir token da Meta. Existem três UIDs no Supabase, e a allowlist atual permite somente um. Vídeo de teste `Yellow_string_lights_blinking_f29cb7bd.mp4` (MP4 ~1,26 MB, 7,93 s, 1280×720). **Não há publicação confirmada.** O responsável solicitou PAUSA: nesta sessão atualizar somente `.md` com commit e push; não modificar código nem fazer deploy. Na próxima sessão, diagnosticar UID/sessão, executar testes e validar upload e publicação real antes de liberar produção. Detalhes em [historico.md](./historico.md).
+
 # Continuidade do projeto — próxima sessão
 
 ## Ordem Técnica 04 — recuperação do login Google — 13/11/2026
