@@ -1183,3 +1183,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - **Nenhuma publicação real confirmada.** Não afirmar que o vídeo chegou à Página; não reenviar sem nova autorização. Ainda faltam teste autenticado ponta a ponta, confirmação de processamento/publicação pela Meta, testes completos de frontend e implantação validada em produção.
 - **Instrução vigente do responsável:** parar o desenvolvimento/testes por agora e **alterar somente arquivos Markdown**, com commit e push no GitHub. Não editar código, não mexer em Secrets, não publicar novos Workers/Edge Functions e não gastar créditos de geração.
 - Na retomada: (1) verificar UID correto e sessão no preview; (2) revisar configuração da função e erro 403 sem revelar credenciais; (3) executar testes e validar limites; (4) testar um MP4 autorizado, verificar estado final na Página; (5) somente após aprovação, revisar/mesclar PR #8 e publicar frontend principal.
+
+## 13/11/2026 — Correção diagnóstica do bloqueio Facebook Reels
+
+- Confirmado no código que HTTP 403 `forbidden` ocorre quando `auth.getUser()` retorna UID diferente de `META_ALLOWED_USER_ID`; a Meta não recebe o vídeo nessa situação. Supabase confirma três contas Auth, sem determinar qual é a conta autorizada.
+- Atualizada `src/components/videos/PublicationCenter.tsx` para apresentar, somente ao usuário autenticado que receber esse erro, o próprio UID Supabase e opção de copiá-lo, com instrução para configurar o Secret somente após confirmar que é a conta proprietária. A restrição do backend não foi removida.
+- Commit de código `ff603e18da3f38a6cace45f247db258cc55090b3` enviado à branch `feat/facebook-reels-publishing`. Workflow de preview configurado para disparar nessa branch; validar resultado da implantação e testes antes de declarar disponibilidade.
+- **Bloqueio ainda pendente:** conector Supabase não permite editar Secrets, e não há comprovação de qual das três contas é a autorizada. É necessária confirmação da conta e atualização segura de `META_ALLOWED_USER_ID` no painel Supabase. Não publicar teste nem integrar à main até essa validação.
+
