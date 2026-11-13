@@ -2,7 +2,7 @@
 
 ## CI/CD — estado após correção (13/11/2026)
 
-O commit `a208ffa` corrige a captura segura de erros do Supabase CLI no workflow. A execução que falhou não alcançou o deploy do Worker, e a nova execução não foi iniciada: o despacho manual recebeu HTTP 403 (`Resource not accessible by integration`) e nenhum run associado ao push apareceu. Nenhuma publicação Cloudflare foi confirmada nesta correção; a versão remota atual permanece não verificada. Após reexecutar o workflow com permissão adequada, confirmar deployments e rota pública antes de declarar publicação.
+O commit `a208ffa` corrige a captura segura de erros do Supabase CLI no workflow. O run [43343806058](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43343806058) passou validações e build, mas falhou na autenticação do banco Supabase durante `Inspect remote migration history` (`SQLSTATE 28P01`). As etapas seguintes, incluindo deploy do Worker, foram puladas. Nenhuma publicação Cloudflare foi confirmada; a versão remota atual permanece não verificada. Após conferir/corrigir autorizadamente `SUPABASE_DB_PASSWORD` e reexecutar o workflow, confirmar deployments e rota pública antes de declarar publicação.
 
 ## Estado da publicação — 12/11/2026
 

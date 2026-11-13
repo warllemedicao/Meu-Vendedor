@@ -2,9 +2,11 @@
 
 ## Diagnóstico do CI/CD — 13/11/2026
 
-No run [43341403130](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43341403130), `migration list` encerrou com código 1 após o preflight e as validações passarem. A CLI `supabase@3.1.0` confirma suporte a `migration list --remote --password --output-format json`, `db push --remote --password --skip-vault --dry-run/--yes` e `functions deploy/list --remote`; não há flag incompatível identificada. Como o stdout JSON era redirecionado para um arquivo, um diagnóstico emitido nesse canal poderia ficar oculto; os logs não permitem determinar se foi esse o caso nem a causa do erro.
+No run [43341403130](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43341403130), `migration list` encerrou com código 1 após o preflight e as validações passarem. A CLI `supabase@3.1.0` confirma suporte a `migration list --remote --password --output-format json`, `db push --remote --password --skip-vault --dry-run/--yes` e `functions deploy/list --remote`; não há flag incompatível identificada.
 
-O commit `a208ffa` adiciona captura e redação de stdout/stderr em `scripts/run-supabase-cli.mjs` e passa `SUPABASE_DB_PASSWORD` explicitamente nas operações de banco. O valor não é registrado em arquivo nem impresso; erros exibem texto sanitizado e código de saída. O novo run ainda não foi obtido: o despacho manual recebeu HTTP 403, e o push não apareceu na lista de execuções. Não houve alteração remota ou aplicação de migration. Reexecutar pela interface GitHub com autorização adequada e investigar a mensagem agora visível; não contornar falhas de autenticação.
+O commit `a208ffa` adiciona captura e redação de stdout/stderr em `scripts/run-supabase-cli.mjs` e passa `SUPABASE_DB_PASSWORD` explicitamente nas operações de banco. No novo run [43343806058](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43343806058), testes, lint, typecheck e build passaram, mas `migration list` retornou `DbConnectError`: `FATAL: password authentication failed for user "postgres"` (`SQLSTATE 28P01`). A autenticação PostgreSQL rejeitou a senha fornecida. O log não determina se o Secret está desatualizado, foi configurado incorretamente ou tem outra divergência; não imprimir nem compartilhar o valor.
+
+A falha ocorreu antes do dry-run e da aplicação de migrations. Nenhuma migration, Edge Function ou publicação Cloudflare foi executada. O valor de `SUPABASE_DB_PASSWORD` não foi lido, redefinido ou alterado nesta tarefa. Responsável autorizado deve verificar o Secret em ambiente protegido contra a senha atual do banco; somente após correção autorizada reexecutar o workflow. Não contornar falhas de autenticação.
 
 ## Destinos sociais assistidos — implementação local (12/11/2026)
 

@@ -24,9 +24,17 @@ Validação focalizada: 8 testes passaram (cinco existentes do guard e três cen
 
 ### Commit, push e estado da execução
 
-Commit `a208ffa` (`fix: surface sanitized Supabase CLI errors`) criado na `main` e enviado a `origin/main`; contém somente `.github/workflows/ci-cd.yml`, `scripts/run-supabase-cli.mjs` e `tests/run-supabase-cli.test.mjs`. Após o push, não apareceu run novo na listagem do Actions. O despacho manual solicitado com `approve_high_risk_migrations=false` foi recusado pela API GitHub com HTTP 403: `Resource not accessible by integration`. Não afirmar causa para a ausência do run, nem que o código foi publicado. A nova mensagem do Supabase CLI ainda não pôde ser observada.
+Commit `a208ffa` (`fix: surface sanitized Supabase CLI errors`) criado na `main` e enviado a `origin/main`; contém somente `.github/workflows/ci-cd.yml`, `scripts/run-supabase-cli.mjs` e `tests/run-supabase-cli.test.mjs`. No primeiro acompanhamento após o push, ainda não aparecia run novo na listagem do Actions. O despacho manual solicitado com `approve_high_risk_migrations=false` foi recusado pela API GitHub com HTTP 403: `Resource not accessible by integration`. Naquele momento, a mensagem detalhada do Supabase CLI ainda não estava disponível; o resultado posterior está registrado abaixo.
 
-**Pendente:** executar `Validate and deploy production` pela interface GitHub usando uma identidade autorizada, sem habilitar aprovação de alto risco. Se a migration pendente for classificada como alto risco, interromper antes de aplicar; requer revisão independente e ambiente protegido. Após eventual sucesso, conferir migration history, Edge Functions, deployments/rota Worker e registrar o run. Variáveis/Secrets não devem ser compartilhados no chat.
+**Pendente após o primeiro acompanhamento:** executar `Validate and deploy production` por uma identidade autorizada, sem habilitar aprovação de alto risco; a situação foi atualizada pelo novo run abaixo. Se uma migration for classificada como alto risco, interromper antes de aplicar; requer revisão independente e ambiente protegido. Após eventual sucesso, conferir migration history, Edge Functions, deployments/rota Worker e registrar o run. Variáveis/Secrets não devem ser compartilhados no chat.
+
+### Resultado da nova execução — run 43343806058
+
+O push de `a208ffa` iniciou [Actions 43343806058](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43343806058). O job de testes, lint, typecheck e build concluiu com sucesso. No job de deploy, credenciais/preflight e instalação da CLI também passaram, mas `Inspect remote migration history` falhou com `DbConnectError`; a mensagem sanitizada informa `FATAL: password authentication failed for user "postgres"` (`SQLSTATE 28P01`).
+
+**Conclusão comprovada:** a conexão PostgreSQL rejeitou a senha apresentada pela configuração do workflow. O log não revela se o Secret `SUPABASE_DB_PASSWORD` está desatualizado, incorreto ou apresenta outra divergência; o valor mascarado não foi acessado. Nenhuma senha foi redefinida/alterada. A falha ocorreu antes do dry-run e da aplicação; migrações, Edge Functions e Cloudflare foram pulados, portanto nenhum deploy foi confirmado.
+
+**Próximo passo:** responsável autorizado deve conferir, em ambiente protegido, se `SUPABASE_DB_PASSWORD` corresponde à senha atual do banco Supabase e atualizar a configuração somente se necessário e autorizado. Não compartilhar o valor. Depois, reexecutar o workflow mantendo a aprovação de migrations de alto risco desmarcada; se o guard identificar risco alto, interromper para revisão independente. O despacho manual anterior retornou HTTP 403 (`Resource not accessible by integration`).
 
 ## 12/11/2026 — compartilhamento social assistido e destinos de agendamento
 
