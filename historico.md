@@ -1,3 +1,29 @@
+## 13/11/2026 — Facebook Login for Business OAuth (implementação em andamento)
+
+- Meta App ID 4694062620828917; Meta Configuration ID 1130763936339224 (identificador público da configuração, não é token); Página alvo Shopee baratinha, ID 1420652961139104.
+- Implementado fluxo OAuth próprio: Edge Function `facebook-connect` POST `start/status/disconnect` autenticados por JWT Supabase e GET `/callback` com state aleatório de uso único, validade de 10 min e troca server-side do authorization code. O callback exige a Página configurada na lista de Páginas autorizadas e armazena token da Página cifrado AES-GCM com chave secreta. Não enviar tokens ao frontend.
+- Migration `20261113230000_facebook_oauth_connections.sql` aplicada ao projeto Supabase; tabelas `facebook_oauth_states` e `facebook_page_connections` com RLS habilitado, sem grants para anon/authenticated. Verificação SQL confirmou RLS=true nas duas tabelas.
+- `facebook-connect` ACTIVE v2 implantada no Supabase com `verify_jwt=false` **porque o callback OAuth da Meta não envia JWT**; cada ação POST autentica JWT dentro da função, e GET callback exige state único registrado no banco. Sem secrets completos, função responde `oauth_not_configured` (503).
+- Frontend `PublicationCenter.tsx` atualizado na branch para mostrar Conectar/Desconectar Facebook e status. **Ainda não houve build, testes de navegador nem confirmação de deploy preview do frontend**.
+- `facebook-reels/index.ts` atualizado **somente no GitHub** para preferir token cifrado associado ao usuário e manter fallback legado com UID allowlist. **Não implantar a nova versão de facebook-reels antes de testes e secrets; produção atual segue versão anterior.**
+- URL EXATA para cadastrar em Meta → Facebook Login → Configurações → URIs de redirecionamento OAuth válidos:
+  `https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/facebook-connect/callback`
+- Secrets ainda exigidos no Supabase (não registrar valores em GitHub/chat): `META_APP_SECRET`, `META_LOGIN_CONFIG_ID=1130763936339224`, `META_OAUTH_RETURN_URL=https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/facebook-connect/callback`, `META_OAUTH_SITE_URL` (origem HTTPS do site onde deve voltar, preferencialmente preview para primeiro teste), `META_TOKEN_ENCRYPTION_KEY` (32 bytes criptograficamente aleatórios codificados em Base64). `META_APP_ID`, `META_PAGE_ID` e `META_GRAPH_API_VERSION` já usados na integração anterior, verificar existência sem expor valores.
+- ATENÇÃO: houve exposição anterior de credenciais em captura de tela. Revogar/rotacionar credenciais afetadas e atualizar secrets; não copiar dados da captura nem colocá-los no código.
+- Próximos passos: configurar secrets pelo painel Supabase, cadastrar URL OAuth na Meta, testar botão preview, callback, conexão, desconexão, expiração, isolamento entre contas e fluxo de publicação, executar suíte e só então implantar `facebook-reels` revisada e aprovar merge. Não afirmar que publicação está funcional sem teste real.
+
+## 13/11/2026 — Central de Publicação assistida (branch de teste)
+
+Branch `feat/publication-center-preview`, baseada na correção de Google Flow `fix/google-flow-external-video-button` (PR #6 ainda independente). Abaixo do gerador de vídeo de produto foi adicionada Central de Publicação com destinos Kwai, TikTok, Facebook e WhatsApp, nome do produto, URL de afiliado opcional, hashtags editáveis, copiar legenda, baixar vídeo e pacote TXT, escolher MP4/WebM externo e compartilhar arquivo via Web Share API quando o dispositivo suportar. A publicação final é manual; nenhum acesso às contas ou API de postagem foi criado. Links nas legendas não têm garantia de serem clicáveis. WhatsApp Status e Stories dependem de seleção no aplicativo de destino.
+
+**Exportação MP4:** o renderizador existente usa MediaRecorder e já produz MP4 somente se suportado pelo navegador. Em navegadores que produzam WebM, o arquivo é identificado corretamente; não há conversão/transcodificação para MP4 nem renomeação enganosa. O pacote TXT é complementar ao arquivo de vídeo, não um ZIP. Sem banco, migrações, Edge Functions, novos serviços ou produção nesta branch. Testes e build devem ser confirmados na execução de prévia antes de merge.
+
+## 13/11/2026 — Google Flow externo no gerador de vídeo
+
+Decisão atual do responsável: manter a geração de vídeos interna como alternativa, mas oferecer **Abrir Google Flow** na aba **Vídeos → Vídeo de produto**, próximo a **Gerar vídeo do produto**. O usuário prepara e copia o prompt no Meu Vendedor, abre o site oficial do Flow em nova aba, gera e baixa o vídeo lá e retorna para adicioná-lo como clipe. **Não é uma integração automática nem uma conexão remota de conta.**
+
+A conexão experimental de navegador remoto Google Flow foi retirada da interface **Google e redes** para não induzir o usuário a tentar o fluxo antigo. Os arquivos de backend foram preservados, sem executar a integração remota. Não houve alteração de banco, migrações, Edge Functions ou credenciais. O gerador local e o login Google permanecem intactos.
+
 # Histórico da conversa — atualizado em 13/11/2026
 
 ## 13/11/2026 — Ordem Técnica 04: recuperação do login Google
@@ -1158,3 +1184,24 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Ainda não foi possível validar no navegador autenticado salvar/reabrir, editar, reagendar e cancelar dados remotos. Os testes simulados e PGlite não substituem o smoke test remoto.
 - O commit `6fc16adac36463a671b163e7192855a9182fa493` foi criado na `main` somente com os arquivos desta correção e enviado a `origin/main`; `git ls-remote` confirmou o mesmo hash. A atualização documental de confirmação permanece neste commit de documentação.
 - Não houve deploy, aplicação de migrações, publicação real ou alteração de Secrets. Commit e push não substituem a validação remota; a correção não deve ser declarada concluída em produção.
+
+
+## 13/11/2026 — Facebook Reels: pausa após falha de autorização
+
+- O responsável cadastrou no Supabase os nomes de Secrets `META_PAGE_ACCESS_TOKEN`, `META_APP_ID`, `META_PAGE_ID`, `META_GRAPH_API_VERSION` e `META_ALLOWED_USER_ID`. Os valores não foram lidos, copiados nem versionados.
+- Implementação em `feat/facebook-reels-publishing`: `supabase/functions/facebook-reels/index.ts` (Graph API Meta: start/upload/finish, MP4 até 20 MB, autenticação Supabase e allowlist por UID) e botão de publicação em `src/components/videos/PublicationCenter.tsx`, com confirmação explícita.
+- Edge Function `facebook-reels` implantada no projeto `jzchlrvxdaffnrgbvabv` como ACTIVE v4. Pull request de integração: https://github.com/warllemedicao/Meu-Vendedor/pull/8 (rascunho, não mesclado).
+- Ambiente separado Cloudflare `meu-vendedor-preview` foi implantado. O responsável tentou enviar o vídeo de teste `Yellow_string_lights_blinking_f29cb7bd.mp4` e recebeu a mensagem exata **“Esta conta não está autorizada a publicar na Página.”**. Isso indica bloqueio na comparação entre o usuário autenticado e `META_ALLOWED_USER_ID`; não demonstra sucesso de upload/publicação na Meta.
+- Diagnóstico pendente: comparar com segurança o UID da sessão autenticada no preview com o UID configurado no Secret, sem imprimir tokens ou dados sensíveis. Há três contas em Authentication > Users; foi orientado configurar apenas o UID da conta que faz login no Meu Vendedor. Confirmar se o preview está logado nessa conta e se o Secret contém somente o UUID correto, sem espaços extras. Não contornar a allowlist nem autorizar todas as contas automaticamente.
+- Vídeo fornecido para teste: MP4 ~1,26 MB, ~7,93 s, H.264/AAC, 1280×720 (horizontal 16:9). Reels prefere 9:16; eventual rejeição por formato precisa ser tratada separadamente.
+- **Nenhuma publicação real confirmada.** Não afirmar que o vídeo chegou à Página; não reenviar sem nova autorização. Ainda faltam teste autenticado ponta a ponta, confirmação de processamento/publicação pela Meta, testes completos de frontend e implantação validada em produção.
+- **Instrução vigente do responsável:** parar o desenvolvimento/testes por agora e **alterar somente arquivos Markdown**, com commit e push no GitHub. Não editar código, não mexer em Secrets, não publicar novos Workers/Edge Functions e não gastar créditos de geração.
+- Na retomada: (1) verificar UID correto e sessão no preview; (2) revisar configuração da função e erro 403 sem revelar credenciais; (3) executar testes e validar limites; (4) testar um MP4 autorizado, verificar estado final na Página; (5) somente após aprovação, revisar/mesclar PR #8 e publicar frontend principal.
+
+## 13/11/2026 — Correção diagnóstica do bloqueio Facebook Reels
+
+- Confirmado no código que HTTP 403 `forbidden` ocorre quando `auth.getUser()` retorna UID diferente de `META_ALLOWED_USER_ID`; a Meta não recebe o vídeo nessa situação. Supabase confirma três contas Auth, sem determinar qual é a conta autorizada.
+- Atualizada `src/components/videos/PublicationCenter.tsx` para apresentar, somente ao usuário autenticado que receber esse erro, o próprio UID Supabase e opção de copiá-lo, com instrução para configurar o Secret somente após confirmar que é a conta proprietária. A restrição do backend não foi removida.
+- Commit de código `ff603e18da3f38a6cace45f247db258cc55090b3` enviado à branch `feat/facebook-reels-publishing`. Workflow de preview configurado para disparar nessa branch; validar resultado da implantação e testes antes de declarar disponibilidade.
+- **Bloqueio ainda pendente:** conector Supabase não permite editar Secrets, e não há comprovação de qual das três contas é a autorizada. É necessária confirmação da conta e atualização segura de `META_ALLOWED_USER_ID` no painel Supabase. Não publicar teste nem integrar à main até essa validação.
+

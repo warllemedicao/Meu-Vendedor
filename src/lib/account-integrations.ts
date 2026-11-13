@@ -58,12 +58,12 @@ export const accountIntegrationNotes: readonly AccountIntegrationNote[] = [
   },
   {
     name: "Facebook",
-    status: "Compartilhamento manual",
-    completed: "Facebook Stories aparece entre os destinos assistidos.",
-    pending: "Autorização de página/conta e publicação via API não estão implementadas.",
-    next: "Concluir manualmente no Facebook.",
-    href: "/videos",
-    actionLabel: "Preparar mídia",
+    status: "Conexão OAuth disponível em Conta e conexões",
+    completed: "Autorização da Página Facebook disponível em Conta e conexões → Google e redes.",
+    pending: "Publicação de Reels depende das permissões Meta e validação da conexão.",
+    next: "Abra Conta e conexões para conectar ou revisar a Página.",
+    href: "/entrar#google",
+    actionLabel: "Conectar Facebook",
   },
   {
     name: "Kwai",

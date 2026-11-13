@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/Badge";
+import { Youtube } from "lucide-react";
 
 type Channel = { id: string; title: string };
 type ConnectionView = { configured: boolean; connected: boolean; status: string; email?: string; channel?: Channel; channels?: Channel[]; checkedAt?: string; uploadAuthorized?: boolean };
@@ -35,7 +36,7 @@ async function invoke(body: Record<string, unknown>) {
   return data;
 }
 
-export function YouTubeConnection() {
+export function YouTubeConnection({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth();
   const [view, setView] = useState<ConnectionView | null>(null);
   const [busy, setBusy] = useState(false);
@@ -77,6 +78,17 @@ export function YouTubeConnection() {
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível concluir esta ação."); }
     finally { setBusy(false); }
   }
+  if (compact) return <article className="rounded-xl border border-border bg-surface p-4">
+    <div className="flex items-center gap-3">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white"><Youtube className="h-6 w-6" aria-hidden="true" /></span>
+      <div className="min-w-0 flex-1"><h3 className="font-semibold">YouTube</h3><p className="truncate text-xs text-muted">{view?.channel?.title ?? (view?.connected ? "Conectado" : "Não conectado")}</p></div>
+      <button type="button" disabled={!user || busy || !view?.configured} onClick={() => void act("start")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{busy ? "Aguarde…" : view?.connected ? "Reconectar" : "Conectar"}</button>
+    </div>
+    {view?.channels && view.channels.length > 1 && <label className="mt-2 block text-xs">Canal<select aria-label="Canal YouTube" value={view.channel?.id ?? ""} disabled={busy} onChange={event => void act("select-channel", event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background p-2">{view.channels.map(channel => <option key={channel.id} value={channel.id}>{channel.title}</option>)}</select></label>}
+    {view?.connected && <button type="button" disabled={busy} onClick={() => void act("disconnect")} className="mt-2 text-xs text-muted underline">Desconectar</button>}
+    {notice && <p role="status" className="mt-2 text-xs text-muted">{notice}</p>}
+    {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
+  </article>;
   return <article className="rounded-xl border border-border bg-surface p-4 space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">YouTube</h3><Badge>{view?.connected ? "Canal conectado" : view?.status === "reauthorization_required" ? "Renovar autorização" : "Não conectado"}</Badge></div>
     <p className="text-sm text-muted">Autorize sua conta na página oficial do Google para identificar o canal e preparar o envio de vídeos. O acesso fica salvo de forma cifrada no servidor.</p>

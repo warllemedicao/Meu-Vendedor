@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
-import { ArrowDown, ArrowUp, Download, Film, ImagePlus, LoaderCircle, Play, Save, Square, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Download, ExternalLink, Film, ImagePlus, LoaderCircle, Play, Save, Square, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
@@ -13,6 +13,7 @@ import type { CampaignProduct } from "@/lib/product-campaign";
 import { ManualChatGPTPrompt } from "./ManualChatGPTPrompt";
 import { useManualPromptDraft } from "@/hooks/useManualPromptDraft";
 import { ProductPhotoPicker } from "./ProductPhotoPicker";
+import { PublicationCenter } from "./PublicationCenter";
 
 const field = "mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm";
 const button = "inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -174,6 +175,16 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
     finally { if (mounted.current) setLibraryBusy(""); }
   }
   const blocked = busy || saving || importing || galleryBusy;
+  async function copyFlowPrompt() {
+    if (!manualPrompt.applied) return;
+    try {
+      await navigator.clipboard.writeText(manualPrompt.applied);
+      setNotice("Prompt copiado. Cole no Google Flow para gerar seu vídeo.");
+      setError("");
+    } catch {
+      setError("Não foi possível copiar automaticamente. Selecione e copie o texto do prompt acima.");
+    }
+  }
   return <div className="space-y-5">
     {!embedded && <div className="rounded-xl border border-primary/20 bg-primary-soft p-4 text-sm">
       <p className="font-semibold text-primary">Seu produto em destaque, sem personagem</p>
@@ -182,7 +193,7 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
     {!embedded && <>
       <label className="block text-sm">Descrição e características confirmadas (opcional)<textarea value={briefDetails} onChange={e => setBriefDetails(e.target.value)} maxLength={5000} rows={3} className={field} /></label>
       <ManualChatGPTPrompt draft={manualPrompt} brief={{ name: options.title || initialProduct?.title, description: briefDetails, store: initialProduct?.platform, videoType: "Montagem de fotos/clipes ou vídeo externo no Flow", duration: `${Math.max(1,items.length) * options.secondsPerScene} segundos (${options.secondsPerScene} por cena)`, format: options.format, character: "Sem personagem na montagem local", presentationStyle: options.transition }} />
-      {manualPrompt.applied && <section className="space-y-3 rounded-xl border border-primary p-4"><h3 className="font-semibold">Prompt em uso para criação externa</h3><textarea aria-label="Prompt em uso no Flow" readOnly value={manualPrompt.applied} rows={6} className={field} /><a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener noreferrer" className="inline-block text-primary underline">Abrir Google Flow</a><p className="text-sm text-muted">Copie o prompt para o Flow e adicione o vídeo produzido pelo botão de fotos e clipes abaixo. A montagem local usa as mídias e configurações escolhidas; não interpreta instruções de texto.</p></section>}
+      {manualPrompt.applied && <section className="space-y-3 rounded-xl border border-primary p-4"><h3 className="font-semibold">Prompt em uso para criação externa</h3><textarea aria-label="Prompt em uso no Flow" readOnly value={manualPrompt.applied} rows={6} className={field} /><button type="button" onClick={() => void copyFlowPrompt()} className={button}><Copy className="h-4 w-4" />Copiar prompt para o Flow</button><p className="text-sm text-muted">Copie o prompt, abra o Google Flow na seção Gerar vídeo abaixo e cole-o lá. Depois, baixe o vídeo no Flow e volte ao Meu Vendedor para adicioná-lo como clipe. A montagem local não interpreta instruções de texto.</p></section>}
     </>}
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
       <div className="min-w-0 space-y-5">
@@ -222,6 +233,15 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
         </Card>
         <div className="space-y-3" aria-busy={busy}>
           <button type="button" disabled={blocked || !ready || !supported || !items.length} onClick={() => void generate()} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Film className="h-5 w-5" />}{busy ? `Exportando · ${progress}%` : "Gerar vídeo do produto"}</button>
+          {!embedded && <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-sm font-semibold">Ou criar com Google Flow (externo)</p>
+            <p className="mt-1 text-xs text-muted">Use seu prompt no Google Flow, em outra aba. A geração e os créditos são gerenciados pelo próprio Google, não pelo Meu Vendedor.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {manualPrompt.applied && <button type="button" onClick={() => void copyFlowPrompt()} className={button}><Copy className="h-4 w-4" />Copiar prompt</button>}
+              <a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener noreferrer" className={button}><ExternalLink className="h-4 w-4" />Abrir Google Flow</a>
+            </div>
+            <p className="mt-2 text-xs text-muted">Depois de baixar o vídeo no Flow, volte aqui e use “Adicionar fotos ou clipes” para incluir o arquivo. Não é necessário conectar o Flow à sua conta do Meu Vendedor.</p>
+          </div>}
           {busy && <><progress aria-label="Progresso da exportação" value={progress} max={100} className="w-full" /><button type="button" onClick={() => abort.current?.abort()} className={button}>Cancelar exportação</button></>}
           <p className="text-xs text-muted">{items.length * options.secondsPerScene} segundos · {embedded ? "narração na próxima etapa" : "sem áudio"} · {supported?.startsWith("video/mp4") ? "MP4" : "MP4 ou WebM conforme o navegador"}. A exportação leva aproximadamente a duração do vídeo. Mantenha esta aba aberta. Sem consumo de créditos de IA.</p>
           {supported === "" && <p role="alert" className="text-sm text-muted">Seu navegador não suporta exportação. Tente uma versão atual do Chrome, Edge ou Safari.</p>}
@@ -241,6 +261,7 @@ export function ProductVideoStudio({ onBusyChange, active, initialProduct, onRes
         </Card>}
       </div>
     </div>
+    {!embedded && <PublicationCenter generated={result ? { blob: result.blob, filename: result.filename } : null} defaultTitle={options.title || initialProduct?.title || ""} />}
     {user && !embedded && <Card titulo="Meus vídeos de produto" acao={<button type="button" disabled={libraryLoading} onClick={() => void refreshLibrary()} className="text-xs text-primary underline">{libraryLoading ? "Carregando…" : "Atualizar"}</button>}>
       <p className="mb-3 text-xs text-muted">Seus 20 vídeos mais recentes, salvos de forma privada na conta.</p>
       {!library.length && !libraryLoading && !libraryError && <p className="text-sm text-muted">Depois de gerar, use “Salvar na conta” para guardar seu primeiro vídeo.</p>}

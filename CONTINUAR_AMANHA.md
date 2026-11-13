@@ -1,3 +1,37 @@
+## 13/11/2026 — UI compacta: Facebook em Conta e conexões
+
+- Solicitação: retirar a autorização Facebook do Estúdio de Vídeos e mover para Conta e conexões → Google e redes; exibir cartões compactos com ícone, nome, status mínimo e ação de conexão.
+- Criado `src/components/auth/FacebookConnection.tsx`: status via Supabase JWT, conectar/desconectar, tratamento do retorno OAuth, sem tokens expostos ao navegador.
+- `AccountHub.tsx` simplificado: Facebook e YouTube conectáveis, outras redes com nome/ícone e link para fluxo manual, sem sugerir OAuth inexistente. `YouTubeConnection` ganhou prop `compact` mantendo fluxo de conexão e seleção de canal.
+- Removido bloco de login Facebook do `PublicationCenter.tsx`; geração, seleção de vídeo e publicação mantidas.
+- Callback OAuth `facebook-connect` atualizado para voltar a `/entrar?facebook=...#google`; função implantada ACTIVE v8 no Supabase. Nenhuma publicação Reel realizada.
+- Alterações commitadas na branch `feat/facebook-reels-publishing`; ainda é necessário validar CI/build e publicação do frontend preview. Não afirmar que a interface em Cloudflare já foi atualizada.
+
+## 13/11/2026 — Facebook Login for Business OAuth (implementação em andamento)
+
+- Meta App ID 4694062620828917; Meta Configuration ID 1130763936339224 (identificador público da configuração, não é token); Página alvo Shopee baratinha, ID 1420652961139104.
+- Implementado fluxo OAuth próprio: Edge Function `facebook-connect` POST `start/status/disconnect` autenticados por JWT Supabase e GET `/callback` com state aleatório de uso único, validade de 10 min e troca server-side do authorization code. O callback exige a Página configurada na lista de Páginas autorizadas e armazena token da Página cifrado AES-GCM com chave secreta. Não enviar tokens ao frontend.
+- Migration `20261113230000_facebook_oauth_connections.sql` aplicada ao projeto Supabase; tabelas `facebook_oauth_states` e `facebook_page_connections` com RLS habilitado, sem grants para anon/authenticated. Verificação SQL confirmou RLS=true nas duas tabelas.
+- `facebook-connect` ACTIVE v2 implantada no Supabase com `verify_jwt=false` **porque o callback OAuth da Meta não envia JWT**; cada ação POST autentica JWT dentro da função, e GET callback exige state único registrado no banco. Sem secrets completos, função responde `oauth_not_configured` (503).
+- Frontend `PublicationCenter.tsx` atualizado na branch para mostrar Conectar/Desconectar Facebook e status. **Ainda não houve build, testes de navegador nem confirmação de deploy preview do frontend**.
+- `facebook-reels/index.ts` atualizado **somente no GitHub** para preferir token cifrado associado ao usuário e manter fallback legado com UID allowlist. **Não implantar a nova versão de facebook-reels antes de testes e secrets; produção atual segue versão anterior.**
+- URL EXATA para cadastrar em Meta → Facebook Login → Configurações → URIs de redirecionamento OAuth válidos:
+  `https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/facebook-connect/callback`
+- Secrets ainda exigidos no Supabase (não registrar valores em GitHub/chat): `META_APP_SECRET`, `META_LOGIN_CONFIG_ID=1130763936339224`, `META_OAUTH_RETURN_URL=https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/facebook-connect/callback`, `META_OAUTH_SITE_URL` (origem HTTPS do site onde deve voltar, preferencialmente preview para primeiro teste), `META_TOKEN_ENCRYPTION_KEY` (32 bytes criptograficamente aleatórios codificados em Base64). `META_APP_ID`, `META_PAGE_ID` e `META_GRAPH_API_VERSION` já usados na integração anterior, verificar existência sem expor valores.
+- ATENÇÃO: houve exposição anterior de credenciais em captura de tela. Revogar/rotacionar credenciais afetadas e atualizar secrets; não copiar dados da captura nem colocá-los no código.
+- Próximos passos: configurar secrets pelo painel Supabase, cadastrar URL OAuth na Meta, testar botão preview, callback, conexão, desconexão, expiração, isolamento entre contas e fluxo de publicação, executar suíte e só então implantar `facebook-reels` revisada e aprovar merge. Não afirmar que publicação está funcional sem teste real.
+
+## 13/11/2026 — Correção diagnóstica do bloqueio Facebook Reels
+
+- Confirmado no código que HTTP 403 `forbidden` ocorre quando `auth.getUser()` retorna UID diferente de `META_ALLOWED_USER_ID`; a Meta não recebe o vídeo nessa situação. Supabase confirma três contas Auth, sem determinar qual é a conta autorizada.
+- Atualizada `src/components/videos/PublicationCenter.tsx` para apresentar, somente ao usuário autenticado que receber esse erro, o próprio UID Supabase e opção de copiá-lo, com instrução para configurar o Secret somente após confirmar que é a conta proprietária. A restrição do backend não foi removida.
+- Commit de código `ff603e18da3f38a6cace45f247db258cc55090b3` enviado à branch `feat/facebook-reels-publishing`. Workflow de preview configurado para disparar nessa branch; validar resultado da implantação e testes antes de declarar disponibilidade.
+- **Bloqueio ainda pendente:** conector Supabase não permite editar Secrets, e não há comprovação de qual das três contas é a autorizada. É necessária confirmação da conta e atualização segura de `META_ALLOWED_USER_ID` no painel Supabase. Não publicar teste nem integrar à main até essa validação.
+
+
+
+> **PONTO DE RETOMADA PRIORITÁRIO — 13/11/2026:** Integração Facebook Reels em `feat/facebook-reels-publishing`, PR #8. Edge Function `facebook-reels` ACTIVE v4 e preview Cloudflare implantado, porém teste real bloqueado com **“Esta conta não está autorizada a publicar na Página.”**. A conta autenticada no preview provavelmente não corresponde ao UUID do Secret `META_ALLOWED_USER_ID`; conferir ambos com segurança, sem ler/exibir token da Meta. Existem três UIDs no Supabase, e a allowlist atual permite somente um. Vídeo de teste `Yellow_string_lights_blinking_f29cb7bd.mp4` (MP4 ~1,26 MB, 7,93 s, 1280×720). **Não há publicação confirmada.** O responsável solicitou PAUSA: nesta sessão atualizar somente `.md` com commit e push; não modificar código nem fazer deploy. Na próxima sessão, diagnosticar UID/sessão, executar testes e validar upload e publicação real antes de liberar produção. Detalhes em [historico.md](./historico.md).
+
 # Continuidade do projeto — próxima sessão
 
 ## Ordem Técnica 04 — recuperação do login Google — 13/11/2026
