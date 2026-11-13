@@ -1,5 +1,9 @@
 # Hospedagem do Meu Vendedor no Cloudflare
 
+## CI/CD — estado após correção (13/11/2026)
+
+O commit `a208ffa` corrige a captura segura de erros do Supabase CLI no workflow. A execução que falhou não alcançou o deploy do Worker, e a nova execução não foi iniciada: o despacho manual recebeu HTTP 403 (`Resource not accessible by integration`) e nenhum run associado ao push apareceu. Nenhuma publicação Cloudflare foi confirmada nesta correção; a versão remota atual permanece não verificada. Após reexecutar o workflow com permissão adequada, confirmar deployments e rota pública antes de declarar publicação.
+
 ## Estado da publicação — 12/11/2026
 
 A implementação do compartilhamento assistido passou localmente em testes, typechecks, lint e build estático. Nenhuma versão do Worker foi publicada nesta tarefa. `wrangler deployments list --name meu-vendedor` retorna “No access to the specified resource” (HTTP 403); portanto, versão ativa e rotas remotas não puderam ser confirmadas. Os runs Actions [43323420497](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43323420497), [43323617456](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43323617456) e [43323745985](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43323745985) falharam antes do deploy porque as variáveis públicas Supabase estão vazias; os testes e o job de deploy foram skipped. A consulta de Secrets/Variables GitHub retorna 403 e Workers Builds continua não confirmado. Não inferir que o build local foi publicado.

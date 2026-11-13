@@ -1,5 +1,13 @@
 # Publicações — Meu Vendedor
 
+## CI/CD — diagnóstico e correção do workflow (13/11/2026)
+
+A execução [43341403130](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43341403130) passou pelas validações, build e preflight, mas falhou em `Inspect remote migration history`. A saída JSON era redirecionada ao arquivo de migrações, então qualquer diagnóstico emitido em stdout ficaria oculto; os logs não permitem determinar se foi esse o caso nem qual foi a causa remota. A compatibilidade dos comandos e flags foi verificada usando a versão instalada `supabase@3.1.0`; não foi encontrada incompatibilidade de CLI.
+
+Correção enviada à `main` em `a208ffa`: `scripts/run-supabase-cli.mjs` captura stdout e stderr das chamadas Supabase, mascara credenciais e conserva o código de saída; `SUPABASE_DB_PASSWORD` é passado explicitamente às operações de banco. `scripts/check-pending-migrations.mjs` e a exigência de aprovação manual protegida para migrations de alto risco foram preservados.
+
+O push não gerou um run visível na listagem e o despacho manual com aprovação de alto risco desmarcada foi negado com HTTP 403 (`Resource not accessible by integration`). Nenhuma nova execução, migration, publicação de Edge Function ou deploy do Worker foi confirmada. O próximo passo é iniciar o workflow pela interface GitHub com permissão adequada; não aprovar migrations de alto risco automaticamente. O registro de execução permanece pendente.
+
 ## Compartilhamento social assistido — implementação local (12/11/2026)
 
 A preparação de mídia oferece orientação para TikTok, Kwai, Facebook Stories, Pinterest e outros apps. A seleção não controla o destinatário: o sistema operacional escolhe entre os receptores disponíveis. Os links externos abrem sites oficiais comuns; o criador de Pins do Pinterest permanece como opção documentada. Não há API social, publicação automática, preenchimento garantido de legenda ou confirmação por abrir o menu.

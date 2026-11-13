@@ -1,5 +1,15 @@
 # Continuidade do projeto — próxima sessão
 
+## Correção do CI/CD — 13/11/2026
+
+O workflow de produção foi corrigido e enviado à `main` no commit `a208ffa` (`fix: surface sanitized Supabase CLI errors`). A execução anterior [43341403130](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43341403130) passou em testes, lint, typecheck, build e preflight, mas falhou em `Inspect remote migration history`. A saída de `supabase migration list --output-format json` era redirecionada a um arquivo; mensagens estruturadas de erro em stdout não apareciam nos logs. A CLI Supabase 3.1.0 foi validada: os argumentos `--remote`, `--password`, `--output-format`, `--dry-run`, `--skip-vault`, `--yes`, `functions deploy --use-api` e `functions list` são suportados. A causa remota da falha ainda não está determinada.
+
+O workflow agora passa `SUPABASE_DB_PASSWORD` explicitamente nas operações de banco e usa `scripts/run-supabase-cli.mjs` para capturar stdout/stderr, redigir senha/token e preservar o código de saída. O guard `scripts/check-pending-migrations.mjs` e o gate manual protegido de alto risco não foram enfraquecidos; nenhuma migration é aprovada automaticamente.
+
+Validação local: 8 testes focados passaram; lint dos arquivos novos, sintaxe Node, YAML e invocação da CLI passaram. O commit foi enviado a `origin/main`, mas não há run novo visível. O despacho manual solicitado com `approve_high_risk_migrations=false` recebeu HTTP 403 (`Resource not accessible by integration`). Não houve confirmação de execução do deploy, migration, Edge Function ou Worker. Próximo passo: alguém com permissão de Actions deve iniciar `Validate and deploy production` pela interface GitHub, mantendo a aprovação de alto risco desmarcada; se o guard sinalizar migration de alto risco, interromper e seguir a revisão independente já documentada.
+
+O patch não rastreado `alteracoes-pendentes.patch` foi preservado (SHA-256 `5e483d41749a208cb78dd3585afb83037c109e4ef7670e3da05ba81e62c49bb1`); a worktree paralela `feat/public-catalog-five-marketplaces` não foi modificada. Nenhuma credencial foi redefinida e `gilfinanceiro` não foi alterado.
+
 ## Compartilhamento assistido e agendamento social — 12/11/2026
 
 Implementação local concluída em `PublicationComposer`, `PublicationScheduleBoard`, helpers e validação da Edge Function: orientação para TikTok, Kwai, Facebook Stories, Pinterest e outros apps; `navigator.canShare` para o arquivo completo; download de fallback; cópia separada de título, descrição, hashtags e link; acesso aos sites oficiais sem deep links não documentados. A escolha de rede não direciona o seletor nativo, e o destino pode não aceitar o MP4 ou preencher a legenda. Falha ao carregar o arquivo é explícita. Cancelar o seletor não registra compartilhamento.

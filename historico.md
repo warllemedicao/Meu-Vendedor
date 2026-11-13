@@ -1,4 +1,32 @@
-# Histórico da conversa — atualizado em 12/11/2026
+# Histórico da conversa — atualizado em 13/11/2026
+
+## 13/11/2026 — diagnóstico e correção do GitHub Actions
+
+### Estado confirmado antes da correção
+
+Branch `main` estava em `c52c757`, alinhada a `origin/main`; havia somente `alteracoes-pendentes.patch` não rastreado, preservado com SHA-256 `5e483d41749a208cb78dd3585afb83037c109e4ef7670e3da05ba81e62c49bb1`. A worktree `feat/public-catalog-five-marketplaces` foi preservada e o Worker/projeto `gilfinanceiro` não foi alterado.
+
+No Actions [43341403130](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43341403130), testes, lint, typecheck, build e `Require deployment credentials and single Cloudflare publisher` passaram. O job de deploy falhou em `Inspect remote migration history`, com exit code 1. O log exibiu apenas `Target: project ...`, sem a mensagem de erro do comando. Os registros anteriores de CI que atribuíam falhas às variáveis públicas ficaram desatualizados para esse run: o preflight e as validações concluíram com sucesso.
+
+### Compatibilidade da CLI e causa diagnosticável
+
+Foi instalada/consultada a versão exata `supabase@3.1.0` e inspecionada a implementação pública dessa tag. `migration list --remote --password --output-format json`, `db push --remote --password --skip-vault --dry-run/--yes` e `functions deploy/list --remote` com `--use-api` são argumentos válidos. Não foi identificada incompatibilidade de comando/flag que explique o exit code 1.
+
+O workflow redirecionava stdout de `migration list --output-format json` diretamente para o arquivo de dados do guard. Como mensagens estruturadas de erro também podem estar nesse canal, o log não preservava o diagnóstico. A causa remota real (por exemplo, conexão, autenticação ou permissão) não pode ser inferida sem a saída completa; o código atualizado expõe o texto sanitizado na próxima execução. O valor de `SUPABASE_DB_PASSWORD` agora é passado explicitamente para `migration list` e `db push`.
+
+### Correção, segurança e validação
+
+Criado `scripts/run-supabase-cli.mjs`: executa a CLI sem shell, captura stdout/stderr, redige `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, valores em URLs PostgreSQL e padrões de bearer/password/token, e devolve o código de saída original. As chamadas de `migration list`, `db push`, `functions deploy` e `functions list` no workflow usam o wrapper. Criado `tests/run-supabase-cli.test.mjs`, incluindo falha simulada com stdout/stderr, preservação do código de saída e verificação de redação. `scripts/check-pending-migrations.mjs` não foi enfraquecido nem alterado.
+
+O gate de risco permanece: `approve_high_risk_migrations` default `false`; migrations de alto risco falham fechadas e exigem execução manual no ambiente protegido. Nenhuma aprovação automática foi adicionada. Não foram lidos, redefinidos ou registrados valores de Secrets; nenhuma migration ou publicação remota foi executada por comandos locais.
+
+Validação focalizada: 8 testes passaram (cinco existentes do guard e três cenários novos de redação/captura); ESLint nos dois arquivos JS novos, `node --check`, parse YAML e `git diff --check` passaram. A CLI `3.1.0` foi executada através do wrapper; consultas de `--help` confirmaram os argumentos listados.
+
+### Commit, push e estado da execução
+
+Commit `a208ffa` (`fix: surface sanitized Supabase CLI errors`) criado na `main` e enviado a `origin/main`; contém somente `.github/workflows/ci-cd.yml`, `scripts/run-supabase-cli.mjs` e `tests/run-supabase-cli.test.mjs`. Após o push, não apareceu run novo na listagem do Actions. O despacho manual solicitado com `approve_high_risk_migrations=false` foi recusado pela API GitHub com HTTP 403: `Resource not accessible by integration`. Não afirmar causa para a ausência do run, nem que o código foi publicado. A nova mensagem do Supabase CLI ainda não pôde ser observada.
+
+**Pendente:** executar `Validate and deploy production` pela interface GitHub usando uma identidade autorizada, sem habilitar aprovação de alto risco. Se a migration pendente for classificada como alto risco, interromper antes de aplicar; requer revisão independente e ambiente protegido. Após eventual sucesso, conferir migration history, Edge Functions, deployments/rota Worker e registrar o run. Variáveis/Secrets não devem ser compartilhados no chat.
 
 ## 12/11/2026 — compartilhamento social assistido e destinos de agendamento
 
