@@ -6,11 +6,13 @@ import { useAuth } from "./AuthProvider";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
 import { connectorCatalog } from "@/lib/connectors/catalog";
-import { accountIntegrationNotes, marketplaceIntegrationNotes } from "@/lib/account-integrations";
+import { marketplaceIntegrationNotes } from "@/lib/account-integrations";
 import { marketplaceAction, displayDate } from "@/lib/marketplace";
 import { shopeeSummaryState } from "@/lib/marketplace-status";
 import { Badge } from "@/components/ui/Badge";
 import { YouTubeConnection } from "./YouTubeConnection";
+import { FacebookConnection } from "./FacebookConnection";
+import { Instagram, Pin, Music2, Video, Sparkles, ExternalLink } from "lucide-react";
 
 const sections = [{ id: "acesso", label: "Meu acesso" }, { id: "google", label: "Google e redes" }, { id: "lojas", label: "Lojas" }] as const;
 type Section = typeof sections[number]["id"];
@@ -30,7 +32,6 @@ export function AccountHub() {
   } | null>(null);
   const [statusRevision, setStatusRevision] = useState(0);
   const [statusRefreshing, setStatusRefreshing] = useState(false);
-  const googleIdentity = user?.identities?.some((identity) => identity.provider === "google") ?? false;
   useEffect(() => {
     let active = true;
     if (!userId) return () => { active = false; };
@@ -96,19 +97,20 @@ export function AccountHub() {
     </div>
     <section role="tabpanel" id="panel-acesso" aria-labelledby="tab-acesso" hidden={section !== "acesso"}><AuthForm /></section>
     <section role="tabpanel" id="panel-google" aria-labelledby="tab-google" hidden={section !== "google"} className="space-y-4">
-      <div className="rounded-xl border border-border bg-surface p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">Conta Google</h2><Badge>{googleIdentity ? "Identidade Google vinculada" : user ? "Acesso por e-mail" : "Entre na sua conta"}</Badge></div>
-        <p className="mt-2 text-sm text-muted">O login Google dá acesso à sua conta no Meu Vendedor. Cada serviço solicita as permissões necessárias para conectar e sincronizar seus dados.</p>
-        {!user && <button type="button" onClick={() => { window.location.hash = "acesso"; setSection("acesso"); }} className="mt-3 text-sm text-primary underline">Ir para meu acesso</button>}
-      </div>
+      {!user && <p className="text-sm text-muted">Entre em Meu acesso para conectar suas redes.</p>}
       <div className="grid gap-3 sm:grid-cols-2">
-        <YouTubeConnection key={`youtube:${user?.id ?? "anonymous"}`} />
-        {accountIntegrationNotes.map((integration) => <article key={integration.name} className="rounded-xl border border-border bg-surface p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{integration.name}</h3><Badge>{integration.status}</Badge></div>
-          <p className="mt-2 text-sm"><strong>Concluído:</strong> {integration.completed}</p>
-          <p className="mt-2 text-sm text-muted"><strong>Falta:</strong> {integration.pending}</p>
-          <p className="mt-2 text-sm text-muted"><strong>Próxima ação:</strong> {integration.next}</p>
-          {integration.href && <a href={integration.href} target={integration.external ? "_blank" : undefined} rel={integration.external ? "noopener noreferrer" : undefined} className="mt-3 inline-block text-sm text-primary underline">{integration.actionLabel}</a>}
+        <FacebookConnection key={`facebook:${user?.id ?? "anonymous"}`} />
+        <YouTubeConnection key={`youtube:${user?.id ?? "anonymous"}`} compact />
+        {[
+          { name: "Instagram", icon: Instagram, href: "/videos", status: "Publicação manual" },
+          { name: "Pinterest", icon: Pin, href: "https://www.pinterest.com/pin-builder/", status: "Publicação manual" },
+          { name: "TikTok", icon: Music2, href: "/videos", status: "Publicação manual" },
+          { name: "Kwai", icon: Video, href: "/videos", status: "Publicação manual" },
+          { name: "Gemini", icon: Sparkles, href: "/videos", status: "Serviço do estúdio" },
+        ].map((item) => <article key={item.name} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border"><item.icon className="h-5 w-5" aria-hidden="true" /></span>
+          <div className="min-w-0 flex-1"><h3 className="font-semibold">{item.name}</h3><p className="text-xs text-muted">{item.status}</p></div>
+          <a href={item.href} target={item.href.startsWith("https:") ? "_blank" : undefined} rel={item.href.startsWith("https:") ? "noopener noreferrer" : undefined} className="rounded-lg border border-border p-2" aria-label={`Abrir ${item.name}`}><ExternalLink className="h-4 w-4" /></a>
         </article>)}
       </div>
     </section>
