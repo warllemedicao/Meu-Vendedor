@@ -34,6 +34,9 @@ Deno.serve(async (request: Request) => {
   const client = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: { user }, error } = await client.auth.getUser(authorization.slice(7));
   if (error || !user || user.is_anonymous) return failure("unauthorized", "Sessão inválida.", 401);
+  const allowedUserId = Deno.env.get("META_ALLOWED_USER_ID");
+  if (!allowedUserId) return failure("owner_not_configured", "Configure META_ALLOWED_USER_ID no Supabase.", 503);
+  if (user.id !== allowedUserId) return failure("forbidden", "Esta conta não está autorizada a publicar na Página.", 403);
   if (request.headers.get("content-length") && Number(request.headers.get("content-length")) > MAX_BYTES + 10000) {
     return failure("file_too_large", "MP4 deve ter no máximo 20 MB.", 413);
   }
