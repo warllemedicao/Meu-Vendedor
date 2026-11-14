@@ -208,7 +208,7 @@ jobs:
               continue
             fi
             echo "Deploying Edge Function: $function_name"
-            node scripts/run-supabase-cli.mjs functions deploy "$function_name" --remote="$SUPABASE_PROJECT_ID" --use-api
+            node scripts/run-supabase-cli.mjs functions deploy "$function_name" --remote="$SUPABASE_PROJECT_ID" --use-api --yes
           done
 
           node scripts/run-supabase-cli.mjs functions list --remote="$SUPABASE_PROJECT_ID" > "$RUNNER_TEMP/functions-after.txt"
