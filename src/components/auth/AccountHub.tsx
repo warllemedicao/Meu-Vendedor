@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/Badge";
 import { YouTubeConnection } from "./YouTubeConnection";
 import { FacebookConnection } from "./FacebookConnection";
 import { TikTokConnection } from "./TikTokConnection";
-import { Camera, Pin, Music2, Video, Sparkles, ExternalLink } from "lucide-react";
+import { Camera, Pin, Video, Sparkles, ExternalLink } from "lucide-react";
 
 const sections = [{ id: "acesso", label: "Meu acesso" }, { id: "google", label: "Google e redes" }, { id: "lojas", label: "Lojas" }] as const;
 type Section = typeof sections[number]["id"];
