@@ -1,5 +1,6 @@
-export type PublicationPlatform = "kwai" | "tiktok" | "facebook" | "whatsapp";
+export type PublicationPlatform = "shopee" | "kwai" | "tiktok" | "facebook" | "whatsapp";
 export const PUBLICATION_DESTINATIONS: Record<PublicationPlatform, { label: string; url: string; hint: string }> = {
+  shopee: { label: "Shopee Vídeos", url: "https://shopee.com.br/", hint: "Baixe o vídeo e abra Shopee → Live e Vídeos → Vídeos. Envie o arquivo, vincule o produto e confirme a postagem no aplicativo. O navegador não publica diretamente na Shopee." },
   kwai: { label: "Kwai", url: "https://www.kwai.com/", hint: "Envie o vídeo pelo app Kwai. Links na legenda podem não ser clicáveis." },
   tiktok: { label: "TikTok", url: "https://www.tiktok.com/upload", hint: "Envie o vídeo pelo TikTok. Links na descrição podem não ser clicáveis." },
   facebook: { label: "Facebook", url: "https://www.facebook.com/", hint: "Publique em sua Página ou perfil, conforme as opções da sua conta." },
