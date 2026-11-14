@@ -1,28 +1,33 @@
-# TikTok — integração em preparação (não aprovada nem publicada)
+# TikTok — Login Kit e envio para caixa de entrada (validação pendente)
 
-## Implementado nesta branch
-- Login Kit Web via Supabase Edge Function `tiktok-connect`, com autenticação Supabase por usuário.
-- State aleatório de uso único, SHA-256 no banco, expiração em 10 minutos.
-- Callback HTTPS, troca de código, criptografia AES-256-GCM de access/refresh tokens, renovação, desconexão e status.
-- Consulta de creator info para futura integração de publicação.
-- Botão TikTok em Conta e conexões.
+## Estado verificado em 14/11/2026
+- Branch `feat/tiktok-login-kit-oauth`; PR #9 ainda não mesclada à `main`.
+- Build local informado pelo usuário: 27 páginas; TypeScript, lint e 299 testes aprovados.
+- Supabase `jzchlrvxdaffnrgbvabv`: tabelas `public.tiktok_oauth_states` e `public.tiktok_connections` existentes.
+- Edge Function `tiktok-connect` ACTIVE, versão 4, `verify_jwt=false` para permitir callback GET. As ações POST verificam a sessão com `auth.getUser`.
+- **Não confirmado**: valores/configuração dos secrets TikTok, cadastro do Redirect URI, aprovação de escopos, OAuth real e transferência de MP4. Nenhuma aprovação do TikTok deve ser presumida.
 
-## Redirect URI a cadastrar em TikTok for Developers > Login Kit > Web
+## Implementação
+- Login Kit Web, state aleatório de uso único (SHA-256 no banco, 10 minutos), callback, troca de código e armazenamento criptografado AES-256-GCM dos tokens.
+- Renovação, desconexão, consulta de status e interface de conexão.
+- `upload_init` solicita URL de upload para inbox do TikTok, e `TikTokDraftUpload` envia MP4 em blocos pela URL retornada. O usuário precisa concluir a publicação no aplicativo TikTok. **Este fluxo ainda não foi validado ponta a ponta**.
+- Consulta `creator_info` presente no backend; **publicação direta automática não implementada**.
+
+## Callback do Login Kit Web
 `https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/tiktok-connect/callback`
 
-A URI acima só deverá ser cadastrada depois de implantar a função e verificar que o endpoint responde. Não utilizar a antiga URL fictícia `/api/auth/tiktok/callback` no Cloudflare.
+Cadastrar exatamente esta URI no portal TikTok for Developers e confirmar a aprovação do produto e dos escopos solicitados pelo código: `user.info.basic` e `video.upload`. O escopo `video.publish` é exigido apenas pela ação `creator_info`, mas **não é solicitado no fluxo OAuth atual**.
 
-## Dependências de publicação
-1. Revisar e aplicar `supabase/migrations/20261114110000_tiktok_oauth.sql` no projeto correto.
-2. Configurar os **secrets do Supabase Edge Functions**: `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_TOKEN_ENCRYPTION_KEY` (base64 de 32 bytes aleatórios). Os secrets existentes no Cloudflare **não são automaticamente acessíveis** pela função Supabase.
-3. Publicar `supabase/functions/tiktok-connect/index.ts` como função `tiktok-connect` com `verify_jwt=false`: callback público GET precisa funcionar; POST autentica explicitamente o JWT com `auth.getUser`.
-4. Adicionar Redirect URI no portal TikTok e salvar. Confirmar scopes `user.info.basic`, `video.upload`, `video.publish` e testar no Sandbox.
-5. Publicar frontend após testes: `npm ci && npm run typecheck && npm run lint && npm test && npm run build:pages && npx wrangler deploy --name meu-vendedor` com Node 24 e variáveis públicas Supabase presentes.
-6. Gravar vídeo real demonstrando a integração para revisão do TikTok.
+## Configuração pendente de verificação
+1. Confirmar no **Supabase Edge Functions Secrets** a existência de `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` e `TIKTOK_TOKEN_ENCRYPTION_KEY` (base64 de 32 bytes aleatórios). Não registrar valores no Git ou em conversas.
+2. Confirmar o Redirect URI e os produtos/scopes no TikTok for Developers. Credenciais do Cloudflare não são automaticamente disponíveis no Supabase.
+3. Testar autorização OAuth real e a reconexão/renovação. Verificar a mensagem de erro sem expor tokens.
+4. Testar upload MP4 com conta autorizada, resposta de status e finalização manual no aplicativo. Verificar limites e CORS reais da URL de upload.
+5. Só então mesclar PR #9 e publicar pelo script oficial `scripts/deploy-frontend-production.sh`, que exige `main`; conferir status de produção após o deploy.
+6. Se exigido pela revisão TikTok, produzir demonstração real, sem afirmar publicação automática.
 
-## Limitações importantes
-- **Share Kit é SDK nativo de compartilhamento para Android/iOS**, não implementável como Share Kit em frontend Web puro. Não alegar integração Share Kit no vídeo de revisão.
-- **Content Posting API não está concluída nesta branch**: há consulta de creator info, mas falta fluxo completo de upload e postagem, tela de consentimento e verificações da API. Não declarar upload/publicação pronta.
-- O app depende da aprovação dos produtos e scopes pelo TikTok. A presença de credenciais não garante aprovação.
-- Tokens não são retornados ao navegador e tabelas de tokens não têm permissões para usuários comuns.
-- Testes de integração real dependem de autorização TikTok no Sandbox e secrets no Supabase. Não foram executados.
+## Limitações
+- Share Kit é SDK nativo Android/iOS, não implementado no frontend Web.
+- A existência do código não comprova aprovação do TikTok ou funcionamento de login/upload.
+- Tokens não são devolvidos ao navegador; tabelas de tokens não concedem acesso a `anon` ou `authenticated`.
+- Não publicar uma branch de testes sobre o Worker principal sem validação.
