@@ -1,3 +1,11 @@
+## 14/11/2026 — Declaração do responsável sobre autenticação no Google Flow
+
+O responsável pelo Meu Vendedor declarou ser maior de idade e informou que fará pessoalmente o login no Google Flow usando conta Google de titular maior de idade e elegível. A declaração não substitui a validação pelo provedor e não constitui autorização para contornar verificações de idade, autenticação ou termos do serviço.
+
+Objetivo: disponibilizar no Meu Vendedor um botão de conexão com autenticação autorizada. O componente `src/components/auth/GoogleFlowConnection.tsx` existe, mas sua inclusão na interface, publicação e testes reais permanecem pendentes. Nenhum acesso Google, geração de MP4 ou deploy é considerado comprovado por este registro.
+
+Registro documental solicitado pelo responsável, sem mudança de código funcional, credenciais ou infraestrutura.
+
 ## 14/11/2026 — Registro consolidado da conversa: gerador de vídeos e integração externa
 
 - **Direção atual:** o fluxo de campanhas de produto prioriza preparação de anúncios curtos para geradores externos de IA, em lugar de apresentar a montagem tradicional de fotos/clipes como fluxo principal. Componentes legados ainda existentes no repositório não devem ser descritos como funcionalidades atuais sem conferir as rotas e dependências.
