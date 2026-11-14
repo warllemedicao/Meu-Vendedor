@@ -40,9 +40,11 @@ export function splitCampaignSpeech(speech: string, durationSeconds: number, cli
   return segments;
 }
 export function buildGeneratorPrompts(generator: CampaignGenerator, brief: GeneratorBrief): string[] {
-  const parts = splitCampaignSpeech(brief.speech, brief.durationSeconds);
+  if (!Number.isInteger(brief.durationSeconds) || brief.durationSeconds < 1 || brief.durationSeconds > 10) throw new Error("Anúncios devem ter duração de 1 a 10 segundos.");
+  if (normalize(brief.speech).split(" ").filter(Boolean).length > Math.max(1, Math.floor(brief.durationSeconds * 2.5))) throw new Error("A fala está longa para um único vídeo curto. Resuma o roteiro antes de gerar o anúncio.");
+  const parts = [normalize(brief.speech)];
   return parts.map((speech, index) => {
-    const seconds = Math.min(8, Math.max(1, Math.ceil(brief.durationSeconds / parts.length)));
+    const seconds = brief.durationSeconds;
     const role = brief.presentation === "presenter"
       ? `Imagem 1: personagem ${brief.presenterName || "fixo"}; imagem 2: produto. Preserve rosto, roupas e identidade do personagem, cores e formato do produto. Personagem mostra o produto e fala em português brasileiro.`
       : "Imagem 1: produto. Exiba o produto com narração externa em português brasileiro, sem personagem falando.";
@@ -52,7 +54,7 @@ export function buildGeneratorPrompts(generator: CampaignGenerator, brief: Gener
       const lead = `Vídeo vertical 9:16, ${seconds}s, cena ${index + 1}/${parts.length}. ${role}${identity} Produto: ${sentence(brief.title, 90)}. `;
       const spoken = `Fala exata: "${speech}".`;
       if ((lead + spoken).length > YOUTUBE_PROMPT_LIMIT) {
-        throw new Error("A fala desta cena ultrapassa 900 caracteres. Reduza a fala ou divida o anúncio em mais cenas.");
+        throw new Error("A fala desta cena ultrapassa 900 caracteres. Reduza a fala para manter o anúncio em um único vídeo.");
       }
       const room = YOUTUBE_PROMPT_LIMIT - lead.length - spoken.length;
       const extras = ` Cenário: ${normalize(brief.scene)}. Detalhes confirmados: ${normalize(brief.details) || "somente os visíveis"}. Luz natural, câmera suave, áudio limpo, sem inventar benefícios ou alterar o produto.`;
