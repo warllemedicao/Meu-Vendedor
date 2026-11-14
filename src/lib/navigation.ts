@@ -24,7 +24,7 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/",
-    label: "Ofertas e produtos",
+    label: "Início",
     icon: House,
     titulo: "Ofertas e produtos",
     descricao: "Produtos e ofertas das integrações autorizadas.",
@@ -171,4 +171,4 @@ export function getNavItem(href: string): NavItem {
 }
 
 /** Rotas anteriores continuam acessíveis na área unificada. */
-export const mainNavItems = navItems.filter(item => !["/", "/lojas", "/mercado-livre", "/aliexpress", "/dashboard", "/tendencias", "/top-10"].includes(item.href));
+export const mainNavItems = navItems.filter(item => !["/lojas", "/mercado-livre", "/aliexpress", "/dashboard", "/tendencias", "/top-10"].includes(item.href));
