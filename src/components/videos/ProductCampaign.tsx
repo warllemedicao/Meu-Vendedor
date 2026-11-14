@@ -1,5 +1,7 @@
 "use client";
 import Image from "next/image";
+import { Clapperboard, Copy, Download, ExternalLink, Sparkles, Youtube } from "lucide-react";
+import { buildGeneratorPrompts, GENERATOR_LINKS, YOUTUBE_PROMPT_LIMIT, type CampaignGenerator } from "@/lib/campaign-generator-prompts";
 import { useEffect, useRef, useState } from "react";
 import { marketplaceAction } from "@/lib/marketplace";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -30,6 +32,8 @@ function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" 
   const setSpeech = (value: string) => setSpeechEdit({ source: initialSpeech, value });
   const [analysis, setAnalysis] = useState<CampaignAnalysis | null>(null), [photo, setPhoto] = useState<File>();
   const [scene, setScene] = useState("Ambiente coerente com o produto e iluminação natural");
+  const [generator, setGenerator] = useState<CampaignGenerator>("google-flow");
+  const [sceneIndex, setSceneIndex] = useState(0);
   const [presentation, setPresentation] = useState<"presenter" | "voiceover">("voiceover");
   const [presenterId, setPresenterId] = useState<PresenterId>("ana");
   const presenter = virtualPresenters.find(item => item.id === presenterId) ?? virtualPresenters[0];
@@ -50,6 +54,31 @@ ${analysis.promptEn}
 DIREÇÃO APROVADA / APPROVED DIRECTION: ${scene}
 Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly in Brazilian Portuguese: ${JSON.stringify(speech)}` : `${presenterDirection}\n\n${campaignPrompt(product, notes, scene, speech, presentation === "presenter" ? presenter.visualIdentity : "Produto sem apresentador, narração externa")}`;
   const finalPrompt = manualPrompt.applied || generatedPrompt;
+  let generatorPrompts: string[] = [];
+  let generatorIssue = "";
+  try {
+    generatorPrompts = buildGeneratorPrompts(generator, {
+      title: product.title, details: notes, scene, speech, durationSeconds: seconds,
+      presentation, presenterName: presenter.name, presenterIdentity: presenter.visualIdentity,
+      presenterVoice: `${presenter.defaultVoiceGender}, ${presenter.defaultVoiceProfile}`, masterPrompt: finalPrompt,
+    });
+  } catch (failure) { generatorIssue = failure instanceof Error ? failure.message : "Não foi possível preparar as cenas."; }
+  const selectedPrompt = generatorPrompts[Math.min(sceneIndex, generatorPrompts.length - 1)] ?? "";
+  function downloadText(text: string, name: string) {
+    const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+    const anchor = document.createElement("a"); anchor.href = url; anchor.download = name; anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function saveReference(url: string, name: string) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Imagem indisponível");
+      const blob = await response.blob();
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a"); anchor.href = href; anchor.download = name; anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+    } catch { setNotice("Não foi possível baixar esta imagem automaticamente. Abra a referência em outra aba e salve-a manualmente."); window.open(url, "_blank", "noopener,noreferrer"); }
+  }
   function acceptSource(blob: Blob, filename: string) { setSource({ blob, filename, id: crypto.randomUUID() }); setNarrated(null); setError(""); setStep(2); }
   async function generateLink() {
     if (!user || busy || !product.owned) return;
@@ -111,7 +140,32 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
           <h3 className="text-lg font-semibold">2. Escolha como criar o vídeo</h3>
           <div className="flex flex-wrap gap-2">{[["montage", "Montar com fotos e clipes"], ["ai", "Criar no Flow / importar vídeo"]].map(([id, label]) => <button key={id} type="button" aria-pressed={mode === id} disabled={busy} onClick={() => setMode(id)} className={`${button} ${mode === id ? "border-primary text-primary" : ""}`}>{label}</button>)}</div>
           <div hidden={mode !== "montage"}><ProductVideoStudio key={`${user?.id ?? "guest"}-${product.id}`} onBusyChange={setBusy} active={step === 1 && mode === "montage"} initialProduct={product} embedded onResult={acceptSource} /></div>
-          {mode === "ai" && <div className="space-y-3"><p className="text-sm text-muted">Use o prompt preparado com a foto do produto e, se selecionado, o personagem fixo no Flow. Depois importe aqui para aplicar a voz e preparar a publicação.</p><label className="block text-sm">Cenário<input value={scene} onChange={e => setScene(e.target.value)} className={field}/></label><details><summary className="cursor-pointer text-sm text-primary">Prompt para criar o vídeo</summary><textarea aria-label="Prompt de divulgação" readOnly rows={9} value={finalPrompt} className={field}/>{analysis && <><label className="block text-sm">Prompt final em português<textarea readOnly value={analysis.promptPt} rows={5} className={field}/></label><label className="block text-sm">Prompt final em inglês<textarea readOnly value={analysis.promptEn} rows={5} className={field}/></label></>}</details><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(finalPrompt); setNotice("Prompt copiado."); } catch { setNotice("Selecione o texto do prompt e copie."); } }} className={button}>Copiar prompt</button>{presentation === "presenter" && presenter.image && <a href={presenter.image} target="_blank" rel="noopener noreferrer" className={`${button} inline-block`}>Abrir foto de {presenter.name}</a>}<a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener noreferrer" className={`${button} inline-block`}>Abrir Flow</a></div>}
+          {mode === "ai" && <div className="space-y-4">
+            <p className="text-sm text-muted">Escolha o gerador. O Meu Vendedor prepara um prompt por cena e as referências do produto e do personagem. Os sites externos não recebem os arquivos automaticamente.</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Gerador de vídeo">
+              <button type="button" title="Google Flow" aria-label="Selecionar Google Flow" aria-pressed={generator === "google-flow"} onClick={() => { setGenerator("google-flow"); setSceneIndex(0); }} className={`${button} ${generator === "google-flow" ? "border-primary bg-primary-soft" : ""}`}><Clapperboard className="h-6 w-6" /></button>
+              <button type="button" title="Dreamina" aria-label="Selecionar Dreamina" aria-pressed={generator === "dreamina"} onClick={() => { setGenerator("dreamina"); setSceneIndex(0); }} className={`${button} ${generator === "dreamina" ? "border-primary bg-primary-soft" : ""}`}><Sparkles className="h-6 w-6" /></button>
+              <button type="button" title="YouTube Create (aplicativo móvel)" aria-label="Selecionar YouTube Create" aria-pressed={generator === "youtube-create"} onClick={() => { setGenerator("youtube-create"); setSceneIndex(0); }} className={`${button} ${generator === "youtube-create" ? "border-primary bg-primary-soft" : ""}`}><Youtube className="h-6 w-6" /></button>
+              <a href={GENERATOR_LINKS[generator]} target="_blank" rel="noopener noreferrer" title="Abrir gerador selecionado" aria-label="Abrir gerador selecionado" className={`${button} border-primary text-primary`}><ExternalLink className="h-5 w-5" /></a>
+            </div>
+            {generator === "youtube-create" && <p className="text-xs text-muted">YouTube Create é um aplicativo móvel. No computador, prepare os arquivos e continue no celular. A disponibilidade de geração por IA depende da conta e do dispositivo.</p>}
+            <label className="block text-sm">Cenário<input value={scene} onChange={e => setScene(e.target.value)} className={field}/></label>
+            {generatorIssue ? <p role="alert" className="text-sm text-danger">{generatorIssue}</p> : <div className="space-y-2">
+              <label className="block text-sm">Cena<select value={Math.min(sceneIndex, generatorPrompts.length - 1)} onChange={e => setSceneIndex(Number(e.target.value))} className={field}>{generatorPrompts.map((_, index) => <option key={index} value={index}>Cena {index + 1} de {generatorPrompts.length}</option>)}</select></label>
+              <textarea aria-label="Prompt otimizado para o gerador selecionado" readOnly rows={10} value={selectedPrompt} className={field}/>
+              <p className="text-xs text-muted">{selectedPrompt.length} caracteres{generator === "youtube-create" ? ` / ${YOUTUBE_PROMPT_LIMIT}` : ""}. Uma cena por geração; mantenha as mesmas referências em todas as cenas.</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(selectedPrompt); setNotice("Prompt da cena copiado."); } catch { setNotice("Selecione o prompt acima e copie manualmente."); } }} className={button} title="Copiar prompt da cena"><Copy className="inline h-4 w-4" /> Copiar prompt</button>
+                <button type="button" onClick={() => downloadText(generatorPrompts.map((prompt, index) => `CENA ${index + 1}\n${prompt}`).join("\n\n---\n\n"), "prompts-divulgacao.txt")} className={button}><Download className="inline h-4 w-4" /> Baixar prompts</button>
+              </div>
+            </div>}
+            <div className="flex flex-wrap gap-2">
+              {product.imageUrl && <button type="button" onClick={() => void saveReference(product.imageUrl!, "produto-referencia")} className={button}><Download className="inline h-4 w-4" /> Foto do produto</button>}
+              {photo && <button type="button" onClick={() => { const url = URL.createObjectURL(photo); const anchor = document.createElement("a"); anchor.href = url; anchor.download = photo.name; anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); }} className={button}><Download className="inline h-4 w-4" /> Foto enviada</button>}
+              {presentation === "presenter" && presenter.image && <button type="button" onClick={() => void saveReference(presenter.image!, `personagem-${presenter.id}.webp`)} className={button}><Download className="inline h-4 w-4" /> Foto de {presenter.name}</button>}
+            </div>
+            <p className="text-xs text-muted">Anexe as imagens no gerador externo e cole o prompt da cena. Se o download da imagem do marketplace for bloqueado pelo servidor de origem, abra a imagem e salve-a manualmente. Depois importe o vídeo gerado abaixo.</p>
+          </div>}
           <label className="block rounded-xl border border-dashed border-border p-4 text-sm">Ou importe seu vídeo ou imagem pronta<input type="file" disabled={busy} accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" className="mt-2 block w-full" onChange={e => { const file = e.target.files?.[0]; if (file) { if (!["video/mp4", "video/webm", "image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size || file.size > 150 * 1024 * 1024) setError("Use MP4, WebM, JPG, PNG ou WebP de até 150 MB."); else acceptSource(file, file.name); } e.target.value = ""; }}/></label>
           {source && <button type="button" disabled={busy} onClick={() => setStep(2)} className={button}>Continuar com o vídeo escolhido</button>}
         </div>
