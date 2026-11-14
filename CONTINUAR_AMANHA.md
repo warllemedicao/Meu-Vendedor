@@ -1,3 +1,14 @@
+## 14/11/2026 — CONTRATO PERMANENTE DA INTERFACE (não reverter)
+
+**Regressão recorrente corrigida a pedido do responsável (terceira ocorrência):**
+
+1. A rota pública `/` é a página **Início**, com apresentação e descrição do Meu Vendedor, recursos, política de privacidade e termos. Ela DEVE aparecer no menu lateral com o nome **Início**. Não incluir `"/"` no filtro de `mainNavItems`. Não tratar a rota raiz como aba Produtos. A página `src/app/page.tsx` já contém o conteúdo e não deve ser substituída pelo catálogo.
+2. A rota `/produtos` mostra **somente catálogos/produtos**, não a lista “Todas as lojas”, filtros por marketplace, cartões de status de lojas ou formulários de conexão/campanha. A causa estava em `src/components/marketplace/ProductsWorkspace.tsx`, que montava `marketplaceDirectory` e `ManualMarketplaceCampaign`. Essa renderização foi removida; não reintroduzir. Conexões e lojas ficam na central `/entrar#google` (“Lojas e redes”).
+3. O menu `src/components/layout/Sidebar.tsx` não pode marcar Produtos como ativo quando a rota é `/`.
+4. Testes de regressão: `tests/products-home-navigation-contract.test.mjs`. Executar junto à suíte antes de publicar.
+
+Alterações enviadas diretamente para `main`; **publicação Cloudflare e testes em ambiente de produção ainda não confirmados**. Não afirmar deploy sem evidência.
+
 ## 13/11/2026 — UI compacta: Facebook em Conta e conexões
 
 - Solicitação: retirar a autorização Facebook do Estúdio de Vídeos e mover para Conta e conexões → Google e redes; exibir cartões compactos com ícone, nome, status mínimo e ação de conexão.
