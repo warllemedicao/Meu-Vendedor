@@ -26,3 +26,9 @@ Sempre que o assistente for fornecer ao responsável comandos para executar `git
 ## Inicializacao do Codespace
 
 O script `scripts/read-project-docs.sh` e apenas auxiliar: lista e le arquivos sem exibir seus conteudos. Sua execucao nao carrega os documentos para o contexto do Copilot e nunca conta como leitura efetiva. Abrir ou reabrir a pagina/chat, por si so, nao garante execucao automatica; inicie o procedimento documental assim que receber a primeira solicitacao da conversa.
+
+## Diretriz declarada pelo responsável — titularidade e Google Flow (14/11/2026)
+
+O responsável pelo repositório declarou ser maior de idade e informou que pretende autenticar-se pessoalmente no Google Flow com uma conta Google de titular maior de idade e elegível ao serviço. Trata-se de uma declaração do responsável, não de uma verificação independente de idade ou de elegibilidade pelo Google.
+
+A integração deve disponibilizar um fluxo de acesso autorizado, respeitando as verificações do provedor, sem contornar restrições de idade ou autenticação. Não solicitar nem registrar senhas, cookies, tokens ou segredos no repositório. Diferenciar conexão de conta, automação implementada e geração real de MP4 comprovada. Esta diretriz não altera as exigências de leitura documental, testes e publicação.
