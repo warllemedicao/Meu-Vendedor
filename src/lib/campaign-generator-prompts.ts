@@ -27,7 +27,7 @@ const sentence = (value: string, limit: number) => {
 };
 export function splitCampaignSpeech(speech: string, durationSeconds: number, clipSeconds = 8): string[] {
   const words = normalize(speech).split(" ").filter(Boolean);
-  const clips = Math.max(1, Math.ceil(durationSeconds / clipSeconds));
+  const clips = Math.max(1, Math.ceil(durationSeconds / clipSeconds), Math.ceil(words.length / 16));
   if (!words.length) return [""];
   const segments: string[] = [];
   for (let i = 0; i < clips; i++) {
@@ -40,7 +40,7 @@ export function splitCampaignSpeech(speech: string, durationSeconds: number, cli
 export function buildGeneratorPrompts(generator: CampaignGenerator, brief: GeneratorBrief): string[] {
   const parts = splitCampaignSpeech(brief.speech, brief.durationSeconds);
   return parts.map((speech, index) => {
-    const seconds = Math.min(8, Math.max(1, brief.durationSeconds - index * 8));
+    const seconds = Math.min(8, Math.max(1, Math.ceil(brief.durationSeconds / parts.length)));
     const role = brief.presentation === "presenter"
       ? `Imagem 1: personagem ${brief.presenterName || "fixo"}; imagem 2: produto. Preserve rosto, roupas e identidade do personagem, cores e formato do produto. Personagem mostra o produto e fala em português brasileiro.`
       : "Imagem 1: produto. Exiba o produto com narração externa em português brasileiro, sem personagem falando.";
@@ -53,7 +53,8 @@ export function buildGeneratorPrompts(generator: CampaignGenerator, brief: Gener
       }
       const room = YOUTUBE_PROMPT_LIMIT - lead.length - spoken.length;
       const extras = ` Cenário: ${normalize(brief.scene)}. Detalhes confirmados: ${normalize(brief.details) || "somente os visíveis"}. Luz natural, câmera suave, áudio limpo, sem inventar benefícios ou alterar o produto.`;
-      return lead + sentence(extras, room) + spoken;
+      const optional = room > 0 ? sentence(extras, room) : "";
+      return lead + optional + spoken;
     }
     const character = brief.presentation === "presenter"
       ? `Use a referência visual do personagem ${brief.presenterName || "selecionado"} e a foto do produto separadamente. Preserve identidade: ${brief.presenterIdentity || "imagem de referência"}. Voz: ${brief.presenterVoice || "natural"}.`
@@ -61,6 +62,6 @@ export function buildGeneratorPrompts(generator: CampaignGenerator, brief: Gener
     const direction = generator === "google-flow"
       ? "Direção cinematográfica: câmera fluida, gestos naturais, iluminação coerente, continuidade entre cenas."
       : "Movimento natural e consistente, foco no produto, enquadramento comercial, sem deformar objetos.";
-    return `Vídeo vertical 9:16, ${seconds} segundos. Cena ${index + 1} de ${parts.length}. ${character}\nProduto: ${brief.title}. Detalhes confirmados: ${brief.details || "apenas detalhes visíveis na imagem"}.\nAmbiente: ${brief.scene}. ${direction}\nFala EXATA em português brasileiro: "${speech}".\nNão inventar características, preços, descontos ou resultados. Manter produto e personagem consistentes.\nRoteiro mestre de referência (não substituir a fala exata): ${brief.masterPrompt}`;
+    return `Vídeo vertical 9:16, ${seconds} segundos. Cena ${index + 1} de ${parts.length}. ${character}\nProduto: ${brief.title}. Detalhes confirmados: ${brief.details || "apenas detalhes visíveis na imagem"}.\nAmbiente: ${brief.scene}. ${direction}\nFala EXATA em português brasileiro: "${speech}".\nNão inventar características, preços, descontos ou resultados. Manter produto e personagem consistentes. Não alterar a fala nem inserir outras falas.`;
   });
 }
