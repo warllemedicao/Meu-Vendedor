@@ -12,7 +12,8 @@ import { shopeeSummaryState } from "@/lib/marketplace-status";
 import { Badge } from "@/components/ui/Badge";
 import { YouTubeConnection } from "./YouTubeConnection";
 import { FacebookConnection } from "./FacebookConnection";
-import { Camera, Pin, Music2, Video, Sparkles, ExternalLink } from "lucide-react";
+import { TikTokConnection } from "./TikTokConnection";
+import { Camera, Pin, Video, Sparkles, ExternalLink } from "lucide-react";
 
 const sections = [{ id: "acesso", label: "Meu acesso" }, { id: "google", label: "Google e redes" }, { id: "lojas", label: "Lojas" }] as const;
 type Section = typeof sections[number]["id"];
@@ -99,12 +100,12 @@ export function AccountHub() {
     <section role="tabpanel" id="panel-google" aria-labelledby="tab-google" hidden={section !== "google"} className="space-y-4">
       {!user && <p className="text-sm text-muted">Entre em Meu acesso para conectar suas redes.</p>}
       <div className="grid gap-3 sm:grid-cols-2">
+        <TikTokConnection key={`tiktok:${user?.id ?? "anonymous"}`} />
         <FacebookConnection key={`facebook:${user?.id ?? "anonymous"}`} />
         <YouTubeConnection key={`youtube:${user?.id ?? "anonymous"}`} compact />
         {[
           { name: "Instagram", icon: Camera, href: "/videos", status: "Publicação manual" },
           { name: "Pinterest", icon: Pin, href: "https://www.pinterest.com/pin-builder/", status: "Publicação manual" },
-          { name: "TikTok", icon: Music2, href: "/videos", status: "Publicação manual" },
           { name: "Kwai", icon: Video, href: "/videos", status: "Publicação manual" },
           { name: "Gemini", icon: Sparkles, href: "/videos", status: "Serviço do estúdio" },
         ].map((item) => <article key={item.name} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4">
