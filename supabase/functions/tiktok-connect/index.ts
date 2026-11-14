@@ -19,7 +19,8 @@ async function seal(s:string) {const iv=crypto.getRandomValues(new Uint8Array(12
 async function unseal(ciphertext:string,iv:string) {return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:decode(iv)},await key(),decode(ciphertext)));}
 async function user(req:Request) {const bearer=req.headers.get("authorization")??"";if(!bearer.startsWith("Bearer "))return null;const client=createClient(PROJECT,ANON,{auth:{persistSession:false}});const {data,error}=await client.auth.getUser(bearer.slice(7));return error||!data.user||data.user.is_anonymous?null:data.user;}
 async function token(body:URLSearchParams) {const res=await fetch("https://open.tiktokapis.com/v2/oauth/token/",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});const data=await res.json();if(!res.ok||!data.access_token)throw Error("token_exchange_failed");return data;}
-async function fresh(connection:any) {
+type TikTokConnectionRow = {user_id:string;access_expires_at:string;refresh_expires_at:string;access_ciphertext:string;access_iv:string;refresh_ciphertext:string;refresh_iv:string;scopes:string};
+async function fresh(connection:TikTokConnectionRow) {
  if(Date.parse(connection.access_expires_at)>Date.now()+120000)return unseal(connection.access_ciphertext,connection.access_iv);
  if(Date.parse(connection.refresh_expires_at)<=Date.now())throw Error("refresh_expired");
  const t=await token(new URLSearchParams({client_key:CLIENT,client_secret:SECRET,grant_type:"refresh_token",refresh_token:await unseal(connection.refresh_ciphertext,connection.refresh_iv)}));
