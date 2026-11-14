@@ -40,3 +40,25 @@ test("all three generators produce one prompt per planned scene", async () => {
     assert.ok(prompts.every(prompt => prompt.includes("português brasileiro") || prompt.includes("português brasileiro")));
   }
 });
+
+test("Flow and Dreamina repeat full story bible but isolate the scene action and dialogue", async () => {
+  const { buildGeneratorPrompts } = await import("../src/lib/campaign-generator-prompts.ts");
+  const brief = {
+    title: "Produto", details: "vermelho", scene: "cozinha",
+    speech: "Olá mundo. Este é um teste.", durationSeconds: 15,
+    presentation: "presenter", presenterName: "Ana",
+    presenterIdentity: "cabelo escuro, blazer claro",
+    presenterVoice: "voz feminina natural",
+    masterPrompt: "Bíblia: roupa coral, iluminação suave, mesma voz, mesmo rosto.",
+    sceneActions: ["Levanta o produto.", "Mostra o produto."],
+  };
+  for (const provider of ["google-flow", "dreamina"]) {
+    const prompts = buildGeneratorPrompts(provider, brief);
+    assert.equal(prompts.length, 2);
+    assert.ok(prompts.every(prompt => prompt.includes(brief.masterPrompt)));
+    assert.ok(prompts.every(prompt => prompt.includes(brief.presenterIdentity)));
+    assert.ok(prompts[0].includes("Levanta o produto."));
+    assert.ok(prompts[1].includes("Mostra o produto."));
+    assert.ok(!prompts[0].includes("AÇÃO EXCLUSIVA DESTA CENA: Mostra o produto."));
+  }
+});
