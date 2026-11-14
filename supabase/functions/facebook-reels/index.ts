@@ -15,7 +15,7 @@ function failure(code: string, message: string, status = 400) {
   return respond(status, { ok: false, code, message });
 }
 async function graphResponse(response: Response) {
-  const body = await response.json().catch(() => ({}));
+  const body = await response.json().catch(() => ({})) as { error?: { code?: number; message?: string }; video_id?: string; upload_url?: string; success?: boolean };
   if (!response.ok || body.error) {
     const code = typeof body.error?.code === "number" ? body.error.code : response.status;
     throw new Error("Meta API error (" + code + "): " + String(body.error?.message ?? "request failed").slice(0, 250));
