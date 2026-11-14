@@ -129,7 +129,7 @@ export function AccountHub() {
             : connection?.status === "connected" ? "Conectada"
               : connection?.status === "error" ? "Estado a revisar"
                 : "Em preparação";
-        return <details key={connector.id} name="marketplace-connections" className="rounded-xl border border-border bg-surface">
+        return <details key={connector.id} name="marketplace-connections" open={connector.id === "tiktok" ? true : undefined} className="rounded-xl border border-border bg-surface">
           <summary className="flex cursor-pointer items-center justify-between gap-3 p-4 text-sm font-semibold"><span>{connector.name === "shopee" ? "Shopee Affiliate" : connector.name}</span><Badge>{statusLabel}</Badge></summary>
           <div className="border-t border-border p-3">
             {connector.id === "shopee" && shopeeState === "unknown" && <div role="alert" className="mb-3 rounded-lg border border-border bg-accent-soft p-3 text-sm">
