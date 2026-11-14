@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";\nimport type { ReactNode } from "react";
 import Image from "next/image";
 import { ProductCampaign } from "@/components/videos/ProductCampaign";
 import type { CampaignProduct } from "@/lib/product-campaign";
@@ -9,7 +9,7 @@ import type { PublicCatalogResult, PublicPlatform } from "@/types/product-catalo
 export const homePlatforms = [{ id: "shopee", name: "Shopee" }, { id: "amazon", name: "Amazon" }, { id: "tiktok", name: "TikTok Shop" }] as const;
 const label = (id: string) => homePlatforms.find(source => source.id === id)?.name ?? id;
 
-export function PublicProductCatalog({ view = "offers", platformFilter, excludeShopee = false }: { view?: "offers" | "dashboard" | "trends" | "top10"; platformFilter?: string; excludeShopee?: boolean }) {
+export function PublicProductCatalog({ view = "offers", platformFilter, excludeShopee = false, connectedShopeeCatalog }: { view?: "offers" | "dashboard" | "trends" | "top10"; platformFilter?: string; excludeShopee?: boolean; connectedShopeeCatalog?: ReactNode }) {
   const [selected, setSelected] = useState<CampaignProduct | null>(null);
   const [platform, setPlatform] = useState("all"), [keyword, setKeyword] = useState("");
   const [sort, setSort] = useState(view === "top10" || view === "trends" ? "sales" : "default"), [discounts, setDiscounts] = useState(false);
@@ -67,7 +67,7 @@ export function PublicProductCatalog({ view = "offers", platformFilter, excludeS
       <label className="flex items-center gap-2 py-2 text-sm"><input type="checkbox" checked={discounts} onChange={event => setDiscounts(event.target.checked)} />Com desconto</label>
     </div>
     </div>
-    {loading && <p role="status" className="text-sm text-muted">Carregando produtos das três lojas…</p>}
+    {connectedShopeeCatalog && (selectedPlatform === "shopee" || selectedPlatform === "all") && <section aria-label="Produtos Shopee da conta conectada" className="space-y-3"><h2 className="text-lg font-semibold">Produtos Shopee da minha conta</h2>{connectedShopeeCatalog}</section>}\n    {loading && <p role="status" className="text-sm text-muted">Carregando produtos das três lojas…</p>}
     {products.length > 0 && <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{displayed.map(product => <li key={`${product.platform}:${product.id}`} className="overflow-hidden rounded-xl border border-border bg-surface">
       <div className="flex h-52 items-center justify-center bg-white p-4">{product.imageUrl ? <Image unoptimized src={product.imageUrl} alt={product.title} width={300} height={210} className="h-full w-full object-contain" /> : <span className="text-sm text-slate-500">Imagem não fornecida</span>}</div>
       <div className="p-4"><p className="text-xs font-semibold text-primary">{label(product.platform)}</p><h2 className="mt-2 line-clamp-3 text-sm font-semibold">{product.title}</h2>
@@ -79,7 +79,7 @@ export function PublicProductCatalog({ view = "offers", platformFilter, excludeS
         <button type="button" onClick={() => { setSelected({ id: product.platform + ":" + product.id, title: product.title, platform: label(product.platform), imageUrl: product.imageUrl, productUrl: product.productUrl ?? undefined, price: product.price === null ? undefined : String(product.price) }); window.scrollTo({top:0,behavior:"smooth"}); }} className="mt-3 block w-full rounded-lg bg-primary px-4 py-2 text-sm text-white">Ver e divulgar</button>
       </div>
     </li>)}</ul>}
-    {!loading && products.length === 0 && Object.keys(results).length > 0 && <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted">Nenhum produto disponível corresponde aos filtros atuais.</p>}
+    {!loading && products.length === 0 && !(connectedShopeeCatalog && selectedPlatform === "shopee") && Object.keys(results).length > 0 && <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted">Nenhum produto disponível corresponde aos filtros atuais.</p>}
     {!loading && visibleSources.some(source => errors[source.id]) && <div className="rounded-xl border border-border bg-surface p-4 text-sm"><h2 className="font-semibold">Lojas ainda sem produtos disponíveis</h2>{visibleSources.filter(source => errors[source.id]).map(source => <p key={source.id} className="mt-2 text-muted"><strong>{source.name}:</strong> {errors[source.id]}</p>)}<p className="mt-3 text-xs text-muted">A consulta é repetida automaticamente ao entrar nesta visualização, ao voltar à janela e a cada minuto.</p></div>}
     {visibleSources.map(source => results[source.id] && <p key={source.id} className="text-xs text-muted"><strong>{source.name}:</strong> {results[source.id]?.scope} {results[source.id]?.warnings.join(" ")}</p>)}
     <p className="text-xs text-muted">Preços e disponibilidade podem mudar. A seleção não representa o ranking global das lojas. Nenhuma conta de loja precisa ser conectada para navegar.</p>
