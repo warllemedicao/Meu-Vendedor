@@ -1,3 +1,7 @@
+## 14/11/2026 — Tipagem das integrações Facebook/TikTok e Google Flow
+
+Corrigidas as declarações TypeScript das respostas JSON em `facebook-connect`, `facebook-reels`, `tiktok-connect` e `tiktok-connect-sandbox`, mantendo os fluxos de OAuth, upload, credenciais e endpoints. Commits: `ada36d3`, `c9aca07`, `b7afac1`, `a7cefce`. O botão Google Flow já está ligado ao hub de Contas (`bd91cbb`, `549ae7a`), e o teste foi ajustado (`d97efa6`). Alterações enviadas diretamente à `main` do GitHub. Validação CI e publicação de produção ainda pendentes de confirmação; não declarar implantação no Supabase/Cloudflare sem verificar. O workflow exige disparo manual para publicar e possui controle de migrações de alto risco.
+
 ## 14/11/2026 — Google Flow visível em Contas
 
 Implementado na branch principal: `AccountHub.tsx` importa e renderiza `GoogleFlowConnection` em **Contas → Lojas e redes**, com identidade visual (ícone de claquete), nome Google Flow, botão **Conectar / reabrir Flow**, verificação de conta/créditos, desconexão e opção de salvar sessão após confirmação. Commits de código: `bd91cbb` e `549ae7a`.
