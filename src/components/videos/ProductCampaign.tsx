@@ -7,7 +7,6 @@ import { marketplaceAction } from "@/lib/marketplace";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { affiliateUrlValid, campaignPrompt, productHashtags, storePublicationDraft, type CampaignProduct } from "@/lib/product-campaign";
 import { analyzeProductCampaign, type CampaignAnalysis } from "@/lib/campaign-ai";
-import { ProductVideoStudio } from "./ProductVideoStudio";
 import { PublicationComposer } from "./PublicationComposer";
 import { ManualChatGPTPrompt } from "./ManualChatGPTPrompt";
 import { useManualPromptDraft } from "@/hooks/useManualPromptDraft";
@@ -24,7 +23,7 @@ export function ProductCampaign(props: CampaignProps) {
 }
 function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" }: CampaignProps) {
   const { user } = useAuth(); const manualPrompt = useManualPromptDraft(user?.id, "campaign:" + product.platform + ":" + product.id); const dialog = useRef<HTMLDialogElement>(null);
-  const [step, setStep] = useState(0), [mode, setMode] = useState("montage"), [busy, setBusy] = useState(false);
+  const [step, setStep] = useState(0), [busy, setBusy] = useState(false);
   const [linkEdit, setLinkEdit] = useState({ source: initialAffiliateUrl, value: initialAffiliateUrl });
   const affiliateUrl = linkEdit.source === initialAffiliateUrl ? linkEdit.value : initialAffiliateUrl;
   const [notes, setNotes] = useState(""), [speechEdit, setSpeechEdit] = useState<{ source: string; value: string } | null>(null), [seconds, setSeconds] = useState(15);
@@ -132,17 +131,15 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
           </fieldset>
           <button type="button" disabled={busy || !user} onClick={() => void analyze()} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{busy ? "Analisando a foto e criando a divulgação…" : "Analisar foto e criar roteiro com IA"}</button>
           {!user && <p className="text-sm text-muted">Entre na conta para analisar a imagem e gerar a voz.</p>}
-          <ManualChatGPTPrompt draft={manualPrompt} brief={{ name: product.title, store: product.platform, features: notes, benefits: analysis?.benefits.join("; "), videoType: mode === "montage" ? "Montagem com fotos e clipes" : "Vídeo externo no Flow", duration: `${seconds} segundos de fala`, format: "9:16", character: presentation === "presenter" ? `${presenter.name}: ${presenter.visualIdentity}. ${presenter.preferences}. Foto de referência: ${presenter.image ?? "indisponível"}` : "Sem personagem; somente produto", presentationStyle: `${scene}. ${presenterDirection}` }} />
+          <ManualChatGPTPrompt draft={manualPrompt} brief={{ name: product.title, store: product.platform, features: notes, benefits: analysis?.benefits.join("; "), videoType: "Vídeo gerado por IA em cenas independentes (Google Flow, Dreamina ou YouTube Create)", duration: `${seconds} segundos de fala`, format: "9:16", character: presentation === "presenter" ? `${presenter.name}: ${presenter.visualIdentity}. ${presenter.preferences}. Foto de referência: ${presenter.image ?? "indisponível"}` : "Sem personagem; somente produto", presentationStyle: `${scene}. ${presenterDirection}` }} />
           {manualPrompt.applied && <label className="block text-sm">Direção manual em uso no vídeo<textarea readOnly value={manualPrompt.applied} rows={5} className={field} /></label>}
           {analysis && <div className="space-y-2 rounded-xl bg-background p-4 text-sm"><p>{analysis.details}</p>{analysis.benefits.length > 0 && <ul className="list-disc space-y-1 pl-5">{analysis.benefits.map(item => <li key={item}>{item}</li>)}</ul>}</div>}
           <label className="block text-sm">Fala do narrador · confira e ajuste<textarea value={speech} maxLength={1500} onChange={e => { setSpeech(e.target.value); setNarrated(null); }} rows={4} placeholder="A IA preenche ao analisar a foto. Você também pode escrever sua fala." className={field} /></label>
           <button type="button" disabled={busy || !speech.trim()} onClick={() => { setStep(1); setError(""); }} className={`${button} w-full`}>Aprovar roteiro e escolher o vídeo</button>
         </fieldset></div>
         <div hidden={step !== 1} className="space-y-4">
-          <h3 className="text-lg font-semibold">2. Escolha como criar o vídeo</h3>
-          <div className="flex flex-wrap gap-2">{[["montage", "Montar com fotos e clipes"], ["ai", "Criar no Flow / importar vídeo"]].map(([id, label]) => <button key={id} type="button" aria-pressed={mode === id} disabled={busy} onClick={() => setMode(id)} className={`${button} ${mode === id ? "border-primary text-primary" : ""}`}>{label}</button>)}</div>
-          <div hidden={mode !== "montage"}><ProductVideoStudio key={`${user?.id ?? "guest"}-${product.id}`} onBusyChange={setBusy} active={step === 1 && mode === "montage"} initialProduct={product} embedded onResult={acceptSource} /></div>
-          {mode === "ai" && <div className="space-y-4">
+          <h3 className="text-lg font-semibold">2. Gere seu vídeo com IA</h3>
+          <div className="space-y-4">
             <p className="text-sm text-muted">Escolha o gerador. O Meu Vendedor prepara um prompt por cena e as referências do produto e do personagem. Os sites externos não recebem os arquivos automaticamente.</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Gerador de vídeo">
               <button type="button" title="Google Flow" aria-label="Selecionar Google Flow" aria-pressed={generator === "google-flow"} onClick={() => { setGenerator("google-flow"); setSceneIndex(0); }} className={`${button} ${generator === "google-flow" ? "border-primary bg-primary-soft" : ""}`}><Clapperboard className="h-6 w-6" /></button>
@@ -167,8 +164,8 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
               {presentation === "presenter" && presenter.image && <button type="button" onClick={() => void saveReference(presenter.image!, `personagem-${presenter.id}.webp`)} className={button}><Download className="inline h-4 w-4" /> Foto de {presenter.name}</button>}
             </div>
             <p className="text-xs text-muted">Anexe as imagens no gerador externo e cole o prompt da cena. Se o download da imagem do marketplace for bloqueado pelo servidor de origem, abra a imagem e salve-a manualmente. Depois importe o vídeo gerado abaixo.</p>
-          </div>}
-          <label className="block rounded-xl border border-dashed border-border p-4 text-sm">Ou importe seu vídeo ou imagem pronta<input type="file" disabled={busy} accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" className="mt-2 block w-full" onChange={e => { const file = e.target.files?.[0]; if (file) { if (!["video/mp4", "video/webm", "image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size || file.size > 150 * 1024 * 1024) setError("Use MP4, WebM, JPG, PNG ou WebP de até 150 MB."); else acceptSource(file, file.name); } e.target.value = ""; }}/></label>
+          </div>
+          <label className="block rounded-xl border border-dashed border-border p-4 text-sm">Importe o vídeo gerado (ou uma imagem pronta)<input type="file" disabled={busy} accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" className="mt-2 block w-full" onChange={e => { const file = e.target.files?.[0]; if (file) { if (!["video/mp4", "video/webm", "image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size || file.size > 150 * 1024 * 1024) setError("Use MP4, WebM, JPG, PNG ou WebP de até 150 MB."); else acceptSource(file, file.name); } e.target.value = ""; }}/></label>
           {source && <button type="button" disabled={busy} onClick={() => setStep(2)} className={button}>Continuar com o vídeo escolhido</button>}
         </div>
         {source && <div hidden={step !== 2} className="space-y-5"><h3 className="text-lg font-semibold">3. Ouça e aprove seu vídeo</h3>{presentation === "presenter" && <p className="rounded-lg border border-border p-3 text-sm text-muted">A narração adicionada aqui é uma faixa de áudio externa. Para que {presenter.name} apareça falando com movimento labial, gere e importe um vídeo já sincronizado na ferramenta externa.</p>}<CampaignNarration key={`${source.id}-${speech}`} source={source} speech={speech} onBusy={setBusy} onReady={media => setNarrated(media ? { source: source.id, speech, media: { ...media, id: crypto.randomUUID() } } : null)} />{final && <><MediaPreview media={final.blob}/><button type="button" disabled={busy} onClick={() => void approve()} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">Aprovar vídeo e preparar compartilhamento</button></>}</div>}
