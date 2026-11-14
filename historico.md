@@ -1,3 +1,11 @@
+## 2026-11-14 — Reconciliação do histórico de migrações remotas
+
+- Recuperados diretamente de `supabase_migrations.schema_migrations` os SQLs aplicados no projeto Supabase `jzchlrvxdaffnrgbvabv` para Facebook OAuth (`20261113230009`), TikTok OAuth (`20261114101136`) e TikTok Sandbox (`20261114120045`).
+- Adicionados os três arquivos de migração com os números exatos do histórico remoto. Removidas as versões locais duplicadas `20261113230000` e `20261114110000`, que não estavam aplicadas remotamente.
+- Nenhum SQL de alteração foi executado no banco de produção durante essa reconciliação. A validação CI e a publicação permanecem etapas distintas.
+- **Atenção:** migrações de publicação `20261112190000` e `20261112200000` continuam pendentes no Supabase e contêm `DROP CONSTRAINT`; a proteção de alto risco do pipeline não deve ser contornada. A tabela `public.mv_publications` ainda não existe no banco remoto, de modo que a migração anterior de agendamento deve ser aplicada na ordem prevista após revisão.
+- A integração de geração automática do Google Flow ainda não está validada; não confundir login remoto com geração de MP4.
+
 ## 14/11/2026 — Tipagem das integrações Facebook/TikTok e Google Flow
 
 Corrigidas as declarações TypeScript das respostas JSON em `facebook-connect`, `facebook-reels`, `tiktok-connect` e `tiktok-connect-sandbox`, mantendo os fluxos de OAuth, upload, credenciais e endpoints. Commits: `ada36d3`, `c9aca07`, `b7afac1`, `a7cefce`. O botão Google Flow já está ligado ao hub de Contas (`bd91cbb`, `549ae7a`), e o teste foi ajustado (`d97efa6`). Alterações enviadas diretamente à `main` do GitHub. Validação CI e publicação de produção ainda pendentes de confirmação; não declarar implantação no Supabase/Cloudflare sem verificar. O workflow exige disparo manual para publicar e possui controle de migrações de alto risco.
