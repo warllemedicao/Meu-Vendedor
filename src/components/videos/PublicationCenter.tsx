@@ -19,7 +19,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
   const { user } = useAuth();
   const [publishing, setPublishing] = useState(false);
   const [authorizationBlocked, setAuthorizationBlocked] = useState(false);
-  const [platform, setPlatform] = useState<PublicationPlatform>("kwai");
+  const [platform, setPlatform] = useState<PublicationPlatform | "">("");
   const [title, setTitle] = useState(defaultTitle);
   const [link, setLink] = useState("");
   const [hashtags, setHashtags] = useState("#Achadinhos #Ofertas #Produtos");
@@ -41,6 +41,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
   function downloadPackage() {
     if (!video) { setError("Gere um vídeo ou selecione um arquivo para preparar o pacote."); return; }
     if (validate() === null) return;
+    if (!platform) { setError("Escolha o destino da publicação."); return; }
     saveBlob(new Blob([publicationPackageText(platform, title, link, hashtags, video.filename)], { type: "text/plain;charset=utf-8" }), "publicacao-" + platform + ".txt");
     setNotice("Arquivo de legenda e instruções baixado. Baixe também o vídeo.");
   }
@@ -80,6 +81,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
   async function share() {
     if (!video) { setError("Selecione um vídeo para compartilhar."); return; }
     const text = validate(); if (text === null) return;
+    if (!platform) { setError("Escolha primeiro o destino da publicação."); return; }
     const file = new File([video.blob], video.filename, { type: video.blob.type || (isMp4 ? "video/mp4" : "video/webm") });
     if (!navigator.share || !navigator.canShare?.({ files: [file] })) {
       setNotice("Compartilhamento de arquivo indisponível neste navegador. Baixe o vídeo, copie a legenda e publique pelo aplicativo.");
@@ -93,6 +95,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
       <p className="text-sm text-muted">Prepare o vídeo, o link de afiliado e a legenda. O envio direto de Reels está disponível para Facebook. Para TikTok, envie o MP4 como rascunho e finalize no aplicativo. Nas demais redes a publicação é assistida. Links na legenda podem não ser clicáveis.</p>
       <label className="block text-sm font-medium">Rede social
         <select aria-label="Rede social de destino" value={platform} onChange={e => { setPlatform(e.target.value as PublicationPlatform); setNotice(""); }} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2">
+          <option value="">Selecione onde publicar</option>
           {(Object.keys(PUBLICATION_DESTINATIONS) as PublicationPlatform[]).map(key => <option key={key} value={key}>{PUBLICATION_DESTINATIONS[key].label}</option>)}
         </select>
       </label>
@@ -110,15 +113,16 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
         <input type="file" accept="video/mp4,video/webm,.mp4,.webm" className="mt-2 block w-full text-xs" aria-label="Selecionar vídeo para publicação" onChange={e => { const file = e.target.files?.[0] ?? null; if (file && (!["video/mp4", "video/webm"].includes(file.type) || file.size > 150 * 1024 * 1024)) { setError("Escolha um MP4 ou WebM de até 150 MB."); e.target.value = ""; return; } setUploaded(file); setError(""); }} />
       </label>
       <p className="text-xs text-muted">{video ? (isMp4 ? "MP4 pronto para baixar." : "Arquivo WebM: não será renomeado para MP4. Use um navegador com exportação MP4 ou converta em ferramenta compatível antes de publicar.") : "Gere um vídeo acima ou selecione um vídeo já produzido."}</p>
-      <p className="text-xs text-muted">{PUBLICATION_DESTINATIONS[platform].hint}</p>
+      {platform && <p className="text-xs text-muted">{PUBLICATION_DESTINATIONS[platform].hint}</p>}
       <div className="flex flex-wrap gap-2">
         {platform === "facebook" && <button type="button" disabled={!video || !isMp4 || publishing || !user} onClick={() => void publishFacebook()} className={button}><Upload className="h-4 w-4" />{publishing ? "Enviando Reel…" : "Publicar Reel no Facebook"}</button>}
         <button type="button" onClick={() => void copy()} className={button}><Copy className="h-4 w-4" />Copiar legenda e link</button>
         <button type="button" disabled={!video} onClick={() => video && saveBlob(video.blob, video.filename)} className={button}><Download className="h-4 w-4" />Baixar vídeo</button>
-        <button type="button" disabled={!video} onClick={downloadPackage} className={button}><Download className="h-4 w-4" />Baixar pacote TXT</button>
-        <button type="button" disabled={!video} onClick={() => void share()} className={button}><Share2 className="h-4 w-4" />Compartilhar no celular</button>
-        <a href={PUBLICATION_DESTINATIONS[platform].url} target="_blank" rel="noopener noreferrer" className={button}><ExternalLink className="h-4 w-4" />Abrir {PUBLICATION_DESTINATIONS[platform].label}</a>
+        <button type="button" disabled={!video || !platform} onClick={downloadPackage} className={button}><Download className="h-4 w-4" />Baixar pacote TXT</button>
+        <button type="button" disabled={!video || !platform} onClick={() => void share()} className={button}><Share2 className="h-4 w-4" />Compartilhar em outros locais</button>
+        {platform && <a href={PUBLICATION_DESTINATIONS[platform].url} target="_blank" rel="noopener noreferrer" className={button}><ExternalLink className="h-4 w-4" />Abrir {PUBLICATION_DESTINATIONS[platform].label}</a>}
       </div>
+      {platform === "shopee" && <p className="text-sm text-muted">Shopee Vídeos: baixe o vídeo, copie a legenda e vincule o produto no aplicativo antes de postar. Não existe envio direto autorizado nesta tela.</p>}
       {platform === "tiktok" && <TikTokDraftUpload video={video ?? null} />}
       {error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{error}</p>}
       {authorizationBlocked && user && <div className="rounded-xl border border-border p-3 text-sm space-y-2" role="status"><p>UID da conta conectada (Supabase Auth): <code className="break-all select-all">{user.id}</code></p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(user.id).then(() => setNotice("UID copiado.")).catch(() => setError("Selecione e copie o UID exibido."))}>Copiar UID</button><p>Em Supabase → Edge Functions → Secrets, configure META_ALLOWED_USER_ID com este UUID somente se esta for a conta proprietária autorizada. Depois entre novamente e teste. Não envie token ou senha.</p></div>}
