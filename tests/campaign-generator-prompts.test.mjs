@@ -64,3 +64,10 @@ test("canonical presenter profiles are included in Flow and Dreamina", async () 
     }
   }
 });
+
+test("Supabase campaign analysis accepts the same short durations as the product editor", () => {
+  const edge = readFileSync(new URL("../supabase/functions/campaign-content/index.ts", import.meta.url), "utf8");
+  assert.ok(edge.includes("[6, 7, 8, 10].includes(Number(body.seconds))"));
+  assert.ok(campaign.includes("<option value={10}>10 segundos</option>"));
+  assert.ok(campaign.includes("<option value={6}>6 segundos</option>"));
+});
