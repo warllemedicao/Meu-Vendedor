@@ -1,3 +1,9 @@
+## 14/11/2026 — Google Flow visível em Contas
+
+Implementado na branch principal: `AccountHub.tsx` importa e renderiza `GoogleFlowConnection` em **Contas → Lojas e redes**, com identidade visual (ícone de claquete), nome Google Flow, botão **Conectar / reabrir Flow**, verificação de conta/créditos, desconexão e opção de salvar sessão após confirmação. Commits de código: `bd91cbb` e `549ae7a`.
+
+O componente e as rotas de backend já existiam; a alteração desta etapa é a exposição do mecanismo na interface e seu ícone. Ainda não há evidência de build, teste de login real ou deploy Cloudflare desta revisão. Nenhuma geração automática ou importação de MP4 foi adicionada. Não foram feitas alterações no Supabase ou em Secrets.
+
 ## 14/11/2026 — Continuidade: gerador de produto e histórico de conversa
 
 - O gerador de campanha de produto prioriza prompts para Google Flow, Dreamina e YouTube Create, com apresentador (ex.: Ana) ou narração. Não tratar montagem legada/MuseTalk/Kaggle como arquitetura principal sem verificar uso real.
