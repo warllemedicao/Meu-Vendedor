@@ -1,3 +1,7 @@
+## Plano futuro — Estúdio guiado, ferramentas externas e publicação
+
+Plano completo e critérios de aceite: [PLANO_EVOLUCAO_ESTUDIO_VIDEO.md](./PLANO_EVOLUCAO_ESTUDIO_VIDEO.md). Prioridades: preservar navegação Início/Produtos/Lojas e redes; corrigir destino Shopee; simplificar o estúdio; criar presets Google Flow, YouTube Create (limite informado de 900 caracteres, sujeito a verificação) e Dreamina; aprimorar editor; preservar compartilhamento em outros locais. **Somente documentação nesta etapa, sem implementação ou deploy.**
+
 # Gerador de vídeos IA — estado e implantação
 
 ## Estado vigente — 08/11/2026: foto falante com produto
