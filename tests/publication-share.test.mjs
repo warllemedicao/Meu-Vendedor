@@ -30,7 +30,7 @@ test('cancelamento não é entrega e falha não é publicação', async () => {
 
 test('destinos assistidos abrem apenas sites oficiais comuns, sem prometer direcionamento ao app', () => {
   assert.deepEqual(publicationShareTargets.map(target => target.id), [
-    'tiktok_video', 'kwai', 'facebook_stories', 'pinterest', 'other_app',
+    'shopee_video', 'tiktok_video', 'kwai', 'facebook_stories', 'pinterest', 'other_app',
   ]);
   for (const target of publicationShareTargets) {
     if (target.siteUrl) assert.equal(new URL(target.siteUrl).protocol, 'https:');
