@@ -1,3 +1,7 @@
+## Regra adicional — comandos de commit manual
+
+Antes de enviar ao usuario comandos de `git add`, `git commit` ou `git push` para execucao manual no Codespace, atualizar `historico.md` com decisoes e fatos relevantes da conversa atual, incluindo alteracoes, testes, falhas e pendencias. Distinguir o que foi planejado, implementado, testado e publicado. Nunca registrar credenciais. Se nao for possivel atualizar o arquivo, declarar a limitacao e entregar o trecho Markdown sem afirmar que o GitHub foi atualizado. Esta regra complementa, sem substituir, `AGENTS.md`.
+
 # Instrucoes permanentes do Copilot — Meu Vendedor
 
 Assim que receber a primeira solicitacao de cada nova conversa e antes de executar qualquer tarefa, siga `AGENTS.md`. A leitura e obrigatoria e deve ocorrer no contexto do agente; abrir/reabrir a pagina ou executar um script nao a substitui.
