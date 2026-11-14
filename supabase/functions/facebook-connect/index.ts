@@ -37,7 +37,7 @@ async function currentUser(req: Request) {
 }
 async function graph(url: string) {
   const response = await fetch(url, { headers: { Accept: "application/json" } });
-  const body = await response.json();
+  const body = await response.json() as { error?: unknown; access_token?: string; data?: Array<{ id: string; name: string; access_token?: string }> };
   if (!response.ok || body.error) throw new Error("Meta request failed");
   return body;
 }
