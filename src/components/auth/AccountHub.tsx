@@ -6,7 +6,6 @@ import { useAuth } from "./AuthProvider";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
 import { connectorCatalog } from "@/lib/connectors/catalog";
-import { marketplaceIntegrationNotes } from "@/lib/account-integrations";
 import { marketplaceAction, displayDate } from "@/lib/marketplace";
 import { shopeeSummaryState } from "@/lib/marketplace-status";
 import { Badge } from "@/components/ui/Badge";
@@ -15,10 +14,11 @@ import { FacebookConnection } from "./FacebookConnection";
 import { TikTokConnection } from "./TikTokConnection";
 import { Camera, Pin, Video, Sparkles, ExternalLink } from "lucide-react";
 
-const sections = [{ id: "acesso", label: "Meu acesso" }, { id: "google", label: "Google e redes" }, { id: "lojas", label: "Lojas" }] as const;
+const sections = [{ id: "acesso", label: "Meu acesso" }, { id: "google", label: "Lojas e redes" }] as const;
 type Section = typeof sections[number]["id"];
 function sectionFromHash(): Section {
   const value = window.location.hash.slice(1);
+  if (value === "lojas") return "google";
   return sections.some((section) => section.id === value) ? value as Section : "acesso";
 }
 
@@ -102,6 +102,7 @@ export function AccountHub() {
       <div className="grid gap-3 sm:grid-cols-2">
         <FacebookConnection key={`facebook:${user?.id ?? "anonymous"}`} />
         <YouTubeConnection key={`youtube:${user?.id ?? "anonymous"}`} compact />
+        <TikTokConnection key={`tiktok:${user?.id ?? "anonymous"}`} />
         {[
           { name: "Instagram", icon: Camera, href: "/videos", status: "Publicação manual" },
           { name: "Pinterest", icon: Pin, href: "https://www.pinterest.com/pin-builder/", status: "Publicação manual" },
@@ -113,10 +114,10 @@ export function AccountHub() {
           <a href={item.href} target={item.href.startsWith("https:") ? "_blank" : undefined} rel={item.href.startsWith("https:") ? "noopener noreferrer" : undefined} className="rounded-lg border border-border p-2" aria-label={`Abrir ${item.name}`}><ExternalLink className="h-4 w-4" /></a>
         </article>)}
       </div>
-    </section>
-    <section role="tabpanel" id="panel-lojas" aria-labelledby="tab-lojas" hidden={section !== "lojas"} className="space-y-3">
+      <div className="mt-5 space-y-3">
+        <h2 className="text-sm font-semibold">Marketplaces e afiliados</h2>
       <div className="rounded-xl border border-border bg-surface p-4"><h2 className="font-semibold">Suas lojas e programas de afiliados</h2><p className="mt-1 text-sm text-muted">Selecione uma plataforma para conectar ou revisar o acesso. O catálogo público continua disponível antes da conexão.</p></div>
-      {connectorCatalog.map((connector) => {
+      {connectorCatalog.filter((connector) => connector.id !== "tiktok").map((connector) => {
         const connection = connections.find((item) => item.platform_id === connector.id);
         const statusLabel = connector.id === "shopee"
           ? shopeeLabels[shopeeState]
@@ -143,17 +144,11 @@ export function AccountHub() {
               {currentShopeeStatus.status.status === "error" && <p className="mt-1 text-danger">A última conexão requer atenção. Verifique a API antes de atualizar credenciais.</p>}
             </div>}
             {connector.id === "shopee" && shopeeState === "credentials_missing" && <p role="status" className="mb-3 text-sm text-muted">O registro da conexão existe, mas o backend não localizou credenciais cifradas. Verifique a conexão antes de cadastrar dados novamente.</p>}
-            {connector.id === "tiktok" ? <div className="space-y-3"><TikTokConnection key={`tiktok:${user?.id ?? "anonymous"}`} /><p className="text-xs text-muted">A conexão autoriza a conta TikTok e o envio de MP4 para rascunhos, sujeito às permissões da plataforma. Não conecta automaticamente o TikTok Shop.</p></div> : <IntegrationCard connector={connector} credentialsStored={connector.id === "shopee" ? shopeeCredentialsStored : undefined} />}
+            <IntegrationCard connector={connector} credentialsStored={connector.id === "shopee" ? shopeeCredentialsStored : undefined} />
           </div>
         </details>;
       })}
-      {marketplaceIntegrationNotes.map((integration) => <article key={integration.name} className="rounded-xl border border-border bg-surface p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{integration.name}</h3><Badge>{integration.status}</Badge></div>
-        <p className="mt-2 text-sm"><strong>Concluído:</strong> {integration.completed}</p>
-        <p className="mt-2 text-sm text-muted"><strong>Falta:</strong> {integration.pending}</p>
-        <p className="mt-2 text-sm text-muted"><strong>Próxima ação:</strong> {integration.next}</p>
-        {integration.href && <a href={integration.href} className="mt-3 inline-block text-sm text-primary underline">{integration.actionLabel}</a>}
-      </article>)}
+      </div>
     </section>
   </div>;
 }
