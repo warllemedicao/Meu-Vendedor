@@ -1,3 +1,9 @@
+## 2026-11-14 — Revisão de segurança das migrações de publicação (sem aplicação remota)
+
+- Endurecido `search_path` das duas funções `SECURITY DEFINER` do módulo de publicações para `pg_catalog, public, pg_temp`, mantendo `revoke` de acesso público e execução restrita ao `service_role`.
+- Criados testes de regressão `tests/publication-migration-security.test.mjs` para verificar RLS, permissões, escopo das funções, processamento manual, cron e preservação dos destinos permitidos.
+- As migrações pendentes de publicação permanecem **não aplicadas** em produção. As duas migrações de destinos continuam sendo detectadas como alto risco por `DROP CONSTRAINT` e exigem aprovação pelo fluxo protegido. O usuário solicitou revisão antes de autorizar a implantação.
+
 ## 2026-11-14 — Reconciliação do histórico de migrações remotas
 
 - Recuperados diretamente de `supabase_migrations.schema_migrations` os SQLs aplicados no projeto Supabase `jzchlrvxdaffnrgbvabv` para Facebook OAuth (`20261113230009`), TikTok OAuth (`20261114101136`) e TikTok Sandbox (`20261114120045`).
