@@ -78,7 +78,24 @@ test("generator links avoid nonexistent YouTube Create desktop page", async () =
   assert.ok(!GENERATOR_LINKS["youtube-create"].includes("youtube.com/create"));
 });
 test("product and presenter references are actually converted to JPEG", () => {
-  assert.ok(campaign.includes('canvas.toBlob(result => result ? resolve(result)'));
+  assert.ok(campaign.includes('canvas.toBlob(blob => blob ? resolve(blob)'));
   assert.ok(campaign.includes('"image/jpeg", 0.94'));
   assert.ok(campaign.includes('".jpg"'));
+});
+
+test("Dreamina caps prompts at 4000 characters without losing exact dialogue", async () => {
+  const { buildGeneratorPrompts, DREAMINA_PROMPT_LIMIT } = await import("../src/lib/campaign-generator-prompts.ts");
+  assert.equal(DREAMINA_PROMPT_LIMIT, 4000);
+  const brief = {
+    title: "Caneca", details: "vermelha", scene: "cozinha", speech: "Conheça esta caneca!",
+    durationSeconds: 8, presentation: "presenter", presenterName: "Ana",
+    presenterIdentity: "roupa azul", presenterVoice: "voz natural",
+    masterPrompt: "continuidade ".repeat(1000),
+  };
+  const [prompt] = buildGeneratorPrompts("dreamina", brief);
+  assert.ok(prompt.length <= DREAMINA_PROMPT_LIMIT);
+  assert.ok(prompt.includes('Fala EXATA em português brasileiro: "Conheça esta caneca!"'));
+  assert.ok(prompt.includes("Preserve identidade: roupa azul"));
+  assert.ok(prompt.includes("REGRA DE PRIORIDADE"));
+  assert.ok(buildGeneratorPrompts("google-flow", brief)[0].length > 4000);
 });
