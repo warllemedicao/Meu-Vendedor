@@ -62,3 +62,24 @@ test("Flow and Dreamina repeat full story bible but isolate the scene action and
     assert.ok(!prompts[0].includes("AÇÃO EXCLUSIVA DESTA CENA: Mostra o produto."));
   }
 });
+
+test("canonical identity is derived from approved presenter catalog and repeated in campaign prompts", async () => {
+  const { presenterIdentityPrompt, virtualPresenters } = await import("../src/lib/video-studio.ts");
+  const { buildGeneratorPrompts } = await import("../src/lib/campaign-generator-prompts.ts");
+  for (const presenter of virtualPresenters.filter(item => item.referenceStatus === "ready")) {
+    const identity = presenterIdentityPrompt(presenter.id);
+    assert.ok(identity.includes(presenter.image));
+    assert.ok(identity.includes(presenter.visualIdentity));
+    assert.ok(identity.includes(presenter.defaultVoiceProfile));
+    const brief = { title: "Caneca", details: "", scene: "cozinha",
+      speech: "Veja esta caneca maravilhosa.", durationSeconds: 15,
+      presentation: "presenter", presenterName: presenter.name,
+      presenterIdentity: presenter.visualIdentity,
+      presenterVoice: presenter.defaultVoiceProfile,
+      masterPrompt: "Cena de anúncio", continuityBible: identity };
+    for (const provider of ["google-flow", "dreamina"]) {
+      assert.ok(buildGeneratorPrompts(provider, brief).every(prompt => prompt.includes(identity)));
+    }
+    assert.ok(buildGeneratorPrompts("youtube-create", brief).every(prompt => prompt.length <= 900));
+  }
+});
