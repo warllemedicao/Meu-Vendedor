@@ -68,7 +68,7 @@ create or replace function public.mv_process_due_publications()
 returns integer
 language plpgsql
 security definer
-set search_path = public, pg_temp
+set search_path = pg_catalog, public, pg_temp
 as $$
 declare
   processed integer;
@@ -108,7 +108,7 @@ create or replace function public.mv_apply_publication_action(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public, pg_temp
+set search_path = pg_catalog, public, pg_temp
 as $$
 declare
   publication public.mv_publications%rowtype;
