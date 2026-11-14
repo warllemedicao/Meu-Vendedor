@@ -16,13 +16,13 @@ export function ProductsWorkspace() {
   }
 
   return <div className="space-y-6">
-    {connected && <section aria-label="Produtos da conta Shopee">
-      <h2 className="mb-3 text-lg font-semibold">Produtos da minha conta</h2>
-      <ProductCatalog />
-    </section>}
     <section aria-label="Produtos da vitrine pública">
       <h2 className="mb-3 text-lg font-semibold">Explorar produtos</h2>
       <PublicProductCatalog excludeShopee={connected} />
     </section>
+    {connected && <section aria-label="Produtos da conta Shopee">
+      <h2 className="mb-3 text-lg font-semibold">Produtos da minha conta</h2>
+      <ProductCatalog />
+    </section>}
   </div>;
 }
