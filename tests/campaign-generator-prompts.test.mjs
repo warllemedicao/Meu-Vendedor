@@ -18,68 +18,49 @@ test("campaign provides compact accessible generator icons, per-scene prompt and
   assert.ok(campaign.includes("Copiar prompt"));
   assert.ok(campaign.includes("Baixar prompts"));
 });
-test("YouTube scenes remain within 900 characters with long inputs and retain speech", async () => {
+test("product campaign emits exactly one prompt for 6, 8 and 10 seconds", async () => {
   const { buildGeneratorPrompts } = await import("../src/lib/campaign-generator-prompts.ts");
-  const speech = Array.from({ length: 65 }, (_, i) => `palavra${i}`).join(" ");
-  const prompts = buildGeneratorPrompts("youtube-create", {
-    title: "Caneca", details: "detalhes ".repeat(200), scene: "cozinha ".repeat(200),
-    speech, durationSeconds: 30, presentation: "presenter",
-    presenterName: "Ana", masterPrompt: "roteiro completo"
-  });
-  assert.ok(prompts.length >= 4);
-  assert.ok(prompts.every(prompt => prompt.length <= 900));
-  for (const word of speech.split(" ")) assert.ok(prompts.some(prompt => prompt.includes(word)));
+  for (const durationSeconds of [6, 8, 10]) {
+    for (const provider of ["youtube-create", "google-flow", "dreamina"]) {
+      const prompts = buildGeneratorPrompts(provider, {
+        title: "Caneca", details: "vermelha", scene: "cozinha",
+        speech: "Conheça esta caneca!", durationSeconds,
+        presentation: "presenter", presenterName: "Ana",
+        presenterIdentity: "blazer claro", presenterVoice: "natural",
+        masterPrompt: "ROTEIRO MESTRE: roupa e voz fixas."
+      });
+      assert.equal(prompts.length, 1);
+      assert.ok(prompts[0].includes("Conheça esta caneca!"));
+      if (provider !== "youtube-create") assert.ok(prompts[0].includes("ROTEIRO MESTRE: roupa e voz fixas."));
+      else assert.ok(prompts[0].length <= 900);
+    }
+  }
 });
-test("all three generators produce one prompt per planned scene", async () => {
+test("product campaign refuses long dialogue or duration above ten seconds", async () => {
   const { buildGeneratorPrompts } = await import("../src/lib/campaign-generator-prompts.ts");
-  const brief = { title: "Caneca", details: "", scene: "cozinha", speech: "Bom dia, conheça esta caneca.",
+  const brief = { title: "Caneca", details: "", scene: "cozinha", speech: "Olá!",
     durationSeconds: 15, presentation: "voiceover", masterPrompt: "direção" };
-  for (const generator of ["youtube-create", "google-flow", "dreamina"]) {
-    const prompts = buildGeneratorPrompts(generator, brief);
-    assert.equal(prompts.length, 2);
-    assert.ok(prompts.every(prompt => prompt.includes("português brasileiro") || prompt.includes("português brasileiro")));
-  }
+  assert.throws(() => buildGeneratorPrompts("google-flow", brief), /1 a 10 segundos/);
+  assert.throws(() => buildGeneratorPrompts("dreamina", {
+    ...brief, durationSeconds: 8, speech: "palavra ".repeat(60)
+  }), /fala está longa/);
 });
-
-test("Flow and Dreamina repeat full story bible but isolate the scene action and dialogue", async () => {
-  const { buildGeneratorPrompts } = await import("../src/lib/campaign-generator-prompts.ts");
-  const brief = {
-    title: "Produto", details: "vermelho", scene: "cozinha",
-    speech: "Olá mundo. Este é um teste.", durationSeconds: 15,
-    presentation: "presenter", presenterName: "Ana",
-    presenterIdentity: "cabelo escuro, blazer claro",
-    presenterVoice: "voz feminina natural",
-    masterPrompt: "Bíblia: roupa coral, iluminação suave, mesma voz, mesmo rosto.",
-    sceneActions: ["Levanta o produto.", "Mostra o produto."],
-  };
-  for (const provider of ["google-flow", "dreamina"]) {
-    const prompts = buildGeneratorPrompts(provider, brief);
-    assert.equal(prompts.length, 2);
-    assert.ok(prompts.every(prompt => prompt.includes(brief.masterPrompt)));
-    assert.ok(prompts.every(prompt => prompt.includes(brief.presenterIdentity)));
-    assert.ok(prompts[0].includes("Levanta o produto."));
-    assert.ok(prompts[1].includes("Mostra o produto."));
-    assert.ok(!prompts[0].includes("AÇÃO EXCLUSIVA DESTA CENA: Mostra o produto."));
-  }
-});
-
-test("canonical identity is derived from approved presenter catalog and repeated in campaign prompts", async () => {
+test("canonical presenter profiles are included in Flow and Dreamina", async () => {
   const { presenterIdentityPrompt, virtualPresenters } = await import("../src/lib/video-studio.ts");
   const { buildGeneratorPrompts } = await import("../src/lib/campaign-generator-prompts.ts");
   for (const presenter of virtualPresenters.filter(item => item.referenceStatus === "ready")) {
     const identity = presenterIdentityPrompt(presenter.id);
     assert.ok(identity.includes(presenter.image));
     assert.ok(identity.includes(presenter.visualIdentity));
-    assert.ok(identity.includes(presenter.defaultVoiceProfile));
     const brief = { title: "Caneca", details: "", scene: "cozinha",
-      speech: "Veja esta caneca maravilhosa.", durationSeconds: 15,
+      speech: "Veja esta caneca!", durationSeconds: 8,
       presentation: "presenter", presenterName: presenter.name,
-      presenterIdentity: presenter.visualIdentity,
-      presenterVoice: presenter.defaultVoiceProfile,
-      masterPrompt: "Cena de anúncio", continuityBible: identity };
+      presenterIdentity: presenter.visualIdentity, presenterVoice: presenter.defaultVoiceProfile,
+      masterPrompt: "Anúncio", continuityBible: identity };
     for (const provider of ["google-flow", "dreamina"]) {
-      assert.ok(buildGeneratorPrompts(provider, brief).every(prompt => prompt.includes(identity)));
+      const prompts = buildGeneratorPrompts(provider, brief);
+      assert.equal(prompts.length, 1);
+      assert.ok(prompts[0].includes(identity));
     }
-    assert.ok(buildGeneratorPrompts("youtube-create", brief).every(prompt => prompt.length <= 900));
   }
 });
