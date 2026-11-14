@@ -18,7 +18,7 @@ async function key() { const raw=decode(ENC);if(raw.length!==32)throw Error("Inv
 async function seal(s:string) {const iv=crypto.getRandomValues(new Uint8Array(12));const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},await key(),new TextEncoder().encode(s));return {ciphertext:encode(new Uint8Array(encrypted)),iv:encode(iv)};}
 async function unseal(ciphertext:string,iv:string) {return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:decode(iv)},await key(),decode(ciphertext)));}
 async function user(req:Request) {const bearer=req.headers.get("authorization")??"";if(!bearer.startsWith("Bearer "))return null;const client=createClient(PROJECT,ANON,{auth:{persistSession:false}});const {data,error}=await client.auth.getUser(bearer.slice(7));return error||!data.user||data.user.is_anonymous?null:data.user;}
-async function token(body:URLSearchParams) {const res=await fetch("https://open.tiktokapis.com/v2/oauth/token/",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});const data=await res.json();if(!res.ok||!data.access_token)throw Error("token_exchange_failed");return data;}
+async function token(body:URLSearchParams) {const res=await fetch("https://open.tiktokapis.com/v2/oauth/token/",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});const data=await res.json() as {access_token:string;refresh_token:string;expires_in:number;refresh_expires_in:number;scope?:string;open_id:string};if(!res.ok||!data.access_token)throw Error("token_exchange_failed");return data;}
 type TikTokConnectionRow = {user_id:string;access_expires_at:string;refresh_expires_at:string;access_ciphertext:string;access_iv:string;refresh_ciphertext:string;refresh_iv:string;scopes:string};
 async function fresh(connection:TikTokConnectionRow) {
  if(Date.parse(connection.access_expires_at)>Date.now()+120000)return unseal(connection.access_ciphertext,connection.access_iv);
@@ -42,7 +42,7 @@ Deno.serve(async req=>{
     const t=await token(new URLSearchParams({client_key:CLIENT,client_secret:SECRET,code,grant_type:"authorization_code",redirect_uri:CALLBACK}));
     const a=await seal(t.access_token),r=await seal(t.refresh_token);
     const profileResponse=await fetch("https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url",{headers:{Authorization:"Bearer "+t.access_token}});
-    const profile=await profileResponse.json().catch(()=>({}));
+    const profile=await profileResponse.json().catch(()=>({})) as {data?:{user?:{display_name?:string;avatar_url?:string}}};
     const info=profileResponse.ok?profile.data?.user??{}:{};
     const {error:saveError}=await db.from("tiktok_connections").upsert({user_id:row.user_id,open_id:t.open_id,display_name:info.display_name??null,avatar_url:info.avatar_url??null,scopes:t.scope??"",access_ciphertext:a.ciphertext,access_iv:a.iv,refresh_ciphertext:r.ciphertext,refresh_iv:r.iv,access_expires_at:new Date(Date.now()+t.expires_in*1000).toISOString(),refresh_expires_at:new Date(Date.now()+t.refresh_expires_in*1000).toISOString(),connected_at:new Date().toISOString()});
     return finish(saveError?"storage_failed":"connected");
@@ -50,7 +50,7 @@ Deno.serve(async req=>{
  }
  if(req.method!=="POST")return reply(405,"method_not_allowed");
  const actor=await user(req);if(!actor)return reply(401,"unauthorized");
- const payload=await req.json().catch(()=>null);if(!payload||typeof payload.action!=="string")return reply(400,"invalid_request");
+ const payload=await req.json().catch(()=>null) as {action?:string;size?:number;mime_type?:string;publish_id?:string}|null;if(!payload||typeof payload.action!=="string")return reply(400,"invalid_request");
  if(payload.action==="start"){
   const state=random();
   const {error}=await db.from("tiktok_oauth_states").insert({state_hash:await sha(state),user_id:actor.id,expires_at:new Date(Date.now()+600000).toISOString()});
@@ -74,13 +74,13 @@ Deno.serve(async req=>{
   if(!data)return reply(409,"not_connected");
   if(!data.scopes.split(",").includes("video.upload"))return reply(403,"scope_not_granted");
   const size=payload.size, type=payload.mime_type;
-  if(!Number.isSafeInteger(size)||size<1||size>64*1024*1024||type!=="video/mp4")return reply(400,"invalid_video");
+  if(typeof size!=="number"||!Number.isSafeInteger(size)||size<1||size>64*1024*1024||type!=="video/mp4")return reply(400,"invalid_video");
   try {
    const access=await fresh(data);
    const chunkSize=size<=5*1024*1024?size:5*1024*1024;
    const total=Math.ceil(size/chunkSize);
    const response=await fetch("https://open.tiktokapis.com/v2/post/publish/inbox/video/init/",{method:"POST",headers:{Authorization:"Bearer "+access,"Content-Type":"application/json"},body:JSON.stringify({source_info:{source:"FILE_UPLOAD",video_size:size,chunk_size:chunkSize,total_chunk_count:total}})});
-   const result=await response.json();
+   const result=await response.json() as {error?:{code?:string};data?:{upload_url?:string;publish_id?:string}};
    if(!response.ok||result.error?.code!=="ok"||!result.data?.upload_url)return reply(502,"tiktok_api_error",{detail:result.error?.code??"invalid_response"});
    return reply(200,"ok",{upload_url:result.data.upload_url,publish_id:result.data.publish_id,chunk_size:chunkSize,total_chunk_count:total});
   }catch{return reply(502,"tiktok_api_error");}
@@ -89,14 +89,14 @@ Deno.serve(async req=>{
   const {data}=await db.from("tiktok_connections").select("*").eq("user_id",actor.id).maybeSingle();
   if(!data)return reply(409,"not_connected");
   if(typeof payload.publish_id!=="string"||payload.publish_id.length>300)return reply(400,"invalid_request");
-  try{const access=await fresh(data);const response=await fetch("https://open.tiktokapis.com/v2/post/publish/status/fetch/",{method:"POST",headers:{Authorization:"Bearer "+access,"Content-Type":"application/json"},body:JSON.stringify({publish_id:payload.publish_id})});const result=await response.json();return reply(response.ok?200:502,response.ok?"ok":"tiktok_api_error",{data:result.data??null,detail:result.error?.code});}catch{return reply(502,"tiktok_api_error");}
+  try{const access=await fresh(data);const response=await fetch("https://open.tiktokapis.com/v2/post/publish/status/fetch/",{method:"POST",headers:{Authorization:"Bearer "+access,"Content-Type":"application/json"},body:JSON.stringify({publish_id:payload.publish_id})});const result=await response.json() as {error?:{code?:string};data?:{upload_url?:string;publish_id?:string}};return reply(response.ok?200:502,response.ok?"ok":"tiktok_api_error",{data:result.data??null,detail:result.error?.code});}catch{return reply(502,"tiktok_api_error");}
  }
  if(payload.action==="creator_info"){
   const {data}=await db.from("tiktok_connections").select("*").eq("user_id",actor.id).maybeSingle();
   if(!data)return reply(409,"not_connected");
   try{const access=await fresh(data);if(!data.scopes.split(",").includes("video.publish"))return reply(403,"scope_not_granted");
    const response=await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/",{method:"POST",headers:{Authorization:"Bearer "+access,"Content-Type":"application/json"},body:"{}"});
-   const result=await response.json();return reply(response.ok?200:502,response.ok?"ok":"tiktok_api_error",{data:response.ok?result.data:undefined});
+   const result=await response.json() as {error?:{code?:string};data?:{upload_url?:string;publish_id?:string}};return reply(response.ok?200:502,response.ok?"ok":"tiktok_api_error",{data:response.ok?result.data:undefined});
   }catch{return reply(502,"tiktok_api_error");}
  }
  return reply(400,"invalid_action");
