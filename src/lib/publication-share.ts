@@ -1,5 +1,6 @@
 export type PublicationShareResult = "shared" | "cancelled" | "unsupported" | "failed";
 export const publicationShareTargets = [
+  { id: "shopee_video", label: "Shopee Vídeos", siteUrl: "https://shopee.com.br/" },
   { id: "tiktok_video", label: "TikTok", siteUrl: "https://www.tiktok.com/" },
   { id: "kwai", label: "Kwai", siteUrl: "https://www.kwai.com/" },
   { id: "facebook_stories", label: "Facebook Stories", siteUrl: "https://www.facebook.com/" },
@@ -40,4 +41,9 @@ export function shopeeProductDestination(value?: string): string | null {
     const url = new URL(value ?? "");
     return url.protocol === "https:" && url.hostname === "shopee.com.br" && !url.username && !url.password ? url.href : null;
   } catch { return null; }
+}
+
+/** O marketplace de origem não autoriza publicação automática; escolha o destino assistido apropriado. */
+export function defaultShareTarget(sourceMarketplace: string): PublicationShareTarget {
+  return sourceMarketplace.trim().toLowerCase() === "shopee" ? "shopee_video" : "other_app";
 }
