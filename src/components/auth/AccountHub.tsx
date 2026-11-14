@@ -100,7 +100,6 @@ export function AccountHub() {
     <section role="tabpanel" id="panel-google" aria-labelledby="tab-google" hidden={section !== "google"} className="space-y-4">
       {!user && <p className="text-sm text-muted">Entre em Meu acesso para conectar suas redes.</p>}
       <div className="grid gap-3 sm:grid-cols-2">
-        <TikTokConnection key={`tiktok:${user?.id ?? "anonymous"}`} />
         <FacebookConnection key={`facebook:${user?.id ?? "anonymous"}`} />
         <YouTubeConnection key={`youtube:${user?.id ?? "anonymous"}`} compact />
         {[
@@ -126,7 +125,7 @@ export function AccountHub() {
             : connectionsError
               ? "Estado desconhecido"
           : connector.id === "tiktok"
-            ? "Aguardando autorização própria"
+            ? "Conexão TikTok disponível"
             : connection?.status === "connected" ? "Conectada"
               : connection?.status === "error" ? "Estado a revisar"
                 : "Em preparação";
@@ -144,7 +143,7 @@ export function AccountHub() {
               {currentShopeeStatus.status.status === "error" && <p className="mt-1 text-danger">A última conexão requer atenção. Verifique a API antes de atualizar credenciais.</p>}
             </div>}
             {connector.id === "shopee" && shopeeState === "credentials_missing" && <p role="status" className="mb-3 text-sm text-muted">O registro da conexão existe, mas o backend não localizou credenciais cifradas. Verifique a conexão antes de cadastrar dados novamente.</p>}
-            <IntegrationCard connector={connector} credentialsStored={connector.id === "shopee" ? shopeeCredentialsStored : undefined} />
+            {connector.id === "tiktok" ? <div className="space-y-3"><TikTokConnection key={`tiktok:${user?.id ?? "anonymous"}`} /><p className="text-xs text-muted">A conexão autoriza a conta TikTok e o envio de MP4 para rascunhos, sujeito às permissões da plataforma. Não conecta automaticamente o TikTok Shop.</p></div> : <IntegrationCard connector={connector} credentialsStored={connector.id === "shopee" ? shopeeCredentialsStored : undefined} />}
           </div>
         </details>;
       })}
