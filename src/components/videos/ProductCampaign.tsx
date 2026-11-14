@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { Clapperboard, Copy, Download, ExternalLink, Sparkles, Youtube } from "lucide-react";
+import { Clapperboard, Copy, Download, ExternalLink, Sparkles, PlayCircle } from "lucide-react";
 import { buildGeneratorPrompts, GENERATOR_LINKS, YOUTUBE_PROMPT_LIMIT, type CampaignGenerator } from "@/lib/campaign-generator-prompts";
 import { useEffect, useRef, useState } from "react";
 import { marketplaceAction } from "@/lib/marketplace";
@@ -145,7 +145,7 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
             <div className="flex flex-wrap gap-2" role="group" aria-label="Gerador de vídeo">
               <button type="button" title="Google Flow" aria-label="Selecionar Google Flow" aria-pressed={generator === "google-flow"} onClick={() => { setGenerator("google-flow"); setSceneIndex(0); }} className={`${button} ${generator === "google-flow" ? "border-primary bg-primary-soft" : ""}`}><Clapperboard className="h-6 w-6" /></button>
               <button type="button" title="Dreamina" aria-label="Selecionar Dreamina" aria-pressed={generator === "dreamina"} onClick={() => { setGenerator("dreamina"); setSceneIndex(0); }} className={`${button} ${generator === "dreamina" ? "border-primary bg-primary-soft" : ""}`}><Sparkles className="h-6 w-6" /></button>
-              <button type="button" title="YouTube Create (aplicativo móvel)" aria-label="Selecionar YouTube Create" aria-pressed={generator === "youtube-create"} onClick={() => { setGenerator("youtube-create"); setSceneIndex(0); }} className={`${button} ${generator === "youtube-create" ? "border-primary bg-primary-soft" : ""}`}><Youtube className="h-6 w-6" /></button>
+              <button type="button" title="YouTube Create (aplicativo móvel)" aria-label="Selecionar YouTube Create" aria-pressed={generator === "youtube-create"} onClick={() => { setGenerator("youtube-create"); setSceneIndex(0); }} className={`${button} ${generator === "youtube-create" ? "border-primary bg-primary-soft" : ""}`}><PlayCircle className="h-6 w-6" /></button>
               <a href={GENERATOR_LINKS[generator]} target="_blank" rel="noopener noreferrer" title="Abrir gerador selecionado" aria-label="Abrir gerador selecionado" className={`${button} border-primary text-primary`}><ExternalLink className="h-5 w-5" /></a>
             </div>
             {generator === "youtube-create" && <p className="text-xs text-muted">YouTube Create é um aplicativo móvel. No computador, prepare os arquivos e continue no celular. A disponibilidade de geração por IA depende da conta e do dispositivo.</p>}
