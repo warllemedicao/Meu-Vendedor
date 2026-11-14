@@ -12,6 +12,14 @@ test("campaign reuses stable presenter references and preserves manual sharing",
   assert.ok(campaign.includes("presenter.visualIdentity"));
   assert.ok(campaign.includes("presenter.image"));
   assert.ok(campaign.includes("<PublicationComposer"));
-  assert.ok(campaign.includes("<ProductVideoStudio"));
+  assert.ok(!campaign.includes("<ProductVideoStudio"));
+  assert.ok(campaign.includes("buildGeneratorPrompts"));
+  assert.ok(campaign.includes("Gere seu vídeo com IA"));
+  assert.ok(campaign.includes("Selecionar Google Flow"));
+  assert.ok(campaign.includes("Selecionar Dreamina"));
+  assert.ok(campaign.includes("Selecionar YouTube Create"));
+  assert.ok(campaign.includes("Importe o vídeo gerado"));
+  assert.ok(campaign.includes("presenterIdentityPrompt"));
+  assert.ok(!campaign.includes("Montar com fotos e clipes"));
   assert.ok(campaign.includes("ManualChatGPTPrompt"));
 });
