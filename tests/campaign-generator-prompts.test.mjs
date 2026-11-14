@@ -18,3 +18,25 @@ test("campaign provides compact accessible generator icons, per-scene prompt and
   assert.ok(campaign.includes("Copiar prompt"));
   assert.ok(campaign.includes("Baixar prompts"));
 });
+test("YouTube scenes remain within 900 characters with long inputs and retain speech", async () => {
+  const { buildGeneratorPrompts } = await import("../src/lib/campaign-generator-prompts.ts");
+  const speech = Array.from({ length: 65 }, (_, i) => `palavra${i}`).join(" ");
+  const prompts = buildGeneratorPrompts("youtube-create", {
+    title: "Caneca", details: "detalhes ".repeat(200), scene: "cozinha ".repeat(200),
+    speech, durationSeconds: 30, presentation: "presenter",
+    presenterName: "Ana", masterPrompt: "roteiro completo"
+  });
+  assert.ok(prompts.length >= 4);
+  assert.ok(prompts.every(prompt => prompt.length <= 900));
+  for (const word of speech.split(" ")) assert.ok(prompts.some(prompt => prompt.includes(word)));
+});
+test("all three generators produce one prompt per planned scene", async () => {
+  const { buildGeneratorPrompts } = await import("../src/lib/campaign-generator-prompts.ts");
+  const brief = { title: "Caneca", details: "", scene: "cozinha", speech: "Bom dia, conheça esta caneca.",
+    durationSeconds: 15, presentation: "voiceover", masterPrompt: "direção" };
+  for (const generator of ["youtube-create", "google-flow", "dreamina"]) {
+    const prompts = buildGeneratorPrompts(generator, brief);
+    assert.equal(prompts.length, 2);
+    assert.ok(prompts.every(prompt => prompt.includes("português brasileiro") || prompt.includes("português brasileiro")));
+  }
+});
