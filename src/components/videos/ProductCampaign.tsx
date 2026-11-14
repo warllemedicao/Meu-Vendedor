@@ -12,7 +12,7 @@ import { PublicationComposer } from "./PublicationComposer";
 import { ManualChatGPTPrompt } from "./ManualChatGPTPrompt";
 import { useManualPromptDraft } from "@/hooks/useManualPromptDraft";
 import { CampaignNarration } from "./CampaignNarration";
-import { virtualPresenters, type PresenterId } from "@/lib/video-studio";
+import { virtualPresenters, presenterIdentityPrompt, type PresenterId } from "@/lib/video-studio";
 const field = "mt-1 w-full rounded-xl border border-border bg-background p-3 text-sm";
 const button = "rounded-xl border border-border px-4 py-2.5 text-sm disabled:opacity-50";
 const steps = ["Produto e roteiro", "Criar vídeo", "Narração e aprovação", "Compartilhar"];
@@ -37,8 +37,9 @@ function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" 
   const [presentation, setPresentation] = useState<"presenter" | "voiceover">("voiceover");
   const [presenterId, setPresenterId] = useState<PresenterId>("ana");
   const presenter = virtualPresenters.find(item => item.id === presenterId) ?? virtualPresenters[0];
+  const fixedIdentity = presentation === "presenter" ? presenterIdentityPrompt(presenterId) : "";
   const presenterDirection = presentation === "presenter"
-    ? `Apresentador fixo: ${presenter.name}. Identidade visual: ${presenter.visualIdentity}. Voz: ${presenter.defaultVoiceGender}, ${presenter.defaultVoiceProfile}. Atuação: ${presenter.preferences}. Use a imagem de referência do apresentador e a foto real do produto como duas referências distintas; preserve rosto, roupas, cores e embalagem. O apresentador segura ou demonstra o produto e fala exatamente o roteiro em português brasileiro. Sincronização labial depende da ferramenta externa.`
+    ? `${fixedIdentity}\nApresentador fixo: ${presenter.name}. Identidade visual: ${presenter.visualIdentity}. Voz: ${presenter.defaultVoiceGender}, ${presenter.defaultVoiceProfile}. Atuação: ${presenter.preferences}. Use a imagem de referência do apresentador e a foto real do produto como duas referências distintas; preserve rosto, roupas, cores e embalagem. O apresentador segura ou demonstra o produto e fala exatamente o roteiro em português brasileiro. Sincronização labial depende da ferramenta externa.`
     : "Exiba o produto em destaque com enquadramentos variados e narração externa em português brasileiro. Nenhum personagem deve mover os lábios como se estivesse falando.";
   const [notice, setNotice] = useState(""), [error, setError] = useState("");
   const [source, setSource] = useState<Media | null>(null);
@@ -61,6 +62,7 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
       title: product.title, details: notes, scene, speech, durationSeconds: seconds,
       presentation, presenterName: presenter.name, presenterIdentity: presenter.visualIdentity,
       presenterVoice: `${presenter.defaultVoiceGender}, ${presenter.defaultVoiceProfile}`, masterPrompt: finalPrompt,
+      continuityBible: presentation === "presenter" ? `${fixedIdentity}\n\n${finalPrompt}` : finalPrompt,
     });
   } catch (failure) { generatorIssue = failure instanceof Error ? failure.message : "Não foi possível preparar as cenas."; }
   const selectedPrompt = generatorPrompts[Math.min(sceneIndex, generatorPrompts.length - 1)] ?? "";
