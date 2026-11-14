@@ -31,7 +31,7 @@ async function fresh(connection:TikTokConnectionRow) {
 Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers});
  const url=new URL(req.url);
- const finish=(status:string)=>Response.redirect(SITE+"/entrar?tiktok="+encodeURIComponent(status)+"#google",303);
+ const finish=(status:string)=>Response.redirect(SITE+"/entrar?tiktok="+encodeURIComponent(status)+"#lojas",303);
  if(!PROJECT||!ANON||!SERVICE||!CLIENT||!SECRET||!ENC)return reply(503,"oauth_not_configured");
  if(url.pathname.endsWith("/callback")&&req.method==="GET"){
    const state=url.searchParams.get("state")??"",code=url.searchParams.get("code")??"";
