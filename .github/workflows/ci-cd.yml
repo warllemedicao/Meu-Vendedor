@@ -146,6 +146,7 @@ jobs:
           node scripts/run-supabase-cli.mjs db push \
             --remote="$SUPABASE_PROJECT_ID" \
             --skip-vault \
+            --include-all \
             --dry-run
 
       - name: Apply pending migrations after the safety gate
@@ -156,6 +157,7 @@ jobs:
           node scripts/run-supabase-cli.mjs db push \
             --remote="$SUPABASE_PROJECT_ID" \
             --skip-vault \
+            --include-all \
             --yes
 
       - name: Verify remote migration history is current
