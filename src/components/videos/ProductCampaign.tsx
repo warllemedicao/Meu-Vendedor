@@ -26,7 +26,7 @@ function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" 
   const [step, setStep] = useState(0), [busy, setBusy] = useState(false);
   const [linkEdit, setLinkEdit] = useState({ source: initialAffiliateUrl, value: initialAffiliateUrl });
   const affiliateUrl = linkEdit.source === initialAffiliateUrl ? linkEdit.value : initialAffiliateUrl;
-  const [notes, setNotes] = useState(""), [speechEdit, setSpeechEdit] = useState<{ source: string; value: string } | null>(null), [seconds, setSeconds] = useState(15);
+  const [notes, setNotes] = useState(""), [speechEdit, setSpeechEdit] = useState<{ source: string; value: string } | null>(null), [seconds, setSeconds] = useState(8);
   const speech = speechEdit?.source === initialSpeech ? speechEdit.value : initialSpeech;
   const setSpeech = (value: string) => setSpeechEdit({ source: initialSpeech, value });
   const [analysis, setAnalysis] = useState<CampaignAnalysis | null>(null), [photo, setPhoto] = useState<File>();
@@ -117,7 +117,7 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
           <label className="block text-sm">Seu link de divulgação<input type="url" value={affiliateUrl} onChange={e => setLinkEdit({ source: initialAffiliateUrl, value: e.target.value })} placeholder="Gere seu link no botão abaixo ou cole seu link HTTPS" className={field} /></label>
           {product.owned && product.platform === "Shopee" && <button type="button" disabled={busy || !user} onClick={() => void generateLink()} className={`${button} w-full border-primary text-primary`}>{busy ? "Aguarde…" : "Gerar meu link de divulgação"}</button>}
           <label className="block text-sm">Outra foto para a IA analisar (opcional)<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e => { setPhoto(e.target.files?.[0]); setAnalysis(null); setSpeech(""); setNarrated(null); }} className="mt-2 block w-full text-sm" /></label>
-          <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Duração aproximada da fala<select value={seconds} onChange={e => setSeconds(Number(e.target.value))} className={field}><option value={15}>15 segundos · apresentação rápida</option><option value={30}>30 segundos · mais detalhes</option></select></label><label className="text-sm">Detalhes confirmados (opcional)<input maxLength={1500} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex.: modelo, variante, tamanho" className={field} /></label></div>
+          <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Duração do vídeo curto<select value={seconds} onChange={e => setSeconds(Number(e.target.value))} className={field}><option value={6}>6 segundos</option><option value={7}>7 segundos</option><option value={8}>8 segundos</option><option value={10}>10 segundos</option></select></label><label className="text-sm">Detalhes confirmados (opcional)<input maxLength={1500} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex.: modelo, variante, tamanho" className={field} /></label></div>
           <fieldset className="space-y-3 rounded-xl border border-border p-4"><legend className="px-2 text-sm font-semibold">Como será a divulgação?</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3 text-sm"><input type="radio" name="campaign-presentation" checked={presentation === "presenter"} onChange={() => { setPresentation("presenter"); setNarrated(null); }} />Pessoa usando ou mostrando o produto e falando</label>
@@ -150,9 +150,9 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
             {generator === "youtube-create" && <p className="text-xs text-muted">YouTube Create é um aplicativo móvel. No computador, prepare os arquivos e continue no celular. A disponibilidade de geração por IA depende da conta e do dispositivo.</p>}
             <label className="block text-sm">Cenário<input value={scene} onChange={e => setScene(e.target.value)} className={field}/></label>
             {generatorIssue ? <p role="alert" className="text-sm text-danger">{generatorIssue}</p> : <div className="space-y-2">
-              <label className="block text-sm">Cena<select value={Math.min(sceneIndex, generatorPrompts.length - 1)} onChange={e => setSceneIndex(Number(e.target.value))} className={field}>{generatorPrompts.map((_, index) => <option key={index} value={index}>Cena {index + 1} de {generatorPrompts.length}</option>)}</select></label>
+              <p className="text-sm font-medium">Prompt único do anúncio · {seconds} segundos</p>
               <textarea aria-label="Prompt otimizado para o gerador selecionado" readOnly rows={10} value={selectedPrompt} className={field}/>
-              <p className="text-xs text-muted">{selectedPrompt.length} caracteres{generator === "youtube-create" ? ` / ${YOUTUBE_PROMPT_LIMIT}` : ""}. Uma cena por geração; mantenha as mesmas referências em todas as cenas.</p>
+              <p className="text-xs text-muted">{selectedPrompt.length} caracteres{generator === "youtube-create" ? ` / ${YOUTUBE_PROMPT_LIMIT}` : ""}. Um vídeo por anúncio; use a foto original do produto e do personagem.</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(selectedPrompt); setNotice("Prompt da cena copiado."); } catch { setNotice("Selecione o prompt acima e copie manualmente."); } }} className={button} title="Copiar prompt da cena"><Copy className="inline h-4 w-4" /> Copiar prompt</button>
                 <button type="button" onClick={() => downloadText(generatorPrompts.map((prompt, index) => `CENA ${index + 1}\n${prompt}`).join("\n\n---\n\n"), "prompts-divulgacao.txt")} className={button}><Download className="inline h-4 w-4" /> Baixar prompts</button>
