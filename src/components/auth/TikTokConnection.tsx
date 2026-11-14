@@ -36,6 +36,7 @@ export function TikTokConnection() {
   const [sandboxStatus, setSandboxStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [showAccountHelp, setShowAccountHelp] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -101,6 +102,11 @@ export function TikTokConnection() {
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <span className="text-xs text-muted">Sandbox (teste): {sandboxStatus?.connected ? sandboxStatus.account?.display_name ?? "Conectado" : "Não conectado"}</span>
         <button type="button" disabled={!user || busy} onClick={() => void act(sandboxStatus?.connected ? "disconnect" : "start", true)} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{busy ? "Aguarde…" : sandboxStatus?.connected ? "Desconectar Sandbox" : "Conectar Sandbox"}</button>
+      </div>
+      <div className="mt-3 rounded-lg border border-border p-3 text-xs text-muted">
+        <p><strong>Qual conta TikTok será conectada?</strong> O TikTok utiliza a conta atualmente conectada no navegador e pode não exibir um seletor.</p>
+        <button type="button" onClick={() => setShowAccountHelp(value => !value)} aria-expanded={showAccountHelp} className="mt-2 text-primary underline">{showAccountHelp ? "Ocultar instruções" : "Como escolher outra conta"}</button>
+        {showAccountHelp && <p className="mt-2">Antes de clicar em Conectar Sandbox, abra o TikTok em outra aba, saia da conta atual e entre na conta desejada. Depois volte aqui e conecte. Se uma conta já estiver vinculada ao Sandbox, desconecte-a primeiro. As contas precisam estar autorizadas como usuários de teste no TikTok Developers.</p>}
       </div>
       {!user && <p className="mt-2 text-xs text-muted">Entre na sua conta antes de conectar.</p>}
       {message && <p role="status" className="mt-2 text-xs text-muted">{message}</p>}
