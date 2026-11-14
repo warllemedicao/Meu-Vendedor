@@ -6,6 +6,7 @@ import { PUBLICATION_DESTINATIONS, publicationCaption, publicationPackageText, t
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
+import { TikTokDraftUpload } from "./TikTokDraftUpload";
 
 type VideoFile = { blob: Blob; filename: string };
 const button = "inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -89,7 +90,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
   }
   return <Card titulo="Central de Publicação · publicação assistida">
     <div className="space-y-4">
-      <p className="text-sm text-muted">Prepare o vídeo, o link de afiliado e a legenda. O envio direto está disponível somente para Reels da Página Facebook; nas demais redes a publicação é assistida. Links na legenda podem não ser clicáveis.</p>
+      <p className="text-sm text-muted">Prepare o vídeo, o link de afiliado e a legenda. O envio direto de Reels está disponível para Facebook. Para TikTok, envie o MP4 como rascunho e finalize no aplicativo. Nas demais redes a publicação é assistida. Links na legenda podem não ser clicáveis.</p>
       <label className="block text-sm font-medium">Rede social
         <select aria-label="Rede social de destino" value={platform} onChange={e => { setPlatform(e.target.value as PublicationPlatform); setNotice(""); }} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2">
           {(Object.keys(PUBLICATION_DESTINATIONS) as PublicationPlatform[]).map(key => <option key={key} value={key}>{PUBLICATION_DESTINATIONS[key].label}</option>)}
@@ -118,6 +119,7 @@ export function PublicationCenter({ generated, defaultTitle = "" }: { generated:
         <button type="button" disabled={!video} onClick={() => void share()} className={button}><Share2 className="h-4 w-4" />Compartilhar no celular</button>
         <a href={PUBLICATION_DESTINATIONS[platform].url} target="_blank" rel="noopener noreferrer" className={button}><ExternalLink className="h-4 w-4" />Abrir {PUBLICATION_DESTINATIONS[platform].label}</a>
       </div>
+      {platform === "tiktok" && <TikTokDraftUpload video={video ?? null} />}
       {error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{error}</p>}
       {authorizationBlocked && user && <div className="rounded-xl border border-border p-3 text-sm space-y-2" role="status"><p>UID da conta conectada (Supabase Auth): <code className="break-all select-all">{user.id}</code></p><button type="button" className={button} onClick={() => void navigator.clipboard.writeText(user.id).then(() => setNotice("UID copiado.")).catch(() => setError("Selecione e copie o UID exibido."))}>Copiar UID</button><p>Em Supabase → Edge Functions → Secrets, configure META_ALLOWED_USER_ID com este UUID somente se esta for a conta proprietária autorizada. Depois entre novamente e teste. Não envie token ou senha.</p></div>}
       {notice && <p role="status" className="text-sm text-primary">{notice}</p>}
