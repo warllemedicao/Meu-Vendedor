@@ -72,8 +72,8 @@ export function buildGeneratorPrompts(generator: CampaignGenerator, brief: Gener
     if (generator !== "dreamina" || fullPrompt.length <= DREAMINA_PROMPT_LIMIT) return fullPrompt;
     // Preserve the exact spoken line, product instructions and fixed character identity.
     // Reduce only the redundant master/continuity section to fit Dreamina.
-    const marker = "BÍBLIA DE CONTINUIDADE E ROTEIRO MESTRE (REPETIR EM TODAS AS CENAS):\\n";
-    const actionMarker = "\\nAÇÃO EXCLUSIVA DESTA CENA:";
+    const marker = "BÍBLIA DE CONTINUIDADE E ROTEIRO MESTRE (REPETIR EM TODAS AS CENAS):\n";
+    const actionMarker = "\nAÇÃO EXCLUSIVA DESTA CENA:";
     const start = fullPrompt.indexOf(marker);
     const end = fullPrompt.indexOf(actionMarker, start + marker.length);
     if (start < 0 || end < 0) throw new Error("Não foi possível adaptar o roteiro para o Dreamina.");
