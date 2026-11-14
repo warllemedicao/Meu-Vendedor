@@ -1128,7 +1128,7 @@ export function VideoStudio() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-primary">Estúdio de criação</p>
             <h2 className="mt-2 text-2xl font-bold tracking-tight">Seu próximo vídeo começa aqui</h2>
-            <p className="mt-2 max-w-2xl text-sm text-muted">Prepare o produto e a direção criativa. Acompanhe a produção e encontre seus projetos na biblioteca.</p>
+            <p className="mt-2 max-w-2xl text-sm text-muted">1. Escolha o produto. 2. Defina a cena. 3. Revise o roteiro. Depois, gere ou exporte seu vídeo.</p>
           </div>
           <span className={`rounded-full px-3 py-2 text-xs font-medium ${queueAvailable ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted"}`}>
             {queueAvailable ? "Créditos da conta · fila ativa" : user ? "Configuração de geração pendente" : "Entre para gerar vídeos"}
@@ -1280,6 +1280,8 @@ export function VideoStudio() {
             <p className="mt-3 text-xs text-muted">Escolha um apresentador com referência disponível para gerar seu vídeo.</p>
           </Card>
 
+          <details className="rounded-xl border border-border bg-surface p-3"><summary className="cursor-pointer text-sm font-semibold">Configurações avançadas · voz, movimento e formato</summary>
+          <div className="mt-4 space-y-4">
           <Card titulo="Preferências de voz e movimento">
             <div className="grid gap-4 sm:grid-cols-2">
               <fieldset className="sm:col-span-2">
@@ -1340,6 +1342,8 @@ export function VideoStudio() {
               </div>
             </fieldset>
           </Card>
+          </div>
+          </details>
 
           </div>
           <div hidden={studioStep !== 2}>
@@ -1347,7 +1351,7 @@ export function VideoStudio() {
           {manualPrompt.applied && <p className="mb-4 rounded-xl border border-primary p-4 text-sm">Direção manual em uso na preparação externa. <a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener noreferrer" className="text-primary underline">Abrir Google Flow</a>. Copie a direção abaixo. A fala do narrador é revisada separadamente; os motores integrados continuam disponíveis ao voltar ao prompt automático.</p>}
           <Card titulo="Roteiro e revisão">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-muted">O roteiro usa somente as informações preenchidas acima.</p>
+              <p className="text-sm text-muted">Confira a fala antes de gerar. O texto pode ser editado sem alterar os dados do produto.</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => { setScript(suggestedScript); setScriptEdited(false); }} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold"><RefreshCw className="size-3.5" aria-hidden />Roteiro local</button>
                 <button type="button" disabled={!geminiScriptAvailable || generatingScript} onClick={() => void generateGeminiScript()} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50">
