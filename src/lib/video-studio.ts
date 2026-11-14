@@ -180,6 +180,26 @@ export const virtualPresenters: readonly VirtualPresenter[] = [
   },
 ] as const;
 
+/**
+ * Canonical, reusable identity contract. Generated from the approved presenter
+ * catalog rather than user-editable scene descriptions.
+ */
+export function presenterIdentityPrompt(id: PresenterId): string {
+  const presenter = virtualPresenters.find(item => item.id === id);
+  if (!presenter || presenter.referenceStatus !== "ready" || !presenter.image) {
+    throw new Error("Referência visual do personagem indisponível.");
+  }
+  return [
+    `PERSONAGEM CANÔNICO: ${presenter.name} (ID ${presenter.id}).`,
+    `REFERÊNCIA VISUAL OBRIGATÓRIA: ${presenter.image}. Anexe exatamente esta imagem em TODAS as cenas, inclusive ao iniciar uma nova geração.`,
+    `DESCRIÇÃO VISUAL IMUTÁVEL: ${presenter.visualIdentity}.`,
+    `PROPORÇÕES E SILHUETA: ${presenter.bodyType}; preservar as proporções da referência, sem alterar idade aparente, rosto, cabelo, tom de pele, roupas, acessórios ou cores.`,
+    `IDENTIDADE VOCAL FIXA: voz ${presenter.defaultVoiceGender}, perfil ${presenter.defaultVoiceProfile}; manter timbre, ritmo, sotaque e dicção consistentes quando o gerador suportar voz.`,
+    `COMPORTAMENTO PADRÃO: ${presenter.preferences}.`,
+    "CONTINUIDADE: não redesenhar, trocar roupas, mudar penteado, adicionar acessórios ou substituir a voz entre cenas. Em caso de conflito entre texto e imagem, a imagem aprovada prevalece para aparência; a fala específica da cena prevalece para diálogo.",
+  ].join("\n");
+}
+
 export interface VideoProductInput {
   sourceProductId?: string | null;
   name: string;
