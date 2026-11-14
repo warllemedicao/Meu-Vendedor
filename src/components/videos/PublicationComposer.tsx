@@ -11,7 +11,7 @@ import {
   publicationTimeZones, uploadPublicationMedia, type PublicationDestination,
 } from "@/lib/publication-scheduling";
 import {
-  publicationShareTargets, sharePublication, shopeeProductDestination,
+  publicationShareTargets, defaultShareTarget, sharePublication, shopeeProductDestination,
   type PublicationShareTarget,
 } from "@/lib/publication-share";
 
@@ -39,15 +39,15 @@ export function PublicationComposer({
   const [choosingSchedule, setChoosingSchedule] = useState(false);
   const [dateTime, setDateTime] = useState("");
   const [timeZone, setTimeZone] = useState(browserTimeZone);
-  const [shareTarget, setShareTarget] = useState<PublicationShareTarget>(product.platform === "Shopee" ? "other_app" : "pinterest");
+  const [shareTarget, setShareTarget] = useState<PublicationShareTarget>(() => defaultShareTarget(product.platform));
   const [selectedDestinations, setSelectedDestinations] = useState<PublicationDestination[]>([
-    product.platform === "Shopee" ? "shopee_video" : "pinterest",
+    product.platform.trim().toLowerCase() === "shopee" ? "shopee_video" : "pinterest",
   ]);
   const [mediaPath, setMediaPath] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const text = campaignCaption(caption, affiliateUrl, hashtags);
   const valid = affiliateUrlValid(affiliateUrl);
-  const shopee = product.platform === "Shopee";
+  const shopee = product.platform.trim().toLowerCase() === "shopee";
   const productDestination = shopeeProductDestination(product.productUrl);
   const selectedShareTarget = publicationShareTargets.find(target => target.id === shareTarget)!;
   const destinations = publicationDestinations.filter(option => option.id !== "shopee_video" || shopee);
@@ -141,7 +141,7 @@ export function PublicationComposer({
     <p className="text-sm text-muted">Mídia preparada. Ainda não há agendamento ou publicação; compartilhar não confirma que o vídeo foi postado.</p>
     {shopee && <div className="space-y-2 rounded-xl bg-background p-3 text-sm">
       <p className="font-semibold">Destino: Shopee → Live e Vídeos → Vídeos</p>
-      <p>O botão abre as opções de compartilhamento do seu dispositivo. Se a Shopee aparecer, selecione-a. Confira a legenda e adicione este produto ao vídeo antes de tocar em Postar.</p>
+      <p>Prepararemos o vídeo e a legenda para a Shopee. O seletor do dispositivo não garante abrir o aplicativo Shopee. Confira a legenda e vincule o produto antes de postar.</p>
       <p>Se a Shopee não aparecer, baixe o vídeo e copie a publicação. No app Shopee, abra Live e Vídeos → Vídeos → + e selecione o arquivo da galeria.</p>
       <p className="text-xs text-muted">O aplicativo receptor pode não preencher o texto automaticamente. Use Copiar publicação para colar a legenda. O produto deve ser vinculado ao vídeo; o link na legenda não substitui essa etapa.</p>
     </div>}
@@ -157,7 +157,7 @@ export function PublicationComposer({
     <label className="block text-sm">Hashtags
       <input value={hashtags} maxLength={1000} onChange={event => { invalidateKey(); setHashtags(event.target.value); }} className={field} />
     </label>
-    <label className="block text-sm">Rede social para orientar o compartilhamento
+    <label className="block text-sm">Onde deseja compartilhar
       <select value={shareTarget} onChange={event => {
         const target = publicationShareTargets.find(value => value.id === event.target.value);
         if (target) setShareTarget(target.id);
@@ -165,7 +165,7 @@ export function PublicationComposer({
         {publicationShareTargets.map(target => <option key={target.id} value={target.id}>{target.label}</option>)}
       </select>
     </label>
-    <p className="text-xs text-muted">A seleção não direciona o menu nativo. O navegador e o sistema escolhem os aplicativos compatíveis; podem não aceitar o MP4 nem preencher a legenda.</p>
+    <p className="text-xs text-muted">Destino selecionado: {selectedShareTarget.label}. A seleção não direciona o menu nativo. O navegador e o sistema escolhem os aplicativos compatíveis; podem não aceitar o MP4 nem preencher a legenda.</p>
     {selectedShareTarget.siteUrl && <a href={selectedShareTarget.siteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">
       Abrir site oficial de {selectedShareTarget.label}
     </a>}
@@ -212,8 +212,9 @@ export function PublicationComposer({
         setChoosingSchedule(false);
         dialog.current?.showModal();
       }} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">
-        Publicar agora ou programar
+        {shopee && shareTarget === "shopee_video" ? "Preparar para Shopee Vídeos" : "Compartilhar ou programar"}
       </button>
+      <button type="button" onClick={() => setShareTarget("other_app")} className="text-primary underline">Compartilhar em outros locais</button>
       {shareTarget === "pinterest" && valid && <a href={`https://www.pinterest.com/pin-builder/?url=${encodeURIComponent(affiliateUrl)}&description=${encodeURIComponent(caption + " " + hashtags)}`} target="_blank" rel="noopener noreferrer" className="text-primary underline">Abrir criador de Pin no Pinterest</a>}
       {!shopee && <p className="w-full text-xs text-muted">Se o compartilhamento não estiver disponível, baixe a mídia e selecione-a no aplicativo oficial de {selectedShareTarget.label}. Confira o destino e preencha a legenda manualmente; o Meu Vendedor não publica por você.</p>}
       {user && <button type="button" disabled={!valid || busy} onClick={() => void save("draft")} className="text-primary underline disabled:opacity-50">
