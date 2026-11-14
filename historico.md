@@ -1,3 +1,9 @@
+## 2026-11-14 — Correção do dry-run de implantação #127
+
+- A implantação protegida #127 foi aprovada e passou na validação, mas falhou no dry-run do Supabase CLI porque quatro migrações locais de publicação antecedem a última migração remota. O Supabase CLI exigiu `--include-all`.
+- Atualizado `.github/workflows/ci-cd.yml` para usar `--include-all` tanto no dry-run quanto na aplicação, preservando a análise de migrações pendentes, o bloqueio de alto risco e a aprovação do ambiente `supabase-high-risk-migrations`.
+- Nenhuma migração foi aplicada na execução #127; a próxima implantação precisa de novo disparo manual e aprovação protegida.
+
 ## 2026-11-14 — Revisão de segurança das migrações de publicação (sem aplicação remota)
 
 - Endurecido `search_path` das duas funções `SECURITY DEFINER` do módulo de publicações para `pg_catalog, public, pg_temp`, mantendo `revoke` de acesso público e execução restrita ao `service_role`.
