@@ -1,3 +1,7 @@
+## 14/11/2026 — Próxima melhoria: Estúdio de Vídeos e Shopee
+
+Plano completo e critérios de aceite: [PLANO_EVOLUCAO_ESTUDIO_VIDEO.md](./PLANO_EVOLUCAO_ESTUDIO_VIDEO.md). Prioridades: preservar navegação Início/Produtos/Lojas e redes; corrigir destino Shopee; simplificar o estúdio; criar presets Google Flow, YouTube Create (limite informado de 900 caracteres, sujeito a verificação) e Dreamina; aprimorar editor; preservar compartilhamento em outros locais. **Somente documentação nesta etapa, sem implementação ou deploy.**
+
 ## 14/11/2026 — CONTRATO PERMANENTE DA INTERFACE (não reverter)
 
 **Regressão recorrente corrigida a pedido do responsável (terceira ocorrência):**
