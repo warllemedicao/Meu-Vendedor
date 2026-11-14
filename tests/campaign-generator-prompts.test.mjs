@@ -71,3 +71,14 @@ test("Supabase campaign analysis accepts the same short durations as the product
   assert.ok(campaign.includes("<option value={10}>10 segundos</option>"));
   assert.ok(campaign.includes("<option value={6}>6 segundos</option>"));
 });
+
+test("generator links avoid nonexistent YouTube Create desktop page", async () => {
+  const { GENERATOR_LINKS } = await import("../src/lib/campaign-generator-prompts.ts");
+  assert.ok(GENERATOR_LINKS["youtube-create"].includes("support.google.com/youtube/"));
+  assert.ok(!GENERATOR_LINKS["youtube-create"].includes("youtube.com/create"));
+});
+test("product and presenter references are actually converted to JPEG", () => {
+  assert.ok(campaign.includes('canvas.toBlob(result => result ? resolve(result)'));
+  assert.ok(campaign.includes('"image/jpeg", 0.94'));
+  assert.ok(campaign.includes('".jpg"'));
+});
