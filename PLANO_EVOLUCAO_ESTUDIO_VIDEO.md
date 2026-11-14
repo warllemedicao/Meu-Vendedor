@@ -1,3 +1,11 @@
+## Implementação parcial — 14/11/2026 (a validar)
+
+**Diagnóstico de abrangência:** não era falha exclusiva da Shopee. `PublicationComposer` iniciava Shopee como `other_app` e todas as demais lojas como `pinterest`; `PublicationCenter` iniciava qualquer sessão em `kwai`. Essas escolhas eram silenciosas e não preservavam necessariamente a intenção do usuário. A API Web Share abre o seletor do sistema, sem garantir o aplicativo receptor.
+
+**Alterado na main:** `publication-share.ts` adiciona `shopee_video` e `defaultShareTarget` (Shopee → Shopee Vídeos, demais origens → Outro aplicativo); `PublicationComposer.tsx` usa destino inicial apropriado e botão **Compartilhar em outros locais**; `publication-package.ts` inclui Shopee Vídeos; `PublicationCenter.tsx` deixa o destino sem seleção até escolha explícita, oferece Shopee e separa compartilhamento genérico; `VideoStudio.tsx` apresenta fluxo de três etapas em linguagem simples e recolhe voz/movimento/formato em **Configurações avançadas**. Adicionado `tests/video-sharing-ui-contract.test.mjs`.
+
+**Ainda pendente:** validação real com navegador/celular, typecheck, lint e build; publicação Cloudflare; persistência de destino entre TODOS os módulos, recarregamentos e biblioteca; editor com timeline e presets Flow/YouTube Create/Dreamina. A Shopee ainda exige postagem manual e vinculação do produto; não alegar publicação automática. A central independente agora pede destino explícito; não infere marketplace de uma etapa que não recebe esse dado.
+
 # Plano de evolução — Estúdio de Vídeos e publicação
 
 **Data:** 14/11/2026  
