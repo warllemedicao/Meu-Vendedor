@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "./AuthProvider";
 import { Badge } from "@/components/ui/Badge";
+import { Clapperboard } from "lucide-react";
 
 type View = { state: "disconnected" | "browser_open" | "login_required" | "account_unverified" | "account_mismatch" | "connected"; email: string | null; credits: number | null; checkedAt: string; expiresAt?: string; saved?: boolean; liveViewUrl?: string };
 const labels: Record<View["state"], string> = { disconnected: "Desconectado", browser_open: "Navegador aberto · verificando conta", login_required: "Entre no Google no navegador abaixo", account_unverified: "Conta ainda não confirmada", account_mismatch: "Conta diferente", connected: "Conectado ao Flow" };
@@ -72,7 +73,7 @@ export function GoogleFlowConnection() {
     return () => { clearTimeout(first); clearInterval(timer); clearTimeout(expiry); };
   }, [expiresAt, hasBrowser, act]);
   return <article className="rounded-xl border border-border bg-surface p-4 space-y-3 sm:col-span-2">
-    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Google Flow</h3><div role="status" aria-live="polite"><Badge>{view ? labels[view.state] : "Desconectado"}</Badge></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="flex items-center gap-2 font-semibold"><span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border" aria-hidden="true"><Clapperboard className="h-5 w-5" /></span>Google Flow</h3><div role="status" aria-live="polite"><Badge>{view ? labels[view.state] : "Desconectado"}</Badge></div></div>
     <p className="text-sm text-muted">Conecte a mesma conta {user?.email ? `(${user.email})` : "Google"} no navegador remoto. O Flow usará os benefícios dessa conta. O acesso ao Meu Vendedor e o saldo da API Gemini são separados.</p>
     {user && <div className="flex flex-wrap gap-2">
       <button type="button" disabled={busy || retryAt !== null} onClick={() => void act("start")} className="rounded-lg bg-primary px-3 py-2 text-sm text-background disabled:opacity-50">{busy ? "Aguarde…" : retryAt ? "Aguardando disponibilidade" : "Conectar / reabrir Flow"}</button>
