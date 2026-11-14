@@ -1,3 +1,10 @@
+## 14/11/2026 — Continuidade: gerador de produto e histórico de conversa
+
+- O gerador de campanha de produto prioriza prompts para Google Flow, Dreamina e YouTube Create, com apresentador (ex.: Ana) ou narração. Não tratar montagem legada/MuseTalk/Kaggle como arquitetura principal sem verificar uso real.
+- Solicitação de teste ponta a ponta: obter imagem de produto e Ana no Supabase, preparar prompt de ~8 s, usar acesso autorizado ao gerador externo e recuperar MP4. **Não executado nem comprovado.** Não contornar restrições de idade nem usar credenciais/cookies transferidos.
+- Confirmar dependências legadas, disponibilidade de integração oficial, status do deploy e persistência antes de afirmar funcionamento automático.
+- Regra permanente registrada em `AGENTS.md` e `.github/copilot-instructions.md`: atualizar `historico.md` com o conteúdo técnico da conversa **antes** de enviar comandos manuais de commit/push no Codespace.
+
 ## 14/11/2026 — Explorar produtos fixo no topo (main; aguardando deploy)
 
 - Em `ProductsWorkspace.tsx`, a seção **Explorar produtos** passou a preceder a listagem expansível **Produtos da minha conta**.
