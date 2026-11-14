@@ -48,7 +48,8 @@ export function buildGeneratorPrompts(generator: CampaignGenerator, brief: Gener
       : "Imagem 1: produto. Exiba o produto com narração externa em português brasileiro, sem personagem falando.";
     if (generator === "youtube-create") {
       // Reserve space for the exact spoken line before fitting optional directions.
-      const lead = `Vídeo vertical 9:16, ${seconds}s, cena ${index + 1}/${parts.length}. ${role} Produto: ${sentence(brief.title, 90)}. `;
+      const identity = brief.presentation === "presenter" ? ` Identidade fixa: ${sentence(brief.presenterIdentity || "", 180)}. Voz: ${sentence(brief.presenterVoice || "", 55)}.` : "";
+      const lead = `Vídeo vertical 9:16, ${seconds}s, cena ${index + 1}/${parts.length}. ${role}${identity} Produto: ${sentence(brief.title, 90)}. `;
       const spoken = `Fala exata: "${speech}".`;
       if ((lead + spoken).length > YOUTUBE_PROMPT_LIMIT) {
         throw new Error("A fala desta cena ultrapassa 900 caracteres. Reduza a fala ou divida o anúncio em mais cenas.");
