@@ -1,6 +1,13 @@
+## 14/11/2026 — Explorar produtos fixo no topo (main; aguardando deploy)
+
+- Em `ProductsWorkspace.tsx`, a seção **Explorar produtos** passou a preceder a listagem expansível **Produtos da minha conta**.
+- Em `PublicProductCatalog.tsx`, o seletor de lojas, busca, ordenação e filtro de descontos agora estão em contêiner `sticky top-0 z-20`, permanecendo acessíveis durante a rolagem do catálogo público.
+- Teste de contrato: `tests/products-explore-sticky-contract.test.mjs`. Não reverter a ordem nem remover o sticky.
+- Esta etapa altera apenas o frontend e os testes; **não requer migração ou deploy de Edge Function Supabase**. Publicar via `bash scripts/deploy-frontend-production.sh` após atualizar a `main`. Testes/build e comportamento real em produção ainda dependem dessa execução.
+
 ## 14/11/2026 — Próxima melhoria: Estúdio de Vídeos e Shopee
 
-Plano completo e critérios de aceite: [PLANO_EVOLUCAO_ESTUDIO_VIDEO.md](./PLANO_EVOLUCAO_ESTUDIO_VIDEO.md). Prioridades: preservar navegação Início/Produtos/Lojas e redes; corrigir destino Shopee; simplificar o estúdio; criar presets Google Flow, YouTube Create (limite informado de 900 caracteres, sujeito a verificação) e Dreamina; aprimorar editor; preservar compartilhamento em outros locais. **Somente documentação nesta etapa, sem implementação ou deploy.**
+Plano completo e critérios de aceite: [PLANO_EVOLUCAO_ESTUDIO_VIDEO.md](./PLANO_EVOLUCAO_ESTUDIO_VIDEO.md). Prioridades: preservar navegação Início/Produtos/Lojas e redes; corrigir destino Shopee; simplificar o estúdio; criar presets Google Flow, YouTube Create (limite informado de 900 caracteres, sujeito a verificação) e Dreamina; aprimorar editor; preservar compartilhamento em outros locais. **Implementação parcial enviada à main em 14/11/2026; deploy ainda pendente.**
 
 ## 14/11/2026 — CONTRATO PERMANENTE DA INTERFACE (não reverter)
 
