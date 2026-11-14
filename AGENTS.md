@@ -1,3 +1,7 @@
+## Regra permanente — historico.md antes de commit manual no Codespace
+
+Sempre que o assistente for fornecer ao responsável comandos para executar `git add`, `git commit` ou `git push` manualmente no Codespace, deverá **antes** atualizar `historico.md` com o conteúdo técnico relevante da conversa atual: decisões, escopo, alterações, commits, testes, falhas, resultados confirmados, limitações e próximos passos. Distinguir planejamento de implementação, teste de deploy e resultado real; nunca registrar segredo. Se não puder editar o repositório, informar claramente essa limitação, fornecer o trecho Markdown a ser registrado e **não apresentar o histórico como atualizado**. Preservar as demais exigências de leitura documental e de atualização de `CONTINUAR_AMANHA.md`.
+
 # Instrucoes permanentes do Meu Vendedor
 
 ## Leitura documental obrigatoria antes de cada conversa/tarefa
