@@ -76,7 +76,7 @@ Deno.serve(async req=>{
   if(!Number.isSafeInteger(size)||size<1||size>64*1024*1024||type!=="video/mp4")return reply(400,"invalid_video");
   try {
    const access=await fresh(data);
-   const chunkSize=size<=5*1024*1024?size:Math.ceil(size/Math.ceil(size/(5*1024*1024)));
+   const chunkSize=size<=5*1024*1024?size:5*1024*1024;
    const total=Math.ceil(size/chunkSize);
    const response=await fetch("https://open.tiktokapis.com/v2/post/publish/inbox/video/init/",{method:"POST",headers:{Authorization:"Bearer "+access,"Content-Type":"application/json"},body:JSON.stringify({source_info:{source:"FILE_UPLOAD",video_size:size,chunk_size:chunkSize,total_chunk_count:total}})});
    const result=await response.json();
