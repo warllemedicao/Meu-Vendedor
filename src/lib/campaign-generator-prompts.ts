@@ -20,6 +20,7 @@ export const GENERATOR_LINKS: Record<CampaignGenerator, string> = {
   dreamina: "https://dreamina.capcut.com/pt-br/",
 };
 export const YOUTUBE_PROMPT_LIMIT = 900;
+export const DREAMINA_PROMPT_LIMIT = 4000;
 const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
 const sentence = (value: string, limit: number) => {
   const clean = normalize(value);
@@ -67,6 +68,20 @@ export function buildGeneratorPrompts(generator: CampaignGenerator, brief: Gener
     const direction = generator === "google-flow"
       ? "Direção cinematográfica: câmera fluida, gestos naturais, iluminação coerente, continuidade entre cenas."
       : "Movimento natural e consistente, foco no produto, enquadramento comercial, sem deformar objetos.";
-    return `Vídeo vertical 9:16, ${seconds} segundos. Cena ${index + 1} de ${parts.length}. ${character}\nProduto: ${brief.title}. Detalhes confirmados: ${brief.details || "apenas detalhes visíveis na imagem"}.\nAmbiente: ${brief.scene}. ${direction}\nFala EXATA em português brasileiro: "${speech}".\nNão inventar características, preços, descontos ou resultados. Manter produto e personagem consistentes. Não alterar a fala nem inserir outras falas.\nBÍBLIA DE CONTINUIDADE E ROTEIRO MESTRE (REPETIR EM TODAS AS CENAS):\n${brief.continuityBible?.trim() || brief.masterPrompt}\nAÇÃO EXCLUSIVA DESTA CENA: ${brief.sceneActions?.[index]?.trim() || "Apresentar o produto de forma natural, preservando as referências visuais."}\nREGRA DE PRIORIDADE: a bíblia acima define identidade, voz, roupa, cenário, estilo e continuidade; NÃO execute falas, gestos ou eventos de outras cenas que estejam descritos nela. A única fala autorizada nesta geração é: "${speech}". Não alterar o produto nem a aparência do personagem.`;
+    const fullPrompt = `Vídeo vertical 9:16, ${seconds} segundos. Cena ${index + 1} de ${parts.length}. ${character}\nProduto: ${brief.title}. Detalhes confirmados: ${brief.details || "apenas detalhes visíveis na imagem"}.\nAmbiente: ${brief.scene}. ${direction}\nFala EXATA em português brasileiro: "${speech}".\nNão inventar características, preços, descontos ou resultados. Manter produto e personagem consistentes. Não alterar a fala nem inserir outras falas.\nBÍBLIA DE CONTINUIDADE E ROTEIRO MESTRE (REPETIR EM TODAS AS CENAS):\n${brief.continuityBible?.trim() || brief.masterPrompt}\nAÇÃO EXCLUSIVA DESTA CENA: ${brief.sceneActions?.[index]?.trim() || "Apresentar o produto de forma natural, preservando as referências visuais."}\nREGRA DE PRIORIDADE: a bíblia acima define identidade, voz, roupa, cenário, estilo e continuidade; NÃO execute falas, gestos ou eventos de outras cenas que estejam descritos nela. A única fala autorizada nesta geração é: "${speech}". Não alterar o produto nem a aparência do personagem.`;
+    if (generator !== "dreamina" || fullPrompt.length <= DREAMINA_PROMPT_LIMIT) return fullPrompt;
+    // Preserve the exact spoken line, product instructions and fixed character identity.
+    // Reduce only the redundant master/continuity section to fit Dreamina.
+    const marker = "BÍBLIA DE CONTINUIDADE E ROTEIRO MESTRE (REPETIR EM TODAS AS CENAS):\\n";
+    const actionMarker = "\\nAÇÃO EXCLUSIVA DESTA CENA:";
+    const start = fullPrompt.indexOf(marker);
+    const end = fullPrompt.indexOf(actionMarker, start + marker.length);
+    if (start < 0 || end < 0) throw new Error("Não foi possível adaptar o roteiro para o Dreamina.");
+    const prefix = fullPrompt.slice(0, start + marker.length);
+    const suffix = fullPrompt.slice(end);
+    const budget = DREAMINA_PROMPT_LIMIT - prefix.length - suffix.length;
+    if (budget < 0) throw new Error("Os dados essenciais ultrapassam 4000 caracteres. Resuma os detalhes do produto ou do personagem.");
+    const bible = fullPrompt.slice(start + marker.length, end);
+    return prefix + sentence(bible, budget) + suffix;
   });
 }
