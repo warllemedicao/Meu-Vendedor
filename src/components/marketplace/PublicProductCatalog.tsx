@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";\nimport type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import { ProductCampaign } from "@/components/videos/ProductCampaign";
 import type { CampaignProduct } from "@/lib/product-campaign";
