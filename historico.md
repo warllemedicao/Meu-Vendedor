@@ -1,3 +1,9 @@
+## 2026-11-14 — Corrigida confirmação não interativa de Edge Functions
+
+- A execução protegida #130 aplicou as migrações de publicação e falhou na etapa `functions deploy publication-schedule`: o Supabase CLI 3.1.0 exigiu confirmação `--yes` por não haver terminal interativo no GitHub Actions.
+- Adicionado `--yes` ao comando `functions deploy` do workflow, mantendo autenticação, validação, ambiente protegido e verificação pós-deploy.
+- As tabelas `public.mv_publications` e `public.mv_publication_attempts` foram confirmadas no Supabase remoto. Cloudflare e Edge Function ainda exigem uma execução de implantação bem-sucedida.
+
 ## 2026-11-14 — Correção do dry-run de implantação #127
 
 - A implantação protegida #127 foi aprovada e passou na validação, mas falhou no dry-run do Supabase CLI porque quatro migrações locais de publicação antecedem a última migração remota. O Supabase CLI exigiu `--include-all`.
