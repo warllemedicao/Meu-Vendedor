@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Music2 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "./AuthProvider";
 
@@ -89,10 +88,10 @@ export function TikTokConnection() {
   return (
     <article className="rounded-xl border border-border bg-surface p-4">
       <div className="flex items-center gap-3">
-        <Music2 className="h-6 w-6" />
+        <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black text-2xl font-bold text-white" style={{textShadow:"-2px -1px #25f4ee, 2px 1px #fe2c55"}}>♪</span>
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold">TikTok</h3>
-          <p className="text-xs text-muted">{status?.connected ? status.account?.display_name ?? "Conta conectada" : "Não conectado"}</p>
+          <p className="text-xs text-muted">{sandboxStatus?.connected ? `Conectado (Sandbox) · ${sandboxStatus.account?.display_name ?? "Conta autorizada"}` : status?.connected ? `Conectado · ${status.account?.display_name ?? "Conta autorizada"}` : "Não conectado"}</p>
         </div>
         <button type="button" disabled={!user || busy} onClick={() => void act(status?.connected ? "disconnect" : "start")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
           {busy ? "Aguarde…" : status?.connected ? "Desconectar" : "Conectar"}
@@ -105,7 +104,6 @@ export function TikTokConnection() {
       <p className="mt-3 text-xs text-muted">Você pode escolher ou trocar a conta TikTok durante a autorização. Para conectar outra conta ao Sandbox, desconecte a atual e autorize a desejada.</p>
       {!user && <p className="mt-2 text-xs text-muted">Entre na sua conta antes de conectar.</p>}
       {message && <p role="status" className="mt-2 text-xs text-muted">{message}</p>}
-      <p className="mt-2 text-xs text-muted">Publicação via API requer permissões e aprovação do TikTok.</p>
     </article>
   );
 }
