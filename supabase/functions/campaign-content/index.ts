@@ -25,7 +25,7 @@ Deno.serve(async request => {
     if ((busy.get(owner) ?? 0) > Date.now()) return reply({ error: { message: "Aguarde a análise em andamento antes de enviar outra." } }, 429);
     busy.set(owner, Date.now() + 90000); locked = true;
     const body = await readLimitedObject(request, 12000);
-    if (![15, 30].includes(Number(body.seconds)) || typeof body.notes !== "string" || body.notes.length > 1500) return reply({ error: { message: "Revise duração e detalhes do produto." } }, 400);
+    if (![6, 7, 8, 10].includes(Number(body.seconds)) || typeof body.notes !== "string" || body.notes.length > 1500) return reply({ error: { message: "Revise duração e detalhes do produto." } }, 400);
     let title = typeof body.title === "string" ? body.title.slice(0, 500) : "";
     let path = body.imagePath;
     const productId = body.productId;
