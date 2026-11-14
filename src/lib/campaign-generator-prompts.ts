@@ -15,7 +15,7 @@ export interface GeneratorBrief {
   sceneActions?: string[];
 }
 export const GENERATOR_LINKS: Record<CampaignGenerator, string> = {
-  "youtube-create": "https://www.youtube.com/create",
+  "youtube-create": "https://support.google.com/youtube/answer/13521789?hl=pt-BR",
   "google-flow": "https://labs.google/fx/tools/flow",
   dreamina: "https://dreamina.capcut.com/pt-br/",
 };
