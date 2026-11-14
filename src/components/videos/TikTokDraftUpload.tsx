@@ -28,7 +28,7 @@ export function TikTokDraftUpload({video}:{video:Video|null}){
    if(!Number.isSafeInteger(size)||size<=0||!Number.isSafeInteger(total)||total<1||total!==Math.ceil(video.blob.size/size))throw Error("Parâmetros de upload inválidos.");
    for(let i=0;i<total;i++){
     const start=i*size,end=Math.min(video.blob.size,start+size);
-    const response=await fetch(url.href,{method:"PUT",headers:{"Content-Type":"video/mp4","Content-Length":String(end-start),"Content-Range":`bytes ${start}-${end-1}/${video.blob.size}`},body:video.blob.slice(start,end,"video/mp4")});
+    const response=await fetch(url.href,{method:"PUT",headers:{"Content-Type":"video/mp4","Content-Range":`bytes ${start}-${end-1}/${video.blob.size}`},body:video.blob.slice(start,end,"video/mp4")});
     if(!response.ok)throw Error(`Falha ao transferir o bloco ${i+1} de ${total} (HTTP ${response.status}).`);
     setProgress(Math.round((i+1)/total*100));
    }
