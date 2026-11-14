@@ -11,6 +11,8 @@ export interface GeneratorBrief {
   presenterIdentity?: string;
   presenterVoice?: string;
   masterPrompt: string;
+  continuityBible?: string;
+  sceneActions?: string[];
 }
 export const GENERATOR_LINKS: Record<CampaignGenerator, string> = {
   "youtube-create": "https://www.youtube.com/create",
@@ -62,6 +64,6 @@ export function buildGeneratorPrompts(generator: CampaignGenerator, brief: Gener
     const direction = generator === "google-flow"
       ? "Direção cinematográfica: câmera fluida, gestos naturais, iluminação coerente, continuidade entre cenas."
       : "Movimento natural e consistente, foco no produto, enquadramento comercial, sem deformar objetos.";
-    return `Vídeo vertical 9:16, ${seconds} segundos. Cena ${index + 1} de ${parts.length}. ${character}\nProduto: ${brief.title}. Detalhes confirmados: ${brief.details || "apenas detalhes visíveis na imagem"}.\nAmbiente: ${brief.scene}. ${direction}\nFala EXATA em português brasileiro: "${speech}".\nNão inventar características, preços, descontos ou resultados. Manter produto e personagem consistentes. Não alterar a fala nem inserir outras falas.`;
+    return `Vídeo vertical 9:16, ${seconds} segundos. Cena ${index + 1} de ${parts.length}. ${character}\nProduto: ${brief.title}. Detalhes confirmados: ${brief.details || "apenas detalhes visíveis na imagem"}.\nAmbiente: ${brief.scene}. ${direction}\nFala EXATA em português brasileiro: "${speech}".\nNão inventar características, preços, descontos ou resultados. Manter produto e personagem consistentes. Não alterar a fala nem inserir outras falas.\nBÍBLIA DE CONTINUIDADE E ROTEIRO MESTRE (REPETIR EM TODAS AS CENAS):\n${brief.continuityBible?.trim() || brief.masterPrompt}\nAÇÃO EXCLUSIVA DESTA CENA: ${brief.sceneActions?.[index]?.trim() || "Apresentar o produto de forma natural, preservando as referências visuais."}\nREGRA DE PRIORIDADE: a bíblia acima define identidade, voz, roupa, cenário, estilo e continuidade; NÃO execute falas, gestos ou eventos de outras cenas que estejam descritos nela. A única fala autorizada nesta geração é: "${speech}". Não alterar o produto nem a aparência do personagem.`;
   });
 }
