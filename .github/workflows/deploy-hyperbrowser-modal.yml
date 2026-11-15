@@ -46,14 +46,38 @@ jobs:
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
           MV_FLOW_EXECUTOR_SECRET: ${{ secrets.MV_FLOW_EXECUTOR_SECRET }}
         run: python scripts/deploy-flow-executor.py
-      - name: Verify gateway is reachable without exposing credentials
+      - name: Verify Modal gateway health with cold-start retries
+        env:
+          MV_FLOW_EXECUTOR_SECRET: ${{ secrets.MV_FLOW_EXECUTOR_SECRET }}
         run: |
-          status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 'https://warllemedicao--meu-vendedor-flow-gateway.us-east.modal.run/hyperbrowser-navigate' || true)
-          echo "Unauthenticated GET status: $status"
-          if [[ "$status" == "000" || "$status" == "404" ]]; then
-            echo "::error::Modal gateway route not reachable"
-            exit 1
-          fi
+          python - <<'PY'
+          import json, os, time, urllib.error, urllib.request
+          url = 'https://warllemedicao--meu-vendedor-flow-gateway.us-east.modal.run/control'
+          headers = {
+              'Authorization': 'Bearer ' + os.environ['MV_FLOW_EXECUTOR_SECRET'],
+              'Content-Type': 'application/json',
+          }
+          for attempt in range(1, 5):
+              request = urllib.request.Request(
+                  url, data=json.dumps({'action': 'health'}).encode(),
+                  headers=headers, method='POST')
+              try:
+                  with urllib.request.urlopen(request, timeout=45) as response:
+                      status = response.status
+                  print(f'Gateway health attempt {attempt}/4: HTTP {status}')
+                  if status == 200:
+                      print('Modal gateway health verified.')
+                      break
+              except urllib.error.HTTPError as exc:
+                  print(f'Gateway health attempt {attempt}/4: HTTP {exc.code}')
+                  if exc.code in (401, 403, 404):
+                      raise SystemExit('Gateway authentication or route is invalid')
+              except (TimeoutError, OSError) as exc:
+                  print(f'Gateway health attempt {attempt}/4: connection unavailable ({type(exc).__name__})')
+              if attempt == 4:
+                  raise SystemExit('Modal gateway did not become healthy after 4 attempts')
+              time.sleep(8)
+          PY
 
       - name: Require credentials for secure service synchronization
         env:
