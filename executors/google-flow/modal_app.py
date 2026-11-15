@@ -38,7 +38,8 @@ def gateway():
         try:
             payload = json.loads(raw)
             endpoint = payload.get('wsEndpoint')
-            inspect_only = payload.get('mode') == 'inspect'
+            inspect_only = payload.get('mode') in ('inspect', 'create-project')
+            create_project = payload.get('mode') == 'create-project'
             if not isinstance(endpoint, str): raise ValueError('missing_endpoint')
             parsed = urlsplit(endpoint)
             host = (parsed.hostname or '').lower()
@@ -68,6 +69,20 @@ def gateway():
                     page = pages[0] if pages else await context.new_page()
                 if inspect_only:
                     # Inspect the already open page without resetting its navigation.
+                    # Create only a blank project when explicitly requested; never generate media.
+                    project_clicked = False
+                    if create_project:
+                        if not (page.url or '').startswith('https://flow.google.com/'):
+                            raise RuntimeError('flow_page_not_active')
+                        for project_frame in page.frames[:8]:
+                            button = project_frame.get_by_role('button', name=re.compile(r'novo projeto|new project', re.I))
+                            if await button.count() == 1 and await button.is_visible():
+                                await button.click(timeout=8000)
+                                project_clicked = True
+                                break
+                        if not project_clicked:
+                            raise RuntimeError('new_project_button_not_found')
+                        await page.wait_for_timeout(2200)
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
                     scan = """els => {
@@ -113,7 +128,8 @@ def gateway():
                         'controls': all_controls[:30], 'visibleCount': total_visible,
                         'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
                         'scanErrors': scan_errors,
-                        'flowPage': (page.url or '').startswith('https://flow.google.com/')
+                        'flowPage': (page.url or '').startswith('https://flow.google.com/'),
+                        'projectClicked': project_clicked
                     }
                 await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
                 return {'navigationReady': True}
