@@ -270,7 +270,7 @@ async def editor_state(page, trace, prompt_field=None, names=None):
 
 
 async def include_references(page, image_files, prompt_field, trace):
-    """Include expected Flow library previews one at a time, without generating."""
+    """Multi-select the uploaded batch and verify attachment count without generating."""
     result = {'included': False, 'verified': False, 'errorCode': None}
     trace.next_action = 'select_images'
     trace.event('references', 'started', expected=len(image_files))
@@ -357,11 +357,12 @@ async def include_references(page, image_files, prompt_field, trace):
                     # releasing it, matching the tested Flow gesture.
                     await target.click(delay=950, timeout=4000)
                 else:
-                    await target.click(timeout=2500)
+                    # Keep the multi-selection active while adding items.
+                    await target.click(modifiers=['Control'], timeout=2500)
                 selected.append(item['name'])
                 trace.event('references', 'waiting', assetIndex=asset_index,
                             longPress=(asset_index == 1 and len(image_files) > 1),
-                            selectedAttempts=len(selected))
+                            ctrlClick=(asset_index > 1), selectedAttempts=len(selected))
                 await library.evaluate("(root,marker) => root.querySelectorAll('['+marker+']').forEach(el=>el.removeAttribute(marker))", marker, timeout=1800)
             # A selection attempt is not proof of multi-selection. Inspect
             # the options for semantic selection and stop if fewer are marked.
@@ -380,10 +381,11 @@ async def include_references(page, image_files, prompt_field, trace):
             }""", [item['name'] for item in image_files], timeout=1800)
             trace.event('references', 'waiting', **evidence)
             if evidence['expectedSelected'] != len(image_files):
-                # The UI may not expose selection semantics. Do not include
-                # an unverified batch that could silently omit images.
-                result['errorCode'] = 'flow_reference_selection_unconfirmed'
-                return result
+                # Flow may expose selection only visually. An unconfirmed
+                # semantic state is not proof of failure. Click Include once
+                # and verify the *actual* number of composer attachments.
+                trace.event('references', 'waiting', selectionSemanticsUnavailable=True,
+                            expected=len(image_files))
             phase = 'include_find'
             includes = await find_include()
             trace.event('references', 'waiting', includeEnabled=len(includes))
