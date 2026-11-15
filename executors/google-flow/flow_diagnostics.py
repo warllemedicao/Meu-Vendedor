@@ -208,132 +208,169 @@ async def editor_state(page, trace, prompt_field=None, names=None):
 
 
 async def include_references(page, image_files, prompt_field, trace):
-    """Select only expected library items, include once, verify inside the composer."""
+    """Include expected Flow library previews one at a time, without generating."""
     result = {'included': False, 'verified': False, 'errorCode': None}
     trace.next_action = 'select_images'
     trace.event('references', 'started', expected=len(image_files))
     phase = 'select'
+    included = 0
+
+    async def editor_evidence():
+        # The composer is a div in Flow, not necessarily a form.
+        return await prompt_field.evaluate(r"""(textbox,names) => {
+            const form=textbox.closest('form,[role="form"]');
+            const root=form || textbox.parentElement?.parentElement?.parentElement;
+            if(!root)return {attachmentMatches:0,composerFound:false};
+            const nodes=Array.from(root.querySelectorAll('img,[data-attachment],[aria-label],[title]'))
+                .filter(el=>!el.closest('[role="dialog"],[role="listbox"]'));
+            const labels=nodes.map(el=>[el.getAttribute('alt'),el.getAttribute('title'),
+                el.getAttribute('aria-label')].filter(Boolean).join(' ').toLowerCase());
+            return {composerFound:true,attachmentMatches:names.filter(n=>
+                labels.some(label=>label.includes(n.toLowerCase()))).length};
+        }""", [item['name'] for item in image_files], timeout=1800)
+
+    async def find_include():
+        found = []
+        for frame in page.frames[:8]:
+            controls = frame.get_by_role('button', name=re.compile(
+                r'^\\s*(incluir no comando|add to prompt|include in prompt)\\s*$', re.I))
+            for index in range(min(await controls.count(), 6)):
+                control = controls.nth(index)
+                if await control.is_visible() and await control.is_enabled():
+                    found.append(control)
+        return found
+
     try:
-        async with asyncio.timeout(9):
-            chosen = []
+        # The upload wait has already confirmed all filenames are stable.
+        # Flow shows one selected preview and one Include button, not
+        # necessarily a multi-select checkbox or aria-selected option.
+        async with asyncio.timeout(75):
             for asset_index, item in enumerate(image_files, 1):
-                pattern = re.compile(r'(?<![\w.-])' + re.escape(item['name']) + r'(?![\w.-])', re.I)
-                candidates = []
-                libraries_seen = []
+                phase = 'select'
+                trace.next_action = 'select_images'
+                # After Include, the library may close. Open it using the
+                # existing attachment affordance if no resource list is visible.
+                libraries = []
                 for frame in page.frames[:8]:
-                    # A generic selected element elsewhere is never proof of selection.
-                    for box_index in range(min(await frame.get_by_role('listbox', name=re.compile(r'^(lista de recursos|asset list|assets)$', re.I)).count(), 3)):
-                        library = frame.get_by_role('listbox', name=re.compile(r'^(lista de recursos|asset list|assets)$', re.I)).nth(box_index)
-                        libraries_seen.append(library)
-                        options = library.get_by_role('option').filter(has_text=pattern)
-                        for index in range(min(await options.count(), 4)):
-                            option = options.nth(index)
-                            if await option.is_visible():
-                                candidates.append(option)
-                        # Accessible checkbox names are another unambiguous selection target.
-                        if not await options.count():
-                            checks = library.get_by_role('checkbox', name=pattern)
-                            for index in range(min(await checks.count(), 4)):
-                                check = checks.nth(index)
-                                if await check.is_visible():
-                                    candidates.append(check)
-                        # Google Flow sometimes puts the filename in a nested
-                        # button rather than the option's accessible name.
-                        # Only accept an exact filename inside this asset list.
-                        if not await options.count() and not candidates:
-                            buttons = library.locator('button,[role="button"]').filter(has_text=pattern)
-                            for index in range(min(await buttons.count(), 4)):
-                                button = buttons.nth(index)
-                                if await button.is_visible():
-                                    candidates.append(button)
-                trace.event('references', 'waiting', assetIndex=asset_index, selectable=len(candidates))
-                if len(candidates) != 1:
-                    # Only counts/roles leave the browser, never names or surrounding text.
-                    if not candidates:
-                        for library in libraries_seen[:2]:
-                            try:
-                                shape = await asyncio.wait_for(library.evaluate(r"""(root,name) => {
-                                    const leaves=Array.from(root.querySelectorAll('*')).filter(e=>e.children.length===0&&((e.textContent||'').trim()===name||e.getAttribute('alt')===name||e.getAttribute('title')===name));
-                                    return {assetTextMatches:leaves.length,assetOptionParents:leaves.filter(e=>e.closest('[role="option"]')).length,assetButtonParents:leaves.filter(e=>e.closest('button,[role="button"]')).length,assetCheckboxParents:leaves.filter(e=>e.closest('[role="checkbox"],label')).length,libraryOptions:root.querySelectorAll('[role="option"]').length,libraryCheckboxes:root.querySelectorAll('[role="checkbox"],input[type="checkbox"]').length};
-                                }""", item['name'], timeout=1000), timeout=1.2)
-                                trace.event('references', 'waiting', assetIndex=asset_index, **shape)
-                            except Exception:
-                                trace.event('references', 'waiting', assetIndex=asset_index, frameErrors=1)
+                    locator = frame.get_by_role('listbox', name=re.compile(
+                        r'^(lista de recursos|asset list|assets)$', re.I))
+                    for index in range(min(await locator.count(), 3)):
+                        library = locator.nth(index)
+                        if await library.is_visible():
+                            libraries.append(library)
+                if not libraries:
+                    for frame in page.frames[:8]:
+                        for selector in ('button[aria-label*="Adicionar"]',
+                                         'button[aria-label*="Add"]',
+                                         'button[title*="Adicionar"]',
+                                         'button[title*="Add"]'):
+                            trigger = frame.locator(selector)
+                            if await trigger.count() == 1 and await trigger.is_visible():
+                                await trigger.click(timeout=2500)
+                                break
+                    await page.wait_for_timeout(500)
+                    for frame in page.frames[:8]:
+                        locator = frame.get_by_role('listbox', name=re.compile(
+                            r'^(lista de recursos|asset list|assets)$', re.I))
+                        for index in range(min(await locator.count(), 3)):
+                            library = locator.nth(index)
+                            if await library.is_visible():
+                                libraries.append(library)
+                if len(libraries) != 1:
                     result['errorCode'] = 'flow_reference_selection_unavailable'
                     return result
-                target = candidates[0]
-                async def selected(control):
-                    if await control.get_attribute('aria-selected') == 'true' or await control.get_attribute('aria-checked') == 'true':
-                        return True
-                    return await control.evaluate("""el => {
-                        const option=el.closest('[role="option"],[role="checkbox"]');
-                        if(option && (option.getAttribute('aria-selected')==='true' || option.getAttribute('aria-checked')==='true'))return true;
-                        return el.tagName==='INPUT' && el.type==='checkbox' && el.checked;
-                    }""") is True
-                if not await selected(target):
-                    await target.click(trial=True, timeout=1000)
-                    await target.click(timeout=1000)
-                # A click on a thumbnail may only open its preview. Never
-                # interpret that click as a confirmed selection.
-                if not await selected(target):
-                    result['errorCode'] = 'flow_reference_selection_unconfirmed'
+
+                # Resolve the exact filename using text, alt or title inside
+                # the listbox, then its nearest option/button. This handles
+                # image thumbnails whose accessible name is not the filename.
+                library = libraries[0]
+                shape = await library.evaluate(r"""(root,name) => {
+                    const leaves=Array.from(root.querySelectorAll('*')).filter(el=>
+                        el.children.length===0 && [el.textContent?.trim(),
+                        el.getAttribute('alt'),el.getAttribute('title')].includes(name));
+                    const targets=[...new Set(leaves.map(el=>
+                        el.closest('[role="option"]') || el.closest('button,[role="button"]'))
+                        .filter(Boolean))];
+                    return {matches:leaves.length,targets:targets.length,
+                        options:root.querySelectorAll('[role="option"]').length};
+                }""", item['name'], timeout=1800)
+                trace.event('references', 'waiting', assetIndex=asset_index, **shape)
+                if shape['targets'] != 1:
+                    result['errorCode'] = 'flow_reference_selection_unavailable'
                     return result
-                chosen.append(target)
-            selected_count = sum([1 for target in chosen if await selected(target)])
-            trace.event('references', 'waiting', expected=len(image_files), selectedExpected=selected_count)
-            if selected_count != len(image_files):
-                result['errorCode'] = 'flow_reference_selection_unconfirmed'
-                return result
-            trace.next_action = 'include_references'
-            phase = 'include_find'
-            includes = []
-            for frame in page.frames[:8]:
-                controls = frame.get_by_role('button', name=re.compile(r'^\s*(incluir no comando|add to prompt|include in prompt)\s*$', re.I))
-                for index in range(min(await controls.count(), 8)):
-                    control = controls.nth(index)
-                    if await control.is_visible() and await control.is_enabled():
-                        includes.append(control)
-            trace.event('references', 'waiting', includeEnabled=len(includes))
-            if len(includes) != 1:
-                result['errorCode'] = 'flow_reference_include_unavailable'
-                return result
-            await includes[0].click(trial=True, timeout=1000)
-            phase = 'include_click'
-            # Never retry an uncertain click; it may already have taken effect.
-            await includes[0].click(timeout=1000)
-            result['included'] = trace.references_included = True
-            trace.event('references', 'waiting', referencesIncluded=True)
-            trace.next_action = 'verify_references'
-            phase = 'verify'
-            names = [item['name'] for item in image_files]
-            for _ in range(3):
-                evidence = await asyncio.wait_for(prompt_field.evaluate(r"""(textbox,names) => {
-                    const form=textbox.closest('form,[role="form"]');
-                    // Flow's editor can be a div-based composer without a form.
-                    // Bound the fallback to the closest container holding the
-                    // textbox and attachments, never the whole document.
-                    const composer=form || textbox.parentElement?.parentElement?.parentElement;
-                    if(!composer)return {composerForms:0,attachmentMatches:0};
-                    const candidates=Array.from(composer.querySelectorAll('img,[data-attachment],[aria-label],[title]')).filter(e=>!e.closest('[role="dialog"],[role="listbox"]'));
-                    const labels=candidates.map(e=>[e.getAttribute('alt'),e.getAttribute('aria-label'),e.getAttribute('title')].filter(Boolean).join(' ').toLowerCase());
-                    return {composerForms:1,attachmentMatches:names.filter(n=>labels.some(label=>label.includes(n.toLowerCase()))).length};
-                }""", names, timeout=1000), timeout=1.2)
-                trace.event('references', 'waiting', **evidence)
-                if evidence['composerForms'] == 1 and evidence['attachmentMatches'] == len(names):
-                    result['verified'] = trace.references_verified = True
-                    trace.next_action = 'inspect_settings'
-                    trace.event('references', referencesIncluded=True, referencesVerified=True)
+                # The element may be an option containing an image with alt
+                # but no text. Identify it by the same exact DOM predicate.
+                target = library.locator('[role="option"],button,[role="button"]').filter(
+                    has=library.locator('img[alt], [title]')).filter(
+                    has_text=re.compile(r'.*', re.S))
+                # Use a temporary DOM marker scoped to this one library;
+                # it never leaves the browser or touches other assets.
+                marker = 'data-mv-reference-target'
+                await library.evaluate(r"""(root,args) => {
+                    const [name,marker]=args;
+                    const leaves=Array.from(root.querySelectorAll('*')).filter(el=>
+                        el.children.length===0 && [el.textContent?.trim(),
+                        el.getAttribute('alt'),el.getAttribute('title')].includes(name));
+                    const target=leaves[0]?.closest('[role="option"]') ||
+                        leaves[0]?.closest('button,[role="button"]');
+                    if(target)target.setAttribute(marker,'yes');
+                }""", [item['name'], marker], timeout=1800)
+                target = library.locator('[data-mv-reference-target="yes"]')
+                if await target.count() != 1:
+                    result['errorCode'] = 'flow_reference_selection_unavailable'
                     return result
-                await page.wait_for_timeout(200)
-            result['errorCode'] = 'flow_references_unverified'
+                try:
+                    await target.click(trial=True, timeout=2500)
+                    await target.click(timeout=2500)
+                finally:
+                    await library.evaluate("(root,marker) => root.querySelectorAll('['+marker+']').forEach(el=>el.removeAttribute(marker))", marker, timeout=1800)
+
+                # A preview with the matching image and an enabled Include
+                # control is the Flow-specific evidence of readiness.
+                phase = 'include_find'
+                includes = await find_include()
+                trace.event('references', 'waiting', assetIndex=asset_index,
+                            includeEnabled=len(includes))
+                if len(includes) != 1:
+                    result['errorCode'] = 'flow_reference_include_unavailable'
+                    return result
+                phase = 'include_click'
+                await includes[0].click(trial=True, timeout=2500)
+                # Never retry an uncertain click; duplication is worse than
+                # returning an explicit uncertain state.
+                await includes[0].click(timeout=3500)
+                included += 1
+                result['included'] = trace.references_included = True
+                trace.event('references', 'waiting', assetIndex=asset_index,
+                            referencesIncluded=True, includedCount=included)
+                phase = 'verify'
+                trace.next_action = 'verify_references'
+                # Filename evidence may be absent in Flow's chips; never
+                # claim verification based only on library visibility.
+                for _ in range(5):
+                    evidence = await editor_evidence()
+                    trace.event('references', 'waiting', assetIndex=asset_index, **evidence)
+                    if evidence['attachmentMatches'] >= included:
+                        break
+                    await page.wait_for_timeout(400)
+                else:
+                    result['errorCode'] = 'flow_references_unverified'
+                    return result
+
+            evidence = await editor_evidence()
+            if evidence['attachmentMatches'] == len(image_files):
+                result['verified'] = trace.references_verified = True
+                trace.next_action = 'inspect_settings'
+                trace.event('references', referencesIncluded=True, referencesVerified=True)
+            else:
+                result['errorCode'] = 'flow_references_unverified'
     except Exception:
-        if phase == 'include_click':
-            trace.next_action = 'verify_references'
-        result['errorCode'] = ('flow_reference_include_uncertain' if phase == 'include_click' else
-                               'flow_references_unverified' if phase == 'verify' else
-                               'flow_reference_selection_unconfirmed' if phase == 'select' else
-                               'flow_reference_include_unavailable')
+        result['errorCode'] = ('flow_reference_include_uncertain' if phase == 'include_click'
+                               else 'flow_references_unverified' if phase == 'verify'
+                               else 'flow_reference_include_unavailable' if phase == 'include_find'
+                               else 'flow_reference_selection_unavailable')
     finally:
         if result['errorCode']:
-            trace.event('references', 'error', referencesIncluded=result['included'], referencesVerified=result['verified'])
+            trace.event('references', 'error', referencesIncluded=result['included'],
+                        referencesVerified=result['verified'])
     return result
