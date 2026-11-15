@@ -132,12 +132,21 @@ def gateway():
                     if stage_image:
                         # The Flow editor may create a hidden file input only after opening
                         # the attachment menu. Never click Generate or submit the prompt.
-                        inputs = []
+                        # Explicitly choose the upload action in the Flow library.
+                        # Opening the library alone is not an upload.
+                        upload_clicked = False
                         for frame in page.frames[:8]:
-                            files = frame.locator('input[type="file"]')
-                            if await files.count():
-                                inputs.append((frame, files))
-                        if not inputs:
+                            upload = frame.get_by_text('Fazer upload', exact=False)
+                            if await upload.count() == 1 and await upload.is_visible():
+                                await upload.click(timeout=5000)
+                                upload_clicked = True
+                                break
+                            upload = frame.get_by_text('Upload', exact=True)
+                            if await upload.count() == 1 and await upload.is_visible():
+                                await upload.click(timeout=5000)
+                                upload_clicked = True
+                                break
+                        if not upload_clicked:
                             for frame in page.frames[:8]:
                                 for selector in ('button[aria-label*="Adicionar"]', 'button[aria-label*="Add"]', 'button[title*="Adicionar"]', 'button[title*="Add"]'):
                                     trigger = frame.locator(selector)
@@ -146,12 +155,24 @@ def gateway():
                                         break
                             await page.wait_for_timeout(700)
                             for frame in page.frames[:8]:
-                                files = frame.locator('input[type="file"]')
-                                if await files.count():
-                                    inputs.append((frame, files))
-                        if len(inputs) != 1 or await inputs[0][1].count() != 1:
+                                upload = frame.get_by_text('Fazer upload', exact=False)
+                                if await upload.count() == 1 and await upload.is_visible():
+                                    await upload.click(timeout=5000)
+                                    upload_clicked = True
+                                    break
+                        if not upload_clicked:
+                            raise RuntimeError('flow_upload_action_not_found')
+                        await page.wait_for_timeout(500)
+                        inputs = []
+                        for frame in page.frames[:8]:
+                            files = frame.locator('input[type="file"]')
+                            for idx in range(await files.count()):
+                                item = files.nth(idx)
+                                if await item.is_enabled():
+                                    inputs.append(item)
+                        if len(inputs) != 1:
                             raise RuntimeError('image_input_not_found')
-                        await inputs[0][1].set_input_files(image_files, timeout=10000)
+                        await inputs[0].set_input_files(image_files, timeout=10000)
                         image_attached = True
                         image_count = len(image_files)
                     # Do not return arbitrary page text or account identifiers.
