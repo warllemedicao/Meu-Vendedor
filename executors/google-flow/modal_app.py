@@ -132,47 +132,41 @@ def gateway():
                     if stage_image:
                         # The Flow editor may create a hidden file input only after opening
                         # the attachment menu. Never click Generate or submit the prompt.
-                        # Explicitly choose the upload action in the Flow library.
-                        # Opening the library alone is not an upload.
-                        upload_clicked = False
-                        for frame in page.frames[:8]:
-                            upload = frame.get_by_text('Fazer upload', exact=False)
-                            if await upload.count() == 1 and await upload.is_visible():
-                                await upload.click(timeout=5000)
-                                upload_clicked = True
-                                break
-                            upload = frame.get_by_text('Upload', exact=True)
-                            if await upload.count() == 1 and await upload.is_visible():
-                                await upload.click(timeout=5000)
-                                upload_clicked = True
-                                break
-                        if not upload_clicked:
+                        # A Flow library menu can open without starting a file upload.
+                        # Capture the native chooser while clicking the explicit upload action.
+                        async def click_upload_action():
+                            for frame in page.frames[:8]:
+                                for locator in (frame.get_by_text('Fazer upload', exact=False), frame.get_by_text('Upload', exact=True)):
+                                    if await locator.count() == 1 and await locator.is_visible():
+                                        try:
+                                            async with page.expect_file_chooser(timeout=6000) as chooser_info:
+                                                await locator.click(timeout=4000)
+                                            chooser = await chooser_info.value
+                                            await chooser.set_files(image_files, timeout=12000)
+                                            return True
+                                        except Exception:
+                                            # Some Flow builds create an input without emitting
+                                            # a filechooser event. Check for that below.
+                                            for candidate_frame in page.frames[:8]:
+                                                files = candidate_frame.locator('input[type="file"]')
+                                                if await files.count() == 1:
+                                                    await files.set_input_files(image_files, timeout=12000)
+                                                    return True
+                                            raise RuntimeError('flow_file_chooser_unavailable')
+                            return False
+                        uploaded = await click_upload_action()
+                        if not uploaded:
+                            # Reveal the library from the attachment control, then retry.
                             for frame in page.frames[:8]:
                                 for selector in ('button[aria-label*="Adicionar"]', 'button[aria-label*="Add"]', 'button[title*="Adicionar"]', 'button[title*="Add"]'):
                                     trigger = frame.locator(selector)
                                     if await trigger.count() == 1 and await trigger.is_visible():
                                         await trigger.click(timeout=4000)
                                         break
-                            await page.wait_for_timeout(700)
-                            for frame in page.frames[:8]:
-                                upload = frame.get_by_text('Fazer upload', exact=False)
-                                if await upload.count() == 1 and await upload.is_visible():
-                                    await upload.click(timeout=5000)
-                                    upload_clicked = True
-                                    break
-                        if not upload_clicked:
+                            await page.wait_for_timeout(500)
+                            uploaded = await click_upload_action()
+                        if not uploaded:
                             raise RuntimeError('flow_upload_action_not_found')
-                        await page.wait_for_timeout(500)
-                        inputs = []
-                        for frame in page.frames[:8]:
-                            files = frame.locator('input[type="file"]')
-                            for idx in range(await files.count()):
-                                item = files.nth(idx)
-                                if await item.is_enabled():
-                                    inputs.append(item)
-                        if len(inputs) != 1:
-                            raise RuntimeError('image_input_not_found')
-                        await inputs[0].set_input_files(image_files, timeout=10000)
                         image_attached = True
                         image_count = len(image_files)
                     # Do not return arbitrary page text or account identifiers.
