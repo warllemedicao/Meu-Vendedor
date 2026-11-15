@@ -1,3 +1,11 @@
+## 2026-11-15 — Validação positiva da persistência do login Google Flow
+
+- **Teste confirmado pelo usuário:** após usar **Salvar acesso e fechar** no Meu Vendedor, abriu novamente o Google Flow pelo navegador remoto e a página carregou **sem solicitar a senha**.
+- Resultado: autenticação preservada entre duas sessões no teste manual, além da abertura remota já validada anteriormente. Não houve necessidade de reinserir credenciais.
+- **Próxima etapa:** implementar e testar, de forma supervisionada, a interação com o botão “+” do Flow, o envio de imagens autorizadas do catálogo, a inserção do roteiro e o acompanhamento do vídeo gerado. Reutilizar o executor Modal/Hyperbrowser e o perfil persistente existentes.
+- **Ainda não validados:** criação automatizada, exportação/download de MP4, fila, integração ponta a ponta com produtos e publicação em redes sociais.
+- Não armazenar senhas, cookies, tokens ou URLs de sessão assinadas no histórico.
+
 ## 2026-11-15 — Marco: Google Flow aberto com sessão autenticada no navegador remoto
 
 - **Confirmação do usuário:** após publicar o workflow Modal com os ajustes de sessão, o botão de abertura do Google Flow no Meu Vendedor abriu corretamente a página `https://flow.google.com/` em um navegador remoto Hyperbrowser, **já autenticado** na conta Google do usuário.
