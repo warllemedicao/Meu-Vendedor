@@ -1,3 +1,10 @@
+## 2026-11-15 — Flow abriu Biblioteca em vez de anexar imagens
+
+- Evidência do usuário: tela do Flow mostra a aba Biblioteca e a ação `Fazer upload...`; duas imagens estavam selecionadas no Meu Vendedor. A aplicação retornou `A conexão não respondeu` e nenhum anexo foi confirmado.
+- Causa provável no executor: clicar em adicionar/revelar biblioteca não basta; é preciso selecionar explicitamente `Fazer upload...` antes de localizar o `input[type=file]` e enviar os bytes.
+- Ajuste em `executors/google-flow/modal_app.py` commit `06a62516`: localizar `Fazer upload` na biblioteca, abrir menu de anexos se necessário, exigir um input de arquivo único e enviar as imagens com Playwright `set_input_files`. Se a ação não for encontrada, falhar com `flow_upload_action_not_found` em vez de declarar sucesso. Nenhum clique em Gerar.
+- **Não validado em produção:** publicar novamente o executor Modal e testar; confirmar visualmente os anexos. Se o Flow abrir diálogo nativo de arquivos sem expor input, será necessário implementar tratamento do file chooser.
+
 ## 2026-11-15 — Remoção do botão redundante e suporte a múltiplas imagens no mesmo envio
 
 - Usuário reportou que o teste de anexo exibiu `Não foi possível confirmar o anexo da imagem` e diagnóstico `página Flow não; frames 0/0`. Esse diagnóstico não comprova ausência de página: era um retorno sem inspeção e/ou estado anterior; não afirmar upload bem-sucedido.
