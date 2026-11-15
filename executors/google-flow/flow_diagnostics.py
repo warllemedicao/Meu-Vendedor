@@ -237,6 +237,15 @@ async def include_references(page, image_files, prompt_field, trace):
                                 check = checks.nth(index)
                                 if await check.is_visible():
                                     candidates.append(check)
+                        # Google Flow sometimes puts the filename in a nested
+                        # button rather than the option's accessible name.
+                        # Only accept an exact filename inside this asset list.
+                        if not await options.count() and not candidates:
+                            buttons = library.locator('button,[role="button"]').filter(has_text=pattern)
+                            for index in range(min(await buttons.count(), 4)):
+                                button = buttons.nth(index)
+                                if await button.is_visible():
+                                    candidates.append(button)
                 trace.event('references', 'waiting', assetIndex=asset_index, selectable=len(candidates))
                 if len(candidates) != 1:
                     # Only counts/roles leave the browser, never names or surrounding text.
@@ -256,10 +265,19 @@ async def include_references(page, image_files, prompt_field, trace):
                 async def selected(control):
                     if await control.get_attribute('aria-selected') == 'true' or await control.get_attribute('aria-checked') == 'true':
                         return True
-                    return await control.evaluate("el => el.tagName==='INPUT' && el.type==='checkbox' && el.checked") is True
+                    return await control.evaluate("""el => {
+                        const option=el.closest('[role="option"],[role="checkbox"]');
+                        if(option && (option.getAttribute('aria-selected')==='true' || option.getAttribute('aria-checked')==='true'))return true;
+                        return el.tagName==='INPUT' && el.type==='checkbox' && el.checked;
+                    }""") is True
                 if not await selected(target):
                     await target.click(trial=True, timeout=1000)
                     await target.click(timeout=1000)
+                # A click on a thumbnail may only open its preview. Never
+                # interpret that click as a confirmed selection.
+                if not await selected(target):
+                    result['errorCode'] = 'flow_reference_selection_unconfirmed'
+                    return result
                 chosen.append(target)
             selected_count = sum([1 for target in chosen if await selected(target)])
             trace.event('references', 'waiting', expected=len(image_files), selectedExpected=selected_count)
@@ -291,8 +309,12 @@ async def include_references(page, image_files, prompt_field, trace):
             for _ in range(3):
                 evidence = await asyncio.wait_for(prompt_field.evaluate(r"""(textbox,names) => {
                     const form=textbox.closest('form,[role="form"]');
-                    if(!form)return {composerForms:0,attachmentMatches:0};
-                    const candidates=Array.from(form.querySelectorAll('img,[data-attachment],[aria-label],[title]')).filter(e=>!e.closest('[role="dialog"],[role="listbox"]'));
+                    // Flow's editor can be a div-based composer without a form.
+                    // Bound the fallback to the closest container holding the
+                    // textbox and attachments, never the whole document.
+                    const composer=form || textbox.parentElement?.parentElement?.parentElement;
+                    if(!composer)return {composerForms:0,attachmentMatches:0};
+                    const candidates=Array.from(composer.querySelectorAll('img,[data-attachment],[aria-label],[title]')).filter(e=>!e.closest('[role="dialog"],[role="listbox"]'));
                     const labels=candidates.map(e=>[e.getAttribute('alt'),e.getAttribute('aria-label'),e.getAttribute('title')].filter(Boolean).join(' ').toLowerCase());
                     return {composerForms:1,attachmentMatches:names.filter(n=>labels.some(label=>label.includes(n.toLowerCase()))).length};
                 }""", names, timeout=1000), timeout=1.2)
