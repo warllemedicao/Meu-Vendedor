@@ -1,3 +1,11 @@
+## 2026-11-15 — Preenchimento supervisionado de prompt sem gerar
+
+- Modal: novo modo autenticado `stage-prompt` aceita prompt de 1 a 4000 caracteres, exige URL de projeto `https://flow.google.com/project/...`, procura campo de texto `O que você quer criar?` (ou equivalente inglês) de forma inequívoca e usa `fill()`. **Não clica em Gerar e não envia vídeo.** Commits `0b705aff`, `8d7f9b51`.
+- Supabase: nova ação autenticada `stage-flow-prompt`, com validação de tamanho e repasse ao executor. Edge Function `hyperbrowser-profile` **v29 ACTIVE**. Commit `1802fe8e`.
+- Frontend: campo para colar prompt e botão `Preencher texto no Flow (sem gerar)` na área Conta e conexões. Commit `ea2a1bc2`.
+- **Imagem ainda não automatizada:** o mapeamento do editor não revelou input de arquivo; não presumir que upload funciona. Necessário inspecionar o fluxo de anexo do Flow e escolher uma imagem autorizada do catálogo com transferência segura, sem expor credenciais ou gerar conteúdo.
+- **Publicação pendente:** Modal workflow (sem rotação de segredo) e depois frontend workflow (confirm_frontend_only=true). Teste ponta a ponta do preenchimento ainda não realizado.
+
 ## 2026-11-15 — Mapeamento real do editor do Google Flow confirmado
 
 - Usuário abriu um projeto e executou `Mapear interface do Google Flow (sem gerar)`.
