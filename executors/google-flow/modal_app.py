@@ -28,7 +28,7 @@ def gateway():
     from fastapi import FastAPI, Request, HTTPException
     # add_local_dir places helpers here in the Modal image.
     sys.path.insert(0, '/opt/flow')
-    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images, inspect_settings
+    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images, inspect_settings, include_references, editor_state
     executor_revision = hashlib.sha256(
         Path('/opt/flow/modal_app.py').read_bytes() + Path('/opt/flow/flow_diagnostics.py').read_bytes()
     ).hexdigest()[:12]
@@ -57,6 +57,7 @@ def gateway():
             if stage_prompt and (not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 4000):
                 raise ValueError('invalid_prompt')
             image_files = []
+            upload_tag = secrets.token_hex(4)
             if stage_image:
                 import base64
                 supplied = payload.get('images') if isinstance(payload.get('images'), list) else [{'mime':payload.get('imageMime'),'data':payload.get('imageBase64')}]
@@ -74,7 +75,7 @@ def gateway():
                     signatures = {'image/png': image_bytes.startswith(bytes.fromhex('89504e470d0a1a0a')), 'image/jpeg': image_bytes.startswith(bytes.fromhex('ffd8ff')), 'image/webp': image_bytes.startswith(b'RIFF') and image_bytes[8:12] == b'WEBP'}
                     if not image_bytes or not signatures[mime]:
                         raise ValueError('invalid_image')
-                    image_files.append({'name': 'produto-' + str(len(image_files)+1) + '.' + {'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[mime], 'mimeType': mime, 'buffer': image_bytes})
+                    image_files.append({'name': 'produto-' + upload_tag + '-' + str(len(image_files)+1) + '.' + {'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[mime], 'mimeType': mime, 'buffer': image_bytes})
                 if sum(len(item['buffer']) for item in image_files) > 2500000:
                     raise ValueError('invalid_image')
             if not isinstance(endpoint, str): raise ValueError('missing_endpoint')
@@ -238,26 +239,29 @@ def gateway():
                         await wait_for_images(page, image_files, trace)
                     if not stage_image:
                         trace.event("upload", "skipped", expected=0)
-                    trace.event("references", "started")
-                    include_visible = include_enabled = selected_count = reference_errors = 0
-                    for reference_frame in page.frames[:8]:
-                        try:
-                            observation = await reference_frame.locator('body').evaluate("""body => {
-                                const visible = el => { const r=el.getBoundingClientRect(), s=getComputedStyle(el); return r.width>0 && r.height>0 && s.display!=='none' && s.visibility!=='hidden'; };
-                                const buttons = Array.from(body.querySelectorAll('button,[role="button"]')).filter(visible)
-                                    .filter(el => /^(incluir no comando|add to prompt|include in prompt)$/i.test((el.getAttribute('aria-label')||el.textContent||'').trim()));
-                                return {includeVisible:buttons.length, includeEnabled:buttons.filter(el=>!el.disabled && el.getAttribute('aria-disabled')!=='true').length,
-                                    selected:Array.from(body.querySelectorAll('[aria-selected="true"],[aria-checked="true"]')).filter(visible).length};
-                            }""")
-                            include_visible += observation['includeVisible']
-                            include_enabled += observation['includeEnabled']
-                            selected_count += observation['selected']
-                        except Exception:
-                            reference_errors += 1
-                    trace.event("references", "blocked" if stage_prompt else "skipped", includeVisible=include_visible, includeEnabled=include_enabled, selected=selected_count, frameErrors=reference_errors)
+                    reference_result = {'included': False, 'verified': False, 'errorCode': None}
+                    if stage_prompt and image_files:
+                        reference_result = await include_references(page, image_files, matches[0], trace)
+                    else:
+                        trace.event('references', 'skipped', expected=0)
                     settings_result = None
                     if payload.get('mode') in ('inspect-settings', 'prepare-draft'):
-                        settings_result = await inspect_settings(page, trace)
+                        if reference_result['errorCode']:
+                            trace.event('settings', 'skipped')
+                        else:
+                            settings_result = await inspect_settings(page, trace)
+                            settings_result["referencesVerified"] = reference_result["verified"]
+                    await editor_state(page, trace)
+                    if reference_result['errorCode']:
+                        reason = reference_result['errorCode']
+                    elif (settings_result or {}).get('errorCode'):
+                        reason = settings_result['errorCode']
+                        trace.next_action = 'inspect_settings'
+                    elif stage_prompt:
+                        reason = 'flow_draft_ready'
+                        trace.next_action = 'generate_video' if settings_result and settings_result['vertical916'] and settings_result['singleOutput'] else 'inspect_settings'
+                    else:
+                        reason = 'inspection_only'
                     trace.event("inspection", "started")
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
@@ -271,9 +275,16 @@ def gateway():
                         const safeLabel = el => {
                             const value = (el.getAttribute('aria-label') ||
                                 el.getAttribute('title') || el.innerText || '').trim();
-                            const allowed = /novo projeto|new project|create|criar|projeto|project|flow|video|vídeo|gerar|generate|\+/i;
-                            return allowed.test(value) && !/@|conta do google|google account/i.test(value)
-                                ? value.slice(0,70) : '';
+                            const known = [
+                                [/^(novo projeto|new project)$/i, 'Novo projeto'],
+                                [/^(incluir no comando|add to prompt|include in prompt)$/i, 'Incluir no comando'],
+                                [/^(enviar(?: comando)?|gerar(?: vídeo| video)?|send|submit|generate(?: video)?|arrow_forward)$/i, 'Enviar / Gerar vídeo'],
+                                [/^(configurações(?: do (?:agente|vídeo|video))?|(?:agent |video )?settings)$/i, 'Configurações'],
+                                [/^fazer upload(?:\.\.\.|…)?$/i, 'Fazer upload'],
+                                [/^concordo$/i, 'Concordo'],
+                                [/^(selecionar projeto|select project)$/i, 'Selecionar projeto']
+                            ];
+                            return known.find(([pattern]) => pattern.test(value))?.[1] || '';
                         };
                         const candidates = els.filter(visible);
                         return {
@@ -329,8 +340,6 @@ def gateway():
                             scan_errors += 1
                             continue
                     trace.event("inspection", frames=inspected_frames, frameErrors=scan_errors)
-                    reason = ((settings_result or {}).get('errorCode') or
-                              ('references_not_implemented' if stage_prompt else 'inspection_only'))
                     trace.event("finished")
                     return {
                         'diagnostics': trace.report(reason),
@@ -339,7 +348,7 @@ def gateway():
                         'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
                         'scanErrors': scan_errors,
                         'flowPage': (page.url or '').startswith('https://flow.google.com/'),
-                        'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached, 'imageCount': image_count, 'settingsInspection': settings_result,
+                        'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached, 'imageCount': image_count, 'settingsInspection': settings_result, 'referencesIncluded': reference_result['included'], 'referencesVerified': reference_result['verified'],
                         'editorControls': editor_items[:80],
                         'editorFrames': editor_frames, 'editorErrors': editor_errors
                     }

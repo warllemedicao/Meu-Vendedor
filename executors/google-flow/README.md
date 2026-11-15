@@ -1,3 +1,9 @@
+## Inclusão de referências e estado atual — preparada em 15/11/2026
+
+Executor esperado **eace261ac165**. `include_references` procura as imagens do lote em opções/checkboxes acessíveis da Lista de recursos, confirma todas as seleções e clica uma vez em Incluir no comando somente quando o alvo é único/habilitado. Nomes aleatórios por tentativa evitam correspondência com arquivos antigos. Verificação dos anexos é independente do clique e exige evidência no formulário do prompt; ausência de semântica reconhecível é uma limitação declarada, não sucesso presumido. Clique incerto não é repetido. Não clica na seta de geração.
+
+`editor_state` devolve inventário de controles atuais com códigos/contagens, e o relatório mostra a próxima ação pendente separada da cronologia. Nomes/valores livres do DOM não entram no relatório. Prepare-draft tem timeout de 105 s na Edge, com etapas limitadas no executor. Pergunta sobre o significado de enviar comando continua pendente; ação permanece sem gerar. Testes simulados: 16 Python e 8 JS/TS aprovados, junto de typechecks, lint e build. Publicação ainda será confirmada em historico.md.
+
 ## Publicação da correção de configurações — 15/11/2026
 
 Código **66bd19b**, CI aprovado. Supabase `hyperbrowser-profile` ACTIVE **v51** e Cloudflare **d964b926-292d-4524-964b-051e3faaba01** publicados, com código/bundle conferidos. **Modal novo pendente** por HTTP403 no disparo do workflow via integração GitHub. Responsável com permissão deve executar workflow Modal na main sem rotação de segredo Cloudflare, respeitando production. Revisão esperada do executor: **ce9a1e15ac9f**. Até essa revisão aparecer no relatório, a correção não está ativa no robô. Não houve teste real autenticado da nova revisão. 11 testes Python e 7 JS/TS, typechecks, lint e build aprovados localmente.

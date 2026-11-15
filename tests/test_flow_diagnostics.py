@@ -73,6 +73,42 @@ class SettingsPage:
         pass
 
 
+class Collection:
+    def __init__(self, items): self.items = items
+    async def count(self): return len(self.items)
+    def nth(self, index): return self.items[index]
+    def filter(self, has_text): return Collection([item for item in self.items if has_text.search(item.name)])
+
+
+class AssetControl(SettingsControl):
+    def __init__(self, name):
+        super().__init__()
+        self.name, self.selected = name, False
+    async def get_attribute(self, name): return str(self.selected).lower() if name == 'aria-selected' else None
+    async def evaluate(self, script): return False
+    async def click(self, trial=False, **kwargs):
+        self.clicks.append(trial)
+        if not trial: self.selected = True
+
+
+class ReferencePage:
+    def __init__(self, names, has_form=True, uncertain=False):
+        self.assets, self.has_form, self.uncertain = [AssetControl(n) for n in names], has_form, uncertain
+        self.frames, self.include_clicks, self.included = [self], [], False
+        self.include_button = SettingsControl('Incluir no comando')
+        async def click(trial=False, **kwargs):
+            self.include_clicks.append(trial)
+            if not trial:
+                self.included = True
+                if self.uncertain: raise TimeoutError('private detail')
+        self.include_button.click = click
+    def get_by_role(self, role, **kwargs):
+        return Collection([self] if role == 'listbox' else self.assets if role == 'option' else [self.include_button] if role == 'button' else [])
+    async def evaluate(self, script, names, **kwargs):
+        return {'composerForms': int(self.has_form), 'attachmentMatches': len(names) if self.included and self.has_form else 0}
+    async def wait_for_timeout(self, milliseconds): pass
+
+
 class FlowDiagnosticTests(unittest.IsolatedAsyncioTestCase):
     def trace(self, browser):
         self.logs = []
@@ -184,6 +220,50 @@ class FlowDiagnosticTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result['opened'])
         self.assertEqual(result['errorCode'], 'flow_settings_read_failed')
         self.assertNotIn('private-read-error', json.dumps(trace.report(result['errorCode'])))
+
+    async def test_expected_assets_are_selected_then_included_once_and_verified(self):
+        page = ReferencePage(['produto-a-1.png', 'produto-a-2.png'])
+        trace = self.trace(Browser([]))
+        result = await module.include_references(page, [{'name':a.name} for a in page.assets], page, trace)
+        self.assertTrue(result['included'])
+        self.assertTrue(result['verified'])
+        self.assertEqual(page.include_clicks, [True, False])
+        self.assertEqual([a.clicks for a in page.assets], [[True, False], [True, False]])
+        self.assertEqual(trace.next_action, 'inspect_settings')
+        self.assertTrue(trace.report('flow_draft_ready')['referencesVerified'])
+
+    async def test_duplicate_asset_names_do_not_allow_arbitrary_selection(self):
+        page = ReferencePage(['produto-a-1.png', 'produto-a-1.png'])
+        trace = self.trace(Browser([]))
+        result = await module.include_references(page, [{'name':'produto-a-1.png'}], page, trace)
+        self.assertEqual(result['errorCode'], 'flow_reference_selection_unavailable')
+        self.assertEqual(page.include_clicks, [])
+        self.assertEqual([a.clicks for a in page.assets], [[], []])
+
+    async def test_already_selected_expected_assets_are_not_toggled_off(self):
+        page = ReferencePage(['produto-a-1.png'])
+        page.assets[0].selected = True
+        result = await module.include_references(page, [{'name':'produto-a-1.png'}], page, self.trace(Browser([])))
+        self.assertTrue(result['verified'])
+        self.assertEqual(page.assets[0].clicks, [])
+
+    async def test_include_click_is_not_proof_of_references_in_prompt(self):
+        page = ReferencePage(['produto-a-1.png'], has_form=False)
+        trace = self.trace(Browser([]))
+        result = await module.include_references(page, [{'name':'produto-a-1.png'}], page, trace)
+        self.assertTrue(result['included'])
+        self.assertFalse(result['verified'])
+        self.assertEqual(result['errorCode'], 'flow_references_unverified')
+        self.assertEqual(trace.next_action, 'verify_references')
+
+    async def test_uncertain_include_is_not_retried(self):
+        page = ReferencePage(['produto-a-1.png'], uncertain=True)
+        trace = self.trace(Browser([]))
+        result = await module.include_references(page, [{'name':'produto-a-1.png'}], page, trace)
+        self.assertEqual(result['errorCode'], 'flow_reference_include_uncertain')
+        self.assertEqual(page.include_clicks, [True, False])
+        self.assertFalse(trace.references_verified)
+        self.assertEqual(trace.next_action, 'verify_references')
 
 
 if __name__ == '__main__':

@@ -12,14 +12,22 @@ METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls
                      'limitMs', 'includeVisible', 'includeEnabled', 'selected',
                      'vertical916', 'singleOutput', 'opened', 'flowPage', 'projectPage',
                      'fileChooser', 'fileInput', 'libraryOpened', 'dialogVisible',
-                     'disabled', 'trial', 'clickTimedOut'))
+                     'disabled', 'trial', 'clickTimedOut', 'assetIndex', 'selectable',
+                     'selectedExpected', 'referencesIncluded', 'referencesVerified',
+                     'submitVisible', 'submitEnabled', 'settingsCandidates',
+                     'composerForms', 'composerFields', 'attachmentMatches',
+                     'assetTextMatches', 'assetOptionParents', 'assetButtonParents',
+                     'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes'))
 REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found',
     'flow_upload_action_not_found', 'flow_file_chooser_unavailable',
     'flow_images_not_ready', 'image_rights_dialog_unresolved',
     'image_rights_confirmation_required', 'no_context', 'navigation_failed',
     'references_not_implemented', 'inspection_only', 'flow_settings_not_found',
-    'flow_settings_ambiguous', 'flow_settings_blocked', 'flow_settings_read_failed'))
+    'flow_settings_ambiguous', 'flow_settings_blocked', 'flow_settings_read_failed',
+    'flow_reference_selection_unavailable', 'flow_reference_selection_unconfirmed',
+    'flow_reference_include_unavailable', 'flow_reference_include_uncertain',
+    'flow_references_unverified', 'flow_draft_ready'))
 
 
 class FlowDiagnostics:
@@ -29,6 +37,8 @@ class FlowDiagnostics:
         self.revision = revision
         self.clock, self.emit, self.started = clock, emit, clock()
         self.events, self.stage = [], 'request'
+        self.references_included, self.references_verified = False, False
+        self.next_action = 'inspect_controls'
 
     def event(self, stage, status='ok', **metrics):
         if stage not in STAGES or status not in ('started', 'ok', 'waiting', 'skipped', 'blocked', 'error'):
@@ -47,7 +57,9 @@ class FlowDiagnostics:
                 'executorRevision': self.revision, 'elapsedMs': int((self.clock() - self.started) * 1000),
                 'stopReason': reason if reason in REASONS else 'navigation_failed',
                 'lastStage': self.stage, 'generationStarted': False,
-                'referencesVerified': False, 'events': list(self.events)}
+                'referencesIncluded': self.references_included,
+                'referencesVerified': self.references_verified,
+                'nextAction': self.next_action, 'events': list(self.events)}
 
 
 async def wait_for_images(page, image_files, trace, clock=time.monotonic, timeout=45):
@@ -166,4 +178,141 @@ async def inspect_settings(page, trace):
         result['errorCode'] = 'flow_settings_blocked' if phase in ('trial', 'click') else 'flow_settings_read_failed'
         trace.event('settings', 'error', opened=result['opened'], matches=len(candidates),
                     trial=phase == 'trial', clickTimedOut=type(exc).__name__ == 'TimeoutError')
+    return result
+
+
+async def editor_state(page, trace, prompt_field=None, names=None):
+    """Current actionable controls, not arbitrary DOM text or input values."""
+    totals = dict(includeVisible=0, includeEnabled=0, submitVisible=0, submitEnabled=0,
+                  settingsCandidates=0, composerForms=0, composerFields=0, frameErrors=0)
+    for frame in page.frames[:8]:
+        try:
+            state = await asyncio.wait_for(frame.locator('body').evaluate(r"""body => {
+                const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';};
+                const buttons=Array.from(body.querySelectorAll('button,[role="button"]')).filter(visible);
+                const name=e=>(e.getAttribute('aria-label')||e.getAttribute('title')||e.textContent||'').trim();
+                const enabled=e=>!e.disabled&&e.getAttribute('aria-disabled')!=='true';
+                const includes=buttons.filter(e=>/^(incluir no comando|add to prompt|include in prompt)$/i.test(name(e)));
+                const submits=buttons.filter(e=>/^(enviar(?: comando)?|gerar(?: vídeo| video)?|send|submit|generate(?: video)?|arrow_forward)$/i.test(name(e)));
+                const settings=buttons.filter(e=>/^(configurações(?: do (agente|vídeo|video))?|(?:agent |video )?settings)$/i.test(name(e)));
+                const prompts=Array.from(body.querySelectorAll('[role="textbox"],[contenteditable="true"]')).filter(visible).filter(e=>/o que você quer criar|what do you want to create/i.test([e.getAttribute('aria-label'),e.getAttribute('data-placeholder'),e.getAttribute('placeholder')].join(' ')));
+                return {includeVisible:includes.length,includeEnabled:includes.filter(enabled).length,submitVisible:submits.length,submitEnabled:submits.filter(enabled).length,settingsCandidates:settings.length,composerFields:prompts.length,composerForms:new Set(prompts.map(e=>e.closest('form,[role="form"]')).filter(Boolean)).size};
+            }""", timeout=1200), timeout=1.4)
+            for key, value in state.items():
+                if key in totals and type(value) is int:
+                    totals[key] += value
+        except Exception:
+            totals['frameErrors'] += 1
+    trace.event('inspection', **totals)
+    return totals
+
+
+async def include_references(page, image_files, prompt_field, trace):
+    """Select only expected library items, include once, verify inside the composer."""
+    result = {'included': False, 'verified': False, 'errorCode': None}
+    trace.next_action = 'select_images'
+    trace.event('references', 'started', expected=len(image_files))
+    phase = 'select'
+    try:
+        async with asyncio.timeout(9):
+            chosen = []
+            for asset_index, item in enumerate(image_files, 1):
+                pattern = re.compile(r'(?<![\w.-])' + re.escape(item['name']) + r'(?![\w.-])', re.I)
+                candidates = []
+                libraries_seen = []
+                for frame in page.frames[:8]:
+                    # A generic selected element elsewhere is never proof of selection.
+                    for box_index in range(min(await frame.get_by_role('listbox', name=re.compile(r'^(lista de recursos|asset list|assets)$', re.I)).count(), 3)):
+                        library = frame.get_by_role('listbox', name=re.compile(r'^(lista de recursos|asset list|assets)$', re.I)).nth(box_index)
+                        libraries_seen.append(library)
+                        options = library.get_by_role('option').filter(has_text=pattern)
+                        for index in range(min(await options.count(), 4)):
+                            option = options.nth(index)
+                            if await option.is_visible():
+                                candidates.append(option)
+                        # Accessible checkbox names are another unambiguous selection target.
+                        if not await options.count():
+                            checks = library.get_by_role('checkbox', name=pattern)
+                            for index in range(min(await checks.count(), 4)):
+                                check = checks.nth(index)
+                                if await check.is_visible():
+                                    candidates.append(check)
+                trace.event('references', 'waiting', assetIndex=asset_index, selectable=len(candidates))
+                if len(candidates) != 1:
+                    # If the DOM differs, return its semantic shape for the next fix.
+                    # Only counts/roles leave the browser, never names or surrounding text.
+                    if not candidates:
+                        for library in libraries_seen[:2]:
+                            try:
+                                shape = await asyncio.wait_for(library.evaluate(r"""(root,name) => {
+                                    const leaves=Array.from(root.querySelectorAll('*')).filter(e=>e.children.length===0&&((e.textContent||'').trim()===name||e.getAttribute('alt')===name||e.getAttribute('title')===name));
+                                    return {assetTextMatches:leaves.length,assetOptionParents:leaves.filter(e=>e.closest('[role="option"]')).length,assetButtonParents:leaves.filter(e=>e.closest('button,[role="button"]')).length,assetCheckboxParents:leaves.filter(e=>e.closest('[role="checkbox"],label')).length,libraryOptions:root.querySelectorAll('[role="option"]').length,libraryCheckboxes:root.querySelectorAll('[role="checkbox"],input[type="checkbox"]').length};
+                                }""", item['name'], timeout=1000), timeout=1.2)
+                                trace.event('references', 'waiting', assetIndex=asset_index, **shape)
+                            except Exception:
+                                trace.event('references', 'waiting', assetIndex=asset_index, frameErrors=1)
+                    result['errorCode'] = 'flow_reference_selection_unavailable'
+                    return result
+                target = candidates[0]
+                async def selected(control):
+                    if await control.get_attribute('aria-selected') == 'true' or await control.get_attribute('aria-checked') == 'true':
+                        return True
+                    return await control.evaluate("el => el.tagName==='INPUT' && el.type==='checkbox' && el.checked") is True
+                if not await selected(target):
+                    await target.click(trial=True, timeout=1000)
+                    await target.click(timeout=1000)
+                chosen.append(target)
+            selected_count = sum([1 for target in chosen if await selected(target)])
+            trace.event('references', 'waiting', expected=len(image_files), selectedExpected=selected_count)
+            if selected_count != len(image_files):
+                result['errorCode'] = 'flow_reference_selection_unconfirmed'
+                return result
+            trace.next_action = 'include_references'
+            phase = 'include_find'
+            includes = []
+            for frame in page.frames[:8]:
+                controls = frame.get_by_role('button', name=re.compile(r'^\s*(incluir no comando|add to prompt|include in prompt)\s*$', re.I))
+                for index in range(min(await controls.count(), 8)):
+                    control = controls.nth(index)
+                    if await control.is_visible() and await control.is_enabled():
+                        includes.append(control)
+            trace.event('references', 'waiting', includeEnabled=len(includes))
+            if len(includes) != 1:
+                result['errorCode'] = 'flow_reference_include_unavailable'
+                return result
+            await includes[0].click(trial=True, timeout=1000)
+            phase = 'include_click'
+            # Never retry an uncertain click; it may already have taken effect.
+            await includes[0].click(timeout=1000)
+            result['included'] = trace.references_included = True
+            trace.event('references', 'waiting', referencesIncluded=True)
+            trace.next_action = 'verify_references'
+            phase = 'verify'
+            names = [item['name'] for item in image_files]
+            for _ in range(3):
+                evidence = await asyncio.wait_for(prompt_field.evaluate(r"""(textbox,names) => {
+                    const form=textbox.closest('form,[role="form"]');
+                    if(!form)return {composerForms:0,attachmentMatches:0};
+                    const candidates=Array.from(form.querySelectorAll('img,[data-attachment],[aria-label],[title]')).filter(e=>!e.closest('[role="dialog"],[role="listbox"]'));
+                    const labels=candidates.map(e=>[e.getAttribute('alt'),e.getAttribute('aria-label'),e.getAttribute('title')].filter(Boolean).join(' ').toLowerCase());
+                    return {composerForms:1,attachmentMatches:names.filter(n=>labels.some(label=>label.includes(n.toLowerCase()))).length};
+                }""", names, timeout=1000), timeout=1.2)
+                trace.event('references', 'waiting', **evidence)
+                if evidence['composerForms'] == 1 and evidence['attachmentMatches'] == len(names):
+                    result['verified'] = trace.references_verified = True
+                    trace.next_action = 'inspect_settings'
+                    trace.event('references', referencesIncluded=True, referencesVerified=True)
+                    return result
+                await page.wait_for_timeout(200)
+            result['errorCode'] = 'flow_references_unverified'
+    except Exception:
+        if phase == 'include_click':
+            trace.next_action = 'verify_references'
+        result['errorCode'] = ('flow_reference_include_uncertain' if phase == 'include_click' else
+                               'flow_references_unverified' if phase == 'verify' else
+                               'flow_reference_selection_unconfirmed' if phase == 'select' else
+                               'flow_reference_include_unavailable')
+    finally:
+        if result['errorCode']:
+            trace.event('references', 'error', referencesIncluded=result['included'], referencesVerified=result['verified'])
     return result

@@ -1,3 +1,11 @@
+## 2026-11-15 — Próxima entrega: inclusão de referências e plano no relatório
+
+Relatório ce9a1e15ac9f confirmou a publicação anterior, upload estável e Incluir disponível; faltava executar a seleção/inclusão. Implementados seleção dos itens esperados por opções/checkboxes acessíveis, Incluir único após seleção confirmada e verificação dos anexos no formulário do prompt. Estrutura desconhecida/ambígua fica explícita no diagnóstico; nunca pressupor que isso já foi validado no Flow real.
+
+Relatório passa a mostrar estado atual dos controles e Falta executar agora. Nomes de upload únicos por tentativa evitam verificar arquivos antigos. Prepare-draft aguarda até 105 s pelo executor; etapas internas são limitadas, sem reenvio automático. 16 testes Python, 8 JS/TS, typechecks, lint afetado e build das 27 páginas passaram. Publicação desta revisão em preparação; executor esperado **eace261ac165**.
+
+Esclarecimento pendente: responsável quer Incluir no comando, seta de Gerar ou ambos? A ação atual continua sem gerar; nenhum clique de geração foi adicionado/disparado. Publicar as três camadas e conferir o novo relatório autenticado antes de declarar sucesso real. Checkout original/lockfile preservados.
+
 ## 2026-11-15 — Estado mais recente: atualizar Modal para ce9a1e15ac9f
 
 Correção **66bd19b** enviada à main, CI 43751835454 aprovado. Supabase **hyperbrowser-profile v51 ACTIVE**, JWT mantido e código remoto conferido. Cloudflare Worker `meu-vendedor` versão **d964b926-292d-4524-964b-051e3faaba01**, 100% do tráfego; HTTP200 e hash do bundle de diagnósticos conferidos. Build, typechecks, lint afetado, 11 testes Python e 7 JS/TS aprovados.

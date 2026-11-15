@@ -75,3 +75,15 @@ test('falha não fatal de configurações preserva confirmação de upload e mot
  assert.match(text,/tempo esgotado para acessar configurações=sim/);
  assert.match(text,/preparo anterior foi preservado/);
 });
+
+test('relatório mostra o estado atual e a ação que falta, além da cronologia',()=>{
+ const safe=readFlowDiagnostic(report({stopReason:'flow_draft_ready',referencesIncluded:true,referencesVerified:true,nextAction:'generate_video',events:[{stage:'inspection',status:'ok',atMs:100,metrics:{includeVisible:0,includeEnabled:0,submitVisible:1,submitEnabled:1,settingsCandidates:1,composerForms:1,composerFields:1,frameErrors:0}}]}),traceId,'prepare-draft');
+ const text=formatFlowDiagnostic(safe,'');
+ assert.match(text,/ESTADO ATUAL E PRÓXIMO PASSO/);
+ assert.match(text,/botões Enviar\/Gerar habilitados: 1/);
+ assert.match(text,/Falta executar agora: acionar Enviar\/Gerar vídeo/);
+ assert.match(text,/Referências anexadas ao comando: verificadas/);
+ assert.equal(safe.generationStarted,false);
+ const unsafe=readFlowDiagnostic(report({nextAction:'private-account@example.com'}),traceId,'prepare-draft');
+ assert.doesNotMatch(formatFlowDiagnostic(unsafe,''),/private-account/);
+});

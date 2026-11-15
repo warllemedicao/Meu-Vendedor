@@ -10,7 +10,7 @@ export async function requestFlowExecutor(options: Options, fetcher: typeof fetc
  try{
   const url=new URL(target);
   if(url.protocol!=="https:") return mode==="navigate"?false:failure("executor_not_configured");
-  const result=await fetcher(url.toString(),{method:"POST",redirect:"error",headers:{authorization:"Bearer "+secret,"content-type":"application/json"},body:JSON.stringify({wsEndpoint:endpoint,mode,traceId,...(["stage-prompt","prepare-draft","prepare-image"].includes(mode)?{prompt}:{}),...(mode==="prepare-image"?{imageMime,imageBase64,imageRightsConfirmed}:{}),...(mode==="prepare-draft"&&images?.length?{images,imageRightsConfirmed}:{})}),signal:AbortSignal.timeout(55000)});
+  const result=await fetcher(url.toString(),{method:"POST",redirect:"error",headers:{authorization:"Bearer "+secret,"content-type":"application/json"},body:JSON.stringify({wsEndpoint:endpoint,mode,traceId,...(["stage-prompt","prepare-draft","prepare-image"].includes(mode)?{prompt}:{}),...(mode==="prepare-image"?{imageMime,imageBase64,imageRightsConfirmed}:{}),...(mode==="prepare-draft"&&images?.length?{images,imageRightsConfirmed}:{})}),signal:AbortSignal.timeout(mode==="prepare-draft"?105000:55000)});
   const parsed:unknown=await result.json().catch(()=>({}));
   const body:Record<string,unknown>=parsed&&typeof parsed==="object"&&!Array.isArray(parsed)?parsed as Record<string,unknown>:{};
   if(mode==="navigate") return result.ok&&body.navigationReady===true;
