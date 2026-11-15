@@ -1,3 +1,11 @@
+## 2026-11-15 — Consentimento de direitos automatizado após autorização explícita
+
+- Usuário confirmou que as duas imagens apareceram na Biblioteca do Flow e solicitou que o robô clique em `Concordo` quando surgir o aviso `Direitos de uso desta imagem`, para avançar ao teste seguinte.
+- Frontend já possui checkbox explícito de confirmação de direitos, obrigatório ao selecionar imagens (commit anterior). O consentimento vale para o lote selecionado, não é presumido.
+- Executor Modal agora exige `imageRightsConfirmed=true` e detecta o aviso, clicando no botão `Concordo` quando visível, inclusive se o Flow mostrar avisos sucessivos para múltiplas imagens. Commits `c7875e0b` e `1e882570`.
+- Edge Function `hyperbrowser-profile` valida consentimento no servidor e o encaminha ao executor. Supabase **v43 ACTIVE**, commit `e0af7877`.
+- **Pendente:** publicar Modal atualizado e confirmar o comportamento em teste real. Próxima etapa funcional é selecionar as imagens já carregadas como referências no prompt; essa seleção ainda não está implementada/validada. A ferramenta Gerar vídeo permanece desconectada, e nenhuma geração é iniciada.
+
 ## 2026-11-15 — Upload de duas imagens confirmado visualmente no Google Flow
 
 - Usuário confirmou: **“concluindo as imagens foram carregadas, apareceu apenas aquele popup”**. A captura mostra duas imagens (personagem vermelho e personagem verde) disponíveis na biblioteca do Flow, com nomes de arquivo de produto.
