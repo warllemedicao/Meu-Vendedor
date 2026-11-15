@@ -48,14 +48,15 @@ def gateway():
         try:
             async with async_playwright() as playwright:
                 browser = await playwright.chromium.connect_over_cdp(endpoint, timeout=20000)
-                try:
-                    if not browser.contexts: raise RuntimeError('no_context')
-                    context = browser.contexts[0]
-                    page = context.pages[0] if context.pages else await context.new_page()
-                    await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
-                    return {'navigationReady': True}
-                finally:
-                    await browser.close()
+                # The Hyperbrowser session owns this Chromium process. Do not call
+                # browser.close(): for a CDP-attached browser that can close the
+                # remote browser and invalidate its live-view URL.
+                # Exiting async_playwright() releases only this Playwright client.
+                if not browser.contexts: raise RuntimeError('no_context')
+                context = browser.contexts[0]
+                page = context.pages[0] if context.pages else await context.new_page()
+                await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
+                return {'navigationReady': True}
         except Exception as exc:
             print('hyperbrowser_navigation_failed', type(exc).__name__)
             raise HTTPException(502, 'navigation_failed')
