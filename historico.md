@@ -1,3 +1,10 @@
+## 2026-11-15 — Correção da desconexão CDP no executor Modal
+
+- Investigação do erro Hyperbrowser live view `session not found` identificou que `executors/google-flow/modal_app.py` chamava `await browser.close()` após abrir o Flow via `chromium.connect_over_cdp`.
+- Em conexão CDP com navegador de terceiro, fechar o objeto Browser pode encerrar o navegador remoto e invalidar o visualizador. Removido `browser.close()`; o contexto `async_playwright()` encerra o cliente Playwright sem comandar fechamento do Chromium do Hyperbrowser.
+- Alteração commitada `fab5b943`. **Pendente deploy Modal** via workflow manual `deploy-hyperbrowser-modal.yml` na branch main e novo teste de sessão. Não houve publicação Modal nesta edição.
+- Links de visualização com tokens são sensíveis e não devem ser compartilhados em logs/histórico.
+
 ## 2026-11-15 — Sessão Hyperbrowser expirada e link inválido
 
 - Usuário recebeu `{"code":"not_found","message":"session not found","retryable":false}` no visualizador hxproxy. O link de live view continha token temporário; não registrar URL completa ou token em documentação.
