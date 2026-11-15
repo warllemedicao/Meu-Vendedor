@@ -26,6 +26,40 @@ def gateway():
     from fastapi import FastAPI, Request, HTTPException
     api = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
+    @api.post('/hyperbrowser-navigate')
+    async def hyperbrowser_navigate(request: Request):
+        expected = os.environ.get('MV_FLOW_EXECUTOR_SECRET', '')
+        if len(expected) < 32 or not hmac.compare_digest(request.headers.get('authorization', ''), 'Bearer ' + expected):
+            raise HTTPException(401)
+        raw = await request.body()
+        if len(raw) > 16000: raise HTTPException(413)
+        import json
+        from urllib.parse import urlsplit
+        try:
+            endpoint = json.loads(raw).get('wsEndpoint')
+            if not isinstance(endpoint, str): raise ValueError('missing_endpoint')
+            parsed = urlsplit(endpoint)
+            host = (parsed.hostname or '').lower()
+            if parsed.scheme != 'wss' or not (host.endswith('.hyperbrowser.ai') or host == 'hyperbrowser.ai' or host.endswith('.hxproxy.io')):
+                raise ValueError('invalid_endpoint')
+        except (ValueError, TypeError, AttributeError):
+            raise HTTPException(400, 'invalid_endpoint')
+        from playwright.async_api import async_playwright
+        try:
+            async with async_playwright() as playwright:
+                browser = await playwright.chromium.connect_over_cdp(endpoint, timeout=20000)
+                try:
+                    if not browser.contexts: raise RuntimeError('no_context')
+                    context = browser.contexts[0]
+                    page = context.pages[0] if context.pages else await context.new_page()
+                    await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
+                    return {'navigationReady': True}
+                finally:
+                    await browser.close()
+        except Exception as exc:
+            print('hyperbrowser_navigation_failed', type(exc).__name__)
+            raise HTTPException(502, 'navigation_failed')
+
     @api.post('/control')
     async def control(request: Request):
         expected = os.environ.get('MV_FLOW_EXECUTOR_SECRET','')
