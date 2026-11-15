@@ -1,3 +1,11 @@
+## 2026-11-15 — Teste real da inspeção: lista vazia apesar do botão Novo projeto visível
+
+- Usuário mostrou Flow autenticado com botão **“+ Novo projeto”** visível no navegador remoto, mas a interface do Meu Vendedor exibiu apenas “Controles visíveis identificados sem iniciar geração”, sem lista. Logo, a operação HTTP concluiu, porém **não reconheceu controles relevantes**.
+- Diagnóstico ampliado no executor Modal: `visibleCount`, `frameCount`, `inspectedFrames`, `scanErrors` e `flowPage`, sem expor texto livre, tokens ou informações da conta. Commit `9eaba6d8`.
+- Supabase `hyperbrowser-profile` encaminha esses indicadores, versão **22 ACTIVE**. Commit `5ee2a2d2`.
+- Frontend apresenta mensagem explícita para lista vazia e os contadores diagnósticos. Commit `96294656`.
+- **Pendente:** publicar Modal e frontend Cloudflare atualizados; repetir a inspeção e usar contagens para determinar se o problema está na seleção da página, frames, DOM ou filtro de rótulos. Não declarar reconhecimento do botão até prova real.
+
 ## 2026-11-15 — Inspeção Flow: somente um controle encontrado; diagnóstico e correção
 
 - **Teste real informado pelo usuário:** a função de inspeção identificou apenas o controle de conta Google; não encontrou “+ Novo projeto”, embora o botão estivesse visível na captura anterior.
