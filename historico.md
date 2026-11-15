@@ -1,3 +1,11 @@
+## 2026-11-15 — Fallback de visualização quando Modal falha (HTTP 502)
+
+- Nova tentativa de login registrou `POST /hyperbrowser-profile 502`, `hyperbrowser_executor_http_error {status:502}` e `hyperbrowser_existing_session_navigation_failed` em 13:27:49 UTC.
+- O frontend já aceita `liveViewUrl` com `navigationReady:false` e orienta abrir `https://flow.google.com` manualmente no navegador remoto.
+- Edge Function passou a devolver o live view validado de uma sessão ainda ativa mesmo quando a navegação automática via Modal falha, preservando a sessão. Assim a falha CDP não bloqueia a abertura manual. O link remoto continua temporário e sujeito à disponibilidade do provedor; não foi confirmada abertura bem-sucedida.
+- Commit `3f0f5d6e`, Supabase `hyperbrowser-profile` versão 15 ACTIVE, JWT obrigatório. Não precisa de workflow Modal para esta correção.
+- **Pendente:** testar se o live view remoto está realmente disponível. Se `session not found` persistir, investigar status/expiração do Hyperbrowser e logs do Modal; não registrar tokens de live view.
+
 ## 2026-11-15 — Preservação da sessão durante falha Modal HTTP 502
 
 - Logs Supabase confirmaram `hyperbrowser_executor_http_error {status:502}` seguido de `hyperbrowser_stale_session_restarting`, indicando falha de navegação Modal antes da reinicialização da sessão.
