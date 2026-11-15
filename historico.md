@@ -1,3 +1,10 @@
+## 2026-11-15 — Unificação da inspeção do Google Flow
+
+- Pedido do usuário: `Identificar controles` e `Mapear campos do editor` são operações semelhantes e devem ter **um único botão**.
+- Frontend: removido botão duplicado `Identificar controles (sem gerar)`; mantido `Mapear interface do Google Flow (sem gerar)`, que chama `inspect-flow-editor` e mostra tanto os controles clicáveis quanto os campos de formulário retornados. Duplicatas de rótulo+papel são filtradas na interface. Commit `84ec0b59`.
+- Resultado informado antes do ajuste: 12 controles, incluindo links e comandos repetidos da lista de projetos. Isso não demonstra mapeamento dos campos de geração; é necessário manter projeto aberto ao inspecionar.
+- **Pendente:** publicar frontend via `frontend-production.yml` com `confirm_frontend_only=true`; sem necessidade de novo deploy Modal/Supabase. Testar mapeamento com projeto aberto e registrar os campos encontrados.
+
 ## 2026-11-15 — Mapeamento somente leitura dos campos do editor Google Flow
 
 - Executor Modal: modo `inspect-editor` que enumera inputs, textareas, selects, campos editáveis e papéis de formulário em até oito frames, retornando apenas tipo, papel, rótulo curto e formatos aceitos; **não lê valores de prompts, credenciais ou arquivos**. Commit `f3f6d57e`.
