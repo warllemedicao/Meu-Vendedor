@@ -299,14 +299,40 @@ async def include_references(page, image_files, prompt_field, trace):
         }""", timeout=1800)
 
     async def find_include():
+        # The Flow button changes its accessible name with the selection:
+        # "Adicionar 3 itens ao comando" instead of "Incluir no comando".
+        expected = len(image_files)
         found = []
+        seen = []
         for frame in page.frames[:8]:
             controls = frame.get_by_role('button', name=re.compile(
-                r'^\s*(incluir no comando|add to prompt|include in prompt)\s*$', re.I))
-            for index in range(min(await controls.count(), 6)):
+                r'(?:incluir|adicionar|add|include).*?(?:comando|prompt)', re.I))
+            for index in range(min(await controls.count(), 12)):
                 control = controls.nth(index)
-                if await control.is_visible() and await control.is_enabled():
+                if not await control.is_visible():
+                    continue
+                label = (await control.inner_text(timeout=1000)).strip()
+                if not label:
+                    label = (await control.get_attribute('aria-label') or '').strip()
+                seen.append(label[:100])
+                quantity = re.search(r'\\b(\\d+)\\s+(?:itens?|items?)\\b', label, re.I)
+                if quantity:
+                    if int(quantity.group(1)) != expected:
+                        continue
+                    if not re.search(r'(?:ao comando|to (?:the )?prompt)', label, re.I):
+                        continue
+                elif expected != 1:
+                    # With multiple assets, only the explicit matching
+                    # quantity is safe to click.
+                    continue
+                elif not re.fullmatch(
+                    r'\\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\\s*',
+                    label, re.I):
+                    continue
+                if await control.is_enabled():
                     found.append(control)
+        trace.event('references', 'waiting', includeLabels=seen[:8],
+                    expectedIncludeCount=expected, includeEnabled=len(found))
         return found
 
     try:
