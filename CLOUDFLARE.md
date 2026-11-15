@@ -1,3 +1,12 @@
+## Google Flow — publicação pendente do teste de imagem (15/11/2026)
+
+- O teste de preparação de projeto e prompt foi confirmado pelo usuário em produção: 5/5 frames, zero falhas de leitura, sem iniciar geração.
+- Novo frontend em `src/components/auth/HyperbrowserProfile.tsx`: seletor de arquivo local PNG/JPEG/WebP até 2,5 MB e botão `Preparar texto e anexar imagem (sem gerar)` ao lado do prompt. Commit `be40c8d3`.
+- Executor Modal em `executors/google-flow/modal_app.py`: modo `prepare-image` procura input de arquivo, tenta revelar o controle de anexo e usa Playwright `set_input_files`. Não clica em gerar. Commits `278f42a1`, `d169d574`, `fdac3a42`.
+- Edge Function Supabase `hyperbrowser-profile` v36 ACTIVE: ação autenticada `prepare-flow-image`. Commits `d4da7bcb`, `3ca875b0`.
+- **Não declarar publicação da UI ou Modal sem confirmação de workflow.** Publicar `.github/workflows/deploy-hyperbrowser-modal.yml` (sem rotação de segredo) e depois `.github/workflows/frontend-production.yml` (confirm_frontend_only=true). Confirmar o arquivo visualmente no Flow; o retorno do input não prova que o Flow processou a imagem.
+- O teste não está integrado ao módulo `Gerar vídeo`. Nenhum vídeo deve ser iniciado ou crédito de geração consumido por essa ação.
+
 # Hospedagem do Meu Vendedor no Cloudflare
 
 ## CI/CD — estado após correção (13/11/2026)
