@@ -1,3 +1,10 @@
+## 2026-11-15 — Correção de timeout e persistência da sessão Hyperbrowser
+
+- Documentação Hyperbrowser confirma configuração `timeoutMinutes` e parâmetro CDP `keepAlive=true` para manter o navegador ativo após desconexão do cliente.
+- A Edge Function criava sessão sem timeout explícito e reutilizava até 12 minutos. Agora cria com `timeoutMinutes:20` e verifica `status === 'active'` antes de reutilizar ou aceitar uma sessão recém-criada. Commit `fef3d634`.
+- Executor Modal passa `keepAlive=true` no endpoint CDP sem registrar tokens; não fecha o navegador remoto. Commit `9ff179a0`.
+- Supabase `hyperbrowser-profile` versão 17 ACTIVE. **Modal precisa de novo deploy** pelo workflow `deploy-hyperbrowser-modal.yml`. A conexão e o live view ainda não foram validados após a mudança; não declarar resolução completa.
+
 ## 2026-11-15 — Fallback de visualização quando Modal falha (HTTP 502)
 
 - Nova tentativa de login registrou `POST /hyperbrowser-profile 502`, `hyperbrowser_executor_http_error {status:502}` e `hyperbrowser_existing_session_navigation_failed` em 13:27:49 UTC.
