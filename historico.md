@@ -1,3 +1,12 @@
+## 2026-11-15 — Teste real: robô abriu projeto no Google Flow com sucesso
+
+- Usuário executou `Criar projeto de teste (sem gerar)` em **Conta e conexões → Google Flow** e forneceu captura do resultado.
+- Interface confirmou: **`Novo projeto aberto. Controles do editor identificados abaixo; nenhum vídeo foi gerado.`**
+- Diagnóstico apresentado: **página Flow sim; frames 5/5; controles visíveis 32; falhas de leitura 0; rótulos relevantes 4**.
+- A janela remota exibiu a URL `flow.google.com/project/...` e o editor de um projeto vazio. Opções visíveis incluem `Gerar arte conceitual`, `Editar uma imagem` e `Mostrar os atalhos do teclado`.
+- **Marco validado:** clique automatizado em `+ Novo projeto` e abertura do editor com a sessão autenticada. Ainda não foram validados o campo de prompt, upload de imagens, seleção de vídeo/modelo, geração ou download de MP4.
+- **Próximo passo:** inspecionar elementos de formulário do editor (campos editáveis, seletores, botões e inputs de arquivo), com filtros de privacidade, antes de integrar a ação ao botão Google Flow em Gerar vídeo.
+
 ## 2026-11-15 — Implementação da criação supervisionada de projeto no Google Flow
 
 - Executor Modal `executors/google-flow/modal_app.py`: novo modo `create-project` no endpoint autenticado `/hyperbrowser-navigate`. Só executa em página `flow.google.com`, procura botão acessível com nome `Novo projeto` ou `New project`, exige correspondência única, clica uma vez e examina controles sem gerar vídeo. Commit `804ac9a1`.
