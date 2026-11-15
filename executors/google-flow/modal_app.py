@@ -38,12 +38,28 @@ def gateway():
         try:
             payload = json.loads(raw)
             endpoint = payload.get('wsEndpoint')
-            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft')
+            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image')
             create_project = payload.get('mode') == 'create-project'
-            stage_prompt = payload.get('mode') in ('stage-prompt', 'prepare-draft')
+            stage_prompt = payload.get('mode') in ('stage-prompt', 'prepare-draft', 'prepare-image')
+            stage_image = payload.get('mode') == 'prepare-image'
             prompt = payload.get('prompt', '')
             if stage_prompt and (not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 4000):
                 raise ValueError('invalid_prompt')
+            if stage_image:
+                import base64
+                mime = payload.get('imageMime')
+                image_data = payload.get('imageBase64')
+                if mime not in ('image/png', 'image/jpeg', 'image/webp') or not isinstance(image_data, str) or len(image_data) > 4000000:
+                    raise ValueError('invalid_image')
+                try:
+                    image_bytes = base64.b64decode(image_data, validate=True)
+                except Exception:
+                    raise ValueError('invalid_image')
+                if not 0 < len(image_bytes) <= 2500000:
+                    raise ValueError('invalid_image')
+                signatures = {'image/png': image_bytes.startswith(b'\\x89PNG\\r\\n\\x1a\\n'), 'image/jpeg': image_bytes.startswith(b'\\xff\\xd8\\xff'), 'image/webp': image_bytes.startswith(b'RIFF') and image_bytes[8:12] == b'WEBP'}
+                if not signatures[mime]:
+                    raise ValueError('invalid_image')
             if not isinstance(endpoint, str): raise ValueError('missing_endpoint')
             parsed = urlsplit(endpoint)
             host = (parsed.hostname or '').lower()
@@ -105,6 +121,31 @@ def gateway():
                             raise RuntimeError('prompt_field_not_unique')
                         await matches[0].fill(prompt.strip(), timeout=8000)
                         prompt_staged = True
+                    image_attached = False
+                    if stage_image:
+                        # The Flow editor may create a hidden file input only after opening
+                        # the attachment menu. Never click Generate or submit the prompt.
+                        inputs = []
+                        for frame in page.frames[:8]:
+                            files = frame.locator('input[type="file"]')
+                            if await files.count():
+                                inputs.append((frame, files))
+                        if not inputs:
+                            for frame in page.frames[:8]:
+                                for selector in ('button[aria-label*="Adicionar"]', 'button[aria-label*="Add"]', 'button[title*="Adicionar"]', 'button[title*="Add"]'):
+                                    trigger = frame.locator(selector)
+                                    if await trigger.count() == 1 and await trigger.is_visible():
+                                        await trigger.click(timeout=4000)
+                                        break
+                            await page.wait_for_timeout(700)
+                            for frame in page.frames[:8]:
+                                files = frame.locator('input[type="file"]')
+                                if await files.count():
+                                    inputs.append((frame, files))
+                        if len(inputs) != 1 or await inputs[0][1].count() != 1:
+                            raise RuntimeError('image_input_not_found')
+                        await inputs[0][1].set_input_files({'name': 'produto.' + {'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[mime], 'mimeType': mime, 'buffer': image_bytes}, timeout=10000)
+                        image_attached = True
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
                     scan = """els => {
@@ -180,7 +221,7 @@ def gateway():
                         'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
                         'scanErrors': scan_errors,
                         'flowPage': (page.url or '').startswith('https://flow.google.com/'),
-                        'projectClicked': project_clicked, 'promptStaged': prompt_staged,
+                        'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached,
                         'editorControls': editor_items[:80],
                         'editorFrames': editor_frames, 'editorErrors': editor_errors
                     }
@@ -194,7 +235,7 @@ def gateway():
                 'endpointHost': host,
                 'phase': 'connect_or_navigate',
             })
-            safe_errors = {'flow_project_not_active', 'prompt_field_not_unique', 'new_project_button_not_found'}
+            safe_errors = {'flow_project_not_active', 'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found'}
             reason = str(exc) if str(exc) in safe_errors else 'navigation_failed'
             raise HTTPException(502, reason)
 
