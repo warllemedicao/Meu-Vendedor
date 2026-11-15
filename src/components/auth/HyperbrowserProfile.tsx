@@ -3,17 +3,18 @@
 import { useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 
-type Result = { configured?:boolean; profileReady?:boolean; loginSaved?:boolean; sessionActive?:boolean; navigationReady?:boolean; liveViewUrl?:string; error?:string; inspectionReady?:boolean; controls?:Array<{role:string;label:string}>; visibleCount?:number; frameCount?:number; inspectedFrames?:number; scanErrors?:number; flowPage?:boolean; projectClicked?:boolean; editorControls?:Array<{role:string;label:string;kind:string;accept?:string}>; editorFrames?:number; editorErrors?:number };
+type Result = { configured?:boolean; profileReady?:boolean; loginSaved?:boolean; sessionActive?:boolean; navigationReady?:boolean; liveViewUrl?:string; error?:string; inspectionReady?:boolean; controls?:Array<{role:string;label:string}>; visibleCount?:number; frameCount?:number; inspectedFrames?:number; scanErrors?:number; flowPage?:boolean; projectClicked?:boolean; promptStaged?:boolean; editorControls?:Array<{role:string;label:string;kind:string;accept?:string}>; editorFrames?:number; editorErrors?:number };
 const errors:Record<string,string>={unauthorized:"Entre novamente no Meu Vendedor.",confirmed_account_required:"Confirme seu e-mail antes de conectar.",hyperbrowser_key_missing:"A conexão remota ainda não foi configurada.",hyperbrowser_unavailable:"Não foi possível abrir o navegador remoto. Tente novamente mais tarde.",no_active_session:"Abra o navegador antes de salvar o acesso.",live_view_unavailable:"O navegador abriu, mas não forneceu uma janela interativa.",flow_navigation_unavailable:"O Hyperbrowser não confirmou a conexão com o navegador. A sessão foi preservada; tente novamente mais tarde.",flow_inspection_unavailable:"Não foi possível identificar os controles do Google Flow. Tente reabrir a sessão."};
 function safeLive(url:string){try{const u=new URL(url);return u.protocol==="https:"&&u.searchParams.has("token")&&((u.hostname==="app.hyperbrowser.ai"&&u.pathname==="/live")||(/^dp-[a-z0-9-]+\.hxproxy\.io$/.test(u.hostname)&&/^\/browser\/[0-9a-f-]{36}\/live\/vnc\.html$/.test(u.pathname)&&u.searchParams.has("path")));}catch{return false;}}
 export function HyperbrowserProfile(){
  const [busy,setBusy]=useState(false);
+ const [draftPrompt,setDraftPrompt]=useState("");
  const [message,setMessage]=useState("");
  const [view,setView]=useState("");
  const [saved,setSaved]=useState(false);
  const [controls,setControls]=useState<Array<{role:string;label:string}>>([]);
  const [inspection,setInspection]=useState<Result|null>(null);
- async function act(action:"status"|"start-login"|"save-login"|"create-flow-project"|"inspect-flow-editor"){
+ async function act(action:"status"|"start-login"|"save-login"|"create-flow-project"|"inspect-flow-editor"|"stage-flow-prompt"){
   if(busy)return;
   setBusy(true);setMessage("");
   try{
@@ -21,12 +22,12 @@ export function HyperbrowserProfile(){
    if(!client)throw new Error("O serviço de autenticação está indisponível.");
    const {data:auth}=await client.auth.getSession();
    if(!auth.session)throw new Error("Entre no Meu Vendedor para continuar.");
-   const {data,error}=await client.functions.invoke<Result>("hyperbrowser-profile",{body:{action}});
+   const {data,error}=await client.functions.invoke<Result>("hyperbrowser-profile",{body:{action,...(action==="stage-flow-prompt"?{prompt:draftPrompt}:{})}});
    if(error||!data||data.error)throw new Error(errors[data?.error??""]??"A conexão não respondeu. Consulte os registros do Supabase.");
-   if(action==="create-flow-project"||action==="inspect-flow-editor"){
+   if(action==="create-flow-project"||action==="inspect-flow-editor"||action==="stage-flow-prompt"){
     setControls(Array.from(new Map((data.controls??[]).map(item=>[`${item.role}:${item.label}`,item])).values()));
     setInspection(data);
-    setMessage(action==="inspect-flow-editor"?(data.editorControls?.length?"Interface mapeada: controles e campos de edição encontrados.":"Interface mapeada. Se os campos do editor não aparecerem, abra um projeto no Flow e tente novamente."):action==="create-flow-project"?(data.projectClicked?"Novo projeto aberto. Controles do editor identificados abaixo; nenhum vídeo foi gerado.":"Não foi possível confirmar a abertura do novo projeto."):(data.inspectionReady?(data.controls?.length?"Controles relevantes identificados sem iniciar geração.":"Inspeção concluída, mas nenhum controle relevante foi encontrado. Veja o diagnóstico abaixo."):"Não foi possível inspecionar a interface."));
+    setMessage(action==="stage-flow-prompt"?(data.promptStaged?"Texto preenchido no editor, sem iniciar geração.":"Não foi possível confirmar o preenchimento do texto."):action==="inspect-flow-editor"?(data.editorControls?.length?"Interface mapeada: controles e campos de edição encontrados.":"Interface mapeada. Se os campos do editor não aparecerem, abra um projeto no Flow e tente novamente."):action==="create-flow-project"?(data.projectClicked?"Novo projeto aberto. Controles do editor identificados abaixo; nenhum vídeo foi gerado.":"Não foi possível confirmar a abertura do novo projeto."):(data.inspectionReady?(data.controls?.length?"Controles relevantes identificados sem iniciar geração.":"Inspeção concluída, mas nenhum controle relevante foi encontrado. Veja o diagnóstico abaixo."):"Não foi possível inspecionar a interface."));
     return;
    }
    setSaved(Boolean(data.loginSaved));
@@ -49,6 +50,7 @@ export function HyperbrowserProfile(){
    <button type="button" disabled={busy||!view} onClick={()=>void act("inspect-flow-editor")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Mapear interface do Google Flow (sem gerar)</button>
    <button type="button" disabled={busy} onClick={()=>void act("status")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Verificar conexão</button>
   </div>
+  <div className="space-y-2"><label htmlFor="flow-test-prompt" className="block text-sm font-medium">Texto de teste para o Flow (sem gerar)</label><textarea id="flow-test-prompt" value={draftPrompt} onChange={e=>setDraftPrompt(e.target.value)} maxLength={4000} rows={3} placeholder="Cole aqui o prompt do produto para preencher no editor" className="w-full rounded-lg border border-border bg-background p-2 text-sm" /><button type="button" disabled={busy||!view||!draftPrompt.trim()} onClick={()=>void act("stage-flow-prompt")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Preencher texto no Flow (sem gerar)</button><p className="text-xs text-muted">Apenas preenche o campo do editor. Não envia nem inicia a geração. Imagens ainda não são anexadas automaticamente.</p></div>
   {saved&&<p className="text-xs text-muted">Perfil salvo anteriormente. O Google ainda pode solicitar autenticação novamente.</p>}
   {message&&<p role="status" className="text-sm">{message}</p>}
   {inspection&&<p className="text-xs text-muted">Diagnóstico: página Flow {inspection.flowPage?"sim":"não"}; frames {inspection.inspectedFrames??0}/{inspection.frameCount??0}; controles visíveis {inspection.visibleCount??0}; falhas de leitura {inspection.scanErrors??0}; rótulos relevantes {controls.length}.</p>}
