@@ -33,7 +33,7 @@ export function HyperbrowserProfile(){
  }
  return <article className="rounded-xl border border-border bg-surface p-4 space-y-3 sm:col-span-2">
   <h3 className="font-semibold">Google Flow · Acesso remoto</h3>
-  <p className="text-sm text-muted">Abra o navegador remoto para entrar na sua conta Google. O acesso é realizado diretamente no navegador; não informe sua senha ao Meu Vendedor.</p>
+  <p className="text-sm text-muted">Abra o navegador remoto, acesse https://labs.google/fx/tools/flow e entre na sua conta Google. O acesso é realizado diretamente no navegador; não informe sua senha ao Meu Vendedor.</p>
   <div className="flex flex-wrap gap-2">
    <button type="button" disabled={busy} onClick={()=>void act("start-login")} className="rounded-lg bg-primary px-3 py-2 text-sm text-background disabled:opacity-50">{busy?"Aguarde…":"Abrir Google Flow para login"}</button>
    <button type="button" disabled={busy||!view} onClick={()=>void act("save-login")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Salvar acesso e fechar</button>
