@@ -7,5 +7,5 @@
     "paths": { "npm:@supabase/supabase-js@2.119.0": ["./node_modules/@supabase/supabase-js/dist/index.d.mts"] }
   },
   "include": ["supabase/functions/**/*.ts", "worker/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "supabase/functions/hyperbrowser-profile/index.ts"]
 }
