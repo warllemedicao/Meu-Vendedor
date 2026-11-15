@@ -95,19 +95,24 @@ def gateway():
                     }"""
                     all_controls = []
                     total_visible = 0
+                    inspected_frames = 0
+                    scan_errors = 0
                     for frame in page.frames[:8]:
                         try:
                             found = await frame.locator(
                                 'button, [role="button"], a, [tabindex="0"]'
                             ).evaluate_all(scan, timeout=8000)
+                            inspected_frames += 1
                             total_visible += found.get('visibleCount', 0)
                             all_controls.extend(found.get('controls', []))
                         except Exception:
+                            scan_errors += 1
                             continue
                     return {
                         'navigationReady': True, 'inspectionReady': True,
                         'controls': all_controls[:30], 'visibleCount': total_visible,
-                        'frameCount': len(page.frames),
+                        'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
+                        'scanErrors': scan_errors,
                         'flowPage': (page.url or '').startswith('https://flow.google.com/')
                     }
                 await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
