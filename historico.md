@@ -1,3 +1,10 @@
+## 2026-11-15 — Executor Node.js para Hyperbrowser (implementação inicial)
+
+- Diagnóstico real em Supabase: `hyperbrowser_flow_navigation_diagnostic`, etapa `connect_cdp`, código `ERR_NOT_IMPLEMENTED`. Playwright CDP não conecta nesse runtime.
+- Criado `scripts/hyperbrowser-flow-navigate.mjs`: executor Node.js com `playwright-core`, conexão ao `HYPERBROWSER_WS_ENDPOINT` fornecido por ambiente, navegação até `https://flow.google.com/`, resultado mínimo sem registrar credenciais ou endpoint.
+- **Pendente**: provisionar serviço Node.js persistente/temporário, instalar dependência nesse ambiente, proteger chamadas com autenticação, conectar Edge Function ao serviço, validar a sessão real e integrar UI. Não há automação de prompt, upload nem download implementada. Nenhuma navegação real foi confirmada.
+- **Segurança**: não armazenar `wsEndpoint` em repositório, navegador ou logs; manter autenticação e perfil Hyperbrowser existentes.
+
 ## 2026-11-14 — Opções para testar automação do Google Flow (retomar depois)
 
 - Objetivo: enviar imagem e prompt do produto do Meu Vendedor ao Google Flow, acompanhar geração e trazer MP4 ao histórico, sem alterar a produção antes de validar.
