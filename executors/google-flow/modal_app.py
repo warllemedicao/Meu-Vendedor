@@ -101,7 +101,7 @@ def gateway():
                         try:
                             found = await frame.locator(
                                 'button, [role="button"], a, [tabindex="0"]'
-                            ).evaluate_all(scan, timeout=8000)
+                            ).evaluate_all(scan)
                             inspected_frames += 1
                             total_visible += found.get('visibleCount', 0)
                             all_controls.extend(found.get('controls', []))
