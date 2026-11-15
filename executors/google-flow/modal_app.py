@@ -80,7 +80,7 @@ def gateway():
                         const safeLabel = el => {
                             const value = (el.getAttribute('aria-label') ||
                                 el.getAttribute('title') || el.innerText || '').trim();
-                            const allowed = /novo projeto|new project|create|criar|projeto|project|flow|video|vídeo|gerar|generate|\\+/i;
+                            const allowed = /novo projeto|new project|create|criar|projeto|project|flow|video|vídeo|gerar|generate|\+/i;
                             return allowed.test(value) && !/@|conta do google|google account/i.test(value)
                                 ? value.slice(0,70) : '';
                         };
