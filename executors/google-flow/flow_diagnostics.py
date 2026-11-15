@@ -310,126 +310,103 @@ async def include_references(page, image_files, prompt_field, trace):
         return found
 
     try:
-        # The upload wait has already confirmed all filenames are stable.
-        # Flow shows one selected preview and one Include button, not
-        # necessarily a multi-select checkbox or aria-selected option.
+        # The upload wait already confirmed that all uploaded images are ready.
+        # Flow supports long-press to enter multi-selection. Select the entire
+        # batch before pressing Include exactly once.
         async with asyncio.timeout(75):
+            libraries = []
+            for frame in page.frames[:8]:
+                locator = frame.get_by_role('listbox', name=re.compile(
+                    r'^(lista de recursos|asset list|assets)$', re.I))
+                for index in range(min(await locator.count(), 3)):
+                    library = locator.nth(index)
+                    if await library.is_visible():
+                        libraries.append(library)
+            if len(libraries) != 1:
+                result['errorCode'] = 'flow_reference_selection_unavailable'
+                return result
+            library = libraries[0]
+            marker = 'data-mv-reference-target'
+            selected = []
             for asset_index, item in enumerate(image_files, 1):
                 phase = 'select'
                 trace.next_action = 'select_images'
-                # After Include, the library may close. Open it using the
-                # existing attachment affordance if no resource list is visible.
-                libraries = []
-                for frame in page.frames[:8]:
-                    locator = frame.get_by_role('listbox', name=re.compile(
-                        r'^(lista de recursos|asset list|assets)$', re.I))
-                    for index in range(min(await locator.count(), 3)):
-                        library = locator.nth(index)
-                        if await library.is_visible():
-                            libraries.append(library)
-                if not libraries:
-                    for frame in page.frames[:8]:
-                        for selector in ('button[aria-label*="Adicionar"]',
-                                         'button[aria-label*="Add"]',
-                                         'button[title*="Adicionar"]',
-                                         'button[title*="Add"]'):
-                            trigger = frame.locator(selector)
-                            if await trigger.count() == 1 and await trigger.is_visible():
-                                await trigger.click(timeout=2500)
-                                break
-                    await page.wait_for_timeout(500)
-                    for frame in page.frames[:8]:
-                        locator = frame.get_by_role('listbox', name=re.compile(
-                            r'^(lista de recursos|asset list|assets)$', re.I))
-                        for index in range(min(await locator.count(), 3)):
-                            library = locator.nth(index)
-                            if await library.is_visible():
-                                libraries.append(library)
-                if len(libraries) != 1:
-                    result['errorCode'] = 'flow_reference_selection_unavailable'
-                    return result
-
-                # Resolve the exact filename using text, alt or title inside
-                # the listbox, then its nearest option/button. This handles
-                # image thumbnails whose accessible name is not the filename.
-                library = libraries[0]
-                shape = await library.evaluate(r"""(root,name) => {
+                shape = await library.evaluate(r"""(root,args) => {
+                    const [name,marker]=args;
+                    root.querySelectorAll('['+marker+']').forEach(el=>el.removeAttribute(marker));
                     const leaves=Array.from(root.querySelectorAll('*')).filter(el=>
                         el.children.length===0 && [el.textContent?.trim(),
                         el.getAttribute('alt'),el.getAttribute('title')].includes(name));
                     const targets=[...new Set(leaves.map(el=>
                         el.closest('[role="option"]') || el.closest('button,[role="button"]'))
                         .filter(Boolean))];
-                    return {matches:leaves.length,targets:targets.length,
-                        options:root.querySelectorAll('[role="option"]').length};
-                }""", item['name'], timeout=1800)
+                    if(targets.length===1)targets[0].setAttribute(marker,'yes');
+                    return {matches:leaves.length,targets:targets.length};
+                }""", [item['name'],marker], timeout=1800)
                 trace.event('references', 'waiting', assetIndex=asset_index, **shape)
                 if shape['targets'] != 1:
                     result['errorCode'] = 'flow_reference_selection_unavailable'
                     return result
-                # The element may be an option containing an image with alt
-                # but no text. Identify it by the same exact DOM predicate.
-                # Use a temporary DOM marker scoped to this one library;
-                # it never leaves the browser or touches other assets.
-                marker = 'data-mv-reference-target'
-                await library.evaluate(r"""(root,args) => {
-                    const [name,marker]=args;
-                    const leaves=Array.from(root.querySelectorAll('*')).filter(el=>
-                        el.children.length===0 && [el.textContent?.trim(),
-                        el.getAttribute('alt'),el.getAttribute('title')].includes(name));
-                    const target=leaves[0]?.closest('[role="option"]') ||
-                        leaves[0]?.closest('button,[role="button"]');
-                    if(target)target.setAttribute(marker,'yes');
-                }""", [item['name'], marker], timeout=1800)
                 target = library.locator('[data-mv-reference-target="yes"]')
                 if await target.count() != 1:
                     result['errorCode'] = 'flow_reference_selection_unavailable'
                     return result
-                try:
-                    await target.click(trial=True, timeout=2500)
-                    await target.click(timeout=2500)
-                finally:
-                    await library.evaluate("(root,marker) => root.querySelectorAll('['+marker+']').forEach(el=>el.removeAttribute(marker))", marker, timeout=1800)
-
-                # A preview with the matching image and an enabled Include
-                # control is the Flow-specific evidence of readiness.
-                phase = 'include_find'
-                includes = await find_include()
-                trace.event('references', 'waiting', assetIndex=asset_index,
-                            includeEnabled=len(includes))
-                if len(includes) != 1:
-                    result['errorCode'] = 'flow_reference_include_unavailable'
-                    return result
-                phase = 'include_click'
-                await includes[0].click(trial=True, timeout=2500)
-                # Never retry an uncertain click; duplication is worse than
-                # returning an explicit uncertain state.
-                await includes[0].click(timeout=3500)
-                included += 1
-                result['included'] = trace.references_included = True
-                trace.event('references', 'waiting', assetIndex=asset_index,
-                            referencesIncluded=True, includedCount=included)
-                phase = 'verify'
-                trace.next_action = 'verify_references'
-                # Filename evidence may be absent in Flow's chips; never
-                # claim verification based only on library visibility.
-                for _ in range(5):
-                    evidence = await editor_evidence()
-                    trace.event('references', 'waiting', assetIndex=asset_index, **evidence)
-                    if evidence['attachmentMatches'] >= included:
-                        break
-                    await page.wait_for_timeout(400)
+                await target.click(trial=True, timeout=2500)
+                if asset_index == 1 and len(image_files) > 1:
+                    # Playwright's click delay holds the pointer down before
+                    # releasing it, matching the tested Flow gesture.
+                    await target.click(delay=950, timeout=4000)
                 else:
-                    result['errorCode'] = 'flow_references_unverified'
+                    await target.click(timeout=2500)
+                selected.append(item['name'])
+                trace.event('references', 'waiting', assetIndex=asset_index,
+                            longPress=(asset_index == 1 and len(image_files) > 1),
+                            selectedAttempts=len(selected))
+                await library.evaluate("(root,marker) => root.querySelectorAll('['+marker+']').forEach(el=>el.removeAttribute(marker))", marker, timeout=1800)
+            # A selection attempt is not proof of multi-selection. Inspect
+            # the options for semantic selection and stop if fewer are marked.
+            evidence = await library.evaluate(r"""(root,names) => {
+                const selected=Array.from(root.querySelectorAll('[role="option"]')).filter(el=>
+                    el.getAttribute('aria-selected')==='true' ||
+                    el.getAttribute('aria-checked')==='true' ||
+                    el.querySelector('[aria-checked="true"],[aria-selected="true"]'));
+                const matched=names.filter(name=>selected.some(el=>
+                    (el.textContent||'').includes(name) ||
+                    Array.from(el.querySelectorAll('[alt],[title]')).some(child=>
+                        child.getAttribute('alt')===name || child.getAttribute('title')===name)));
+                return {semanticSelected:selected.length,expectedSelected:matched.length};
+            }""", [item['name'] for item in image_files], timeout=1800)
+            trace.event('references', 'waiting', **evidence)
+            if evidence['expectedSelected'] != len(image_files):
+                # The UI may not expose selection semantics. Do not include
+                # an unverified batch that could silently omit images.
+                result['errorCode'] = 'flow_reference_selection_unconfirmed'
+                return result
+            phase = 'include_find'
+            includes = await find_include()
+            trace.event('references', 'waiting', includeEnabled=len(includes))
+            if len(includes) != 1:
+                result['errorCode'] = 'flow_reference_include_unavailable'
+                return result
+            phase = 'include_click'
+            await includes[0].click(trial=True, timeout=2500)
+            await includes[0].click(timeout=3500)
+            result['included'] = trace.references_included = True
+            trace.event('references', 'waiting', referencesIncluded=True,
+                        selectedExpected=len(image_files))
+            phase = 'verify'
+            trace.next_action = 'verify_references'
+            for _ in range(8):
+                evidence = await editor_evidence()
+                trace.event('references', 'waiting', **evidence)
+                if evidence['attachmentMatches'] >= len(image_files):
+                    result['verified'] = trace.references_verified = True
+                    trace.next_action = 'inspect_settings'
+                    trace.event('references', referencesIncluded=True,
+                                referencesVerified=True)
                     return result
-
-            evidence = await editor_evidence()
-            if evidence['attachmentMatches'] == len(image_files):
-                result['verified'] = trace.references_verified = True
-                trace.next_action = 'inspect_settings'
-                trace.event('references', referencesIncluded=True, referencesVerified=True)
-            else:
-                result['errorCode'] = 'flow_references_unverified'
+                await page.wait_for_timeout(400)
+            result['errorCode'] = 'flow_references_unverified'
     except Exception:
         result['errorCode'] = ('flow_reference_include_uncertain' if phase == 'include_click'
                                else 'flow_references_unverified' if phase == 'verify'
