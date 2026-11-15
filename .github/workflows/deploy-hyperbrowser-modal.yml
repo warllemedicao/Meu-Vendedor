@@ -67,7 +67,7 @@ jobs:
           MV_FLOW_EXECUTOR_SECRET: ${{ secrets.MV_FLOW_EXECUTOR_SECRET }}
         run: |
           npm install --global supabase@3.1.0
-          supabase secrets set --project-ref jzchlrvxdaffnrgbvabv \
+          supabase secrets set --yes --project-ref jzchlrvxdaffnrgbvabv \
             "MV_HYPERBROWSER_EXECUTOR_SECRET=$MV_FLOW_EXECUTOR_SECRET" \
             "MV_HYPERBROWSER_EXECUTOR_URL=https://warllemedicao--meu-vendedor-flow-gateway.us-east.modal.run/hyperbrowser-navigate"
       - name: Verify Supabase secrets are visible after synchronization
