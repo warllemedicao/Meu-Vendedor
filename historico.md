@@ -1,3 +1,9 @@
+## 2026-11-15 — Identificação visual do botão de upload no Flow
+
+- Usuário enviou duas capturas do editor: na Biblioteca do Google Flow, o controle **`Fazer upload...`** fica no canto inferior esquerdo da janela, abaixo dos filtros de recursos. O texto e duas imagens foram selecionados no Meu Vendedor, mas o upload não foi confirmado; erro anterior `A conexão não respondeu`.
+- Executor ajustado em `executors/google-flow/modal_app.py` para procurar o rótulo completo `Fazer upload...` (inclusive reticências), testar candidatos visíveis dentro dos frames, clicar no controle e capturar o seletor de arquivo do navegador. O código continua sem clicar em `Gerar`. Commit `c766dd4b`.
+- **Pendente:** publicar Modal e confirmar no teste real se o controle dispara file chooser e se as duas imagens aparecem anexadas. Não afirmar sucesso antes da validação.
+
 ## 2026-11-15 — Reincidência do erro de upload no Flow e diagnóstico por logs
 
 - Usuário repetiu teste com 2 imagens e screenshot mostrou novamente a Biblioteca do Flow com opção `Fazer upload...`, sem prévia de arquivos, e mensagem do Meu Vendedor `A conexão não respondeu. Consulte os registros do Supabase.`
