@@ -1,3 +1,12 @@
+## 2026-11-15 — Teste isolado de anexo de imagem no Google Flow
+
+- Usuário pediu **não integrar à ferramenta Gerar vídeo ainda**. Adicionada opção de escolher imagem local ao lado do campo de prompt em `Conta e conexões → Google Flow`, com botão `Preparar texto e anexar imagem (sem gerar)`.
+- Frontend: aceita PNG/JPG/WebP de até 2,5 MB e transmite arquivo somente após clique explícito. Commit `be40c8d3`.
+- Supabase: ação autenticada `prepare-flow-image`, valida formato e tamanho codificado, repassa ao executor; Edge Function `hyperbrowser-profile` **v36 ACTIVE**. Commits `d4da7bcb`, `3ca875b0`.
+- Modal: modo `prepare-image` cria projeto se necessário, preenche prompt, valida bytes de imagem e tenta `set_input_files` em campo de arquivo existente ou revelado pelo botão de adicionar. **Não clica em Gerar.** Commits `278f42a1`, `d169d574`, `fdac3a42`.
+- **Limite do teste:** retorno `imageAttached` confirma entrega ao input de arquivo, não necessariamente processamento/prévia pelo Flow; usuário precisa conferir visualmente no editor. Se não existir input acessível, retorna `image_input_not_found` sem iniciar geração.
+- **Pendente:** publicar Modal e frontend, realizar teste real de upload e confirmar prévia. Nenhuma integração com Gerar vídeo feita.
+
 ## 2026-11-15 — Validação real da preparação unificada do Google Flow
 
 - Usuário confirmou: **`Projeto pronto e texto preenchido no Flow. Nenhuma geração iniciada.`**
