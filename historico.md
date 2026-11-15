@@ -1,3 +1,9 @@
+## 2026-11-15 — Correção da confirmação Supabase CLI no CI
+
+- Execução do workflow falhou em `supabase secrets set` com `Confirmation required: Set 2 secrets` e `This run can't ask because stdout is not a terminal. Nothing was changed.`.
+- Corrigido comando do GitHub Actions para `supabase secrets set --yes --project-ref ...`, permitindo execução não interativa. Mantida verificação posterior da presença das duas variáveis no Supabase.
+- **Pendente:** reexecutar workflow na branch main e validar navegação remota no Meu Vendedor. Nenhum valor de secret foi registrado no histórico.
+
 ## 2026-11-15 — Diagnóstico da tela em branco do Hyperbrowser
 
 - Teste real do usuário: navegador remoto abriu em branco após workflow Modal verde.
