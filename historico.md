@@ -1,3 +1,11 @@
+## 2026-11-15 — Reversão de botão redundante de configurações
+
+- Usuário reportou confusão com botão `Verificar configurações do Flow (sem gerar)`, que falhou por estar na página inicial do Flow e não no editor de projeto.
+- Removido o botão de inspeção de configurações da interface de teste, preservando `Preparar projeto e preencher texto (sem gerar)`, o seletor de imagens e a confirmação explícita de direitos. Commit `572772d6`.
+- O botão principal pode aparecer desabilitado enquanto imagens estiverem selecionadas sem o checkbox de direitos marcado, ou sem sessão ativa/prompt.
+- Inspeção automática das configurações dentro do fluxo principal, seleção das referências e geração **ainda não implementadas**. Não anunciar automação completa antes de validação.
+- Pendente publicar frontend Cloudflare para refletir remoção do botão.
+
 ## 2026-11-15 — Inspeção segura das configurações do Google Flow
 
 - Usuário mostrou painel `Configurações do agente` ao lado da seta de envio e solicitou verificar os parâmetros antes da geração. Na captura, proporção vertical `9:16` e quantidade `x1`; nome exato do modelo e demais estados precisam ser lidos no Flow ao vivo.
