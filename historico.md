@@ -1,3 +1,11 @@
+## 2026-11-15 — Preservação da sessão durante falha Modal HTTP 502
+
+- Logs Supabase confirmaram `hyperbrowser_executor_http_error {status:502}` seguido de `hyperbrowser_stale_session_restarting`, indicando falha de navegação Modal antes da reinicialização da sessão.
+- Corrigido `hyperbrowser-profile` para não encerrar uma sessão Hyperbrowser válida apenas porque o executor Modal falhou. Retorna HTTP 502 `flow_navigation_unavailable` e `sessionPreserved:true`, sem entregar link temporário não validado.
+- Publicado Supabase `hyperbrowser-profile` versão 13 ACTIVE; commit `9b03ca50`.
+- Modal `hyperbrowser-navigate` ganhou logs seguros com classe da exceção e hostname CDP, sem tokens/URLs sensíveis; commit `c386a9b5`. **Pendente publicar Modal via GitHub Actions** e consultar logs Modal após novo teste.
+- A causa específica do HTTP 502 Modal ainda não está comprovada. Não declarar navegação Google Flow concluída.
+
 ## 2026-11-15 — Correção da desconexão CDP no executor Modal
 
 - Investigação do erro Hyperbrowser live view `session not found` identificou que `executors/google-flow/modal_app.py` chamava `await browser.close()` após abrir o Flow via `chromium.connect_over_cdp`.
