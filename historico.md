@@ -1,3 +1,11 @@
+## 2026-11-15 — Primeira etapa do robô Flow: inspeção de interface sem consumir créditos
+
+- Implementada no executor Modal a opção `mode=inspect` na rota autenticada `/hyperbrowser-navigate`: conecta via CDP à sessão existente, abre Flow e coleta até 30 rótulos de botões visíveis; **não clica, não envia imagens e não inicia geração**. Commit `d8e45ea9`.
+- Edge Function `hyperbrowser-profile`: nova ação autenticada `inspect-controls`, valida sessão ativa e devolve os controles; publicada no Supabase versão **19 ACTIVE**. Commit `a91215c5`.
+- Interface da Loja: botão **Identificar controles (sem gerar)** e apresentação dos rótulos retornados. Commit `47d00645`.
+- **Pendências de publicação:** executor Modal precisa de execução do workflow `deploy-hyperbrowser-modal.yml`; frontend Next.js precisa de novo build e deploy no Cloudflare. O deploy do Supabase está concluído. Nenhum teste real do DOM do Flow foi executado nesta etapa, pois exige uma sessão autenticada do usuário e o Modal atualizado.
+- **Próxima fase:** após confirmar os controles reais, implementar navegação supervisionada, anexar imagens autorizadas, inserir prompt e solicitar confirmação antes de iniciar geração com créditos; depois recuperar o vídeo.
+
 ## 2026-11-15 — Validação positiva da persistência do login Google Flow
 
 - **Teste confirmado pelo usuário:** após usar **Salvar acesso e fechar** no Meu Vendedor, abriu novamente o Google Flow pelo navegador remoto e a página carregou **sem solicitar a senha**.
