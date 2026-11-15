@@ -1,3 +1,10 @@
+## 2026-11-15 — Espera por carregamento estável das imagens no Google Flow
+
+- Usuário identificou visualmente que o robô avançava antes de as duas imagens terminarem de carregar na biblioteca.
+- Ajustado `executors/google-flow/modal_app.py` (commit `7119a8bd`): após upload e consentimento, o executor relê os frames, procura os nomes esperados dos arquivos, verifica indicadores de processamento e exige três leituras estáveis consecutivas; limite de 45 segundos, com erro seguro `flow_images_not_ready`.
+- Limite: a confirmação por nomes visíveis e indicadores de progresso é uma heurística, ainda não testada no Flow remoto; não comprova inclusão como referências no comando. Seleção das imagens, clique em `Incluir no comando`, geração e recuperação do MP4 continuam pendentes.
+- Pendente: validar sintaxe/testes, publicar o executor Modal, executar teste supervisionado e mapear com evidência os controles de seleção/inclusão antes de implementar o próximo clique.
+
 ## 2026-11-15 — Correção do build Cloudflare (TS2339)
 
 - O workflow `build:pages` falhou em `src/components/auth/HyperbrowserProfile.tsx` porque `settingsInspection.referencesVerified` era utilizado no JSX, mas não declarado no tipo `Result`.
