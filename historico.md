@@ -1,3 +1,12 @@
+## 2026-11-15 — Sincronização da documentação após teste de prompt e preparação do anexo
+
+- **Último retorno do usuário:** preparação unificada do projeto e preenchimento de texto no Flow funcionaram: `Projeto pronto e texto preenchido no Flow. Nenhuma geração iniciada.` Diagnóstico: página Flow sim; frames 5/5; controles visíveis 33; falhas de leitura 0; rótulos relevantes 4.
+- **Pedido seguinte:** não conectar à ferramenta `Gerar vídeo` ainda; disponibilizar um seletor de imagem na mesma área do prompt para testar o anexo manual, sem geração.
+- **Implementação correspondente:** campo PNG/JPEG/WebP de até 2,5 MB e botão `Preparar texto e anexar imagem (sem gerar)`; ação `prepare-flow-image` na Edge Function Supabase `hyperbrowser-profile` v36 ACTIVE; executor Modal `prepare-image` que tenta enviar bytes ao input de arquivo do Flow sem clicar em gerar. Frontend commit `be40c8d3`; executor `278f42a1`, `d169d574`, `fdac3a42`; backend `d4da7bcb`, `3ca875b0`.
+- **Limite:** o upload de imagem ainda não foi confirmado pelo usuário; `imageAttached` indica entrega ao input, não prova prévia processada. Modal e frontend ainda dependem de publicação confirmada. Não afirmar que geração ou integração com catálogo estão prontas.
+- **Pedido atual:** atualizar documentação Markdown relacionada às alterações. Atualizados `README.md` (`f9126779`), `CLOUDFLARE.md` (`3221face`) e `CONTINUAR_AMANHA.md` (`dea375e7`). `GALERIA_DE_PRODUTO.md` permanece sem alteração porque a galeria do catálogo não foi modificada neste teste.
+- **Próximo teste:** usuário publica Modal e frontend, seleciona uma imagem de teste, verifica prévia no editor do Flow e informa sucesso ou erro; somente então avançar para a integração com o catálogo.
+
 ## 2026-11-15 — Teste isolado de anexo de imagem no Google Flow
 
 - Usuário pediu **não integrar à ferramenta Gerar vídeo ainda**. Adicionada opção de escolher imagem local ao lado do campo de prompt em `Conta e conexões → Google Flow`, com botão `Preparar texto e anexar imagem (sem gerar)`.
