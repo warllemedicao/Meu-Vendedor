@@ -369,7 +369,9 @@ async def include_references(page, image_files, prompt_field, trace):
                 const selected=Array.from(root.querySelectorAll('[role="option"]')).filter(el=>
                     el.getAttribute('aria-selected')==='true' ||
                     el.getAttribute('aria-checked')==='true' ||
-                    el.querySelector('[aria-checked="true"],[aria-selected="true"]'));
+                    el.getAttribute('data-state')==='selected' ||
+                    el.classList.contains('selected') ||
+                    el.querySelector('[aria-checked="true"],[aria-selected="true"],[data-state="selected"]'));
                 const matched=names.filter(name=>selected.some(el=>
                     (el.textContent||'').includes(name) ||
                     Array.from(el.querySelectorAll('[alt],[title]')).some(child=>
