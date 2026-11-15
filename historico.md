@@ -1,3 +1,10 @@
+## 2026-11-15 — Validação real da preparação unificada do Google Flow
+
+- Usuário confirmou: **`Projeto pronto e texto preenchido no Flow. Nenhuma geração iniciada.`**
+- Diagnóstico: **página Flow sim; frames 5/5; controles visíveis 33; falhas de leitura 0; rótulos relevantes 4**.
+- **Marco:** ação unificada `prepare-flow-draft` validada em produção; criação/reutilização de projeto e preenchimento do prompt funcionaram sem iniciar vídeo.
+- **Próxima etapa:** anexo de imagem do produto do Meu Vendedor. Código existente armazena `mv_products.image_url` e há fluxo de assets privados em `mv-video-assets`; é necessário vincular o produto autorizado à sessão e descobrir o controle de upload do editor, sem expor URL privada ou enviar credenciais ao Flow. Não há evidência de upload funcionando ainda.
+
 ## 2026-11-15 — Unificação de criar projeto e preencher prompt (pedido do usuário)
 
 - **Validação real do usuário:** depois de clicar manualmente em `Criar projeto de teste (sem gerar)`, a ação `Preencher texto no Flow (sem gerar)` conseguiu preencher o prompt. O erro anterior ocorreu quando não havia projeto aberto; as instruções de teste estavam incompletas.
