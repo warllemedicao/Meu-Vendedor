@@ -1,3 +1,9 @@
+## 2026-11-15 — Workflow de publicação Modal para Hyperbrowser
+
+- Criado `.github/workflows/deploy-hyperbrowser-modal.yml`, acionado exclusivamente por `workflow_dispatch`, ambiente `production`, com verificação de `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` e `MV_FLOW_EXECUTOR_SECRET` no GitHub Actions.
+- Reutiliza `scripts/deploy-flow-executor.py` e o app Modal existente para publicar a rota `/hyperbrowser-navigate` sem inserir credenciais no repositório.
+- **Pendente**: executar workflow manualmente e conferir sucesso, configurar `MV_HYPERBROWSER_EXECUTOR_URL` e `MV_HYPERBROWSER_EXECUTOR_SECRET` no Supabase, validar navegação real. Sem conexão para implantar Modal nem para gerenciar secrets Supabase nesta sessão; não afirmar publicação concluída.
+
 ## 2026-11-15 — Reaproveitamento do executor Modal existente para Hyperbrowser
 
 - Identificado executor Modal já existente em `executors/google-flow/modal_app.py`, com imagem que inclui Playwright e rota privada `/control`.
