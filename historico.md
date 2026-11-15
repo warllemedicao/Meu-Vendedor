@@ -1,3 +1,11 @@
+## 2026-11-15 — Upload de duas imagens confirmado visualmente no Google Flow
+
+- Usuário confirmou: **“concluindo as imagens foram carregadas, apareceu apenas aquele popup”**. A captura mostra duas imagens (personagem vermelho e personagem verde) disponíveis na biblioteca do Flow, com nomes de arquivo de produto.
+- O aviso `Direitos de uso desta imagem` apareceu durante o envio. A confirmação de direitos é uma declaração do usuário, não deve ser presumida automaticamente.
+- **Marco validado:** o fluxo de envio do Meu Vendedor ao Google Flow conseguiu carregar dois arquivos de imagem sem iniciar geração de vídeo.
+- **Limite da validação:** imagens presentes na biblioteca não equivalem a imagens selecionadas/anexadas como referências ao prompt. A próxima etapa é confirmar a seleção das imagens no editor e, se houver confirmação de direitos, tratar o aviso de forma explícita e autorizada.
+- Manter a ferramenta de teste isolada de `Gerar vídeo` até a etapa de seleção de referências ser validada.
+
 ## 2026-11-15 — Identificação visual do botão de upload no Flow
 
 - Usuário enviou duas capturas do editor: na Biblioteca do Google Flow, o controle **`Fazer upload...`** fica no canto inferior esquerdo da janela, abaixo dos filtros de recursos. O texto e duas imagens foram selecionados no Meu Vendedor, mas o upload não foi confirmado; erro anterior `A conexão não respondeu`.
