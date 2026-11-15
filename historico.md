@@ -1,3 +1,10 @@
+## 2026-11-15 — Mapeamento somente leitura dos campos do editor Google Flow
+
+- Executor Modal: modo `inspect-editor` que enumera inputs, textareas, selects, campos editáveis e papéis de formulário em até oito frames, retornando apenas tipo, papel, rótulo curto e formatos aceitos; **não lê valores de prompts, credenciais ou arquivos**. Commit `f3f6d57e`.
+- Supabase: ação autenticada `inspect-flow-editor` no `hyperbrowser-profile`, **v27 ACTIVE** publicada. Commit `0d04c491`.
+- Frontend: botão `Mapear campos do editor (sem gerar)` em Conta e conexões, com lista de campos e diagnóstico de frames. Commit `b5a7f7c0`.
+- **Pendente:** publicar Modal e frontend via GitHub Actions na ordem; manter `rotate_cloudflare_secret` desmarcado e `confirm_frontend_only` marcado. Testar a inspeção em projeto aberto. Não foi implementado envio de imagens ou geração de vídeos.
+
 ## 2026-11-15 — Teste real: robô abriu projeto no Google Flow com sucesso
 
 - Usuário executou `Criar projeto de teste (sem gerar)` em **Conta e conexões → Google Flow** e forneceu captura do resultado.
