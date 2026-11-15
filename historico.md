@@ -1,3 +1,10 @@
+## 2026-11-15 — SUCESSO: inspeção do Google Flow reconheceu Novo projeto
+
+- **Teste real confirmado pelo usuário após publicar o executor Modal corrigido:** `página Flow sim; frames 2/2; controles visíveis 17; falhas de leitura 0; rótulos relevantes 9`.
+- **Controles identificados:** Google Flow, Flow Music, tv Flow TV, links para Instagram e X, Abrir projeto, Editar título do projeto, Excluir projeto e **`add Novo projeto`**.
+- **Resultado:** o executor Hyperbrowser/Modal conectou ao Google Flow autenticado, examinou ambos os frames sem erros e reconheceu o botão de criação de projeto. O teste foi somente de leitura, sem iniciar geração de vídeo nem consumir créditos de geração.
+- **Próxima etapa:** implementar ação supervisionada de clique em **Novo projeto**, identificar os controles do editor e validar a criação de projeto. Não confundir reconhecimento de botão com criação de vídeo concluída; envio de imagens, prompt, geração e download de MP4 permanecem pendentes.
+
 ## 2026-11-15 — Causa identificada para inspeção com 0/2 frames
 
 - **Resultado real informado pelo usuário:** `página Flow sim; frames 0/2; controles visíveis 0; falhas de leitura 2; rótulos relevantes 0`.
