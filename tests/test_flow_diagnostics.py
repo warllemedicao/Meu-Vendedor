@@ -221,6 +221,12 @@ class FlowDiagnosticTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['errorCode'], 'flow_settings_read_failed')
         self.assertNotIn('private-read-error', json.dumps(trace.report(result['errorCode'])))
 
+    def test_asset_button_fallback_is_scoped_and_requires_confirmation(self):
+        source = (Path(__file__).parents[1] / 'executors/google-flow/flow_diagnostics.py').read_text()
+        self.assertIn("library.locator('button,[role=\"button\"]')", source)
+        self.assertIn("if not await selected(target):\n                    result['errorCode'] = 'flow_reference_selection_unconfirmed'", source)
+        self.assertIn("textbox.parentElement?.parentElement?.parentElement", source)
+
     async def test_expected_assets_are_selected_then_included_once_and_verified(self):
         page = ReferencePage(['produto-a-1.png', 'produto-a-2.png'])
         trace = self.trace(Browser([]))
