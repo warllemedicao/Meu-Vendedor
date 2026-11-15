@@ -38,9 +38,9 @@ def gateway():
         try:
             payload = json.loads(raw)
             endpoint = payload.get('wsEndpoint')
-            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt')
+            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft')
             create_project = payload.get('mode') == 'create-project'
-            stage_prompt = payload.get('mode') == 'stage-prompt'
+            stage_prompt = payload.get('mode') in ('stage-prompt', 'prepare-draft')
             prompt = payload.get('prompt', '')
             if stage_prompt and (not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 4000):
                 raise ValueError('invalid_prompt')
@@ -75,7 +75,7 @@ def gateway():
                     # Inspect the already open page without resetting its navigation.
                     # Create only a blank project when explicitly requested; never generate media.
                     project_clicked = False
-                    if create_project:
+                    if create_project or (stage_prompt and not (page.url or '').startswith('https://flow.google.com/project/')):
                         if not (page.url or '').startswith('https://flow.google.com/'):
                             raise RuntimeError('flow_page_not_active')
                         for project_frame in page.frames[:8]:
@@ -134,7 +134,7 @@ def gateway():
                     editor_items = []
                     editor_frames = 0
                     editor_errors = 0
-                    if payload.get('mode') == 'inspect-editor':
+                    if payload.get('mode') in ('inspect-editor', 'prepare-draft'):
                         editor_scan = """els => {
                             const safe = v => {
                                 const t=(v||'').trim();
