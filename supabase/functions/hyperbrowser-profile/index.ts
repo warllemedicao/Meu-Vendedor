@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Hyperbrowser } from "npm:@hyperbrowser/sdk";
 const cors={"access-control-allow-origin":"*","access-control-allow-headers":"authorization, x-client-info, apikey, content-type","access-control-allow-methods":"POST, OPTIONS"};
 const respond=(value:unknown,status=200)=>Response.json(value,{status,headers:{"cache-control":"no-store",...cors}});
-const openFlow=async(endpoint:unknown,mode:"navigate"|"inspect"|"create-project"="navigate")=>{const target=Deno.env.get("MV_HYPERBROWSER_EXECUTOR_URL");const secret=Deno.env.get("MV_HYPERBROWSER_EXECUTOR_SECRET");if(!target||!secret||typeof endpoint!=="string"){console.warn("hyperbrowser_executor_not_configured",{hasUrl:Boolean(target),hasSecret:Boolean(secret),hasEndpoint:typeof endpoint==="string"});return false;}try{const url=new URL(target);if(url.protocol!=="https:")return false;const result=await fetch(url.toString(),{method:"POST",headers:{"authorization":"Bearer "+secret,"content-type":"application/json"},body:JSON.stringify({wsEndpoint:endpoint,mode}),signal:AbortSignal.timeout(55000)});const body=await result.json().catch(()=>({}));if(!result.ok)console.warn("hyperbrowser_executor_http_error",{status:result.status});return mode!=="navigate"?(result.ok&&body.inspectionReady===true?body:null):result.ok&&body.navigationReady===true;}catch(e){console.warn("hyperbrowser_executor_request_failed",{name:e instanceof Error?e.name:"unknown"});return false;}};
+const openFlow=async(endpoint:unknown,mode:"navigate"|"inspect"|"create-project"|"inspect-editor"="navigate")=>{const target=Deno.env.get("MV_HYPERBROWSER_EXECUTOR_URL");const secret=Deno.env.get("MV_HYPERBROWSER_EXECUTOR_SECRET");if(!target||!secret||typeof endpoint!=="string"){console.warn("hyperbrowser_executor_not_configured",{hasUrl:Boolean(target),hasSecret:Boolean(secret),hasEndpoint:typeof endpoint==="string"});return false;}try{const url=new URL(target);if(url.protocol!=="https:")return false;const result=await fetch(url.toString(),{method:"POST",headers:{"authorization":"Bearer "+secret,"content-type":"application/json"},body:JSON.stringify({wsEndpoint:endpoint,mode}),signal:AbortSignal.timeout(55000)});const body=await result.json().catch(()=>({}));if(!result.ok)console.warn("hyperbrowser_executor_http_error",{status:result.status});return mode!=="navigate"?(result.ok&&body.inspectionReady===true?body:null):result.ok&&body.navigationReady===true;}catch(e){console.warn("hyperbrowser_executor_request_failed",{name:e instanceof Error?e.name:"unknown"});return false;}};
 const validLive=(value:unknown)=>{if(typeof value!=="string")return null;try{const u=new URL(value);return u.protocol==="https:"&&u.searchParams.has("token")&&((u.hostname==="app.hyperbrowser.ai"&&u.pathname==="/live")||(/^dp-[a-z0-9-]+\.hxproxy\.io$/.test(u.hostname)&&/^\/browser\/[0-9a-f-]{36}\/live\/vnc\.html$/.test(u.pathname)&&u.searchParams.has("path")))?value:null;}catch{return null;}};
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
@@ -17,7 +17,7 @@ Deno.serve(async(req:Request)=>{
   const user=await auth.json();
   if(!user?.id||!user?.email_confirmed_at)return respond({error:"confirmed_account_required"},403);
   const input=await req.json().catch(()=>({}));
-  if(!["status","create-profile","start-login","save-login","inspect-controls","create-flow-project"].includes(input.action))return respond({error:"invalid_action"},400);
+  if(!["status","create-profile","start-login","save-login","inspect-controls","create-flow-project","inspect-flow-editor"].includes(input.action))return respond({error:"invalid_action"},400);
   const path=url+"/rest/v1/hyperbrowser_profiles?user_id=eq."+encodeURIComponent(user.id);
   const headers={apikey:admin,authorization:"Bearer "+admin};
   const existing=await fetch(path+"&select=profile_id,session_id,session_started_at,login_saved",{headers,signal:AbortSignal.timeout(8000)});
@@ -40,14 +40,14 @@ Deno.serve(async(req:Request)=>{
    row={profile_id:profile.id,session_id:null,login_saved:false};
   }
   if(input.action==="create-profile")return respond({configured:true,profileReady:true,loginSaved:Boolean(row.login_saved)});
-  if(input.action==="inspect-controls"||input.action==="create-flow-project"){
+  if(["inspect-controls","create-flow-project","inspect-flow-editor"].includes(input.action)){
    if(!row.session_id)return respond({error:"no_active_session"},409);
    stage="inspect_existing_session";
    const current=await client.sessions.get(row.session_id);
    if(current?.status!=="active"||!validLive(current?.liveUrl))return respond({error:"no_active_session"},409);
-   const result=await openFlow(current.wsEndpoint,input.action==="create-flow-project"?"create-project":"inspect");
+   const result=await openFlow(current.wsEndpoint,input.action==="create-flow-project"?"create-project":input.action==="inspect-flow-editor"?"inspect-editor":"inspect");
    if(!result||typeof result!=="object")return respond({error:"flow_inspection_unavailable"},502);
-   return respond({inspectionReady:true,controls:result.controls??[],visibleCount:result.visibleCount??0,frameCount:result.frameCount??0,inspectedFrames:result.inspectedFrames??0,scanErrors:result.scanErrors??0,flowPage:result.flowPage===true,projectClicked:result.projectClicked===true});
+   return respond({inspectionReady:true,controls:result.controls??[],visibleCount:result.visibleCount??0,frameCount:result.frameCount??0,inspectedFrames:result.inspectedFrames??0,scanErrors:result.scanErrors??0,flowPage:result.flowPage===true,projectClicked:result.projectClicked===true,editorControls:result.editorControls??[],editorFrames:result.editorFrames??0,editorErrors:result.editorErrors??0});
   }
   if(input.action==="save-login"){
    if(!row.session_id)return respond({error:"no_active_session"},409);
