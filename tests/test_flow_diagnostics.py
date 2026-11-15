@@ -232,6 +232,15 @@ class FlowDiagnosticTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("await includes[0].click(timeout=3500)", source)
         self.assertNotIn("click_generate", source)
 
+    def test_dynamic_add_n_items_button_requires_exact_count(self):
+        source = (Path(__file__).parents[1] / 'executors/google-flow/flow_diagnostics.py').read_text()
+        ast.parse(source)
+        self.assertIn("expected = len(image_files)", source)
+        self.assertIn("expectedIncludeCount=expected", source)
+        self.assertIn("int(quantity.group(1)) != expected", source)
+        self.assertIn("includeLabels=seen[:8]", source)
+        self.assertIn("await includes[0].click(timeout=3500)", source)
+
     def test_reference_verification_does_not_require_html_form(self):
         source = (Path(__file__).parents[1] / 'executors/google-flow/flow_diagnostics.py').read_text()
         self.assertIn("textbox.parentElement?.parentElement?.parentElement", source)
