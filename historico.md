@@ -1,3 +1,10 @@
+## 2026-11-15 — Pré-verificação das configurações no botão único do Flow
+
+- Solicitação: após upload e confirmação de direitos, robô deve ir ao comando, verificar configurações e clicar na seta de geração quando tudo estiver correto.
+- Implementado parcialmente com segurança: a ação existente `prepare-flow-draft` agora tenta abrir e inspecionar configurações no próprio fluxo, sem botão adicional; frontend exibe estado de 9:16, x1 e referências. Commits `ba7e929b` (Modal), `68a0885d` (frontend).
+- **Ainda não implementado:** associação verificável das imagens carregadas ao prompt, alteração/salvamento dos parâmetros divergentes e clique na seta Gerar. O código mantém geração bloqueada porque biblioteca com imagens não garante referências selecionadas, e os seletores do painel ainda não foram validados no editor real. Não declarar fluxo concluído.
+- **Pendente:** publicar Modal e frontend, inspecionar estados reais no projeto, mapear seleção de referências e opções de configuração, então implementar ajuste e disparo explícito com prevenção de geração duplicada e controle de créditos.
+
 ## 2026-11-15 — Reversão de botão redundante de configurações
 
 - Usuário reportou confusão com botão `Verificar configurações do Flow (sem gerar)`, que falhou por estar na página inicial do Flow e não no editor de projeto.
