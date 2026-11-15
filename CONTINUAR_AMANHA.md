@@ -1,3 +1,10 @@
+## 2026-11-15 — Flow abriu Biblioteca em vez de anexar imagens
+
+- Evidência do usuário: tela do Flow mostra a aba Biblioteca e a ação `Fazer upload...`; duas imagens estavam selecionadas no Meu Vendedor. A aplicação retornou `A conexão não respondeu` e nenhum anexo foi confirmado.
+- Causa provável no executor: clicar em adicionar/revelar biblioteca não basta; é preciso selecionar explicitamente `Fazer upload...` antes de localizar o `input[type=file]` e enviar os bytes.
+- Ajuste em `executors/google-flow/modal_app.py` commit `06a62516`: localizar `Fazer upload` na biblioteca, abrir menu de anexos se necessário, exigir um input de arquivo único e enviar as imagens com Playwright `set_input_files`. Se a ação não for encontrada, falhar com `flow_upload_action_not_found` em vez de declarar sucesso. Nenhum clique em Gerar.
+- **Não validado em produção:** publicar novamente o executor Modal e testar; confirmar visualmente os anexos. Se o Flow abrir diálogo nativo de arquivos sem expor input, será necessário implementar tratamento do file chooser.
+
 ## 15/11/2026 — Correção do teste de imagens Google Flow
 
 Após teste com retorno `Não foi possível confirmar o anexo da imagem` e diagnóstico enganoso de frames 0/0, usuário esclareceu o fluxo correto: **um único botão de preparar projeto e preencher texto**, com seletor opcional de **múltiplas imagens** ao lado do prompt. Removido o botão redundante de anexar. O botão existente encaminha prompt e até 3 imagens PNG/JPG/WebP (limite total 2,5 MB) à ação `prepare-flow-draft`. Frontend limpa diagnóstico anterior antes da tentativa; Supabase v38 ACTIVE encaminha lista de imagens; Modal usa `set_input_files` na mesma operação. Commits: `e106550c`, `09cb902d`, `25311180`, `cf259702`. **Pendente:** publicar Modal e frontend, testar se o Flow realmente aceita múltiplas imagens e apresenta prévia; sem integração ao Gerar vídeo nem clique em Gerar.
