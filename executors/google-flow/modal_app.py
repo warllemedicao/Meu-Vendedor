@@ -38,8 +38,12 @@ def gateway():
         try:
             payload = json.loads(raw)
             endpoint = payload.get('wsEndpoint')
-            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor')
+            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt')
             create_project = payload.get('mode') == 'create-project'
+            stage_prompt = payload.get('mode') == 'stage-prompt'
+            prompt = payload.get('prompt', '')
+            if stage_prompt and (not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 4000):
+                raise ValueError('invalid_prompt')
             if not isinstance(endpoint, str): raise ValueError('missing_endpoint')
             parsed = urlsplit(endpoint)
             host = (parsed.hostname or '').lower()
@@ -83,6 +87,19 @@ def gateway():
                         if not project_clicked:
                             raise RuntimeError('new_project_button_not_found')
                         await page.wait_for_timeout(2200)
+                    prompt_staged = False
+                    if stage_prompt:
+                        if not re.search(r'^https://flow\\.google\\.com/project/', page.url or ''):
+                            raise RuntimeError('flow_project_not_active')
+                        matches = []
+                        for prompt_frame in page.frames[:8]:
+                            locator = prompt_frame.get_by_role('textbox', name=re.compile(r'o que você quer criar|what do you want to create', re.I))
+                            if await locator.count() == 1 and await locator.is_visible():
+                                matches.append(locator)
+                        if len(matches) != 1:
+                            raise RuntimeError('prompt_field_not_unique')
+                        await matches[0].fill(prompt.strip(), timeout=8000)
+                        prompt_staged = True
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
                     scan = """els => {
@@ -158,7 +175,7 @@ def gateway():
                         'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
                         'scanErrors': scan_errors,
                         'flowPage': (page.url or '').startswith('https://flow.google.com/'),
-                        'projectClicked': project_clicked,
+                        'projectClicked': project_clicked, 'promptStaged': prompt_staged,
                         'editorControls': editor_items[:80],
                         'editorFrames': editor_frames, 'editorErrors': editor_errors
                     }
