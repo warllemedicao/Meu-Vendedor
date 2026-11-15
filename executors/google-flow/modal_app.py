@@ -32,7 +32,7 @@ def gateway():
         if len(expected) < 32 or not hmac.compare_digest(request.headers.get('authorization', ''), 'Bearer ' + expected):
             raise HTTPException(401)
         raw = await request.body()
-        if len(raw) > 16000: raise HTTPException(413)
+        if len(raw) > 4100000: raise HTTPException(413)
         import json
         from urllib.parse import urlsplit
         try:
