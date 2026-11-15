@@ -38,7 +38,7 @@ def gateway():
         try:
             payload = json.loads(raw)
             endpoint = payload.get('wsEndpoint')
-            inspect_only = payload.get('mode') in ('inspect', 'create-project')
+            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor')
             create_project = payload.get('mode') == 'create-project'
             if not isinstance(endpoint, str): raise ValueError('missing_endpoint')
             parsed = urlsplit(endpoint)
@@ -108,6 +108,35 @@ def gateway():
                             })).filter(item => item.label).slice(0,25)
                         };
                     }"""
+                    # Read only metadata of editor inputs, never values or account data.
+                    editor_items = []
+                    editor_frames = 0
+                    editor_errors = 0
+                    if payload.get('mode') == 'inspect-editor':
+                        editor_scan = """els => {
+                            const safe = v => {
+                                const t=(v||'').trim();
+                                return t.length<=70 && !/@|https?:|token|password|senha/i.test(t) ? t : '';
+                            };
+                            return els.filter(el => {
+                                const r=el.getBoundingClientRect(), st=getComputedStyle(el);
+                                return el.type==='file' || (r.width>0 && r.height>0 && st.display!=='none' && st.visibility!=='hidden');
+                            }).slice(0,60).map(el => ({
+                                role:el.getAttribute('role')||el.tagName.toLowerCase(),
+                                label:safe(el.getAttribute('aria-label'))||safe(el.getAttribute('placeholder'))||safe(el.getAttribute('title'))||'',
+                                kind:el.type==='file'?'file':el.isContentEditable?'editable':el.tagName.toLowerCase(),
+                                accept:el.type==='file'?safe(el.getAttribute('accept')):''
+                            }));
+                        }"""
+                        for editor_frame in page.frames[:8]:
+                            try:
+                                found = await editor_frame.locator(
+                                    'input, textarea, select, [contenteditable="true"], [role="textbox"], [role="combobox"], [role="listbox"], [role="radio"], [role="switch"]'
+                                ).evaluate_all(editor_scan)
+                                editor_frames += 1
+                                editor_items.extend(found)
+                            except Exception:
+                                editor_errors += 1
                     all_controls = []
                     total_visible = 0
                     inspected_frames = 0
@@ -129,7 +158,9 @@ def gateway():
                         'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
                         'scanErrors': scan_errors,
                         'flowPage': (page.url or '').startswith('https://flow.google.com/'),
-                        'projectClicked': project_clicked
+                        'projectClicked': project_clicked,
+                        'editorControls': editor_items[:80],
+                        'editorFrames': editor_frames, 'editorErrors': editor_errors
                     }
                 await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
                 return {'navigationReady': True}
