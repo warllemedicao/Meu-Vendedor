@@ -1,3 +1,9 @@
+## 2026-11-15 — Correção do build Cloudflare (TS2339)
+
+- O workflow `build:pages` falhou em `src/components/auth/HyperbrowserProfile.tsx` porque `settingsInspection.referencesVerified` era utilizado no JSX, mas não declarado no tipo `Result`.
+- Corrigida a tipagem de `settingsInspection` para incluir os campos opcionais `referencesVerified`, `readyToGenerate` e `generationStarted` (commit `ac99e7d8`).
+- **Pendente:** executar novamente o workflow de frontend e confirmar que TypeScript e build completo passaram; não houve validação do deploy nesta alteração.
+
 ## 2026-11-15 — Pré-verificação das configurações no botão único do Flow
 
 - Solicitação: após upload e confirmação de direitos, robô deve ir ao comando, verificar configurações e clicar na seta de geração quando tudo estiver correto.
