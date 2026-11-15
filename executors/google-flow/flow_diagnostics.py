@@ -123,61 +123,104 @@ async def wait_for_images(page, image_files, trace, clock=time.monotonic, timeou
 
 
 async def inspect_settings(page, trace):
-    """Best effort inspection. A drawer failure must not discard a completed upload."""
+    """Configure Flow agent defaults without starting media generation."""
     result = {'opened': False, 'vertical916': False, 'singleOutput': False,
               'settingsText': [], 'readyToGenerate': False,
               'referencesVerified': False, 'generationStarted': False, 'errorCode': None}
     trace.event('settings', 'started')
-    phase, disabled, candidates, frames_read = 'find', False, [], 0
+    phase = 'find'
     try:
-        async with asyncio.timeout(7):
-            # Match the settings action itself, not project menus containing the word.
-            name = re.compile(r'^\s*(?:configurações(?: do (?:agente|vídeo|video))?|(?:agent |video )?settings)\s*$', re.I)
+        async with asyncio.timeout(24):
+            candidates = []
             for frame in page.frames[:8]:
-                controls = frame.get_by_role('button', name=name)
-                for index in range(min(await controls.count(), 8)):
-                    control = controls.nth(index)
-                    if await control.is_visible():
-                        if await control.is_enabled():
-                            candidates.append(control)
-                        else:
-                            disabled = True
-                frames_read += 1
-            trace.event('settings', 'waiting', matches=len(candidates), frames=frames_read, disabled=disabled)
+                buttons = frame.get_by_role('button', name=re.compile(
+                    r'^\s*(?:configurações(?: do (?:agente|vídeo|video))?|(?:agent |video )?settings)\s*$', re.I))
+                for i in range(min(await buttons.count(), 6)):
+                    button = buttons.nth(i)
+                    if await button.is_visible() and await button.is_enabled():
+                        candidates.append(button)
+            trace.event('settings', 'waiting', matches=len(candidates))
             if len(candidates) != 1:
-                result['errorCode'] = ('flow_settings_ambiguous' if len(candidates) > 1 else
-                                       'flow_settings_blocked' if disabled else 'flow_settings_not_found')
-            else:
-                phase = 'trial'
-                trace.event('settings', 'waiting', trial=True, matches=1)
-                # A blocked library overlay is evidence to report, not to force through.
-                await candidates[0].click(trial=True, timeout=1200)
-                phase = 'click'
-                trace.event('settings', 'waiting', trial=False, matches=1)
-                await candidates[0].click(timeout=1200)
-                result['opened'] = True
-                trace.event('settings', 'waiting', opened=True)
-                phase = 'read'
-                await page.wait_for_timeout(300)
-                read_errors = 0
-                for frame in page.frames[:8]:
-                    try:
-                        labels = await asyncio.wait_for(frame.locator('button, [role="radio"], [role="option"], [aria-checked], [aria-selected]').evaluate_all("""els => els.filter(e => { const r=e.getBoundingClientRect(); return r.width>0&&r.height>0; }).map(e=>({label:(e.getAttribute('aria-label')||e.innerText||'').trim().slice(0,65),selected:e.getAttribute('aria-checked')||e.getAttribute('aria-selected')||''})).filter(x=>/9:16|16:9|x1|x2|veo|modelo|model/i.test(x.label)).slice(0,25)"""), timeout=1.2)
-                        result['settingsText'].extend(labels)
-                    except Exception:
-                        read_errors += 1
-                result['vertical916'] = any('9:16' in x['label'] and x['selected'] == 'true' for x in result['settingsText'])
-                result['singleOutput'] = any('x1' in x['label'].lower() and x['selected'] == 'true' for x in result['settingsText'])
-                if not result['settingsText']:
+                result['errorCode'] = 'flow_settings_ambiguous' if candidates else 'flow_settings_not_found'
+                return result
+            phase = 'open'
+            await candidates[0].click(trial=True, timeout=1800)
+            await candidates[0].click(timeout=1800)
+            result['opened'] = True
+            trace.event('settings', 'waiting', opened=True)
+            phase = 'configure'
+            panels = []
+            for frame in page.frames[:8]:
+                for heading in (frame.get_by_text('Configurações do agente', exact=True),
+                                frame.get_by_text('Agent settings', exact=True)):
+                    for i in range(min(await heading.count(), 3)):
+                        if await heading.nth(i).is_visible():
+                            panels.append((frame, heading.nth(i)))
+            if len(panels) != 1:
+                result['errorCode'] = 'flow_settings_read_failed'
+                return result
+            frame, heading = panels[0]
+            # All controls are restricted to the settings panel and its
+            # surrounding container. The video aspect ratio is separate
+            # from the image aspect ratio.
+            panel = heading.locator('xpath=ancestor::*[.//button[normalize-space()="Salvar"]][1]')
+            if await panel.count() != 1:
+                result['errorCode'] = 'flow_settings_read_failed'
+                return result
+            # Inspect headings and choices to avoid confusing the two 9:16
+            # buttons. Use DOM positions only inside this panel.
+            evidence = await panel.evaluate(r"""root => {
+                const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
+                const elements=Array.from(root.querySelectorAll('button,[role="radio"],[role="button"]')).filter(visible);
+                const names=elements.map(e=>(e.getAttribute('aria-label')||e.textContent||'').trim());
+                const groups=Array.from(root.querySelectorAll('*')).filter(e=>e.children.length===0&&
+                    /padrão da geração de imagens|padrão para geração de vídeo|confirmar antes de gerar/i.test(e.textContent||''));
+                return {buttons:names.slice(0,35),sections:groups.map(e=>(e.textContent||'').trim()).slice(0,8)};
+            }""", timeout=1800)
+            trace.event('settings', 'waiting', buttons=len(evidence['buttons']),
+                        sections=len(evidence['sections']))
+            if len(evidence['sections']) < 3:
+                result['errorCode'] = 'flow_settings_read_failed'
+                return result
+            # Set each option using the section label as its scope.
+            for section_pattern, choice, occurrence in (
+                (r'confirmar antes de gerar', 'Sempre', 0),
+                (r'padrão da geração de imagens', '9:16', 0),
+                (r'padrão da geração de imagens', 'x1', 0),
+                (r'padrão para geração de vídeo', '9:16', 0),
+            ):
+                section = panel.get_by_text(re.compile(section_pattern, re.I))
+                if await section.count() != 1:
                     result['errorCode'] = 'flow_settings_read_failed'
-                trace.event('settings', 'error' if result['errorCode'] else 'ok', opened=True,
-                            vertical916=result['vertical916'], singleOutput=result['singleOutput'], frameErrors=read_errors)
-            if result['errorCode'] and phase == 'find':
-                trace.event('settings', 'error', matches=len(candidates), disabled=disabled)
+                    return result
+                # A heading and its option buttons share a settings group.
+                group = section.locator('xpath=..')
+                target = group.get_by_text(choice, exact=True)
+                if await target.count() != 1:
+                    group = section.locator('xpath=../..')
+                    target = group.get_by_text(choice, exact=True)
+                if await target.count() != 1:
+                    result['errorCode'] = 'flow_settings_read_failed'
+                    return result
+                await target.click(trial=True, timeout=1500)
+                await target.click(timeout=1500)
+            # Keep the displayed model unchanged (Nano Banana 2.1).
+            phase = 'save'
+            save = panel.get_by_role('button', name=re.compile(r'^\s*(salvar|save)\s*$', re.I))
+            if await save.count() != 1 or not await save.is_enabled():
+                result['errorCode'] = 'flow_settings_read_failed'
+                return result
+            await save.click(trial=True, timeout=1800)
+            await save.click(timeout=1800)
+            result['vertical916'] = True
+            result['singleOutput'] = True
+            result['settingsText'] = evidence['buttons']
+            trace.event('settings', 'ok', opened=True, saved=True,
+                        vertical916=True, singleOutput=True)
     except Exception as exc:
-        result['errorCode'] = 'flow_settings_blocked' if phase in ('trial', 'click') else 'flow_settings_read_failed'
-        trace.event('settings', 'error', opened=result['opened'], matches=len(candidates),
-                    trial=phase == 'trial', clickTimedOut=type(exc).__name__ == 'TimeoutError')
+        result['errorCode'] = 'flow_settings_save_uncertain' if phase == 'save' else 'flow_settings_read_failed'
+        trace.event('settings', 'error', opened=result['opened'], phase=phase,
+                    errorType=type(exc).__name__)
     return result
 
 
