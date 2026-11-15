@@ -2,6 +2,12 @@ name: Deploy Hyperbrowser navigation gateway (Modal)
 
 on:
   workflow_dispatch:
+    inputs:
+      rotate_cloudflare_secret:
+        description: 'Only enable when the Flow executor secret was intentionally rotated; this creates a new Worker version'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -85,7 +91,8 @@ jobs:
                   sys.exit(1)
           print('Both Hyperbrowser executor secrets are present in Supabase.')
           PY
-      - name: Synchronize existing Cloudflare Flow executor secret
+      - name: Synchronize existing Cloudflare Flow executor secret (only on rotation)
+        if: inputs.rotate_cloudflare_secret
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
