@@ -1,4 +1,4 @@
-## Diagnóstico por tentativa — preparado em 15/11/2026, ainda não publicado
+## Diagnóstico por tentativa — frontend/Supabase publicados; Modal pendente (15/11/2026)
 
 O fluxo atual usa sessão Hyperbrowser e a rota Modal `/hyperbrowser-navigate` para preparar o projeto. A documentação do controlador legado `/control` abaixo permanece como referência histórica; não comprova a versão atual publicada.
 
@@ -8,7 +8,7 @@ O relatório indica envio pelo seletor nativo ou campo de arquivo, abertura da b
 
 A tela mantém as cinco últimas tentativas em memória, fornece botão para copiar e área selecionável. Dados desaparecem ao recarregar. Erros HTTP devolvem diagnóstico limitado; executor antigo é identificado como sem relatório compatível. Timeout na Edge Function pode ocorrer antes do fim remoto: o relatório declara estado desconhecido e o ID permite consultar os eventos já emitidos no Modal. Não repetir o pedido automaticamente.
 
-Para disponibilizar, revisar/integrar a branch e publicar Modal, `hyperbrowser-profile` incluindo `_shared/flow-diagnostics.ts` e `_shared/flow-executor-diagnostics.ts`, e frontend pelos fluxos existentes. Publicar apenas o frontend não basta. Nenhum Secret, migration ou nova sessão é necessário para esta mudança de código. Não houve deploy nesta tarefa.
+Código `96e6fae` enviado à main. `hyperbrowser-profile` ACTIVE v49 publicada com os helpers, JWT preservado; frontend publicado no Worker `meu-vendedor` versão `04688ae7-3e7c-4dd6-bbad-3361e84c4f59`, com HTTP200 e bundle conferidos. **Modal ainda não atualizado:** disparo do workflow negado à integração GitHub com HTTP403; credenciais Modal indisponíveis no Codespace. Responsável com permissão deve executar [workflow Modal](https://github.com/warllemedicao/Meu-Vendedor/actions/workflows/deploy-hyperbrowser-modal.yml) na main, sem rotação do segredo Cloudflare, respeitando aprovação production. Até lá, a UI pode informar `executor_report_unavailable`; os detalhes por etapa e os seletores corrigidos dependem do novo executor. Nenhuma migration ou geração foi realizada.
 
 Testes simulados, sem login ou consumo de créditos: `tests/flow-attempt-diagnostics.test.mjs` e `tests/test_flow_diagnostics.py`. Build/typechecks/lint e limites detalhados em `historico.md`.
 

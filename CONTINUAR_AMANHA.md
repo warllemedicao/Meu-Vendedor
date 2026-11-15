@@ -1,3 +1,11 @@
+## 2026-11-15 — Estado atual publicado: falta somente atualizar o executor Modal
+
+Código `96e6fae` enviado à main; CI [43749120648](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43749120648) aprovado. Supabase `hyperbrowser-profile` **ACTIVE v49**, JWT mantido, arquivos remotos conferidos; teste sem usuário recusado com HTTP401 e novo `traceId`. Cloudflare Worker `meu-vendedor` versão **04688ae7-3e7c-4dd6-bbad-3361e84c4f59**, 100% do tráfego, publicado pelo Wrangler local após build real e dry-run. `/entrar` respondeu HTTP200 por curl; bundle com Copiar relatórios do Flow corresponde ao build local. Runtime/config, bindings, nomes de Secrets e crons preservados. Sem migrations ou geração de vídeo.
+
+**Pendência concreta:** Modal ainda na revisão anterior. A integração GitHub recusou disparo de workflows com HTTP403, e não há credenciais Modal locais. Para concluir, responsável com permissão deve executar [workflow Modal](https://github.com/warllemedicao/Meu-Vendedor/actions/workflows/deploy-hyperbrowser-modal.yml) → Run workflow → main → `rotate_cloudflare_secret=false`, respeitando aprovação de production. O botão de copiar já está publicado, mas detalhes por etapa e correção do Concordo só passam a valer após atualizar Modal; até lá pode aparecer `executor_report_unavailable`. Não confundir upload com referências anexadas ou geração.
+
+Autorização expressa de commit/push e publicação das alterações concluídas/validadas no Supabase e Cloudflare permanece para o escopo solicitado, preservando gates e documentação. Checkout original e `package-lock.json` preservados. Evidências, IDs e limites em `historico.md`.
+
 ## 2026-11-15 — Publicação autorizada dos diagnósticos do Flow (em preparação)
 
 O responsável autorizou commit/push e publicação das alterações concluídas/validadas no Supabase e Cloudflare após cada alteração. Autorização limitada ao escopo solicitado e sujeita aos gates existentes. A entrega atual exige também Modal. Publicar somente `hyperbrowser-profile` e frontend/Modal existentes, sem migrations, outros módulos ou geração de vídeo. SHAs, execuções e resultado remoto ainda serão registrados após a execução; não considerar publicado por esta anotação. Preservar o checkout original e `package-lock.json`.
