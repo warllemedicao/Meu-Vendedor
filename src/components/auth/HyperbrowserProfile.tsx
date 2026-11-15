@@ -17,7 +17,7 @@ export function HyperbrowserProfile(){
  const [inspection,setInspection]=useState<Result|null>(null);
  async function act(action:"status"|"start-login"|"save-login"|"create-flow-project"|"inspect-flow-editor"|"stage-flow-prompt"|"prepare-flow-draft"|"prepare-flow-image"){
   if(busy)return;
-  setBusy(true);setMessage("");
+  setBusy(true);setMessage("");setInspection(null);setControls([]);
   try{
    const client=getSupabase();
    if(!client)throw new Error("O serviço de autenticação está indisponível.");
