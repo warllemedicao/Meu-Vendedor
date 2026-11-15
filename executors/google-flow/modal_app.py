@@ -205,7 +205,7 @@ def gateway():
                             await page.wait_for_timeout(350)
                         await page.wait_for_timeout(1500)
                     settings_result = None
-                    if payload.get('mode') == 'inspect-settings':
+                    if payload.get('mode') in ('inspect-settings', 'prepare-draft'):
                         # Read the settings drawer without clicking Generate or Save.
                         # The settings icon is adjacent to the send arrow in Flow.
                         settings_result = {'opened': False, 'vertical916': False, 'singleOutput': False, 'settingsText': []}
@@ -229,6 +229,11 @@ def gateway():
                                     pass
                             settings_result['vertical916'] = any('9:16' in x['label'] and x['selected']=='true' for x in settings_result['settingsText'])
                             settings_result['singleOutput'] = any('x1' in x['label'].lower() and x['selected']=='true' for x in settings_result['settingsText'])
+                        settings_result['readyToGenerate'] = bool(settings_result['opened'] and settings_result['vertical916'] and settings_result['singleOutput'])
+                        # Do not submit: the uploaded images have not been verified
+                        # as attached references in the video composer.
+                        settings_result['referencesVerified'] = False
+                        settings_result['generationStarted'] = False
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
                     scan = """els => {
