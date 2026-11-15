@@ -1272,3 +1272,12 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Commit de código `ff603e18da3f38a6cace45f247db258cc55090b3` enviado à branch `feat/facebook-reels-publishing`. Workflow de preview configurado para disparar nessa branch; validar resultado da implantação e testes antes de declarar disponibilidade.
 - **Bloqueio ainda pendente:** conector Supabase não permite editar Secrets, e não há comprovação de qual das três contas é a autorizada. É necessária confirmação da conta e atualização segura de `META_ALLOWED_USER_ID` no painel Supabase. Não publicar teste nem integrar à main até essa validação.
 
+
+
+## 2026-11-14 — Hyperbrowser: perfil por usuário e controles iniciais
+
+- Supabase: migração `hyperbrowser_profiles_server_only` aplicada; tabela `public.hyperbrowser_profiles` com RLS e sem permissões diretas para `anon` ou `authenticated`. Armazena apenas associação entre usuário e ID do perfil.
+- Edge Function `hyperbrowser-profile` v2 publicada com JWT obrigatório, consulta do usuário via Auth, ações `status` e `create-profile`, CORS para o cliente Supabase e leitura da chave `HYPERBROWSER_API_KEY` exclusivamente no servidor.
+- Frontend: componente `HyperbrowserProfile.tsx` integrado em `AccountHub.tsx`, seção Lojas e redes, com verificação e criação de perfil usando a sessão Supabase do usuário.
+- Commits GitHub: `ab29be5` e `519fb70`. A publicação do frontend no Cloudflare, a execução autenticada, a criação real do perfil e a compatibilidade do SDK Hyperbrowser ainda NÃO foram comprovadas.
+- Pendências obrigatórias: testar autenticação da API Key, criar perfil real, sessão com `persistChanges: true`, espelhamento interativo, login Google e 2FA normais, Playwright para upload/prompt, geração autorizada, download MP4, importação Supabase e deploy Cloudflare. Não declarar geração Flow pronta.
