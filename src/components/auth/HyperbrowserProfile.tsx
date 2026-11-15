@@ -5,7 +5,7 @@ import { getSupabase } from "@/lib/supabase/client";
 
 type Result = { configured?:boolean; profileReady?:boolean; loginSaved?:boolean; sessionActive?:boolean; liveViewUrl?:string; error?:string };
 const errors:Record<string,string>={unauthorized:"Entre novamente no Meu Vendedor.",confirmed_account_required:"Confirme seu e-mail antes de conectar.",hyperbrowser_key_missing:"A conexão remota ainda não foi configurada.",hyperbrowser_unavailable:"Não foi possível abrir o navegador remoto. Tente novamente mais tarde.",no_active_session:"Abra o navegador antes de salvar o acesso.",live_view_unavailable:"O navegador abriu, mas não forneceu uma janela interativa."};
-function safeLive(url:string){try{const u=new URL(url);return u.protocol==="https:"&&u.hostname==="app.hyperbrowser.ai"&&u.pathname==="/live"&&u.searchParams.has("token");}catch{return false;}}
+function safeLive(url:string){try{const u=new URL(url);return u.protocol==="https:"&&u.searchParams.has("token")&&((u.hostname==="app.hyperbrowser.ai"&&u.pathname==="/live")||(/^dp-[a-z0-9-]+\.hxproxy\.io$/.test(u.hostname)&&/^\/browser\/[0-9a-f-]{36}\/live\/vnc\.html$/.test(u.pathname)&&u.searchParams.has("path")));}catch{return false;}}
 export function HyperbrowserProfile(){
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("");
