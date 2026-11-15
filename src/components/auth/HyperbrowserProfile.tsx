@@ -14,7 +14,7 @@ export function HyperbrowserProfile(){
  const [saved,setSaved]=useState(false);
  const [controls,setControls]=useState<Array<{role:string;label:string}>>([]);
  const [inspection,setInspection]=useState<Result|null>(null);
- async function act(action:"status"|"start-login"|"save-login"|"create-flow-project"|"inspect-flow-editor"|"stage-flow-prompt"){
+ async function act(action:"status"|"start-login"|"save-login"|"create-flow-project"|"inspect-flow-editor"|"stage-flow-prompt"|"prepare-flow-draft"){
   if(busy)return;
   setBusy(true);setMessage("");
   try{
@@ -22,12 +22,12 @@ export function HyperbrowserProfile(){
    if(!client)throw new Error("O serviço de autenticação está indisponível.");
    const {data:auth}=await client.auth.getSession();
    if(!auth.session)throw new Error("Entre no Meu Vendedor para continuar.");
-   const {data,error}=await client.functions.invoke<Result>("hyperbrowser-profile",{body:{action,...(action==="stage-flow-prompt"?{prompt:draftPrompt}:{})}});
+   const {data,error}=await client.functions.invoke<Result>("hyperbrowser-profile",{body:{action,...(action==="prepare-flow-draft"?{prompt:draftPrompt}:{})}});
    if(error||!data||data.error)throw new Error(errors[data?.error??""]??"A conexão não respondeu. Consulte os registros do Supabase.");
-   if(action==="create-flow-project"||action==="inspect-flow-editor"||action==="stage-flow-prompt"){
+   if(action==="create-flow-project"||action==="inspect-flow-editor"||action==="stage-flow-prompt"||action==="prepare-flow-draft"){
     setControls(Array.from(new Map((data.controls??[]).map(item=>[`${item.role}:${item.label}`,item])).values()));
     setInspection(data);
-    setMessage(action==="stage-flow-prompt"?(data.promptStaged?"Texto preenchido no editor, sem iniciar geração.":"Não foi possível confirmar o preenchimento do texto."):action==="inspect-flow-editor"?(data.editorControls?.length?"Interface mapeada: controles e campos de edição encontrados.":"Interface mapeada. Se os campos do editor não aparecerem, abra um projeto no Flow e tente novamente."):action==="create-flow-project"?(data.projectClicked?"Novo projeto aberto. Controles do editor identificados abaixo; nenhum vídeo foi gerado.":"Não foi possível confirmar a abertura do novo projeto."):(data.inspectionReady?(data.controls?.length?"Controles relevantes identificados sem iniciar geração.":"Inspeção concluída, mas nenhum controle relevante foi encontrado. Veja o diagnóstico abaixo."):"Não foi possível inspecionar a interface."));
+    setMessage(action==="prepare-flow-draft"?(data.promptStaged?"Projeto pronto e texto preenchido no Flow. Nenhuma geração iniciada.":"Não foi possível confirmar o preenchimento do texto."):action==="inspect-flow-editor"?(data.editorControls?.length?"Interface mapeada: controles e campos de edição encontrados.":"Interface mapeada. Se os campos do editor não aparecerem, abra um projeto no Flow e tente novamente."):action==="create-flow-project"?(data.projectClicked?"Novo projeto aberto. Controles do editor identificados abaixo; nenhum vídeo foi gerado.":"Não foi possível confirmar a abertura do novo projeto."):(data.inspectionReady?(data.controls?.length?"Controles relevantes identificados sem iniciar geração.":"Inspeção concluída, mas nenhum controle relevante foi encontrado. Veja o diagnóstico abaixo."):"Não foi possível inspecionar a interface."));
     return;
    }
    setSaved(Boolean(data.loginSaved));
@@ -46,11 +46,10 @@ export function HyperbrowserProfile(){
   <div className="flex flex-wrap gap-2">
    <button type="button" disabled={busy} onClick={()=>void act("start-login")} className="rounded-lg bg-primary px-3 py-2 text-sm text-background disabled:opacity-50">{busy?"Aguarde…":"Abrir Google Flow para login"}</button>
    <button type="button" disabled={busy||!view} onClick={()=>void act("save-login")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Salvar acesso e fechar</button>
-   <button type="button" disabled={busy||!view} onClick={()=>void act("create-flow-project")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Criar projeto de teste (sem gerar)</button>
    <button type="button" disabled={busy||!view} onClick={()=>void act("inspect-flow-editor")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Mapear interface do Google Flow (sem gerar)</button>
    <button type="button" disabled={busy} onClick={()=>void act("status")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Verificar conexão</button>
   </div>
-  <div className="space-y-2"><label htmlFor="flow-test-prompt" className="block text-sm font-medium">Texto de teste para o Flow (sem gerar)</label><textarea id="flow-test-prompt" value={draftPrompt} onChange={e=>setDraftPrompt(e.target.value)} maxLength={4000} rows={3} placeholder="Cole aqui o prompt do produto para preencher no editor" className="w-full rounded-lg border border-border bg-background p-2 text-sm" /><button type="button" disabled={busy||!view||!draftPrompt.trim()} onClick={()=>void act("stage-flow-prompt")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Preencher texto no Flow (sem gerar)</button><p className="text-xs text-muted">Apenas preenche o campo do editor. Não envia nem inicia a geração. Imagens ainda não são anexadas automaticamente.</p></div>
+  <div className="space-y-2"><label htmlFor="flow-test-prompt" className="block text-sm font-medium">Texto de teste para o Flow (sem gerar)</label><textarea id="flow-test-prompt" value={draftPrompt} onChange={e=>setDraftPrompt(e.target.value)} maxLength={4000} rows={3} placeholder="Cole aqui o prompt do produto para preencher no editor" className="w-full rounded-lg border border-border bg-background p-2 text-sm" /><button type="button" disabled={busy||!view||!draftPrompt.trim()} onClick={()=>void act("prepare-flow-draft")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Preparar projeto e preencher texto (sem gerar)</button><p className="text-xs text-muted">Abre um projeto somente se necessário e preenche o texto, sem iniciar geração. O anexo de imagens será integrado ao catálogo após validar o controle de upload.</p></div>
   {saved&&<p className="text-xs text-muted">Perfil salvo anteriormente. O Google ainda pode solicitar autenticação novamente.</p>}
   {message&&<p role="status" className="text-sm">{message}</p>}
   {inspection&&<p className="text-xs text-muted">Diagnóstico: página Flow {inspection.flowPage?"sim":"não"}; frames {inspection.inspectedFrames??0}/{inspection.frameCount??0}; controles visíveis {inspection.visibleCount??0}; falhas de leitura {inspection.scanErrors??0}; rótulos relevantes {controls.length}.</p>}
