@@ -1,3 +1,13 @@
+## 2026-11-15 — Remoção do botão redundante e suporte a múltiplas imagens no mesmo envio
+
+- Usuário reportou que o teste de anexo exibiu `Não foi possível confirmar o anexo da imagem` e diagnóstico `página Flow não; frames 0/0`. Esse diagnóstico não comprova ausência de página: era um retorno sem inspeção e/ou estado anterior; não afirmar upload bem-sucedido.
+- Usuário corrigiu requisito: **não criar botão de execução separado**; incluir somente seletor de imagens múltiplas na caixa do prompt e usar o mesmo botão `Preparar projeto e preencher texto (sem gerar)` para enviar texto e imagens.
+- Frontend: seletor `multiple` opcional PNG/JPG/WebP, até 3 imagens e 2,5 MB somados; único botão; limpeza do diagnóstico antigo antes da tentativa. Commits `e106550c`, `cf259702`.
+- Supabase: `prepare-flow-draft` aceita lista de imagens com validação de formato e limite de payload, encaminha ao Modal e retorna contagem; Edge Function `hyperbrowser-profile` v38 ACTIVE. Commit `09cb902d`.
+- Modal: modo `prepare-draft` recebe múltiplos arquivos e tenta anexá-los via Playwright no mesmo preparo do prompt, sem clicar em Gerar. Commit `25311180`.
+- Documentação sincronizada: `CONTINUAR_AMANHA.md` `b39601ad`, `CLOUDFLARE.md` `aa2e0300`, `README.md` `8d033293`.
+- **Pendente:** publicar Modal e frontend, testar no Flow e verificar visualmente se a prévia de todas as imagens aparece. Não interligar ao módulo `Gerar vídeo` até validação.
+
 ## 2026-11-15 — Sincronização da documentação após teste de prompt e preparação do anexo
 
 - **Último retorno do usuário:** preparação unificada do projeto e preenchimento de texto no Flow funcionaram: `Projeto pronto e texto preenchido no Flow. Nenhuma geração iniciada.` Diagnóstico: página Flow sim; frames 5/5; controles visíveis 33; falhas de leitura 0; rótulos relevantes 4.
