@@ -246,7 +246,8 @@ async def inspect_settings(page, trace):
 async def editor_state(page, trace, prompt_field=None, names=None):
     """Current actionable controls, not arbitrary DOM text or input values."""
     totals = dict(includeVisible=0, includeEnabled=0, submitVisible=0, submitEnabled=0,
-                  settingsCandidates=0, composerForms=0, composerFields=0, frameErrors=0)
+                  settingsCandidates=0, composerForms=0, composerFields=0, nearbyButtons=0, nearbyEnabled=0,
+                  iconOnlyButtons=0, arrowCandidates=0, arrowEnabled=0, frameErrors=0)
     for frame in page.frames[:8]:
         try:
             state = await asyncio.wait_for(frame.locator('body').evaluate(r"""body => {
@@ -258,7 +259,17 @@ async def editor_state(page, trace, prompt_field=None, names=None):
                 const submits=buttons.filter(e=>/^(enviar(?: comando)?|gerar(?: vídeo| video)?|send|submit|generate(?: video)?|arrow_forward)$/i.test(name(e)));
                 const settings=buttons.filter(e=>/^(configurações(?: do (agente|vídeo|video))?|(?:agent |video )?settings)$/i.test(name(e)));
                 const prompts=Array.from(body.querySelectorAll('[role="textbox"],[contenteditable="true"]')).filter(visible).filter(e=>/o que você quer criar|what do you want to create/i.test([e.getAttribute('aria-label'),e.getAttribute('data-placeholder'),e.getAttribute('placeholder')].join(' ')));
-                return {includeVisible:includes.length,includeEnabled:includes.filter(enabled).length,submitVisible:submits.length,submitEnabled:submits.filter(enabled).length,settingsCandidates:settings.length,composerFields:prompts.length,composerForms:new Set(prompts.map(e=>e.closest('form,[role="form"]')).filter(Boolean)).size};
+                // Icon-only send arrows have no accessible text; count nearby buttons
+                // separately, without treating proximity as proof or clicking them.
+                const nearby=buttons.filter(e=>prompts.some(p=>{
+                    const a=e.getBoundingClientRect(),b=p.getBoundingClientRect();
+                    return Math.abs(a.bottom-b.bottom)<180 && Math.abs(a.right-b.right)<280;
+                }));
+                const iconOnly=nearby.filter(e=>!name(e) && !!e.querySelector('svg,mat-icon,[class*="icon"]'));
+                const arrows=nearby.filter(e=>/send|arrow_forward|north|upward|generate|gerar|enviar/i.test(
+                    [name(e),e.getAttribute('data-testid'),e.querySelector('svg')?.getAttribute('data-testid'),
+                     e.querySelector('svg')?.getAttribute('class'),e.querySelector('mat-icon')?.textContent].join(' ')));
+                return {includeVisible:includes.length,includeEnabled:includes.filter(enabled).length,submitVisible:submits.length,submitEnabled:submits.filter(enabled).length,settingsCandidates:settings.length,composerFields:prompts.length,composerForms:new Set(prompts.map(e=>e.closest('form,[role="form"]')).filter(Boolean)).size,nearbyButtons:nearby.length,nearbyEnabled:nearby.filter(enabled).length,iconOnlyButtons:iconOnly.length,arrowCandidates:arrows.length,arrowEnabled:arrows.filter(enabled).length};
             }""", timeout=1200), timeout=1.4)
             for key, value in state.items():
                 if key in totals and type(value) is int:
