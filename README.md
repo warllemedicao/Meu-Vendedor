@@ -1,5 +1,8 @@
 # Meu Vendedor — Viral Commerce AI
 
+> **15/11/2026 — Ajuste do teste de imagens Flow:** um único botão prepara projeto e prompt, com até 3 imagens opcionais no mesmo formulário (2,5 MB no total); removido botão de upload separado. Supabase v38 ACTIVE; Modal/frontend aguardam publicação e teste real. Não integrado a Gerar vídeo. Ver [historico.md](./historico.md).
+
+
 > **15/11/2026 — Google Flow (teste isolado):** em Conta e conexões, o botão de preparação já foi validado pelo usuário: abre/reutiliza projeto e preenche prompt sem gerar. Foi implementado um seletor local PNG/JPG/WebP (máx. 2,5 MB) com botão **Preparar texto e anexar imagem (sem gerar)**, ainda aguardando publicação Modal/frontend e teste real de prévia no Flow. **Não integrado ao Gerar vídeo.** Detalhes no [histórico](./historico.md).
 
 
