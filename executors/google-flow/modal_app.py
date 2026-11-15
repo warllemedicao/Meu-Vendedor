@@ -89,7 +89,7 @@ def gateway():
                         await page.wait_for_timeout(2200)
                     prompt_staged = False
                     if stage_prompt:
-                        if not re.search(r'^https://flow\\.google\\.com/project/', page.url or ''):
+                        if not (page.url or '').startswith('https://flow.google.com/project/'):
                             raise RuntimeError('flow_project_not_active')
                         matches = []
                         for prompt_frame in page.frames[:8]:
