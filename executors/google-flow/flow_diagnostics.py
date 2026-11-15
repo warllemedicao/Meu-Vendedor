@@ -11,13 +11,15 @@ METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls
                      'frames', 'frameErrors', 'accepted', 'matches', 'elapsedMs',
                      'limitMs', 'includeVisible', 'includeEnabled', 'selected',
                      'vertical916', 'singleOutput', 'opened', 'flowPage', 'projectPage',
-                     'fileChooser', 'fileInput', 'libraryOpened', 'dialogVisible'))
+                     'fileChooser', 'fileInput', 'libraryOpened', 'dialogVisible',
+                     'disabled', 'trial', 'clickTimedOut'))
 REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found',
     'flow_upload_action_not_found', 'flow_file_chooser_unavailable',
     'flow_images_not_ready', 'image_rights_dialog_unresolved',
     'image_rights_confirmation_required', 'no_context', 'navigation_failed',
-    'references_not_implemented', 'inspection_only'))
+    'references_not_implemented', 'inspection_only', 'flow_settings_not_found',
+    'flow_settings_ambiguous', 'flow_settings_blocked', 'flow_settings_read_failed'))
 
 
 class FlowDiagnostics:
@@ -106,3 +108,62 @@ async def wait_for_images(page, image_files, trace, clock=time.monotonic, timeou
                     frames=frames_read, frameErrors=frame_errors,
                     elapsedMs=int((clock()-wait_started)*1000), limitMs=int(timeout*1000))
         raise RuntimeError('flow_images_not_ready')
+
+
+async def inspect_settings(page, trace):
+    """Best effort inspection. A drawer failure must not discard a completed upload."""
+    result = {'opened': False, 'vertical916': False, 'singleOutput': False,
+              'settingsText': [], 'readyToGenerate': False,
+              'referencesVerified': False, 'generationStarted': False, 'errorCode': None}
+    trace.event('settings', 'started')
+    phase, disabled, candidates, frames_read = 'find', False, [], 0
+    try:
+        async with asyncio.timeout(7):
+            # Match the settings action itself, not project menus containing the word.
+            name = re.compile(r'^\s*(?:configurações(?: do (?:agente|vídeo|video))?|(?:agent |video )?settings)\s*$', re.I)
+            for frame in page.frames[:8]:
+                controls = frame.get_by_role('button', name=name)
+                for index in range(min(await controls.count(), 8)):
+                    control = controls.nth(index)
+                    if await control.is_visible():
+                        if await control.is_enabled():
+                            candidates.append(control)
+                        else:
+                            disabled = True
+                frames_read += 1
+            trace.event('settings', 'waiting', matches=len(candidates), frames=frames_read, disabled=disabled)
+            if len(candidates) != 1:
+                result['errorCode'] = ('flow_settings_ambiguous' if len(candidates) > 1 else
+                                       'flow_settings_blocked' if disabled else 'flow_settings_not_found')
+            else:
+                phase = 'trial'
+                trace.event('settings', 'waiting', trial=True, matches=1)
+                # A blocked library overlay is evidence to report, not to force through.
+                await candidates[0].click(trial=True, timeout=1200)
+                phase = 'click'
+                trace.event('settings', 'waiting', trial=False, matches=1)
+                await candidates[0].click(timeout=1200)
+                result['opened'] = True
+                trace.event('settings', 'waiting', opened=True)
+                phase = 'read'
+                await page.wait_for_timeout(300)
+                read_errors = 0
+                for frame in page.frames[:8]:
+                    try:
+                        labels = await asyncio.wait_for(frame.locator('button, [role="radio"], [role="option"], [aria-checked], [aria-selected]').evaluate_all("""els => els.filter(e => { const r=e.getBoundingClientRect(); return r.width>0&&r.height>0; }).map(e=>({label:(e.getAttribute('aria-label')||e.innerText||'').trim().slice(0,65),selected:e.getAttribute('aria-checked')||e.getAttribute('aria-selected')||''})).filter(x=>/9:16|16:9|x1|x2|veo|modelo|model/i.test(x.label)).slice(0,25)"""), timeout=1.2)
+                        result['settingsText'].extend(labels)
+                    except Exception:
+                        read_errors += 1
+                result['vertical916'] = any('9:16' in x['label'] and x['selected'] == 'true' for x in result['settingsText'])
+                result['singleOutput'] = any('x1' in x['label'].lower() and x['selected'] == 'true' for x in result['settingsText'])
+                if not result['settingsText']:
+                    result['errorCode'] = 'flow_settings_read_failed'
+                trace.event('settings', 'error' if result['errorCode'] else 'ok', opened=True,
+                            vertical916=result['vertical916'], singleOutput=result['singleOutput'], frameErrors=read_errors)
+            if result['errorCode'] and phase == 'find':
+                trace.event('settings', 'error', matches=len(candidates), disabled=disabled)
+    except Exception as exc:
+        result['errorCode'] = 'flow_settings_blocked' if phase in ('trial', 'click') else 'flow_settings_read_failed'
+        trace.event('settings', 'error', opened=result['opened'], matches=len(candidates),
+                    trial=phase == 'trial', clickTimedOut=type(exc).__name__ == 'TimeoutError')
+    return result

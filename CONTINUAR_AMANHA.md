@@ -1,3 +1,9 @@
+## 2026-11-15 — Correção da inspeção após upload (em preparação)
+
+Relatório real confirmou duas imagens e três leituras estáveis; falha veio depois na inspeção de configurações (`navigation_failed`, 21862 ms). Modal anterior foi publicado com sucesso no run 43750633302; sua pendência antiga está superada.
+
+Preparado helper não fatal de configurações: botão único/habilitado, checagem sem clique antes da ação, timeout limitado e motivos específicos. Mapeamento de Incluir no comando ocorre antes dessa inspeção; nenhuma geração ou seleção de referências adicionada. Falha da inspeção não deve mais descartar upload concluído. 11 testes Python e 7 JS/TS passaram, junto de sintaxe, typechecks e lint afetado. Publicação desta nova correção ainda será registrada; não considerá-la disponível só por este texto.
+
 ## 2026-11-15 — Estado atual publicado: falta somente atualizar o executor Modal
 
 Código `96e6fae` enviado à main; CI [43749120648](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/43749120648) aprovado. Supabase `hyperbrowser-profile` **ACTIVE v49**, JWT mantido, arquivos remotos conferidos; teste sem usuário recusado com HTTP401 e novo `traceId`. Cloudflare Worker `meu-vendedor` versão **04688ae7-3e7c-4dd6-bbad-3361e84c4f59**, 100% do tráfego, publicado pelo Wrangler local após build real e dry-run. `/entrar` respondeu HTTP200 por curl; bundle com Copiar relatórios do Flow corresponde ao build local. Runtime/config, bindings, nomes de Secrets e crons preservados. Sem migrations ou geração de vídeo.

@@ -30,6 +30,49 @@ class Browser:
         self.index += 1
 
 
+class SettingsControl:
+    def __init__(self, label='Configurações do agente', enabled=True, blocked=False):
+        self.label, self.enabled, self.blocked, self.clicks = label, enabled, blocked, []
+
+    async def is_visible(self):
+        return True
+
+    async def is_enabled(self):
+        return self.enabled
+
+    async def click(self, trial=False, **kwargs):
+        self.clicks.append(trial)
+        if self.blocked:
+            raise TimeoutError('private-signed-url and private DOM text')
+
+
+class SettingsPage:
+    def __init__(self, controls, labels=None, read_error=False):
+        self.controls, self.frames, self.read_error = controls, [self], read_error
+        self.labels = labels if labels is not None else [{'label':'9:16','selected':'true'}, {'label':'x1','selected':'true'}]
+
+    def get_by_role(self, role, name):
+        self.matches = [control for control in self.controls if name.search(control.label)]
+        return self
+
+    async def count(self):
+        return len(self.matches)
+
+    def nth(self, index):
+        return self.matches[index]
+
+    def locator(self, selector):
+        return self
+
+    async def evaluate_all(self, script):
+        if self.read_error:
+            raise RuntimeError('private-read-error')
+        return self.labels
+
+    async def wait_for_timeout(self, milliseconds):
+        pass
+
+
 class FlowDiagnosticTests(unittest.IsolatedAsyncioTestCase):
     def trace(self, browser):
         self.logs = []
@@ -90,6 +133,57 @@ class FlowDiagnosticTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(re.search(agree, 'Não concordo'))
         for label in ('Fazer upload', 'Fazer upload...', 'Fazer upload…'):
             self.assertTrue(re.search(upload, label))
+
+    async def test_settings_overlay_failure_preserves_prior_upload_and_reports_block(self):
+        trace = self.trace(Browser([]))
+        trace.event('images_wait', visible=2, stable=3)
+        button = SettingsControl(blocked=True)
+        result = await module.inspect_settings(SettingsPage([button]), trace)
+        self.assertEqual(result['errorCode'], 'flow_settings_blocked')
+        self.assertEqual(button.clicks, [True])  # Trial only; no forced real click.
+        self.assertFalse(result['generationStarted'])
+        self.assertEqual(trace.events[0]['metrics']['visible'], 2)
+        self.assertTrue(trace.events[-1]['metrics']['clickTimedOut'])
+        self.assertNotIn('private-', json.dumps(trace.report(result['errorCode'])))
+
+    async def test_settings_ambiguous_does_not_click_arbitrary_button(self):
+        trace = self.trace(Browser([]))
+        buttons = [SettingsControl(), SettingsControl()]
+        result = await module.inspect_settings(SettingsPage(buttons), trace)
+        self.assertEqual(result['errorCode'], 'flow_settings_ambiguous')
+        self.assertEqual([b.clicks for b in buttons], [[], []])
+
+    async def test_settings_disabled_is_reported_without_clicking(self):
+        trace = self.trace(Browser([]))
+        button = SettingsControl(enabled=False)
+        result = await module.inspect_settings(SettingsPage([button]), trace)
+        self.assertEqual(result['errorCode'], 'flow_settings_blocked')
+        self.assertTrue(trace.events[-1]['metrics']['disabled'])
+        self.assertEqual(button.clicks, [])
+
+    async def test_settings_exact_name_avoids_unrelated_project_configuration(self):
+        trace = self.trace(Browser([]))
+        unrelated = SettingsControl('Mais configurações do projeto')
+        result = await module.inspect_settings(SettingsPage([unrelated]), trace)
+        self.assertEqual(result['errorCode'], 'flow_settings_not_found')
+        self.assertEqual(unrelated.clicks, [])
+
+    async def test_settings_valid_button_is_trialed_then_read_without_enabling_generation(self):
+        trace = self.trace(Browser([]))
+        button = SettingsControl()
+        result = await module.inspect_settings(SettingsPage([button]), trace)
+        self.assertIsNone(result['errorCode'])
+        self.assertEqual(button.clicks, [True, False])
+        self.assertTrue(result['vertical916'])
+        self.assertTrue(result['singleOutput'])
+        self.assertFalse(result['readyToGenerate'])
+
+    async def test_settings_read_failure_is_nonfatal_after_opening_panel(self):
+        trace = self.trace(Browser([]))
+        result = await module.inspect_settings(SettingsPage([SettingsControl()], read_error=True), trace)
+        self.assertTrue(result['opened'])
+        self.assertEqual(result['errorCode'], 'flow_settings_read_failed')
+        self.assertNotIn('private-read-error', json.dumps(trace.report(result['errorCode'])))
 
 
 if __name__ == '__main__':

@@ -65,3 +65,13 @@ test('mapeamento separado não pode ser interpretado como nova tentativa de uplo
  const missing=missingFlowDiagnostic(traceId,'prepare-draft','client_response_unavailable',1234);
  assert.match(formatFlowDiagnostic(missing,''),/Nenhuma etapa remota recebida/);
 });
+
+test('falha não fatal de configurações preserva confirmação de upload e motivo específico',async()=>{
+ const result=await requestFlowExecutor(options,async()=>Response.json({inspectionReady:true,promptStaged:true,imageAttached:true,imageCount:2,diagnostics:report({stopReason:'flow_settings_blocked',events:[{stage:'images_wait',status:'ok',atMs:17755,metrics:{visible:2,stable:3}},{stage:'settings',status:'error',atMs:19000,metrics:{matches:1,trial:true,clickTimedOut:true}}]})}));
+ assert.equal(result.error,undefined);
+ assert.equal(result.imageCount,2);
+ assert.equal(result.diagnostics.stopReason,'flow_settings_blocked');
+ const text=formatFlowDiagnostic(result.diagnostics,'2026-11-15T19:11:38.360Z');
+ assert.match(text,/tempo esgotado para acessar configurações=sim/);
+ assert.match(text,/preparo anterior foi preservado/);
+});

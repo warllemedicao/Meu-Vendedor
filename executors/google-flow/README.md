@@ -1,3 +1,9 @@
+## Correção da inspeção após upload — preparada em 15/11/2026
+
+Relatório real da revisão `ff587ad3a70f` confirmou duas imagens após três leituras estáveis e falhou em seguida nas configurações. A revisão anterior foi publicada no Modal (run 43750633302), superando a pendência histórica abaixo. A nova correção ainda depende de publicação confirmada.
+
+`inspect_settings` em `flow_diagnostics.py` diferencia botão ausente, ambíguo, bloqueado e falha de leitura. Exige exatamente um botão visível/habilitado e usa `click(trial=True)` antes do clique normal; não força ação nem fecha overlays por suposição. Orçamento total de 7 s, 1,2 s por ação. Retorna erro estruturado não fatal: o preparo/upload permanece no resultado e a inspeção de referências já ocorre antes de tentar abrir configurações. Não seleciona referências, não salva parâmetros nem clica em Gerar. Códigos e métricas devem ser publicados também no helper compartilhado da Edge Function e no frontend para aparecerem no relatório.
+
 ## Diagnóstico por tentativa — frontend/Supabase publicados; Modal pendente (15/11/2026)
 
 O fluxo atual usa sessão Hyperbrowser e a rota Modal `/hyperbrowser-navigate` para preparar o projeto. A documentação do controlador legado `/control` abaixo permanece como referência histórica; não comprova a versão atual publicada.

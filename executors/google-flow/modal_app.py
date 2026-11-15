@@ -28,7 +28,7 @@ def gateway():
     from fastapi import FastAPI, Request, HTTPException
     # add_local_dir places helpers here in the Modal image.
     sys.path.insert(0, '/opt/flow')
-    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images
+    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images, inspect_settings
     executor_revision = hashlib.sha256(
         Path('/opt/flow/modal_app.py').read_bytes() + Path('/opt/flow/flow_diagnostics.py').read_bytes()
     ).hexdigest()[:12]
@@ -238,38 +238,6 @@ def gateway():
                         await wait_for_images(page, image_files, trace)
                     if not stage_image:
                         trace.event("upload", "skipped", expected=0)
-                    settings_result = None
-                    if payload.get('mode') in ('inspect-settings', 'prepare-draft'):
-                        trace.event("settings", "started")
-                        # Read the settings drawer without clicking Generate or Save.
-                        # The settings icon is adjacent to the send arrow in Flow.
-                        settings_result = {'opened': False, 'vertical916': False, 'singleOutput': False, 'settingsText': []}
-                        for settings_frame in page.frames[:8]:
-                            controls = settings_frame.get_by_role('button', name=re.compile(r'configurações|settings', re.I))
-                            for idx in range(min(await controls.count(), 8)):
-                                control = controls.nth(idx)
-                                if await control.is_visible():
-                                    await control.click(timeout=4000)
-                                    settings_result['opened'] = True
-                                    break
-                            if settings_result['opened']:
-                                break
-                        if settings_result['opened']:
-                            await page.wait_for_timeout(600)
-                            for settings_frame in page.frames[:8]:
-                                try:
-                                    labels = await settings_frame.locator('button, [role="radio"], [role="option"], [aria-checked], [aria-selected]').evaluate_all("""els => els.filter(e => { const r=e.getBoundingClientRect(); return r.width>0&&r.height>0; }).map(e=>({label:(e.getAttribute('aria-label')||e.innerText||'').trim().slice(0,65),selected:e.getAttribute('aria-checked')||e.getAttribute('aria-selected')||''})).filter(x=>/9:16|16:9|x1|x2|veo|modelo|model|salvar|save/i.test(x.label)).slice(0,25)""")
-                                    settings_result['settingsText'].extend(labels)
-                                except Exception:
-                                    pass
-                            settings_result['vertical916'] = any('9:16' in x['label'] and x['selected']=='true' for x in settings_result['settingsText'])
-                            settings_result['singleOutput'] = any('x1' in x['label'].lower() and x['selected']=='true' for x in settings_result['settingsText'])
-                        trace.event("settings", opened=settings_result['opened'], vertical916=settings_result['vertical916'], singleOutput=settings_result['singleOutput'])
-                        settings_result['readyToGenerate'] = False
-                        # Do not submit: the uploaded images have not been verified
-                        # as attached references in the video composer.
-                        settings_result['referencesVerified'] = False
-                        settings_result['generationStarted'] = False
                     trace.event("references", "started")
                     include_visible = include_enabled = selected_count = reference_errors = 0
                     for reference_frame in page.frames[:8]:
@@ -287,6 +255,9 @@ def gateway():
                         except Exception:
                             reference_errors += 1
                     trace.event("references", "blocked" if stage_prompt else "skipped", includeVisible=include_visible, includeEnabled=include_enabled, selected=selected_count, frameErrors=reference_errors)
+                    settings_result = None
+                    if payload.get('mode') in ('inspect-settings', 'prepare-draft'):
+                        settings_result = await inspect_settings(page, trace)
                     trace.event("inspection", "started")
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
@@ -358,7 +329,8 @@ def gateway():
                             scan_errors += 1
                             continue
                     trace.event("inspection", frames=inspected_frames, frameErrors=scan_errors)
-                    reason = 'references_not_implemented' if stage_prompt else 'inspection_only'
+                    reason = ((settings_result or {}).get('errorCode') or
+                              ('references_not_implemented' if stage_prompt else 'inspection_only'))
                     trace.event("finished")
                     return {
                         'diagnostics': trace.report(reason),
