@@ -1,3 +1,10 @@
+## 2026-11-15 — Inspeção Flow: somente um controle encontrado; diagnóstico e correção
+
+- **Teste real informado pelo usuário:** a função de inspeção identificou apenas o controle de conta Google; não encontrou “+ Novo projeto”, embora o botão estivesse visível na captura anterior.
+- **Diagnóstico:** a primeira implementação navegava novamente para a página inicial durante a inspeção e selecionava somente a primeira aba do navegador; varria apenas botões com texto, sem examinar frames. Isso podia capturar a interface antes de sua renderização e ignorar controles relevantes.
+- **Correção commitada:** inspeção agora escolhe uma aba Flow já aberta, não a recarrega, aguarda brevemente a interface e examina até oito frames, incluindo botões, links e elementos com tabindex. Filtra rótulos relevantes e impede retorno de texto de conta/e-mail; retorna contagens agregadas para diagnóstico. Commits `46f7e723` e `6ac33ce2`.
+- **Pendente:** publicar novamente o executor Modal via workflow `deploy-hyperbrowser-modal.yml` e repetir o botão “Identificar controles (sem gerar)”. Supabase e frontend não exigem nova publicação para essa correção. Não houve geração nem consumo de créditos de vídeo neste teste.
+
 ## 2026-11-15 — Primeira etapa do robô Flow: inspeção de interface sem consumir créditos
 
 - Implementada no executor Modal a opção `mode=inspect` na rota autenticada `/hyperbrowser-navigate`: conecta via CDP à sessão existente, abre Flow e coleta até 30 rótulos de botões visíveis; **não clica, não envia imagens e não inicia geração**. Commit `d8e45ea9`.
