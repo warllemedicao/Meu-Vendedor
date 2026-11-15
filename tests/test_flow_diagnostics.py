@@ -238,6 +238,10 @@ class FlowDiagnosticTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("expected = len(image_files)", source)
         self.assertIn("expectedIncludeCount=expected", source)
         self.assertIn("int(quantity.group(1)) != expected", source)
+        # Regression: a raw regex must use single backslashes for word
+        # boundaries and digit classes, not literal backslashes.
+        self.assertIn("r'\\\\b(\\\\d+)\\\\s+", source)
+        self.assertNotIn("r'\\\\\\\\b(\\\\\\\\d+)\\\\\\\\s+", source)
         self.assertIn("includeLabels=seen[:8]", source)
         self.assertIn("await includes[0].click(timeout=3500)", source)
 
