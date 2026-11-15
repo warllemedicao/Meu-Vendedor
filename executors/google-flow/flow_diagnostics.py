@@ -360,14 +360,23 @@ async def include_references(page, image_files, prompt_field, trace):
                 shape = await library.evaluate(r"""(root,args) => {
                     const [name,marker]=args;
                     root.querySelectorAll('['+marker+']').forEach(el=>el.removeAttribute(marker));
-                    const leaves=Array.from(root.querySelectorAll('*')).filter(el=>
-                        el.children.length===0 && [el.textContent?.trim(),
-                        el.getAttribute('alt'),el.getAttribute('title')].includes(name));
-                    const targets=[...new Set(leaves.map(el=>
-                        el.closest('[role="option"]') || el.closest('button,[role="button"]'))
-                        .filter(Boolean))];
+                    // Flow sometimes truncates filenames in the rendered
+                    // library while retaining their unique product prefix.
+                    const values=el=>[el.textContent?.trim(),el.getAttribute('alt'),
+                        el.getAttribute('title'),el.getAttribute('aria-label')]
+                        .filter(Boolean);
+                    const prefix=name.replace(/\\.[^.]+$/,'').slice(0,18);
+                    const options=Array.from(root.querySelectorAll('[role="option"]'));
+                    const matching=options.filter(option=>{
+                        const all=[option,...option.querySelectorAll('*')];
+                        return all.some(el=>values(el).some(value=>
+                            value===name || value.includes(name) ||
+                            (prefix.length>=12 && value.includes(prefix))));
+                    });
+                    const targets=[...new Set(matching)];
                     if(targets.length===1)targets[0].setAttribute(marker,'yes');
-                    return {matches:leaves.length,targets:targets.length};
+                    return {matches:matching.length,targets:targets.length,
+                        libraryOptions:options.length, prefixLength:prefix.length};
                 }""", [item['name'],marker], timeout=1800)
                 trace.event('references', 'waiting', assetIndex=asset_index, **shape)
                 if shape['targets'] != 1:
