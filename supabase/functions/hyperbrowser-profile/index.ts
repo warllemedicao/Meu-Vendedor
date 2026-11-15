@@ -60,7 +60,7 @@ Deno.serve(async(req:Request)=>{
   const session=await client.sessions.create({profile:{id:row.profile_id,persistChanges:true}});
   stage="validate_live_url";
   const live=validLive(session?.liveUrl);
-  if(!live)console.error("hyperbrowser_session_missing_live_url",{stage,hasSessionId:Boolean(session?.id),hasLiveUrl:Boolean(session?.liveUrl),liveUrlType:typeof session?.liveUrl});
+  if(!live){let shape:Record<string,unknown>={};try{const u=new URL(String(session?.liveUrl??""));shape={protocol:u.protocol,hostname:u.hostname,pathname:u.pathname,queryKeys:[...u.searchParams.keys()].sort()};}catch{shape={parseable:false};}console.error("hyperbrowser_session_missing_live_url",{stage,hasSessionId:Boolean(session?.id),hasLiveUrl:Boolean(session?.liveUrl),liveUrlType:typeof session?.liveUrl,shape});}
   if(!session?.id||!live){if(session?.id)await client.sessions.stop(session.id).catch(()=>{});return respond({error:"live_view_unavailable"},502);}
   stage="persist_session";
   try{await update({session_id:session.id,session_started_at:new Date().toISOString()});}
