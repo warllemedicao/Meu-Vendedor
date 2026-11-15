@@ -1,3 +1,10 @@
+## 2026-11-15 — Ponte Supabase → executor Node.js Hyperbrowser
+
+- Criado `scripts/hyperbrowser-executor-server.mjs`, serviço HTTP Node.js com autenticação Bearer e Playwright CDP para navegar a sessão remota até Google Flow. Endpoint `POST /navigate`, saúde `GET /health`. Nunca registrar o endpoint WebSocket nem credenciais.
+- `supabase/functions/hyperbrowser-profile/index.ts` passou a chamar opcionalmente o executor HTTPS, usando secrets `MV_HYPERBROWSER_EXECUTOR_URL` e `MV_HYPERBROWSER_EXECUTOR_SECRET`. Publicado no Supabase como versão 9.
+- **Pendente para funcionar:** hospedar o serviço Node.js em provedor com WebSocket de saída; configurar secret de no mínimo 32 caracteres idêntico nos dois lados e URL HTTPS completa do `/navigate` no Supabase; instalar `playwright-core`; validar comunicação real. Enquanto não configurado, navegação automática retorna `false` sem impedir abertura manual. Não declarar integração pronta.
+- A automação de upload de imagem, preenchimento de prompt e geração de vídeo ainda não foi desenvolvida nem validada.
+
 ## 2026-11-15 — Executor Node.js para Hyperbrowser (implementação inicial)
 
 - Diagnóstico real em Supabase: `hyperbrowser_flow_navigation_diagnostic`, etapa `connect_cdp`, código `ERR_NOT_IMPLEMENTED`. Playwright CDP não conecta nesse runtime.
