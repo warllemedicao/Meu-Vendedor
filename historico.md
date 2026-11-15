@@ -1,3 +1,11 @@
+## 2026-11-15 — Causa identificada para inspeção com 0/2 frames
+
+- **Resultado real informado pelo usuário:** `página Flow sim; frames 0/2; controles visíveis 0; falhas de leitura 2; rótulos relevantes 0`.
+- **Causa encontrada no código:** a chamada Python Playwright `Locator.evaluate_all(scan, timeout=8000)` utiliza o argumento `timeout`, que não é aceito pela assinatura de `evaluate_all`. A exceção era capturada silenciosamente em cada frame, causando `scanErrors=2` e `inspectedFrames=0`.
+- **Correção:** removido o argumento inválido, mantendo `evaluate_all(scan)`. Commit `f802ba26`.
+- **Publicação pendente:** executar somente o workflow `deploy-hyperbrowser-modal.yml` (sem marcar `rotate_cloudflare_secret`). Não há alteração de frontend ou Supabase nesta correção. Repetir a inspeção e verificar se `inspectedFrames` fica acima de zero e `scanErrors` diminui.
+- **Validação:** causa confirmada por inspeção do código, mas resultado em execução ainda depende do deploy e do teste real. Nenhuma geração de vídeo foi iniciada.
+
 ## 2026-11-15 — Causa da interface desatualizada: atualização de segredo sobrescreveu versão ativa do Worker
 
 - Usuário repetiu teste e recebeu texto antigo `Controles visíveis identificados sem iniciar geração.`, sem o diagnóstico numérico presente no código da `main`.
