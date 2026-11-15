@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 
-type Result = { configured?:boolean; profileReady?:boolean; loginSaved?:boolean; sessionActive?:boolean; navigationReady?:boolean; liveViewUrl?:string; error?:string; inspectionReady?:boolean; controls?:Array<{role:string;label:string}> };
+type Result = { configured?:boolean; profileReady?:boolean; loginSaved?:boolean; sessionActive?:boolean; navigationReady?:boolean; liveViewUrl?:string; error?:string; inspectionReady?:boolean; controls?:Array<{role:string;label:string}>; visibleCount?:number; frameCount?:number; inspectedFrames?:number; scanErrors?:number; flowPage?:boolean };
 const errors:Record<string,string>={unauthorized:"Entre novamente no Meu Vendedor.",confirmed_account_required:"Confirme seu e-mail antes de conectar.",hyperbrowser_key_missing:"A conexão remota ainda não foi configurada.",hyperbrowser_unavailable:"Não foi possível abrir o navegador remoto. Tente novamente mais tarde.",no_active_session:"Abra o navegador antes de salvar o acesso.",live_view_unavailable:"O navegador abriu, mas não forneceu uma janela interativa.",flow_navigation_unavailable:"O Hyperbrowser não confirmou a conexão com o navegador. A sessão foi preservada; tente novamente mais tarde.",flow_inspection_unavailable:"Não foi possível identificar os controles do Google Flow. Tente reabrir a sessão."};
 function safeLive(url:string){try{const u=new URL(url);return u.protocol==="https:"&&u.searchParams.has("token")&&((u.hostname==="app.hyperbrowser.ai"&&u.pathname==="/live")||(/^dp-[a-z0-9-]+\.hxproxy\.io$/.test(u.hostname)&&/^\/browser\/[0-9a-f-]{36}\/live\/vnc\.html$/.test(u.pathname)&&u.searchParams.has("path")));}catch{return false;}}
 export function HyperbrowserProfile(){
@@ -12,6 +12,7 @@ export function HyperbrowserProfile(){
  const [view,setView]=useState("");
  const [saved,setSaved]=useState(false);
  const [controls,setControls]=useState<Array<{role:string;label:string}>>([]);
+ const [inspection,setInspection]=useState<Result|null>(null);
  async function act(action:"status"|"start-login"|"save-login"|"inspect-controls"){
   if(busy)return;
   setBusy(true);setMessage("");
@@ -24,7 +25,8 @@ export function HyperbrowserProfile(){
    if(error||!data||data.error)throw new Error(errors[data?.error??""]??"A conexão não respondeu. Consulte os registros do Supabase.");
    if(action==="inspect-controls"){
     setControls(data.controls??[]);
-    setMessage(data.inspectionReady?"Controles visíveis identificados sem iniciar geração.":"Não foi possível inspecionar a interface.");
+    setInspection(data);
+    setMessage(data.inspectionReady?(data.controls?.length?"Controles relevantes identificados sem iniciar geração.":"Inspeção concluída, mas nenhum controle relevante foi encontrado. Veja o diagnóstico abaixo."):"Não foi possível inspecionar a interface.");
     return;
    }
    setSaved(Boolean(data.loginSaved));
@@ -48,6 +50,7 @@ export function HyperbrowserProfile(){
   </div>
   {saved&&<p className="text-xs text-muted">Perfil salvo anteriormente. O Google ainda pode solicitar autenticação novamente.</p>}
   {message&&<p role="status" className="text-sm">{message}</p>}
+  {inspection&&<p className="text-xs text-muted">Diagnóstico: página Flow {inspection.flowPage?"sim":"não"}; frames {inspection.inspectedFrames??0}/{inspection.frameCount??0}; controles visíveis {inspection.visibleCount??0}; falhas de leitura {inspection.scanErrors??0}; rótulos relevantes {controls.length}.</p>}
   {controls.length>0&&<div className="rounded-lg border border-border p-3"><p className="text-sm font-semibold">Controles encontrados ({controls.length})</p><ul className="mt-2 list-disc pl-5 text-xs">{controls.map((item,i)=><li key={i}>{item.label}</li>)}</ul></div>}
   {view&&<div className="space-y-2">
    <iframe title="Navegador privado para login Google Flow" src={view} referrerPolicy="no-referrer" className="h-[520px] w-full rounded-lg border border-border bg-background" />
