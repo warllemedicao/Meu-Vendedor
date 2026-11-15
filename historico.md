@@ -1,3 +1,11 @@
+## 2026-11-15 — Causa da interface desatualizada: atualização de segredo sobrescreveu versão ativa do Worker
+
+- Usuário repetiu teste e recebeu texto antigo `Controles visíveis identificados sem iniciar geração.`, sem o diagnóstico numérico presente no código da `main`.
+- Inspeção da API Cloudflare, Worker `meu-vendedor`: publicação de frontend em **2026-11-15T13:56:12Z** (versão `0612768c-15c4-40b6-a7d1-03637a5fe368`), seguida por atualizações de segredo em **14:00:28Z** e **14:06:13Z**. A versão ativa de 100% do tráfego é `7f9fca86-01ba-4605-aefa-9e159af23ab9`, disparada por `secret`, e não a versão do último deploy do frontend.
+- Causa operacional identificada: workflow `deploy-hyperbrowser-modal.yml` executava `wrangler secret put MV_FLOW_EXECUTOR_SECRET` em toda publicação Modal, criando nova versão do Worker e interferindo na versão de assets ativa.
+- Correção no workflow (commit `05c67674`): sincronização do segredo Cloudflare somente se a nova opção `rotate_cloudflare_secret` for marcada explicitamente; padrão **false**. Manter desmarcada em publicações normais do Modal.
+- **Pendente:** publicar frontend pelo workflow `frontend-production.yml` após a última sincronização de segredo e verificar no navegador a linha `Diagnóstico: página Flow...`. Não foi executado novo deploy Cloudflare nesta etapa. Evitar repetir deploy Modal após o frontend salvo se necessário.
+
 ## 2026-11-15 — Teste real da inspeção: lista vazia apesar do botão Novo projeto visível
 
 - Usuário mostrou Flow autenticado com botão **“+ Novo projeto”** visível no navegador remoto, mas a interface do Meu Vendedor exibiu apenas “Controles visíveis identificados sem iniciar geração”, sem lista. Logo, a operação HTTP concluiu, porém **não reconheceu controles relevantes**.
