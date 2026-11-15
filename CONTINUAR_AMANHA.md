@@ -1,3 +1,11 @@
+## 2026-11-15 — Estado mais recente: atualizar Modal para ce9a1e15ac9f
+
+Correção **66bd19b** enviada à main, CI 43751835454 aprovado. Supabase **hyperbrowser-profile v51 ACTIVE**, JWT mantido e código remoto conferido. Cloudflare Worker `meu-vendedor` versão **d964b926-292d-4524-964b-051e3faaba01**, 100% do tráfego; HTTP200 e hash do bundle de diagnósticos conferidos. Build, typechecks, lint afetado, 11 testes Python e 7 JS/TS aprovados.
+
+**Falta publicar o Modal novo:** o workflow foi novamente negado à integração GitHub com HTTP403. Responsável deve executar [workflow Modal](https://github.com/warllemedicao/Meu-Vendedor/actions/workflows/deploy-hyperbrowser-modal.yml), main, `rotate_cloudflare_secret=false`, aprovando production se solicitado. No teste seguinte, conferir **Executor: ce9a1e15ac9f**. O relatório anterior com executor ff587ad3a70f comprovou carregamento de duas imagens e erro posterior nas configurações; essa revisão antiga já foi publicada, mas não contém a correção atual.
+
+A correção torna a inspeção de configurações não fatal, testa acionabilidade antes do clique e devolve códigos específicos, preservando upload e mapeamento. Observação de Incluir no comando ocorre antes. Ainda não seleciona imagens como referências nem gera vídeo. Nenhum teste real da nova revisão foi comprovado. Checkout original/lockfile preservados; detalhes em historico.md.
+
 ## 2026-11-15 — Correção da inspeção após upload (em preparação)
 
 Relatório real confirmou duas imagens e três leituras estáveis; falha veio depois na inspeção de configurações (`navigation_failed`, 21862 ms). Modal anterior foi publicado com sucesso no run 43750633302; sua pendência antiga está superada.

@@ -1,3 +1,7 @@
+## Publicação da correção de configurações — 15/11/2026
+
+Código **66bd19b**, CI aprovado. Supabase `hyperbrowser-profile` ACTIVE **v51** e Cloudflare **d964b926-292d-4524-964b-051e3faaba01** publicados, com código/bundle conferidos. **Modal novo pendente** por HTTP403 no disparo do workflow via integração GitHub. Responsável com permissão deve executar workflow Modal na main sem rotação de segredo Cloudflare, respeitando production. Revisão esperada do executor: **ce9a1e15ac9f**. Até essa revisão aparecer no relatório, a correção não está ativa no robô. Não houve teste real autenticado da nova revisão. 11 testes Python e 7 JS/TS, typechecks, lint e build aprovados localmente.
+
 ## Correção da inspeção após upload — preparada em 15/11/2026
 
 Relatório real da revisão `ff587ad3a70f` confirmou duas imagens após três leituras estáveis e falhou em seguida nas configurações. A revisão anterior foi publicada no Modal (run 43750633302), superando a pendência histórica abaixo. A nova correção ainda depende de publicação confirmada.
