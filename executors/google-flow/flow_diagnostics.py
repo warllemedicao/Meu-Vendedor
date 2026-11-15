@@ -255,7 +255,7 @@ async def click_generate_arrow(page, trace):
             evidence=await buttons.evaluate_all(r"""els=>{
                 const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
                 const label=e=>[e.getAttribute('aria-label'),e.getAttribute('title'),e.textContent].filter(Boolean).join(' ').trim();
-                const gears=els.filter(e=>visible(e)&&/^(configurações|settings)$/i.test(label(e)));
+                const gears=els.filter(e=>visible(e)&&/^(configurações(?: do (?:agente|vídeo|video))?|(?:agent |video )?settings)$/i.test(label(e)));
                 if(gears.length!==1)return {gears:gears.length,indices:[]};
                 const g=gears[0].getBoundingClientRect();
                 const indices=els.map((e,i)=>({e,i})).filter(({e})=>{
