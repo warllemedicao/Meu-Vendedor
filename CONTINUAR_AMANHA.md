@@ -1,3 +1,11 @@
+## 2026-11-15 — Inspeção segura das configurações do Google Flow
+
+- Usuário mostrou painel `Configurações do agente` ao lado da seta de envio e solicitou verificar os parâmetros antes da geração. Na captura, proporção vertical `9:16` e quantidade `x1`; nome exato do modelo e demais estados precisam ser lidos no Flow ao vivo.
+- Adicionada ação de **inspeção sem gerar**: Modal `inspect-settings` abre o painel quando identifica botão de configurações e retorna rótulos/estados de seleção de 9:16, x1 e modelo. A leitura não clica em Salvar ou Gerar. Commit `0ed01d06`.
+- Supabase Edge Function `hyperbrowser-profile` ação `inspect-flow-settings`, versão **v45 ACTIVE**, commit `1dbb8210`.
+- Frontend `Conta e conexões`: botão `Verificar configurações do Flow (sem gerar)` e apresentação dos valores identificados; commit `ea08cfe4`.
+- **Pendente:** publicar Modal e frontend, executar inspeção real e mapear os seletores para aplicar alterações e salvar. Ainda não há ajuste automático de parâmetros nem acionamento da seta Gerar. Não integrar com `Gerar vídeo` até confirmação de referências, configurações e autorização explícita para consumo de créditos.
+
 ## 2026-11-15 — Identificação visual do botão de upload no Flow
 
 - Usuário enviou duas capturas do editor: na Biblioteca do Google Flow, o controle **`Fazer upload...`** fica no canto inferior esquerdo da janela, abaixo dos filtros de recursos. O texto e duas imagens foram selecionados no Meu Vendedor, mas o upload não foi confirmado; erro anterior `A conexão não respondeu`.
