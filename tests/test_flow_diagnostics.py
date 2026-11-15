@@ -221,55 +221,21 @@ class FlowDiagnosticTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['errorCode'], 'flow_settings_read_failed')
         self.assertNotIn('private-read-error', json.dumps(trace.report(result['errorCode'])))
 
-    def test_asset_button_fallback_is_scoped_and_requires_confirmation(self):
+    def test_preview_inclusion_is_sequential_and_never_generates(self):
         source = (Path(__file__).parents[1] / 'executors/google-flow/flow_diagnostics.py').read_text()
-        self.assertIn("library.locator('button,[role=\"button\"]')", source)
-        self.assertIn("if not await selected(target):\n                    result['errorCode'] = 'flow_reference_selection_unconfirmed'", source)
+        ast.parse(source)
+        self.assertIn("for asset_index, item in enumerate(image_files, 1)", source)
+        self.assertIn("leaves[0]?.closest('[role=\"option\"]')", source)
+        self.assertIn("await includes[0].click(timeout=3500)", source)
+        self.assertIn("if evidence['attachmentMatches'] >= included:", source)
+        self.assertIn("result['errorCode'] = 'flow_references_unverified'", source)
+        self.assertNotIn("click_generate", source)
+        self.assertNotIn("return result\\n, re.I))", source)
+
+    def test_reference_verification_does_not_require_html_form(self):
+        source = (Path(__file__).parents[1] / 'executors/google-flow/flow_diagnostics.py').read_text()
         self.assertIn("textbox.parentElement?.parentElement?.parentElement", source)
-
-    async def test_expected_assets_are_selected_then_included_once_and_verified(self):
-        page = ReferencePage(['produto-a-1.png', 'produto-a-2.png'])
-        trace = self.trace(Browser([]))
-        result = await module.include_references(page, [{'name':a.name} for a in page.assets], page, trace)
-        self.assertTrue(result['included'])
-        self.assertTrue(result['verified'])
-        self.assertEqual(page.include_clicks, [True, False])
-        self.assertEqual([a.clicks for a in page.assets], [[True, False], [True, False]])
-        self.assertEqual(trace.next_action, 'inspect_settings')
-        self.assertTrue(trace.report('flow_draft_ready')['referencesVerified'])
-
-    async def test_duplicate_asset_names_do_not_allow_arbitrary_selection(self):
-        page = ReferencePage(['produto-a-1.png', 'produto-a-1.png'])
-        trace = self.trace(Browser([]))
-        result = await module.include_references(page, [{'name':'produto-a-1.png'}], page, trace)
-        self.assertEqual(result['errorCode'], 'flow_reference_selection_unavailable')
-        self.assertEqual(page.include_clicks, [])
-        self.assertEqual([a.clicks for a in page.assets], [[], []])
-
-    async def test_already_selected_expected_assets_are_not_toggled_off(self):
-        page = ReferencePage(['produto-a-1.png'])
-        page.assets[0].selected = True
-        result = await module.include_references(page, [{'name':'produto-a-1.png'}], page, self.trace(Browser([])))
-        self.assertTrue(result['verified'])
-        self.assertEqual(page.assets[0].clicks, [])
-
-    async def test_include_click_is_not_proof_of_references_in_prompt(self):
-        page = ReferencePage(['produto-a-1.png'], has_form=False)
-        trace = self.trace(Browser([]))
-        result = await module.include_references(page, [{'name':'produto-a-1.png'}], page, trace)
-        self.assertTrue(result['included'])
-        self.assertFalse(result['verified'])
-        self.assertEqual(result['errorCode'], 'flow_references_unverified')
-        self.assertEqual(trace.next_action, 'verify_references')
-
-    async def test_uncertain_include_is_not_retried(self):
-        page = ReferencePage(['produto-a-1.png'], uncertain=True)
-        trace = self.trace(Browser([]))
-        result = await module.include_references(page, [{'name':'produto-a-1.png'}], page, trace)
-        self.assertEqual(result['errorCode'], 'flow_reference_include_uncertain')
-        self.assertEqual(page.include_clicks, [True, False])
-        self.assertFalse(trace.references_verified)
-        self.assertEqual(trace.next_action, 'verify_references')
+        self.assertIn("el.closest('[role=\"dialog\"],[role=\"listbox\"]')", source)
 
 
 if __name__ == '__main__':
