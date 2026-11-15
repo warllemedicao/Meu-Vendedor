@@ -41,24 +41,30 @@ def gateway():
             inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image')
             create_project = payload.get('mode') == 'create-project'
             stage_prompt = payload.get('mode') in ('stage-prompt', 'prepare-draft', 'prepare-image')
-            stage_image = payload.get('mode') == 'prepare-image'
+            stage_image = payload.get('mode') == 'prepare-image' or bool(payload.get('images'))
             prompt = payload.get('prompt', '')
             if stage_prompt and (not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 4000):
                 raise ValueError('invalid_prompt')
+            image_files = []
             if stage_image:
                 import base64
-                mime = payload.get('imageMime')
-                image_data = payload.get('imageBase64')
-                if mime not in ('image/png', 'image/jpeg', 'image/webp') or not isinstance(image_data, str) or len(image_data) > 4000000:
+                supplied = payload.get('images') if isinstance(payload.get('images'), list) else [{'mime':payload.get('imageMime'),'data':payload.get('imageBase64')}]
+                if not 1 <= len(supplied) <= 3:
                     raise ValueError('invalid_image')
-                try:
-                    image_bytes = base64.b64decode(image_data, validate=True)
-                except Exception:
-                    raise ValueError('invalid_image')
-                if not 0 < len(image_bytes) <= 2500000:
-                    raise ValueError('invalid_image')
-                signatures = {'image/png': image_bytes.startswith(bytes.fromhex('89504e470d0a1a0a')), 'image/jpeg': image_bytes.startswith(bytes.fromhex('ffd8ff')), 'image/webp': image_bytes.startswith(b'RIFF') and image_bytes[8:12] == b'WEBP'}
-                if not signatures[mime]:
+                for item in supplied:
+                    mime = item.get('mime') if isinstance(item, dict) else None
+                    image_data = item.get('data') if isinstance(item, dict) else None
+                    if mime not in ('image/png', 'image/jpeg', 'image/webp') or not isinstance(image_data, str):
+                        raise ValueError('invalid_image')
+                    try:
+                        image_bytes = base64.b64decode(image_data, validate=True)
+                    except Exception:
+                        raise ValueError('invalid_image')
+                    signatures = {'image/png': image_bytes.startswith(bytes.fromhex('89504e470d0a1a0a')), 'image/jpeg': image_bytes.startswith(bytes.fromhex('ffd8ff')), 'image/webp': image_bytes.startswith(b'RIFF') and image_bytes[8:12] == b'WEBP'}
+                    if not image_bytes or not signatures[mime]:
+                        raise ValueError('invalid_image')
+                    image_files.append({'name': 'produto-' + str(len(image_files)+1) + '.' + {'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[mime], 'mimeType': mime, 'buffer': image_bytes})
+                if sum(len(item['buffer']) for item in image_files) > 2500000:
                     raise ValueError('invalid_image')
             if not isinstance(endpoint, str): raise ValueError('missing_endpoint')
             parsed = urlsplit(endpoint)
@@ -122,6 +128,7 @@ def gateway():
                         await matches[0].fill(prompt.strip(), timeout=8000)
                         prompt_staged = True
                     image_attached = False
+                    image_count = 0
                     if stage_image:
                         # The Flow editor may create a hidden file input only after opening
                         # the attachment menu. Never click Generate or submit the prompt.
@@ -144,8 +151,9 @@ def gateway():
                                     inputs.append((frame, files))
                         if len(inputs) != 1 or await inputs[0][1].count() != 1:
                             raise RuntimeError('image_input_not_found')
-                        await inputs[0][1].set_input_files({'name': 'produto.' + {'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[mime], 'mimeType': mime, 'buffer': image_bytes}, timeout=10000)
+                        await inputs[0][1].set_input_files(image_files, timeout=10000)
                         image_attached = True
+                        image_count = len(image_files)
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
                     scan = """els => {
@@ -221,7 +229,7 @@ def gateway():
                         'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
                         'scanErrors': scan_errors,
                         'flowPage': (page.url or '').startswith('https://flow.google.com/'),
-                        'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached,
+                        'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached, 'imageCount': image_count,
                         'editorControls': editor_items[:80],
                         'editorFrames': editor_frames, 'editorErrors': editor_errors
                     }
