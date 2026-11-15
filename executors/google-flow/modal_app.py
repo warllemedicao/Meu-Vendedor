@@ -109,6 +109,53 @@ def gateway():
                 if page is None:
                     page = pages[0] if pages else await context.new_page()
                 trace.event("connect", frames=len(page.frames), flowPage=(page.url or "").startswith("https://flow.google.com/"), projectPage=(page.url or "").startswith("https://flow.google.com/project/"))
+                if payload.get('mode') in ('record-user-clicks','read-user-clicks','stop-user-clicks'):
+                    # Browser-local, opt-in capture. Never record prompt text or credentials.
+                    capture_js = r"""({operation}) => {
+                        const key='__mvFlowClickRecorder';
+                        const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
+                        const name=e=>[e.getAttribute('aria-label'),e.getAttribute('title')].filter(Boolean).join(' ').trim();
+                        const gear=()=>Array.from(document.querySelectorAll('button,[role="button"]'))
+                            .find(e=>visible(e)&&/^(configurações(?: do (?:agente|vídeo|video))?|(?:agent |video )?settings)$/i.test(name(e)||e.textContent.trim()));
+                        if(operation==='start'){
+                            if(window[key]?.stop)window[key].stop();
+                            const state={clicks:[],stop:null};
+                            const listener=event=>{
+                                const button=event.target?.closest?.('button,[role="button"]');
+                                const settings=gear();
+                                if(!button||!settings||!visible(button))return;
+                                const a=button.getBoundingClientRect(),g=settings.getBoundingClientRect();
+                                if(Math.abs(a.top-g.top)>100||Math.abs(a.left-g.left)>300)return;
+                                const safe=v=>typeof v==='string'&&/^(send|submit|generate|gerar|enviar|arrow_forward|north|upward|configurações|settings)$/i.test(v.trim())?v.trim().slice(0,50):'';
+                                state.clicks.push({tag:button.tagName.toLowerCase(),
+                                    role:button.getAttribute('role')==='button'?'button':'',
+                                    ariaLabel:safe(button.getAttribute('aria-label')),
+                                    title:safe(button.getAttribute('title')),
+                                    testId:safe(button.getAttribute('data-testid')),
+                                    icon:safe(button.querySelector('mat-icon')?.textContent)||safe(button.querySelector('svg')?.getAttribute('data-testid')),
+                                    dx:Math.round(a.left-g.left),dy:Math.round(a.top-g.top),
+                                    width:Math.round(a.width),height:Math.round(a.height)});
+                                state.clicks=state.clicks.slice(-5);
+                            };
+                            document.addEventListener('click',listener,true);
+                            state.stop=()=>document.removeEventListener('click',listener,true);
+                            window[key]=state;
+                        }
+                        const state=window[key];
+                        if(operation==='stop'&&state?.stop)state.stop();
+                        if(operation==='stop'&&state)state.stop=null;
+                        return {active:!!state?.stop,clicks:state?.clicks||[]};
+                    }"""
+                    operation={'record-user-clicks':'start','read-user-clicks':'read','stop-user-clicks':'stop'}[payload['mode']]
+                    captures=[]
+                    for frame in page.frames[:8]:
+                        try:
+                            result=await frame.evaluate(capture_js,{'operation':operation})
+                            captures.append(result)
+                        except Exception:
+                            continue
+                    return {'navigationReady':True,'clickCaptureActive':any(c['active'] for c in captures),
+                            'manualClicks':[item for c in captures for item in c['clicks']][-5:]}
                 if inspect_only:
                     # Inspect the already open page without resetting its navigation.
                     # Create only a blank project when explicitly requested; never generate media.
