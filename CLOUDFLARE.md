@@ -1,3 +1,7 @@
+## Google Flow — correção do teste com múltiplas imagens (15/11/2026)
+
+O seletor de imagem foi incorporado ao mesmo formulário de prompt e o segundo botão foi removido. Agora o único botão `Preparar projeto e preencher texto (sem gerar)` envia prompt e, opcionalmente, até 3 imagens (total até 2,5 MB) à ação `prepare-flow-draft`. Edge Function `hyperbrowser-profile` v38 ACTIVE; Modal/frontend precisam de publicação confirmada. Teste de anexo e prévia do Flow **não validado**; não confundir entrega ao input com confirmação visual. Não integrado à ferramenta Gerar vídeo. Commits `e106550c`, `09cb902d`, `25311180`, `cf259702`.
+
 ## Google Flow — publicação pendente do teste de imagem (15/11/2026)
 
 - O teste de preparação de projeto e prompt foi confirmado pelo usuário em produção: 5/5 frames, zero falhas de leitura, sem iniciar geração.
