@@ -135,18 +135,28 @@ def gateway():
                         # A Flow library menu can open without starting a file upload.
                         # Capture the native chooser while clicking the explicit upload action.
                         async def click_upload_action():
+                            # The real upload control is at the lower-left of the
+                            # Flow library drawer, not the library search/results.
                             for frame in page.frames[:8]:
-                                for locator in (frame.get_by_text('Fazer upload', exact=False), frame.get_by_text('Upload', exact=True)):
-                                    if await locator.count() == 1 and await locator.is_visible():
+                                for locator in (
+                                    frame.get_by_text(re.compile(r'^\\s*Fazer upload\\s*(?:\\.\\.\\.|…)?\\s*$', re.I)),
+                                    frame.get_by_role('button', name=re.compile(r'fazer upload|upload', re.I)),
+                                    frame.get_by_text(re.compile(r'^\\s*Upload\\s*$', re.I)),
+                                ):
+                                    matches = await locator.count()
+                                    for idx in range(min(matches, 12)):
+                                        candidate = locator.nth(idx)
+                                        if not await candidate.is_visible():
+                                            continue
+                                        # A file chooser is a browser event, not a
+                                        # normal input shown in the library search.
                                         try:
-                                            async with page.expect_file_chooser(timeout=6000) as chooser_info:
-                                                await locator.click(timeout=4000)
+                                            async with page.expect_file_chooser(timeout=3500) as chooser_info:
+                                                await candidate.click(timeout=3500)
                                             chooser = await chooser_info.value
                                             await chooser.set_files(image_files, timeout=12000)
                                             return True
                                         except Exception:
-                                            # Some Flow builds create an input without emitting
-                                            # a filechooser event. Check for that below.
                                             for candidate_frame in page.frames[:8]:
                                                 files = candidate_frame.locator('input[type="file"]')
                                                 if await files.count() == 1:
