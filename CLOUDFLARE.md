@@ -1,3 +1,11 @@
+## 2026-11-15 — Inspeção segura das configurações do Google Flow
+
+- Usuário mostrou painel `Configurações do agente` ao lado da seta de envio e solicitou verificar os parâmetros antes da geração. Na captura, proporção vertical `9:16` e quantidade `x1`; nome exato do modelo e demais estados precisam ser lidos no Flow ao vivo.
+- Adicionada ação de **inspeção sem gerar**: Modal `inspect-settings` abre o painel quando identifica botão de configurações e retorna rótulos/estados de seleção de 9:16, x1 e modelo. A leitura não clica em Salvar ou Gerar. Commit `0ed01d06`.
+- Supabase Edge Function `hyperbrowser-profile` ação `inspect-flow-settings`, versão **v45 ACTIVE**, commit `1dbb8210`.
+- Frontend `Conta e conexões`: botão `Verificar configurações do Flow (sem gerar)` e apresentação dos valores identificados; commit `ea08cfe4`.
+- **Pendente:** publicar Modal e frontend, executar inspeção real e mapear os seletores para aplicar alterações e salvar. Ainda não há ajuste automático de parâmetros nem acionamento da seta Gerar. Não integrar com `Gerar vídeo` até confirmação de referências, configurações e autorização explícita para consumo de créditos.
+
 ## Google Flow — correção do teste com múltiplas imagens (15/11/2026)
 
 O seletor de imagem foi incorporado ao mesmo formulário de prompt e o segundo botão foi removido. Agora o único botão `Preparar projeto e preencher texto (sem gerar)` envia prompt e, opcionalmente, até 3 imagens (total até 2,5 MB) à ação `prepare-flow-draft`. Edge Function `hyperbrowser-profile` v38 ACTIVE; Modal/frontend precisam de publicação confirmada. Teste de anexo e prévia do Flow **não validado**; não confundir entrega ao input com confirmação visual. Não integrado à ferramenta Gerar vídeo. Commits `e106550c`, `09cb902d`, `25311180`, `cf259702`.
