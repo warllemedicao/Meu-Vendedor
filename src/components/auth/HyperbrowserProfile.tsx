@@ -55,9 +55,15 @@ export function HyperbrowserProfile(){
    // Supabase HTTP failures keep the response body in error.context, not data.
    let payload=data;
    if(error?.context instanceof Response) payload=await error.context.clone().json().catch(()=>null);
-   recordReport(payload,payload?.error??(error?"client_response_unavailable":"executor_report_unavailable"));
+   if(["start-click-recording","read-click-recording","stop-click-recording"].includes(action)){
+    setReports(previous=>[`${startedAt} · Registro de cliques manuais do Google Flow\n${JSON.stringify({action,active:payload?.clickCaptureActive??false,clicks:payload?.manualClicks??[],error:payload?.error??null},null,2)}`,...previous].slice(0,5));
+   }else recordReport(payload,payload?.error??(error?"client_response_unavailable":"executor_report_unavailable"));
    if(error||!payload||payload.error)throw new Error(errors[payload?.error??""]??"A conexão não respondeu. Copie o relatório desta tentativa abaixo.");
    const response=payload;
+   if(["start-click-recording","read-click-recording","stop-click-recording"].includes(action)){
+    setMessage(action==="start-click-recording"?"Gravação iniciada. Clique manualmente em Gerar no navegador remoto e volte para parar a gravação.":action==="stop-click-recording"?"Gravação parada. Clique em Ler cliques registrados e copie o relatório.":`Cliques capturados: ${response.manualClicks?.length??0}. Copie o relatório abaixo.`);
+    return;
+   }
    if(action==="create-flow-project"||action==="inspect-flow-editor"||action==="stage-flow-prompt"||action==="prepare-flow-draft"||action==="prepare-flow-image"||action==="inspect-flow-settings"||action==="click-flow-generate"){
     setControls(Array.from(new Map((response.controls??[]).map(item=>[`${item.role}:${item.label}`,item])).values()));
     setInspection(response);
