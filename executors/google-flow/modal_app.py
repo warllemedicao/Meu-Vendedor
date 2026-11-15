@@ -57,7 +57,7 @@ def gateway():
                     raise ValueError('invalid_image')
                 if not 0 < len(image_bytes) <= 2500000:
                     raise ValueError('invalid_image')
-                signatures = {'image/png': image_bytes.startswith(b'\\x89PNG\\r\\n\\x1a\\n'), 'image/jpeg': image_bytes.startswith(b'\\xff\\xd8\\xff'), 'image/webp': image_bytes.startswith(b'RIFF') and image_bytes[8:12] == b'WEBP'}
+                signatures = {'image/png': image_bytes.startswith(bytes.fromhex('89504e470d0a1a0a')), 'image/jpeg': image_bytes.startswith(bytes.fromhex('ffd8ff')), 'image/webp': image_bytes.startswith(b'RIFF') and image_bytes[8:12] == b'WEBP'}
                 if not signatures[mime]:
                     raise ValueError('invalid_image')
             if not isinstance(endpoint, str): raise ValueError('missing_endpoint')
