@@ -258,7 +258,7 @@ def gateway():
                 'endpointHost': host,
                 'phase': 'connect_or_navigate',
             })
-            safe_errors = {'flow_project_not_active', 'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found'}
+            safe_errors = {'flow_project_not_active', 'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found', 'flow_upload_action_not_found', 'flow_file_chooser_unavailable'}
             reason = str(exc) if str(exc) in safe_errors else 'navigation_failed'
             raise HTTPException(502, reason)
 
