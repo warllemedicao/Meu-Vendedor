@@ -38,7 +38,7 @@ def gateway():
         try:
             payload = json.loads(raw)
             endpoint = payload.get('wsEndpoint')
-            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image')
+            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image', 'inspect-settings')
             create_project = payload.get('mode') == 'create-project'
             stage_prompt = payload.get('mode') in ('stage-prompt', 'prepare-draft', 'prepare-image')
             stage_image = payload.get('mode') == 'prepare-image' or bool(payload.get('images'))
@@ -204,6 +204,31 @@ def gateway():
                                 break
                             await page.wait_for_timeout(350)
                         await page.wait_for_timeout(1500)
+                    settings_result = None
+                    if payload.get('mode') == 'inspect-settings':
+                        # Read the settings drawer without clicking Generate or Save.
+                        # The settings icon is adjacent to the send arrow in Flow.
+                        settings_result = {'opened': False, 'vertical916': False, 'singleOutput': False, 'settingsText': []}
+                        for settings_frame in page.frames[:8]:
+                            controls = settings_frame.get_by_role('button', name=re.compile(r'configurações|settings', re.I))
+                            for idx in range(min(await controls.count(), 8)):
+                                control = controls.nth(idx)
+                                if await control.is_visible():
+                                    await control.click(timeout=4000)
+                                    settings_result['opened'] = True
+                                    break
+                            if settings_result['opened']:
+                                break
+                        if settings_result['opened']:
+                            await page.wait_for_timeout(600)
+                            for settings_frame in page.frames[:8]:
+                                try:
+                                    labels = await settings_frame.locator('button, [role="radio"], [role="option"], [aria-checked], [aria-selected]').evaluate_all("""els => els.filter(e => { const r=e.getBoundingClientRect(); return r.width>0&&r.height>0; }).map(e=>({label:(e.getAttribute('aria-label')||e.innerText||'').trim().slice(0,65),selected:e.getAttribute('aria-checked')||e.getAttribute('aria-selected')||''})).filter(x=>/9:16|16:9|x1|x2|veo|modelo|model|salvar|save/i.test(x.label)).slice(0,25)""")
+                                    settings_result['settingsText'].extend(labels)
+                                except Exception:
+                                    pass
+                            settings_result['vertical916'] = any('9:16' in x['label'] and x['selected']=='true' for x in settings_result['settingsText'])
+                            settings_result['singleOutput'] = any('x1' in x['label'].lower() and x['selected']=='true' for x in settings_result['settingsText'])
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
                     scan = """els => {
@@ -279,7 +304,7 @@ def gateway():
                         'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
                         'scanErrors': scan_errors,
                         'flowPage': (page.url or '').startswith('https://flow.google.com/'),
-                        'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached, 'imageCount': image_count,
+                        'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached, 'imageCount': image_count, 'settingsInspection': settings_result,
                         'editorControls': editor_items[:80],
                         'editorFrames': editor_frames, 'editorErrors': editor_errors
                     }
