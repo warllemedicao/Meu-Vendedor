@@ -47,7 +47,7 @@ Deno.serve(async(req:Request)=>{
    if(current?.status!=="active"||!validLive(current?.liveUrl))return respond({error:"no_active_session"},409);
    const result=await openFlow(current.wsEndpoint,"inspect");
    if(!result||typeof result!=="object")return respond({error:"flow_inspection_unavailable"},502);
-   return respond({inspectionReady:true,controls:result.controls??[]});
+   return respond({inspectionReady:true,controls:result.controls??[],visibleCount:result.visibleCount??0,frameCount:result.frameCount??0,inspectedFrames:result.inspectedFrames??0,scanErrors:result.scanErrors??0,flowPage:result.flowPage===true});
   }
   if(input.action==="save-login"){
    if(!row.session_id)return respond({error:"no_active_session"},409);
