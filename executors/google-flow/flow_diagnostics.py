@@ -6,7 +6,7 @@ import time
 import uuid
 
 STAGES = frozenset(('request', 'connect', 'project', 'prompt', 'upload', 'rights',
-                    'images_wait', 'settings', 'references', 'inspection', 'finished'))
+                    'images_wait', 'settings', 'references', 'generation', 'inspection', 'finished'))
 METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls',
                      'frames', 'frameErrors', 'accepted', 'matches', 'elapsedMs',
                      'limitMs', 'includeVisible', 'includeEnabled', 'selected',
@@ -17,7 +17,7 @@ METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls
                      'submitVisible', 'submitEnabled', 'settingsCandidates',
                      'composerForms', 'composerFields', 'attachmentMatches',
                      'assetTextMatches', 'assetOptionParents', 'assetButtonParents',
-                     'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes'))
+                     'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes', 'arrowCandidates', 'submitClicked'))
 REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found',
     'flow_upload_action_not_found', 'flow_file_chooser_unavailable',
@@ -27,13 +27,14 @@ REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'flow_settings_ambiguous', 'flow_settings_blocked', 'flow_settings_read_failed',
     'flow_reference_selection_unavailable', 'flow_reference_selection_unconfirmed',
     'flow_reference_include_unavailable', 'flow_reference_include_uncertain',
-    'flow_references_unverified', 'flow_draft_ready'))
+    'flow_references_unverified', 'flow_draft_ready',
+    'flow_generate_button_unavailable', 'flow_generation_click_uncertain', 'flow_generate_clicked'))
 
 
 class FlowDiagnostics:
     def __init__(self, trace_id, action, revision, clock=time.monotonic, emit=print):
         self.trace_id = trace_id if isinstance(trace_id, str) and re.fullmatch(r'[0-9a-f-]{36}', trace_id) else str(uuid.uuid4())
-        self.action = action if action in ('navigate', 'inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image', 'inspect-settings') else 'inspect'
+        self.action = action if action in ('navigate', 'inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image', 'inspect-settings', 'click-generate') else 'inspect'
         self.revision = revision
         self.clock, self.emit, self.started = clock, emit, clock()
         self.events, self.stage = [], 'request'
@@ -241,6 +242,45 @@ async def inspect_settings(page, trace):
         trace.event('settings', 'error', opened=result['opened'], phase=phase,
                     errorType=type(exc).__name__)
     return result
+
+
+
+async def click_generate_arrow(page, trace):
+    """Click once next to the composer gear; do not confirm any credit dialog."""
+    trace.event('generation','started')
+    candidates=[]
+    for frame in page.frames[:8]:
+        try:
+            buttons=frame.locator('button,[role="button"]')
+            evidence=await buttons.evaluate_all(r"""els=>{
+                const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
+                const label=e=>[e.getAttribute('aria-label'),e.getAttribute('title'),e.textContent].filter(Boolean).join(' ').trim();
+                const gears=els.filter(e=>visible(e)&&/^(configurações|settings)$/i.test(label(e)));
+                if(gears.length!==1)return {gears:gears.length,indices:[]};
+                const g=gears[0].getBoundingClientRect();
+                const indices=els.map((e,i)=>({e,i})).filter(({e})=>{
+                    if(e===gears[0]||!visible(e)||e.disabled||e.getAttribute('aria-disabled')==='true')return false;
+                    const r=e.getBoundingClientRect();
+                    const hint=[label(e),e.querySelector('mat-icon')?.textContent,e.querySelector('svg')?.getAttribute('data-testid'),e.getAttribute('data-testid')].filter(Boolean).join(' ');
+                    return Math.abs(r.top-g.top)<75&&Math.abs(r.left-g.left)<220&&/send|submit|generate|gerar|enviar|arrow_forward|north|upward/i.test(hint);
+                }).map(({i})=>i);
+                return {gears:1,indices};
+            }""",timeout=1800)
+            trace.event('generation','waiting',settingsCandidates=evidence['gears'],arrowCandidates=len(evidence['indices']))
+            for i in evidence['indices']:candidates.append(buttons.nth(i))
+        except Exception:
+            trace.event('generation','waiting',frameErrors=1)
+    if len(candidates)!=1:
+        trace.event('generation','blocked',arrowCandidates=len(candidates))
+        return {'clicked':False,'errorCode':'flow_generate_button_unavailable'}
+    try:
+        await candidates[0].click(trial=True,timeout=1800)
+        await candidates[0].click(timeout=2500)
+        trace.event('generation','ok',submitClicked=True)
+        return {'clicked':True,'errorCode':None}
+    except Exception:
+        trace.event('generation','error')
+        return {'clicked':False,'errorCode':'flow_generation_click_uncertain'}
 
 
 async def editor_state(page, trace, prompt_field=None, names=None):
