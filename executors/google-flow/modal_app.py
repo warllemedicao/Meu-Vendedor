@@ -36,7 +36,9 @@ def gateway():
         import json
         from urllib.parse import urlsplit
         try:
-            endpoint = json.loads(raw).get('wsEndpoint')
+            payload = json.loads(raw)
+            endpoint = payload.get('wsEndpoint')
+            inspect_only = payload.get('mode') == 'inspect'
             if not isinstance(endpoint, str): raise ValueError('missing_endpoint')
             parsed = urlsplit(endpoint)
             host = (parsed.hostname or '').lower()
@@ -62,6 +64,19 @@ def gateway():
                 context = browser.contexts[0]
                 page = context.pages[0] if context.pages else await context.new_page()
                 await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
+                if inspect_only:
+                    # Read-only UI discovery: no clicks, uploads, prompts or credits.
+                    controls = await page.locator('button, [role="button"]').evaluate_all(
+                        """els => els.filter(el => {
+                            const r = el.getBoundingClientRect();
+                            return r.width > 0 && r.height > 0;
+                        }).slice(0,60).map(el => ({
+                            role: el.getAttribute('role') || el.tagName.toLowerCase(),
+                            label: (el.getAttribute('aria-label') || el.getAttribute('title') ||
+                                    el.innerText || '').trim().slice(0,80)
+                        })).filter(item => item.label).slice(0,30)"""
+                    )
+                    return {'navigationReady': True, 'inspectionReady': True, 'controls': controls}
                 return {'navigationReady': True}
         except Exception as exc:
             # Only emit safe diagnostics: no CDP URL, query string, tokens,
