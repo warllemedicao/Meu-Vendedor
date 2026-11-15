@@ -1,3 +1,13 @@
+## 15/11/2026 — Próximo teste Google Flow: imagem local, sem gerar
+
+**Confirmado pelo usuário:** o botão unificado preparou o projeto e preencheu o texto; diagnóstico Flow sim, frames 5/5, 33 controles visíveis, 0 falhas de leitura e 4 rótulos relevantes. Não iniciou geração.
+
+**Implementado, não validado ponta a ponta:** em `HyperbrowserProfile.tsx`, campo de imagem local ao lado do prompt e botão `Preparar texto e anexar imagem (sem gerar)`, com PNG/JPG/WebP até 2,5 MB. A Edge Function `hyperbrowser-profile` v36 ACTIVE encaminha `prepare-flow-image` ao executor Modal, que tenta `set_input_files` no editor. Nenhuma ligação com `Gerar vídeo` foi feita.
+
+**Próximas ações:** (1) publicar Modal pela workflow `deploy-hyperbrowser-modal.yml` sem rotacionar segredo; (2) publicar frontend pela `frontend-production.yml` com `confirm_frontend_only=true`; (3) abrir sessão e escolher imagem de teste; (4) verificar visualmente a prévia no Flow e registrar mensagem/erro; (5) somente após confirmação planejar conexão à imagem do catálogo. A implementação não clica em Gerar.
+
+**Referências:** frontend `be40c8d3`; Modal `278f42a1`, `d169d574`, `fdac3a42`; Supabase `d4da7bcb`, `3ca875b0`; documentação `3db3aa6a`.
+
 ## 14/11/2026 — Tipagem das integrações Facebook/TikTok e Google Flow
 
 Corrigidas as declarações TypeScript das respostas JSON em `facebook-connect`, `facebook-reels`, `tiktok-connect` e `tiktok-connect-sandbox`, mantendo os fluxos de OAuth, upload, credenciais e endpoints. Commits: `ada36d3`, `c9aca07`, `b7afac1`, `a7cefce`. O botão Google Flow já está ligado ao hub de Contas (`bd91cbb`, `549ae7a`), e o teste foi ajustado (`d97efa6`). Alterações enviadas diretamente à `main` do GitHub. Validação CI e publicação de produção ainda pendentes de confirmação; não declarar implantação no Supabase/Cloudflare sem verificar. O workflow exige disparo manual para publicar e possui controle de migrações de alto risco.
