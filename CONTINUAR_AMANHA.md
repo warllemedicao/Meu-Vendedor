@@ -1,3 +1,7 @@
+## 15/11/2026 — Correção do teste de imagens Google Flow
+
+Após teste com retorno `Não foi possível confirmar o anexo da imagem` e diagnóstico enganoso de frames 0/0, usuário esclareceu o fluxo correto: **um único botão de preparar projeto e preencher texto**, com seletor opcional de **múltiplas imagens** ao lado do prompt. Removido o botão redundante de anexar. O botão existente encaminha prompt e até 3 imagens PNG/JPG/WebP (limite total 2,5 MB) à ação `prepare-flow-draft`. Frontend limpa diagnóstico anterior antes da tentativa; Supabase v38 ACTIVE encaminha lista de imagens; Modal usa `set_input_files` na mesma operação. Commits: `e106550c`, `09cb902d`, `25311180`, `cf259702`. **Pendente:** publicar Modal e frontend, testar se o Flow realmente aceita múltiplas imagens e apresenta prévia; sem integração ao Gerar vídeo nem clique em Gerar.
+
 ## 15/11/2026 — Próximo teste Google Flow: imagem local, sem gerar
 
 **Confirmado pelo usuário:** o botão unificado preparou o projeto e preencheu o texto; diagnóstico Flow sim, frames 5/5, 33 controles visíveis, 0 falhas de leitura e 4 rótulos relevantes. Não iniciou geração.
