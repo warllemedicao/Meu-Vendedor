@@ -1,5 +1,8 @@
 # Meu Vendedor — Viral Commerce AI
 
+> **15/11/2026 — Google Flow (teste isolado):** em Conta e conexões, o botão de preparação já foi validado pelo usuário: abre/reutiliza projeto e preenche prompt sem gerar. Foi implementado um seletor local PNG/JPG/WebP (máx. 2,5 MB) com botão **Preparar texto e anexar imagem (sem gerar)**, ainda aguardando publicação Modal/frontend e teste real de prévia no Flow. **Não integrado ao Gerar vídeo.** Detalhes no [histórico](./historico.md).
+
+
 > **12/11/2026 — Produtos e ChatGPT manual:** lojas unificadas em Produtos, sem entradas individuais no menu; briefing e prompt externo com rascunho preservado. Nenhuma OpenAI API. Estado, publicação e limites em [HISTORICO.md](./HISTORICO.md). Este registro prevalece sobre a navegação histórica abaixo.
 
 > **Marketplaces — 11/11/2026:** navegação das sete lojas e campanhas manuais compartilhadas. Estado, validações, publicação e limites em [MARKETPLACES.md](./MARKETPLACES.md). Este registro prevalece sobre os estados históricos de navegação abaixo.
