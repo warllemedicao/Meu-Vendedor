@@ -246,11 +246,11 @@ def gateway():
                         trace.event('references', 'skipped', expected=0)
                     settings_result = None
                     if payload.get('mode') in ('inspect-settings', 'prepare-draft'):
-                        if reference_result['errorCode']:
-                            trace.event('settings', 'skipped')
-                        else:
-                            settings_result = await inspect_settings(page, trace)
-                            settings_result["referencesVerified"] = reference_result["verified"]
+                        # Settings are independent of reference verification.
+                        # Always inspect/save them, even if a reference click
+                        # could not be confirmed; never start generation.
+                        settings_result = await inspect_settings(page, trace)
+                        settings_result["referencesVerified"] = reference_result["verified"]
                     await editor_state(page, trace)
                     if reference_result['errorCode']:
                         reason = reference_result['errorCode']
