@@ -1,3 +1,10 @@
+## 2026-11-15 — Diagnóstico da tela em branco do Hyperbrowser
+
+- Teste real do usuário: navegador remoto abriu em branco após workflow Modal verde.
+- Logs Supabase em 2026-11-15 13:06:16 UTC mostram `hyperbrowser_executor_not_configured {hasUrl:false,hasSecret:false,hasEndpoint:true}` na função `hyperbrowser-profile` v9. Navegação não foi enviada ao Modal.
+- Workflow `.github/workflows/deploy-hyperbrowser-modal.yml` atualizado para verificar presença de `MV_HYPERBROWSER_EXECUTOR_URL` e `MV_HYPERBROWSER_EXECUTOR_SECRET` no Supabase após `supabase secrets set`, falhando se ausentes. Não imprime valores.
+- **Pendente:** executar novamente workflow, verificar logs da nova tentativa e confirmar abertura do Flow. O sucesso do workflow anterior não demonstrou que a Edge Function recebeu as variáveis.
+
 ## 2026-11-15 — Sincronização segura via GitHub Actions
 
 - O usuário confirmou sucesso (verde) do workflow Modal anterior.
