@@ -1,3 +1,11 @@
+## 2026-11-15 — Marco: Google Flow aberto com sessão autenticada no navegador remoto
+
+- **Confirmação do usuário:** após publicar o workflow Modal com os ajustes de sessão, o botão de abertura do Google Flow no Meu Vendedor abriu corretamente a página `https://flow.google.com/` em um navegador remoto Hyperbrowser, **já autenticado** na conta Google do usuário.
+- A interface do Flow foi exibida e solicitou clicar no botão **“+”** para iniciar a criação. O usuário confirmou visualmente a abertura; este é o primeiro teste positivo de acesso ao Flow no navegador remoto após a série de erros `session not found`.
+- Mudanças anteriores relacionadas: `timeoutMinutes:20`, verificação de status `active` na Edge Function, `keepAlive=true` no CDP do Modal e remoção do fechamento do navegador remoto. Supabase `hyperbrowser-profile` v17; executor Modal publicado pelo workflow, conforme confirmação do usuário.
+- **Escopo comprovado:** abertura do Flow e sessão Google autenticada nesta execução. **Ainda não comprovados:** persistência da autenticação após encerrar/reabrir a sessão, interação automatizada com o botão “+”, envio de imagens, geração de vídeo, download e registro de MP4.
+- **Próxima etapa recomendada:** validar o botão **Salvar acesso e fechar** e reabrir a sessão; depois ampliar o executor Modal existente com um fluxo supervisionado de criação de vídeo e recuperação do resultado, sem criar um robô independente desnecessário. Evitar registrar URLs assinadas, cookies, senhas ou tokens.
+
 ## 2026-11-15 — Correção de timeout e persistência da sessão Hyperbrowser
 
 - Documentação Hyperbrowser confirma configuração `timeoutMinutes` e parâmetro CDP `keepAlive=true` para manter o navegador ativo após desconexão do cliente.
