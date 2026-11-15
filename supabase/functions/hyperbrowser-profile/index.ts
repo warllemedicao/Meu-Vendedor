@@ -52,17 +52,17 @@ Deno.serve(async(req:Request)=>{
     const old=await client.sessions.get(row.session_id);
     const live=validLive(old?.liveUrl);
     const started=row.session_started_at?new Date(row.session_started_at).getTime():0;
-    if(live&&started&&Date.now()-started<12*60*1000){const ready=await openFlow(old?.wsEndpoint);if(ready)return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live,navigationReady:true});console.warn("hyperbrowser_existing_session_navigation_failed",{hasSessionId:true});return respond({error:"flow_navigation_unavailable",retryable:true,sessionPreserved:true},502);}
+    if(old?.status==="active"&&live&&started&&Date.now()-started<12*60*1000){const ready=await openFlow(old?.wsEndpoint);if(ready)return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live,navigationReady:true});console.warn("hyperbrowser_existing_session_navigation_failed",{hasSessionId:true});return respond({error:"flow_navigation_unavailable",retryable:true,sessionPreserved:true},502);}
     await client.sessions.stop(row.session_id).catch(()=>{});
    }catch{/* expired remote session */}
    await update({session_id:null,session_started_at:null});
   }
   stage="create_session";
-  const session=await client.sessions.create({profile:{id:row.profile_id,persistChanges:true}});
+  const session=await client.sessions.create({timeoutMinutes:20,profile:{id:row.profile_id,persistChanges:true}});
   stage="validate_live_url";
   const live=validLive(session?.liveUrl);
   if(!live){let shape:Record<string,unknown>={};try{const u=new URL(String(session?.liveUrl??""));shape={protocol:u.protocol,hostname:u.hostname,pathname:u.pathname,queryKeys:[...u.searchParams.keys()].sort()};}catch{shape={parseable:false};}console.error("hyperbrowser_session_missing_live_url",{stage,hasSessionId:Boolean(session?.id),hasLiveUrl:Boolean(session?.liveUrl),liveUrlType:typeof session?.liveUrl,shape});}
-  if(!session?.id||!live){if(session?.id)await client.sessions.stop(session.id).catch(()=>{});return respond({error:"live_view_unavailable"},502);}
+  if(!session?.id||!live||session?.status!=="active"){if(session?.id)await client.sessions.stop(session.id).catch(()=>{});return respond({error:"live_view_unavailable"},502);}
   stage="persist_session";
   try{await update({session_id:session.id,session_started_at:new Date().toISOString()});}
   catch(e){await client.sessions.stop(session.id).catch(()=>{});throw e;}
