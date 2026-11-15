@@ -58,7 +58,13 @@ def gateway():
                 await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
                 return {'navigationReady': True}
         except Exception as exc:
-            print('hyperbrowser_navigation_failed', type(exc).__name__)
+            # Only emit safe diagnostics: no CDP URL, query string, tokens,
+            # Google account data or remote live-view URL.
+            print('hyperbrowser_navigation_failed', {
+                'errorType': type(exc).__name__,
+                'endpointHost': host,
+                'phase': 'connect_or_navigate',
+            })
             raise HTTPException(502, 'navigation_failed')
 
     @api.post('/control')
