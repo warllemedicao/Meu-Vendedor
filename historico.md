@@ -1,3 +1,11 @@
+## 2026-11-15 — Implementação da criação supervisionada de projeto no Google Flow
+
+- Executor Modal `executors/google-flow/modal_app.py`: novo modo `create-project` no endpoint autenticado `/hyperbrowser-navigate`. Só executa em página `flow.google.com`, procura botão acessível com nome `Novo projeto` ou `New project`, exige correspondência única, clica uma vez e examina controles sem gerar vídeo. Commit `804ac9a1`.
+- Supabase `hyperbrowser-profile`: nova ação autenticada `create-flow-project`, usando sessão Hyperbrowser existente; encaminha modo ao Modal e retorna `projectClicked` e diagnósticos. Commit `a587acdc`; **Edge Function v25 ACTIVE publicada**.
+- Frontend `HyperbrowserProfile.tsx`: botão `Criar projeto de teste (sem gerar)` em **Conta e conexões → Google Flow**, com retorno de inspeção. Commit `5a34d9ed`.
+- **Pendente publicação:** executar workflow Modal `deploy-hyperbrowser-modal.yml` na main, mantendo `rotate_cloudflare_secret` desmarcado; depois executar workflow frontend `frontend-production.yml` com `confirm_frontend_only=true`. Testar em sessão autenticada. Não foi realizado teste ponta a ponta de clique nesta etapa.
+- O botão Google Flow da área Gerar vídeo ainda não foi conectado ao fluxo de criação de projeto; integração só após validação do editor. Nenhum envio de imagem ou geração foi implementado nesta etapa.
+
 ## 2026-11-15 — SUCESSO: inspeção do Google Flow reconheceu Novo projeto
 
 - **Teste real confirmado pelo usuário após publicar o executor Modal corrigido:** `página Flow sim; frames 2/2; controles visíveis 17; falhas de leitura 0; rótulos relevantes 9`.
