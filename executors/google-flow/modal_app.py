@@ -203,7 +203,46 @@ def gateway():
                             if not found:
                                 break
                             await page.wait_for_timeout(350)
-                        await page.wait_for_timeout(1500)
+                        # Upload completion is asynchronous in Flow. Wait for each
+                        # expected asset to become visible and for upload indicators
+                        # to disappear. Stable consecutive frame reads prevent
+                        # advancing on an intermediate render.
+                        expected_names = {item['name'] for item in image_files}
+                        stable_reads = 0
+                        upload_deadline = time.monotonic() + 45
+                        while time.monotonic() < upload_deadline:
+                            visible_names = set()
+                            busy = False
+                            for asset_frame in page.frames[:8]:
+                                try:
+                                    state = await asset_frame.locator('body').evaluate("""(body) => {
+                                        const visible = el => {
+                                            const r = el.getBoundingClientRect();
+                                            const s = getComputedStyle(el);
+                                            return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+                                        };
+                                        const text = Array.from(body.querySelectorAll('*'))
+                                            .filter(el => visible(el) && el.children.length === 0)
+                                            .map(el => (el.textContent || '').trim()).filter(Boolean);
+                                        const busy = Array.from(body.querySelectorAll('[role="progressbar"], [aria-busy="true"]'))
+                                            .some(visible);
+                                        return { text: text.slice(0, 600), busy };
+                                    }""")
+                                    busy = busy or state['busy']
+                                    for name in expected_names:
+                                        if any(name.lower() in label.lower() for label in state['text']):
+                                            visible_names.add(name)
+                                except Exception:
+                                    busy = True
+                            if expected_names.issubset(visible_names) and not busy:
+                                stable_reads += 1
+                                if stable_reads >= 3:
+                                    break
+                            else:
+                                stable_reads = 0
+                            await page.wait_for_timeout(750)
+                        if stable_reads < 3:
+                            raise RuntimeError('flow_images_not_ready')
                     settings_result = None
                     if payload.get('mode') in ('inspect-settings', 'prepare-draft'):
                         # Read the settings drawer without clicking Generate or Save.
@@ -323,7 +362,7 @@ def gateway():
                 'endpointHost': host,
                 'phase': 'connect_or_navigate',
             })
-            safe_errors = {'flow_project_not_active', 'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found', 'flow_upload_action_not_found', 'flow_file_chooser_unavailable'}
+            safe_errors = {'flow_project_not_active', 'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found', 'flow_upload_action_not_found', 'flow_file_chooser_unavailable', 'flow_images_not_ready'}
             reason = str(exc) if str(exc) in safe_errors else 'navigation_failed'
             raise HTTPException(502, reason)
 
