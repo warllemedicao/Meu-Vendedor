@@ -10,6 +10,7 @@ export function HyperbrowserProfile(){
  const [busy,setBusy]=useState(false);
  const [draftPrompt,setDraftPrompt]=useState("");
  const [draftImages,setDraftImages]=useState<File[]>([]);
+ const [imageRightsConfirmed,setImageRightsConfirmed]=useState(false);
  const [message,setMessage]=useState("");
  const [view,setView]=useState("");
  const [saved,setSaved]=useState(false);
@@ -25,6 +26,7 @@ export function HyperbrowserProfile(){
    if(!auth.session)throw new Error("Entre no Meu Vendedor para continuar.");
    let imagePayload:{images?:Array<{mime:string;data:string}>}={};
    if(action==="prepare-flow-draft"&&draftImages.length){
+    if(!imageRightsConfirmed)throw new Error("Confirme que você possui os direitos de uso das imagens antes de enviá-las.");
     if(draftImages.length>3||draftImages.reduce((sum,file)=>sum+file.size,0)>2500000||draftImages.some(file=>!["image/png","image/jpeg","image/webp"].includes(file.type)))throw new Error("Selecione até 3 imagens PNG, JPG ou WebP, com tamanho total de até 2,5 MB.");
     imagePayload={images:await Promise.all(draftImages.map(async file=>{
      const bytes=new Uint8Array(await file.arrayBuffer());
@@ -32,7 +34,7 @@ export function HyperbrowserProfile(){
      return {mime:file.type,data:btoa(binary)};
     }))};
    }
-   const {data,error}=await client.functions.invoke<Result>("hyperbrowser-profile",{body:{action,...(["prepare-flow-draft","prepare-flow-image"].includes(action)?{prompt:draftPrompt}:{}),...imagePayload}});
+   const {data,error}=await client.functions.invoke<Result>("hyperbrowser-profile",{body:{action,...(["prepare-flow-draft","prepare-flow-image"].includes(action)?{prompt:draftPrompt}:{}),...imagePayload,...(action==="prepare-flow-draft"&&draftImages.length?{imageRightsConfirmed}:{})}});
    if(error||!data||data.error)throw new Error(errors[data?.error??""]??"A conexão não respondeu. Consulte os registros do Supabase.");
    if(action==="create-flow-project"||action==="inspect-flow-editor"||action==="stage-flow-prompt"||action==="prepare-flow-draft"||action==="prepare-flow-image"){
     setControls(Array.from(new Map((data.controls??[]).map(item=>[`${item.role}:${item.label}`,item])).values()));
@@ -59,7 +61,7 @@ export function HyperbrowserProfile(){
    <button type="button" disabled={busy||!view} onClick={()=>void act("inspect-flow-editor")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Mapear interface do Google Flow (sem gerar)</button>
    <button type="button" disabled={busy} onClick={()=>void act("status")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Verificar conexão</button>
   </div>
-  <div className="space-y-2"><label htmlFor="flow-test-prompt" className="block text-sm font-medium">Texto de teste para o Flow (sem gerar)</label><textarea id="flow-test-prompt" value={draftPrompt} onChange={e=>setDraftPrompt(e.target.value)} maxLength={4000} rows={3} placeholder="Cole aqui o prompt do produto para preencher no editor" className="w-full rounded-lg border border-border bg-background p-2 text-sm" /><label htmlFor="flow-test-image" className="block text-sm font-medium">Adicionar imagens (opcional; até 3 imagens, total de 2,5 MB)</label><input id="flow-test-image" type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={e=>setDraftImages(Array.from(e.target.files??[]))} className="block w-full text-sm" />{draftImages.length>0&&<p className="text-xs text-muted">{draftImages.length} imagem(ns) selecionada(s).</p>}<button type="button" disabled={busy||!view||!draftPrompt.trim()} onClick={()=>void act("prepare-flow-draft")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Preparar projeto e preencher texto (sem gerar)</button><p className="text-xs text-muted">A mesma ação prepara o projeto, preenche o texto e tenta anexar as imagens selecionadas, sem iniciar geração. Confira a prévia no Flow.</p></div>
+  <div className="space-y-2"><label htmlFor="flow-test-prompt" className="block text-sm font-medium">Texto de teste para o Flow (sem gerar)</label><textarea id="flow-test-prompt" value={draftPrompt} onChange={e=>setDraftPrompt(e.target.value)} maxLength={4000} rows={3} placeholder="Cole aqui o prompt do produto para preencher no editor" className="w-full rounded-lg border border-border bg-background p-2 text-sm" /><label htmlFor="flow-test-image" className="block text-sm font-medium">Adicionar imagens (opcional; até 3 imagens, total de 2,5 MB)</label><input id="flow-test-image" type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={e=>{setDraftImages(Array.from(e.target.files??[]));setImageRightsConfirmed(false);}} className="block w-full text-sm" />{draftImages.length>0&&<><p className="text-xs text-muted">{draftImages.length} imagem(ns) selecionada(s).</p><label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={imageRightsConfirmed} onChange={e=>setImageRightsConfirmed(e.target.checked)} />Confirmo que tenho direitos ou autorização para usar estas imagens e autorizo a confirmação do aviso de direitos no Google Flow.</label></>}<button type="button" disabled={busy||!view||!draftPrompt.trim()||(draftImages.length>0&&!imageRightsConfirmed)} onClick={()=>void act("prepare-flow-draft")} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Preparar projeto e preencher texto (sem gerar)</button><p className="text-xs text-muted">A mesma ação prepara o projeto, preenche o texto e tenta anexar as imagens selecionadas, sem iniciar geração. Confira a prévia no Flow.</p></div>
   {saved&&<p className="text-xs text-muted">Perfil salvo anteriormente. O Google ainda pode solicitar autenticação novamente.</p>}
   {message&&<p role="status" className="text-sm">{message}</p>}
   {inspection&&<p className="text-xs text-muted">Diagnóstico: página Flow {inspection.flowPage?"sim":"não"}; frames {inspection.inspectedFrames??0}/{inspection.frameCount??0}; controles visíveis {inspection.visibleCount??0}; falhas de leitura {inspection.scanErrors??0}; rótulos relevantes {controls.length}.</p>}
