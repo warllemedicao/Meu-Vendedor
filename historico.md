@@ -1281,3 +1281,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Frontend: componente `HyperbrowserProfile.tsx` integrado em `AccountHub.tsx`, seção Lojas e redes, com verificação e criação de perfil usando a sessão Supabase do usuário.
 - Commits GitHub: `ab29be5` e `519fb70`. A publicação do frontend no Cloudflare, a execução autenticada, a criação real do perfil e a compatibilidade do SDK Hyperbrowser ainda NÃO foram comprovadas.
 - Pendências obrigatórias: testar autenticação da API Key, criar perfil real, sessão com `persistChanges: true`, espelhamento interativo, login Google e 2FA normais, Playwright para upload/prompt, geração autorizada, download MP4, importação Supabase e deploy Cloudflare. Não declarar geração Flow pronta.
+
+
+## 15/11/2026 — Google Flow: preparar login remoto com perfil persistente
+
+- Supabase: tabela `hyperbrowser_profiles` recebeu `session_id`, `session_started_at`, `login_saved`; Edge Function `hyperbrowser-profile` v3 ACTIVE com ações `status`, `create-profile`, `start-login` e `save-login`, JWT obrigatório e chave protegida no servidor.
+- `start-login` cria perfil quando ausente e inicia sessão Hyperbrowser com `persistChanges: true`, retornando URL de Live View somente ao usuário autenticado. `save-login` encerra sessão pelo SDK para persistir estado. `status` não abre navegador. A indicação `login_saved` registra encerramento/salvamento do perfil, não comprova autenticação Google.
+- Interface: `HyperbrowserProfile.tsx` exibe somente marca Google Flow e oferece Abrir Google Flow para login, Salvar acesso e fechar, Verificar conexão, janela Live View e opção de tela cheia. A navegação até labs.google/fx/tools/flow deve ser feita pelo usuário na janela remota.
+- Atenção: sem teste ponta a ponta com JWT do usuário, sem prova de API Key funcional, sem prova de sessão persistida, sem deploy Cloudflare (conector Cloudflare indisponível). Não declarar ferramenta publicada ou login pronto em produção. A sessão remota pode gerar consumo de créditos do provedor.
