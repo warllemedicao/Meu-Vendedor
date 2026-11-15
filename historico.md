@@ -1,3 +1,13 @@
+## 2026-11-15 — Falha HTTP 502 no preenchimento de prompt Google Flow
+
+- Usuário recebeu `A conexão não respondeu. Consulte os registros do Supabase.` ao usar `Preencher texto no Flow (sem gerar)`.
+- Logs reais Supabase às 15:08 UTC registraram duas chamadas HTTP **502** à Edge Function `hyperbrowser-profile`, acompanhadas de `hyperbrowser_executor_http_error { status: 502 }`. A causa interna específica do Modal **não estava disponível** nesses logs.
+- Hipótese técnica fundamentada: o campo `O que você quer criar?` foi mapeado como `editable · textbox` e pode expor rótulo em atributo de placeholder, enquanto a implementação anterior usava somente `get_by_role(..., name=...)`.
+- Executor corrigido para procurar o campo editável por atributos de metadados e exigir correspondência única antes de preencher; razões de falha seguras retornadas sem credenciais. Commit `e685cb8c`.
+- Supabase encaminha código de erro seguro; Edge Function `hyperbrowser-profile` **v31 ACTIVE**. Commit `e45507f3`.
+- Frontend traduz erros específicos para instruções úteis. Commit `d55e25a8`.
+- **Pendente:** publicar Modal, depois frontend, e retestar. Não foi confirmada geração nem preenchimento bem-sucedido. Upload de imagem permanece não implementado.
+
 ## 2026-11-15 — Preenchimento supervisionado de prompt sem gerar
 
 - Modal: novo modo autenticado `stage-prompt` aceita prompt de 1 a 4000 caracteres, exige URL de projeto `https://flow.google.com/project/...`, procura campo de texto `O que você quer criar?` (ou equivalente inglês) de forma inequívoca e usa `fill()`. **Não clica em Gerar e não envia vídeo.** Commits `0b705aff`, `8d7f9b51`.
