@@ -300,9 +300,6 @@ async def include_references(page, image_files, prompt_field, trace):
                     return result
                 # The element may be an option containing an image with alt
                 # but no text. Identify it by the same exact DOM predicate.
-                target = library.locator('[role="option"],button,[role="button"]').filter(
-                    has=library.locator('img[alt], [title]')).filter(
-                    has_text=re.compile(r'.*', re.S))
                 # Use a temporary DOM marker scoped to this one library;
                 # it never leaves the browser or touches other assets.
                 marker = 'data-mv-reference-target'
