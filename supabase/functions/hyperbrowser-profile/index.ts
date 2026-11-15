@@ -43,7 +43,7 @@ Deno.serve(async(req:Request)=>{
    row={profile_id:profile.id,session_id:null,login_saved:false};
   }
   if(input.action==="create-profile")return reply({configured:true,profileReady:true,loginSaved:Boolean(row.login_saved)});
-  if(["inspect-controls","create-flow-project","inspect-flow-editor","inspect-flow-settings","stage-flow-prompt","prepare-flow-draft","click-flow-generate"].includes(input.action)){
+  if(["inspect-controls","create-flow-project","inspect-flow-editor","inspect-flow-settings","stage-flow-prompt","prepare-flow-draft","click-flow-generate","start-click-recording","read-click-recording","stop-click-recording"].includes(input.action)){
    if(!row.session_id)return reply({error:"no_active_session"},409);
    stage="inspect_existing_session";
    const current=await client.sessions.get(row.session_id);
