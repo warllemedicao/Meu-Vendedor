@@ -238,35 +238,7 @@ async def include_references(page, image_files, prompt_field, trace):
                                 if await check.is_visible():
                                     candidates.append(check)
                 trace.event('references', 'waiting', assetIndex=asset_index, selectable=len(candidates))
-                # Flow's asset list may expose each filename inside a button
-                # rather than as the accessible name of its listbox option.
-                # Resolve the unique button within the listbox only; never
-                # click a matching filename elsewhere on the page.
-                if not candidates:
-                    button_candidates = []
-                    for library in libraries_seen:
-                        buttons = library.locator('button,[role="button"]').filter(has_text=pattern)
-                        for button_index in range(min(await buttons.count(), 5)):
-                            button = buttons.nth(button_index)
-                            if await button.is_visible():
-                                button_candidates.append(button)
-                    trace.event('references', 'waiting', assetIndex=asset_index,
-                                assetButtons=len(button_candidates))
-                    if len(button_candidates) == 1:
-                        # A library button can open a preview instead of
-                        # toggling selection. Treat it as a preview action,
-                        # not proof of aria-selected.
-                        if len(image_files) > 1:
-                            trace.next_action = 'include_preview_one_by_one'
-                        target_button = button_candidates[0]
-                        await target_button.click(trial=True, timeout=1000)
-                        await target_button.click(timeout=1000)
-                        # The preview exposes a single explicit include action.
-                        preview_includes = []
-                        for preview_frame in page.frames[:8]:
-                            actions = preview_frame.get_by_role(
-                                'button', name=re.compile(
-                                    r'^\\s*(incluir no comando|add to prompt|include in prompt)\\s*
+                if len(candidates) != 1:
                     # Only counts/roles leave the browser, never names or surrounding text.
                     if not candidates:
                         for library in libraries_seen[:2]:
