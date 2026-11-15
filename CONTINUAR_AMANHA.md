@@ -1,3 +1,17 @@
+## 2026-11-15 — Publicação autorizada dos diagnósticos do Flow (em preparação)
+
+O responsável autorizou commit/push e publicação das alterações concluídas/validadas no Supabase e Cloudflare após cada alteração. Autorização limitada ao escopo solicitado e sujeita aos gates existentes. A entrega atual exige também Modal. Publicar somente `hyperbrowser-profile` e frontend/Modal existentes, sem migrations, outros módulos ou geração de vídeo. SHAs, execuções e resultado remoto ainda serão registrados após a execução; não considerar publicado por esta anotação. Preservar o checkout original e `package-lock.json`.
+
+## 2026-11-15 — Próxima retomada: logs detalhados do Flow preparados localmente
+
+Implementação em `fix/flow-attempt-diagnostics`, worktree `/tmp/meu-vendedor-flow-logs`, base `c6f4561`; ainda sem commit/push/deploy. O checkout original e seu `package-lock.json` foram preservados. O responsável dispensou a leitura global dos Markdown nesta tarefa, autorizando documentos do Flow e registros recentes.
+
+Modal registra etapas, tempos e contagens por tentativa; Supabase preserva o diagnóstico também em falhas; frontend oferece **Copiar relatórios do Flow**, com cinco tentativas em memória que não são apagadas ao mapear a interface (recarregar apaga). A espera registra imagens detectadas, processamento, leituras estáveis e falhas de frames. Dados sensíveis e textos livres não entram no relatório. Corrigidos padrões regex de Concordo/upload; isso ainda precisa de teste real. Selecionar imagens/Incluir no comando e Gerar continuam não implementados; não habilitar geração por inferência de que o upload terminou.
+
+Validações: 6 testes novos TS/JS, 5 Python, sintaxe, typechecks e lint aprovados; quatro avisos Kaggle preexistentes. Suíte: 65/66 arquivos no sandbox; o teste restante do wrapper CLI passou 3/3 fora dele. Build fora do sandbox gerou 27 páginas com chave fictícia, após falha ambiental `--showConfig` dentro do sandbox. Supabase consultado somente para leitura: função atual ACTIVE v48, sem estes diagnósticos novos. Nenhuma geração ou alteração remota.
+
+**Próximo passo:** revisar, integrar e publicar as três camadas pelos fluxos existentes; executar preparo supervisionado e enviar o relatório textual. Sem essa publicação, a interface online continua com os logs antigos. Detalhes e limitações em `historico.md`.
+
 ## 2026-11-15 — Pré-verificação das configurações no botão único do Flow
 
 - Solicitação: após upload e confirmação de direitos, robô deve ir ao comando, verificar configurações e clicar na seta de geração quando tudo estiver correto.

@@ -2,11 +2,16 @@
 
 import { useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
+import { formatFlowDiagnostic, readFlowDiagnostic, missingFlowDiagnostic } from "@/lib/flow-diagnostics";
 
-type Result = { configured?:boolean; profileReady?:boolean; loginSaved?:boolean; sessionActive?:boolean; navigationReady?:boolean; liveViewUrl?:string; error?:string; inspectionReady?:boolean; controls?:Array<{role:string;label:string}>; visibleCount?:number; frameCount?:number; inspectedFrames?:number; scanErrors?:number; flowPage?:boolean; projectClicked?:boolean; promptStaged?:boolean; imageAttached?:boolean; imageCount?:number; editorControls?:Array<{role:string;label:string;kind:string;accept?:string}>; editorFrames?:number; editorErrors?:number; settingsInspection?:{opened:boolean;vertical916:boolean;singleOutput:boolean;settingsText:Array<{label:string;selected:string}>;referencesVerified?:boolean;readyToGenerate?:boolean;generationStarted?:boolean} };
+type Result = { traceId?:string; diagnostics?:unknown; configured?:boolean; profileReady?:boolean; loginSaved?:boolean; sessionActive?:boolean; navigationReady?:boolean; liveViewUrl?:string; error?:string; inspectionReady?:boolean; controls?:Array<{role:string;label:string}>; visibleCount?:number; frameCount?:number; inspectedFrames?:number; scanErrors?:number; flowPage?:boolean; projectClicked?:boolean; promptStaged?:boolean; imageAttached?:boolean; imageCount?:number; editorControls?:Array<{role:string;label:string;kind:string;accept?:string}>; editorFrames?:number; editorErrors?:number; settingsInspection?:{opened:boolean;vertical916:boolean;singleOutput:boolean;settingsText:Array<{label:string;selected:string}>;referencesVerified?:boolean;readyToGenerate?:boolean;generationStarted?:boolean} };
 const errors:Record<string,string>={unauthorized:"Entre novamente no Meu Vendedor.",confirmed_account_required:"Confirme seu e-mail antes de conectar.",hyperbrowser_key_missing:"A conexão remota ainda não foi configurada.",hyperbrowser_unavailable:"Não foi possível abrir o navegador remoto. Tente novamente mais tarde.",no_active_session:"Abra o navegador antes de salvar o acesso.",live_view_unavailable:"O navegador abriu, mas não forneceu uma janela interativa.",flow_navigation_unavailable:"O Hyperbrowser não confirmou a conexão com o navegador. A sessão foi preservada; tente novamente mais tarde.",flow_inspection_unavailable:"Falha na leitura do navegador remoto. Verifique se o Modal está publicado e a sessão continua ativa.",flow_project_not_active:"Abra um projeto no Google Flow antes de preencher o texto.",prompt_field_not_unique:"O campo do prompt não foi identificado de forma única. Mapeie a interface do editor novamente.",new_project_button_not_found:"O botão Novo projeto não foi encontrado na tela atual.",image_input_not_found:"O Flow não disponibilizou um campo de anexo de imagem. Nenhum vídeo foi gerado.",invalid_image:"Escolha uma imagem PNG, JPG ou WebP de até 2,5 MB."};
+const diagnosticModes:Record<string,string>={"create-flow-project":"create-project","inspect-flow-editor":"inspect-editor","stage-flow-prompt":"stage-prompt","prepare-flow-draft":"prepare-draft","prepare-flow-image":"prepare-image","inspect-flow-settings":"inspect-settings"};
+Object.assign(errors,{flow_images_not_ready:"As imagens foram enviadas, mas o carregamento não foi confirmado no prazo. Copie o relatório abaixo.",flow_upload_action_not_found:"O botão Fazer upload não foi encontrado. Copie o relatório abaixo.",flow_file_chooser_unavailable:"O seletor de arquivos não confirmou o envio. Copie o relatório abaixo.",image_rights_dialog_unresolved:"Não foi possível confirmar o aviso de direitos. Copie o relatório abaixo.",flow_executor_timeout:"O tempo de resposta do executor esgotou. O resultado remoto é desconhecido; copie o relatório antes de tentar novamente."});
 function safeLive(url:string){try{const u=new URL(url);return u.protocol==="https:"&&u.searchParams.has("token")&&((u.hostname==="app.hyperbrowser.ai"&&u.pathname==="/live")||(/^dp-[a-z0-9-]+\.hxproxy\.io$/.test(u.hostname)&&/^\/browser\/[0-9a-f-]{36}\/live\/vnc\.html$/.test(u.pathname)&&u.searchParams.has("path")));}catch{return false;}}
 export function HyperbrowserProfile(){
+ const [reports,setReports]=useState<string[]>([]);
+ const [copyMessage,setCopyMessage]=useState("");
  const [busy,setBusy]=useState(false);
  const [draftPrompt,setDraftPrompt]=useState("");
  const [draftImages,setDraftImages]=useState<File[]>([]);
@@ -18,7 +23,18 @@ export function HyperbrowserProfile(){
  const [inspection,setInspection]=useState<Result|null>(null);
  async function act(action:"status"|"start-login"|"save-login"|"create-flow-project"|"inspect-flow-editor"|"stage-flow-prompt"|"prepare-flow-draft"|"prepare-flow-image"|"inspect-flow-settings"){
   if(busy)return;
-  setBusy(true);setMessage("");setInspection(null);setControls([]);
+  setBusy(true);setMessage("");setInspection(null);setControls([]);setCopyMessage("");
+  const startedAt=new Date().toISOString(), started=Date.now(), localTraceId=crypto.randomUUID();
+  let reportRecorded=false, requestSent=false;
+  function recordReport(payload:Result|null,reason:string){
+   const mode=diagnosticModes[action];
+   if(!mode)return;
+   const traceId=typeof payload?.traceId==="string"&&/^[0-9a-f-]{36}$/.test(payload.traceId)?payload.traceId:localTraceId;
+   const diagnostic=readFlowDiagnostic(payload?.diagnostics,traceId,mode)??missingFlowDiagnostic(traceId,mode,reason,Date.now()-started);
+   const text=formatFlowDiagnostic(diagnostic,startedAt);
+   setReports(previous=>[text,...previous].slice(0,5));
+   reportRecorded=true;
+  }
   try{
    const client=getSupabase();
    if(!client)throw new Error("O serviço de autenticação está indisponível.");
@@ -34,23 +50,36 @@ export function HyperbrowserProfile(){
      return {mime:file.type,data:btoa(binary)};
     }))};
    }
+   requestSent=true;
    const {data,error}=await client.functions.invoke<Result>("hyperbrowser-profile",{body:{action,...(["prepare-flow-draft","prepare-flow-image"].includes(action)?{prompt:draftPrompt}:{}),...imagePayload,...(action==="prepare-flow-draft"&&draftImages.length?{imageRightsConfirmed}:{})}});
-   if(error||!data||data.error)throw new Error(errors[data?.error??""]??"A conexão não respondeu. Consulte os registros do Supabase.");
+   // Supabase HTTP failures keep the response body in error.context, not data.
+   let payload=data;
+   if(error?.context instanceof Response) payload=await error.context.clone().json().catch(()=>null);
+   recordReport(payload,payload?.error??(error?"client_response_unavailable":"executor_report_unavailable"));
+   if(error||!payload||payload.error)throw new Error(errors[payload?.error??""]??"A conexão não respondeu. Copie o relatório desta tentativa abaixo.");
+   const response=payload;
    if(action==="create-flow-project"||action==="inspect-flow-editor"||action==="stage-flow-prompt"||action==="prepare-flow-draft"||action==="prepare-flow-image"||action==="inspect-flow-settings"){
-    setControls(Array.from(new Map((data.controls??[]).map(item=>[`${item.role}:${item.label}`,item])).values()));
-    setInspection(data);
-    setMessage(action==="inspect-flow-settings"?(data.settingsInspection?.opened?"Painel de configurações aberto. Confira os parâmetros detectados abaixo; nenhuma geração iniciada.":"Não foi possível identificar o botão de configurações. Nenhuma geração iniciada."):action==="prepare-flow-draft"?(data.promptStaged?(draftImages.length?(data.imageAttached?`Texto preenchido e ${data.imageCount??draftImages.length} imagem(ns) enviada(s) ao Flow. Configurações inspecionadas quando disponíveis; as referências ainda precisam ser confirmadas no editor. Nenhuma geração iniciada.`:"Texto preenchido, mas o anexo das imagens não foi confirmado."):"Projeto pronto e texto preenchido no Flow. Configurações inspecionadas quando disponíveis; nenhuma geração iniciada."):"Não foi possível confirmar o preenchimento do texto."):action==="inspect-flow-editor"?(data.editorControls?.length?"Interface mapeada: controles e campos de edição encontrados.":"Interface mapeada. Se os campos do editor não aparecerem, abra um projeto no Flow e tente novamente."):action==="create-flow-project"?(data.projectClicked?"Novo projeto aberto. Controles do editor identificados abaixo; nenhum vídeo foi gerado.":"Não foi possível confirmar a abertura do novo projeto."):(data.inspectionReady?(data.controls?.length?"Controles relevantes identificados sem iniciar geração.":"Inspeção concluída, mas nenhum controle relevante foi encontrado. Veja o diagnóstico abaixo."):"Não foi possível inspecionar a interface."));
+    setControls(Array.from(new Map((response.controls??[]).map(item=>[`${item.role}:${item.label}`,item])).values()));
+    setInspection(response);
+    setMessage(action==="inspect-flow-settings"?(response.settingsInspection?.opened?"Painel de configurações aberto. Confira os parâmetros detectados abaixo; nenhuma geração iniciada.":"Não foi possível identificar o botão de configurações. Nenhuma geração iniciada."):action==="prepare-flow-draft"?(response.promptStaged?(draftImages.length?(response.imageAttached?`Texto preenchido e ${response.imageCount??draftImages.length} imagem(ns) enviada(s) ao Flow. Configurações inspecionadas quando disponíveis; as referências ainda precisam ser confirmadas no editor. Nenhuma geração iniciada.`:"Texto preenchido, mas o anexo das imagens não foi confirmado."):"Projeto pronto e texto preenchido no Flow. Configurações inspecionadas quando disponíveis; nenhuma geração iniciada."):"Não foi possível confirmar o preenchimento do texto."):action==="inspect-flow-editor"?(response.editorControls?.length?"Interface mapeada: controles e campos de edição encontrados.":"Interface mapeada. Se os campos do editor não aparecerem, abra um projeto no Flow e tente novamente."):action==="create-flow-project"?(response.projectClicked?"Novo projeto aberto. Controles do editor identificados abaixo; nenhum vídeo foi gerado.":"Não foi possível confirmar a abertura do novo projeto."):(response.inspectionReady?(response.controls?.length?"Controles relevantes identificados sem iniciar geração.":"Inspeção concluída, mas nenhum controle relevante foi encontrado. Veja o diagnóstico abaixo."):"Não foi possível inspecionar a interface."));
     return;
    }
-   setSaved(Boolean(data.loginSaved));
-   if(data.liveViewUrl){
-    if(!safeLive(data.liveViewUrl))throw new Error("Endereço do navegador remoto inválido.");
-    setView(data.liveViewUrl);
-    setMessage(data.navigationReady?"Google Flow aberto automaticamente no navegador remoto.":"Navegador remoto aberto. Se o Flow não aparecer, acesse https://flow.google.com manualmente.");
+   setSaved(Boolean(response.loginSaved));
+   if(response.liveViewUrl){
+    if(!safeLive(response.liveViewUrl))throw new Error("Endereço do navegador remoto inválido.");
+    setView(response.liveViewUrl);
+    setMessage(response.navigationReady?"Google Flow aberto automaticamente no navegador remoto.":"Navegador remoto aberto. Se o Flow não aparecer, acesse https://flow.google.com manualmente.");
    }else if(action==="save-login"){setView("");setMessage("Sessão encerrada e perfil salvo. A permanência do login será confirmada ao reabrir.");}
-   else if(action==="status"){setMessage(data.profileReady?"Perfil preparado. Clique em Abrir Google Flow para acessar.":"Perfil ainda não criado. Clique em Abrir Google Flow para preparar e acessar.");}
-  }catch(e){setMessage(e instanceof Error?e.message:"Falha ao abrir Google Flow.");}
+   else if(action==="status"){setMessage(response.profileReady?"Perfil preparado. Clique em Abrir Google Flow para acessar.":"Perfil ainda não criado. Clique em Abrir Google Flow para preparar e acessar.");}
+  }catch(e){if(!reportRecorded)recordReport(null,requestSent?"client_response_unavailable":"client_request_not_sent");setMessage(e instanceof Error?e.message:"Falha ao abrir Google Flow.");}
   finally{setBusy(false);}
+ }
+ async function copyReports(){
+  try{
+   if(!navigator.clipboard)throw new Error("clipboard_unavailable");
+   await navigator.clipboard.writeText(reports.join("\n\n---\n\n"));
+   setCopyMessage("Relatórios copiados.");
+  }catch{setCopyMessage("Selecione e copie o texto abaixo manualmente.");}
  }
  return <article className="rounded-xl border border-border bg-surface p-4 space-y-3 sm:col-span-2">
   <h3 className="font-semibold">Google Flow · Acesso remoto</h3>
@@ -65,6 +94,13 @@ export function HyperbrowserProfile(){
   {inspection?.settingsInspection&&<div className="rounded-lg border border-border p-3 text-xs space-y-1"><p>Verificação automática das configurações: {inspection.settingsInspection.opened?"painel localizado":"painel não localizado"}</p><p>Formato 9:16: {inspection.settingsInspection.vertical916?"confirmado":"não confirmado"}</p><p>Quantidade x1: {inspection.settingsInspection.singleOutput?"confirmada":"não confirmada"}</p><p>Referências das imagens: {inspection.settingsInspection.referencesVerified?"confirmadas":"ainda não confirmadas no comando"}</p><p>Geração: não iniciada</p></div>}
   {saved&&<p className="text-xs text-muted">Perfil salvo anteriormente. O Google ainda pode solicitar autenticação novamente.</p>}
   {message&&<p role="status" className="text-sm">{message}</p>}
+  {reports.length>0&&<section className="space-y-2 rounded-lg border border-border p-3" aria-label="Relatórios das tentativas do Flow">
+   <p className="text-sm font-semibold">Relatório para suporte · últimas {reports.length} tentativa(s)</p>
+   <p className="text-xs text-muted">Copie e envie este texto no atendimento. O preparo anterior permanece no relatório após mapear a interface. Os relatórios ficam nesta página até recarregar.</p>
+   <button type="button" className="rounded-lg border border-border px-3 py-2 text-sm" onClick={()=>void copyReports()}>Copiar relatórios do Flow</button>
+   {copyMessage&&<p role="status" className="text-xs">{copyMessage}</p>}
+   <textarea aria-label="Texto dos relatórios do Flow" readOnly value={reports.join("\n\n---\n\n")} rows={14} className="w-full rounded-lg border border-border bg-background p-2 font-mono text-xs" />
+  </section>}
   {inspection&&<p className="text-xs text-muted">Diagnóstico: página Flow {inspection.flowPage?"sim":"não"}; frames {inspection.inspectedFrames??0}/{inspection.frameCount??0}; controles visíveis {inspection.visibleCount??0}; falhas de leitura {inspection.scanErrors??0}; rótulos relevantes {controls.length}.</p>}
   {inspection?.editorControls&&<div className="rounded-lg border border-border p-3"><p className="text-sm font-semibold">Campos do editor ({inspection.editorControls.length}) · frames {inspection.editorFrames??0}, falhas {inspection.editorErrors??0}</p><ul className="mt-2 list-disc pl-5 text-xs">{inspection.editorControls.map((item,i)=><li key={i}>{item.kind} · {item.role}{item.label?` · ${item.label}`:""}{item.accept?` · aceita: ${item.accept}`:""}</li>)}</ul></div>}
   {controls.length>0&&<div className="rounded-lg border border-border p-3"><p className="text-sm font-semibold">Controles encontrados ({controls.length})</p><ul className="mt-2 list-disc pl-5 text-xs">{controls.map((item,i)=><li key={i}>{item.label}</li>)}</ul></div>}

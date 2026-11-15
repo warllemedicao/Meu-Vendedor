@@ -1,5 +1,6 @@
 """Deploy with the official Modal SDK. Control endpoint is private; browsers scale to zero."""
 import hmac
+import hashlib
 import os
 import re
 import secrets
@@ -23,7 +24,14 @@ def gateway():
     # Configuration v2: the browser image is explicitly resolved before deployment.
     import asyncio
     import httpx
+    import sys
     from fastapi import FastAPI, Request, HTTPException
+    # add_local_dir places helpers here in the Modal image.
+    sys.path.insert(0, '/opt/flow')
+    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images
+    executor_revision = hashlib.sha256(
+        Path('/opt/flow/modal_app.py').read_bytes() + Path('/opt/flow/flow_diagnostics.py').read_bytes()
+    ).hexdigest()[:12]
     api = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @api.post('/hyperbrowser-navigate')
@@ -76,6 +84,8 @@ def gateway():
                 raise ValueError('invalid_endpoint')
         except (ValueError, TypeError, AttributeError):
             raise HTTPException(400, 'invalid_endpoint')
+        trace = FlowDiagnostics(payload.get("traceId"), payload.get("mode", "navigate"), executor_revision)
+        trace.event("request", expected=len(image_files))
         from playwright.async_api import async_playwright
         from urllib.parse import parse_qsl, urlencode, urlunsplit
         # Keep the provider-owned browser alive when this short-lived CDP
@@ -84,6 +94,7 @@ def gateway():
         query['keepAlive'] = 'true'
         persistent_endpoint = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), parsed.fragment))
         try:
+            trace.event("connect", "started")
             async with async_playwright() as playwright:
                 browser = await playwright.chromium.connect_over_cdp(persistent_endpoint, timeout=20000)
                 # The Hyperbrowser session owns this Chromium process. Do not call
@@ -96,9 +107,11 @@ def gateway():
                 page = next((p for p in pages if (p.url or '').startswith('https://flow.google.com/')), None)
                 if page is None:
                     page = pages[0] if pages else await context.new_page()
+                trace.event("connect", frames=len(page.frames), flowPage=(page.url or "").startswith("https://flow.google.com/"), projectPage=(page.url or "").startswith("https://flow.google.com/project/"))
                 if inspect_only:
                     # Inspect the already open page without resetting its navigation.
                     # Create only a blank project when explicitly requested; never generate media.
+                    trace.event("project", "started")
                     project_clicked = False
                     if create_project or (stage_prompt and not (page.url or '').startswith('https://flow.google.com/project/')):
                         if not (page.url or '').startswith('https://flow.google.com/'):
@@ -112,8 +125,10 @@ def gateway():
                         if not project_clicked:
                             raise RuntimeError('new_project_button_not_found')
                         await page.wait_for_timeout(2200)
+                    trace.event("project", projectPage=(page.url or "").startswith("https://flow.google.com/project/"))
                     prompt_staged = False
                     if stage_prompt:
+                        trace.event("prompt", "started")
                         if not (page.url or '').startswith('https://flow.google.com/project/'):
                             raise RuntimeError('flow_project_not_active')
                         matches = []
@@ -126,13 +141,16 @@ def gateway():
                                 metadata = await field.evaluate("""el => [el.getAttribute('aria-label'), el.getAttribute('data-placeholder'), el.getAttribute('placeholder'), el.getAttribute('data-testid')].filter(Boolean).join(' ')""")
                                 if re.search(r'o que você quer criar|what do you want to create', metadata or '', re.I):
                                     matches.append(field)
+                        trace.event("prompt", "waiting", matches=len(matches))
                         if len(matches) != 1:
                             raise RuntimeError('prompt_field_not_unique')
                         await matches[0].fill(prompt.strip(), timeout=8000)
                         prompt_staged = True
+                        trace.event("prompt")
                     image_attached = False
                     image_count = 0
                     if stage_image:
+                        trace.event("upload", "started", expected=len(image_files))
                         # The Flow editor may create a hidden file input only after opening
                         # the attachment menu. Never click Generate or submit the prompt.
                         # A Flow library menu can open without starting a file upload.
@@ -142,9 +160,9 @@ def gateway():
                             # Flow library drawer, not the library search/results.
                             for frame in page.frames[:8]:
                                 for locator in (
-                                    frame.get_by_text(re.compile(r'^\\s*Fazer upload\\s*(?:\\.\\.\\.|…)?\\s*$', re.I)),
+                                    frame.get_by_text(re.compile(r'^\s*Fazer upload\s*(?:\.\.\.|…)?\s*$', re.I)),
                                     frame.get_by_role('button', name=re.compile(r'fazer upload|upload', re.I)),
-                                    frame.get_by_text(re.compile(r'^\\s*Upload\\s*$', re.I)),
+                                    frame.get_by_text(re.compile(r'^\s*Upload\s*$', re.I)),
                                 ):
                                     matches = await locator.count()
                                     for idx in range(min(matches, 12)):
@@ -158,12 +176,14 @@ def gateway():
                                                 await candidate.click(timeout=3500)
                                             chooser = await chooser_info.value
                                             await chooser.set_files(image_files, timeout=12000)
+                                            trace.event("upload", expected=len(image_files), fileChooser=True)
                                             return True
                                         except Exception:
                                             for candidate_frame in page.frames[:8]:
                                                 files = candidate_frame.locator('input[type="file"]')
                                                 if await files.count() == 1:
                                                     await files.set_input_files(image_files, timeout=12000)
+                                                    trace.event("upload", expected=len(image_files), fileInput=True)
                                                     return True
                                             raise RuntimeError('flow_file_chooser_unavailable')
                             return False
@@ -175,6 +195,7 @@ def gateway():
                                     trigger = frame.locator(selector)
                                     if await trigger.count() == 1 and await trigger.is_visible():
                                         await trigger.click(timeout=4000)
+                                        trace.event("upload", "waiting", libraryOpened=True)
                                         break
                             await page.wait_for_timeout(500)
                             uploaded = await click_upload_action()
@@ -182,6 +203,9 @@ def gateway():
                             raise RuntimeError('flow_upload_action_not_found')
                         image_attached = True
                         image_count = len(image_files)
+                        trace.event("upload", expected=image_count)
+                        trace.event("rights", "started")
+                        rights_accepted = 0
                         # Accept rights only for this user-authorized upload batch.
                         # The consent modal may appear once per image.
                         for image_index in range(len(image_files)):
@@ -190,10 +214,13 @@ def gateway():
                                 for frame in page.frames[:8]:
                                     dialog = frame.get_by_text('Direitos de uso desta imagem', exact=False)
                                     if await dialog.count() and await dialog.first.is_visible():
-                                        agree = frame.get_by_role('button', name=re.compile(r'^\\s*Concordo\\s*$', re.I))
+                                        trace.event("rights", "waiting", dialogVisible=True, accepted=rights_accepted)
+                                        agree = frame.get_by_role('button', name=re.compile(r'^\s*Concordo\s*$', re.I))
                                         if await agree.count() == 1 and await agree.is_visible():
                                             await agree.click(timeout=5000)
                                             found = True
+                                            rights_accepted += 1
+                                            trace.event("rights", accepted=rights_accepted)
                                         else:
                                             raise RuntimeError('image_rights_dialog_unresolved')
                                         break
@@ -207,44 +234,13 @@ def gateway():
                         # expected asset to become visible and for upload indicators
                         # to disappear. Stable consecutive frame reads prevent
                         # advancing on an intermediate render.
-                        expected_names = {item['name'] for item in image_files}
-                        stable_reads = 0
-                        upload_deadline = time.monotonic() + 45
-                        while time.monotonic() < upload_deadline:
-                            visible_names = set()
-                            busy = False
-                            for asset_frame in page.frames[:8]:
-                                try:
-                                    state = await asset_frame.locator('body').evaluate("""(body) => {
-                                        const visible = el => {
-                                            const r = el.getBoundingClientRect();
-                                            const s = getComputedStyle(el);
-                                            return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
-                                        };
-                                        const text = Array.from(body.querySelectorAll('*'))
-                                            .filter(el => visible(el) && el.children.length === 0)
-                                            .map(el => (el.textContent || '').trim()).filter(Boolean);
-                                        const busy = Array.from(body.querySelectorAll('[role="progressbar"], [aria-busy="true"]'))
-                                            .some(visible);
-                                        return { text: text.slice(0, 600), busy };
-                                    }""")
-                                    busy = busy or state['busy']
-                                    for name in expected_names:
-                                        if any(name.lower() in label.lower() for label in state['text']):
-                                            visible_names.add(name)
-                                except Exception:
-                                    busy = True
-                            if expected_names.issubset(visible_names) and not busy:
-                                stable_reads += 1
-                                if stable_reads >= 3:
-                                    break
-                            else:
-                                stable_reads = 0
-                            await page.wait_for_timeout(750)
-                        if stable_reads < 3:
-                            raise RuntimeError('flow_images_not_ready')
+                        trace.event("rights", accepted=rights_accepted)
+                        await wait_for_images(page, image_files, trace)
+                    if not stage_image:
+                        trace.event("upload", "skipped", expected=0)
                     settings_result = None
                     if payload.get('mode') in ('inspect-settings', 'prepare-draft'):
+                        trace.event("settings", "started")
                         # Read the settings drawer without clicking Generate or Save.
                         # The settings icon is adjacent to the send arrow in Flow.
                         settings_result = {'opened': False, 'vertical916': False, 'singleOutput': False, 'settingsText': []}
@@ -268,14 +264,33 @@ def gateway():
                                     pass
                             settings_result['vertical916'] = any('9:16' in x['label'] and x['selected']=='true' for x in settings_result['settingsText'])
                             settings_result['singleOutput'] = any('x1' in x['label'].lower() and x['selected']=='true' for x in settings_result['settingsText'])
-                        settings_result['readyToGenerate'] = bool(settings_result['opened'] and settings_result['vertical916'] and settings_result['singleOutput'])
+                        trace.event("settings", opened=settings_result['opened'], vertical916=settings_result['vertical916'], singleOutput=settings_result['singleOutput'])
+                        settings_result['readyToGenerate'] = False
                         # Do not submit: the uploaded images have not been verified
                         # as attached references in the video composer.
                         settings_result['referencesVerified'] = False
                         settings_result['generationStarted'] = False
+                    trace.event("references", "started")
+                    include_visible = include_enabled = selected_count = reference_errors = 0
+                    for reference_frame in page.frames[:8]:
+                        try:
+                            observation = await reference_frame.locator('body').evaluate("""body => {
+                                const visible = el => { const r=el.getBoundingClientRect(), s=getComputedStyle(el); return r.width>0 && r.height>0 && s.display!=='none' && s.visibility!=='hidden'; };
+                                const buttons = Array.from(body.querySelectorAll('button,[role="button"]')).filter(visible)
+                                    .filter(el => /^(incluir no comando|add to prompt|include in prompt)$/i.test((el.getAttribute('aria-label')||el.textContent||'').trim()));
+                                return {includeVisible:buttons.length, includeEnabled:buttons.filter(el=>!el.disabled && el.getAttribute('aria-disabled')!=='true').length,
+                                    selected:Array.from(body.querySelectorAll('[aria-selected="true"],[aria-checked="true"]')).filter(visible).length};
+                            }""")
+                            include_visible += observation['includeVisible']
+                            include_enabled += observation['includeEnabled']
+                            selected_count += observation['selected']
+                        except Exception:
+                            reference_errors += 1
+                    trace.event("references", "blocked" if stage_prompt else "skipped", includeVisible=include_visible, includeEnabled=include_enabled, selected=selected_count, frameErrors=reference_errors)
+                    trace.event("inspection", "started")
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
-                    scan = """els => {
+                    scan = r"""els => {
                         const visible = el => {
                             const r = el.getBoundingClientRect();
                             const st = getComputedStyle(el);
@@ -303,7 +318,7 @@ def gateway():
                     editor_frames = 0
                     editor_errors = 0
                     if payload.get('mode') in ('inspect-editor', 'prepare-draft'):
-                        editor_scan = """els => {
+                        editor_scan = r"""els => {
                             const safe = v => {
                                 const t=(v||'').trim();
                                 return t.length<=70 && !/@|https?:|token|password|senha/i.test(t) ? t : '';
@@ -342,7 +357,11 @@ def gateway():
                         except Exception:
                             scan_errors += 1
                             continue
+                    trace.event("inspection", frames=inspected_frames, frameErrors=scan_errors)
+                    reason = 'references_not_implemented' if stage_prompt else 'inspection_only'
+                    trace.event("finished")
                     return {
+                        'diagnostics': trace.report(reason),
                         'navigationReady': True, 'inspectionReady': True,
                         'controls': all_controls[:30], 'visibleCount': total_visible,
                         'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
@@ -355,16 +374,9 @@ def gateway():
                 await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
                 return {'navigationReady': True}
         except Exception as exc:
-            # Only emit safe diagnostics: no CDP URL, query string, tokens,
-            # Google account data or remote live-view URL.
-            print('hyperbrowser_navigation_failed', {
-                'errorType': type(exc).__name__,
-                'endpointHost': host,
-                'phase': 'connect_or_navigate',
-            })
-            safe_errors = {'flow_project_not_active', 'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found', 'flow_upload_action_not_found', 'flow_file_chooser_unavailable', 'flow_images_not_ready'}
-            reason = str(exc) if str(exc) in safe_errors else 'navigation_failed'
-            raise HTTPException(502, reason)
+            reason = str(exc) if str(exc) in REASONS else 'navigation_failed'
+            trace.event(trace.stage, "error")
+            raise HTTPException(502, {'code': reason, 'diagnostics': trace.report(reason)})
 
     @api.post('/control')
     async def control(request: Request):
