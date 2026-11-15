@@ -1,3 +1,10 @@
+## 2026-11-15 — Sincronização segura via GitHub Actions
+
+- O usuário confirmou sucesso (verde) do workflow Modal anterior.
+- Ampliado `.github/workflows/deploy-hyperbrowser-modal.yml` para, após deploy Modal, configurar no Supabase `MV_HYPERBROWSER_EXECUTOR_SECRET` e `MV_HYPERBROWSER_EXECUTOR_URL` e atualizar apenas `MV_FLOW_EXECUTOR_SECRET` no Cloudflare via Wrangler. Usa secrets do GitHub Actions sem imprimir valores.
+- Verificações HTTP com autenticação após sincronização: `/control` health deve retornar 200; `/hyperbrowser-navigate` com endpoint inválido deve retornar 400. Não executa navegação Google nem manipula login nesse teste.
+- **Pendente**: executar novamente o workflow manualmente para aplicar sincronização (commit posterior à execução verde), confirmar resultado e testar navegação real autenticada no app. Sem API de dispatch disponível nesta sessão.
+
 ## 2026-11-15 — Workflow de publicação Modal para Hyperbrowser
 
 - Criado `.github/workflows/deploy-hyperbrowser-modal.yml`, acionado exclusivamente por `workflow_dispatch`, ambiente `production`, com verificação de `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` e `MV_FLOW_EXECUTOR_SECRET` no GitHub Actions.
