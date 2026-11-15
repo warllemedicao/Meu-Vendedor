@@ -48,3 +48,52 @@ jobs:
             echo "::error::Modal gateway route not reachable"
             exit 1
           fi
+
+      - name: Require credentials for secure service synchronization
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          for name in SUPABASE_ACCESS_TOKEN CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing GitHub Actions secret $name"
+              exit 1
+            fi
+          done
+      - name: Synchronize Hyperbrowser executor configuration with Supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          MV_FLOW_EXECUTOR_SECRET: ${{ secrets.MV_FLOW_EXECUTOR_SECRET }}
+        run: |
+          npm install --global supabase@3.1.0
+          supabase secrets set --project-ref jzchlrvxdaffnrgbvabv \
+            "MV_HYPERBROWSER_EXECUTOR_SECRET=$MV_FLOW_EXECUTOR_SECRET" \
+            "MV_HYPERBROWSER_EXECUTOR_URL=https://warllemedicao--meu-vendedor-flow-gateway.us-east.modal.run/hyperbrowser-navigate"
+      - name: Synchronize existing Cloudflare Flow executor secret
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MV_FLOW_EXECUTOR_SECRET: ${{ secrets.MV_FLOW_EXECUTOR_SECRET }}
+        run: |
+          printf '%s' "$MV_FLOW_EXECUTOR_SECRET" | npx --yes wrangler@4.157.0 secret put MV_FLOW_EXECUTOR_SECRET --name meu-vendedor
+      - name: Verify Modal authentication and Hyperbrowser endpoint without browser session
+        env:
+          MV_FLOW_EXECUTOR_SECRET: ${{ secrets.MV_FLOW_EXECUTOR_SECRET }}
+        run: |
+          python - <<'PY'
+          import os, json, urllib.request
+          base='https://warllemedicao--meu-vendedor-flow-gateway.us-east.modal.run'
+          headers={'Authorization':'Bearer '+os.environ['MV_FLOW_EXECUTOR_SECRET'],'Content-Type':'application/json'}
+          for route, payload in [('/control',{'action':'health'}),('/hyperbrowser-navigate',{'wsEndpoint':'invalid'})]:
+              req=urllib.request.Request(base+route, data=json.dumps(payload).encode(),headers=headers,method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as response:
+                      status=response.status
+              except urllib.error.HTTPError as exc:
+                  status=exc.code
+              expected=200 if route=='/control' else 400
+              print(route, 'HTTP',status)
+              if status!=expected:
+                  raise SystemExit('Modal authentication/route verification failed')
+          PY
