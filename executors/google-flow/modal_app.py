@@ -45,9 +45,15 @@ def gateway():
         except (ValueError, TypeError, AttributeError):
             raise HTTPException(400, 'invalid_endpoint')
         from playwright.async_api import async_playwright
+        from urllib.parse import parse_qsl, urlencode, urlunsplit
+        # Keep the provider-owned browser alive when this short-lived CDP
+        # client disconnects; never log the signed endpoint or its query.
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        query['keepAlive'] = 'true'
+        persistent_endpoint = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), parsed.fragment))
         try:
             async with async_playwright() as playwright:
-                browser = await playwright.chromium.connect_over_cdp(endpoint, timeout=20000)
+                browser = await playwright.chromium.connect_over_cdp(persistent_endpoint, timeout=20000)
                 # The Hyperbrowser session owns this Chromium process. Do not call
                 # browser.close(): for a CDP-attached browser that can close the
                 # remote browser and invalidate its live-view URL.
