@@ -52,7 +52,7 @@ Deno.serve(async(req:Request)=>{
     const old=await client.sessions.get(row.session_id);
     const live=validLive(old?.liveUrl);
     const started=row.session_started_at?new Date(row.session_started_at).getTime():0;
-    if(live&&started&&Date.now()-started<12*60*1000){const ready=await openFlow(old?.wsEndpoint);if(ready)return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live,navigationReady:true});console.warn("hyperbrowser_existing_session_navigation_failed",{hasSessionId:true});return respond({error:"flow_navigation_unavailable",retryable:true,sessionPreserved:true},502);}
+    if(live&&started&&Date.now()-started<12*60*1000){const ready=await openFlow(old?.wsEndpoint);if(ready)return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live,navigationReady:true});console.warn("hyperbrowser_existing_session_navigation_failed",{hasSessionId:true});return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live,navigationReady:false,sessionPreserved:true});}
     await client.sessions.stop(row.session_id).catch(()=>{});
    }catch{/* expired remote session */}
    await update({session_id:null,session_started_at:null});
@@ -66,6 +66,6 @@ Deno.serve(async(req:Request)=>{
   stage="persist_session";
   try{await update({session_id:session.id,session_started_at:new Date().toISOString()});}
   catch(e){await client.sessions.stop(session.id).catch(()=>{});throw e;}
-  const navigationReady=await openFlow(session?.wsEndpoint);if(!navigationReady){console.warn("hyperbrowser_new_session_navigation_failed",{hasSessionId:true});return respond({error:"flow_navigation_unavailable",retryable:true,sessionPreserved:true},502);}return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live,navigationReady:true});
+  const navigationReady=await openFlow(session?.wsEndpoint);if(!navigationReady){console.warn("hyperbrowser_new_session_navigation_failed",{hasSessionId:true});return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live,navigationReady:false,sessionPreserved:true});}return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live,navigationReady:true});
  }catch(e){console.error("google_flow_login_setup_error",{stage:typeof stage==="string"?stage:"unknown",errorName:e instanceof Error?e.name:"unknown",message:e instanceof Error?e.message.slice(0,300):"unknown"});return respond({error:"hyperbrowser_unavailable"},502);}
 });
