@@ -259,18 +259,25 @@ async def include_references(page, image_files, prompt_field, trace):
     included = 0
 
     async def editor_evidence():
-        # The composer is a div in Flow, not necessarily a form.
-        return await prompt_field.evaluate(r"""(textbox,names) => {
+        # Flow renders thumbnail chips without the original filename.
+        # Count only removable images in the local composer, not gallery media.
+        return await prompt_field.evaluate(r"""textbox => {
             const form=textbox.closest('form,[role="form"]');
             const root=form || textbox.parentElement?.parentElement?.parentElement;
-            if(!root)return {attachmentMatches:0,composerFound:false};
-            const nodes=Array.from(root.querySelectorAll('img,[data-attachment],[aria-label],[title]'))
-                .filter(el=>!el.closest('[role="dialog"],[role="listbox"]'));
-            const labels=nodes.map(el=>[el.getAttribute('alt'),el.getAttribute('title'),
-                el.getAttribute('aria-label')].filter(Boolean).join(' ').toLowerCase());
-            return {composerFound:true,attachmentMatches:names.filter(n=>
-                labels.some(label=>label.includes(n.toLowerCase()))).length};
-        }""", [item['name'] for item in image_files], timeout=1800)
+            if(!root)return {attachmentMatches:0,attachmentCount:0,composerFound:false};
+            const imgs=Array.from(root.querySelectorAll('img')).filter(el=>
+                !el.closest('[role="dialog"],[role="listbox"]') &&
+                el.getBoundingClientRect().width>0);
+            const removable=imgs.filter(img=>{
+                let el=img;
+                for(let i=0;i<4 && el && el!==root;i++,el=el.parentElement){
+                    if(el.querySelector('button[aria-label*="emover"],button[aria-label*="emove"],button[title*="emover"],button[title*="emove"]'))return true;
+                }
+                return false;
+            });
+            return {composerFound:true,attachmentMatches:removable.length,
+                    attachmentCount:removable.length,visibleImages:imgs.length};
+        }""", timeout=1800)
 
     async def find_include():
         found = []
