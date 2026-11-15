@@ -1,3 +1,10 @@
+## 2026-11-15 — Sessão Hyperbrowser expirada e link inválido
+
+- Usuário recebeu `{"code":"not_found","message":"session not found","retryable":false}` no visualizador hxproxy. O link de live view continha token temporário; não registrar URL completa ou token em documentação.
+- Identificado que `hyperbrowser-profile` reutilizava link de sessão recente sem exigir navegação bem-sucedida. Corrigido para tentar navegar antes de reutilizar; se falhar, encerrar sessão antiga e criar nova. Se a nova sessão não conseguir navegar, encerrar, limpar ID persistido e retornar `flow_navigation_unavailable` HTTP 502, em vez de expor link inválido.
+- Código commitado `fd593c8`, Edge Function `hyperbrowser-profile` publicada na versão 11 ACTIVE, `verify_jwt=true`.
+- **Pendente**: testar abertura no aplicativo; se houver falha, consultar logs `hyperbrowser_executor_http_error`, `hyperbrowser_executor_request_failed` ou `hyperbrowser_new_session_navigation_failed`.
+
 ## 2026-11-15 — Correção da confirmação Supabase CLI no CI
 
 - Execução do workflow falhou em `supabase secrets set` com `Confirmation required: Set 2 secrets` e `This run can't ask because stdout is not a terminal. Nothing was changed.`.
