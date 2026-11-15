@@ -1,3 +1,7 @@
+## 2026-11-15 — Solicitação de geração de vídeo após marco de preparo
+
+O usuário autorizou explicitamente iniciar a geração no Google Flow, incluindo clicar na seta e confirmar o consumo de créditos, para futuramente recuperar o MP4 no Meu Vendedor. A tentativa de implementar a nova ação nesta sessão revelou uma integração incompleta e não validada. **As alterações experimentais foram revertidas** para o código estável de preparação de rascunho nos arquivos do executor Modal, componente React e funções Supabase. **Não há botão de geração publicado nem geração iniciada pelo robô nesta alteração.** Não executar deploy esperando geração. A implementação futura exige uma ação separada `generate-video` com autorização explícita, detecção segura do botão de seta, confirmação de créditos, proteção contra duplicidade, observação de progresso e download do arquivo MP4; testes unitários e deploy coordenado (Modal + Supabase + frontend Cloudflare). O marco anterior (3 imagens selecionadas e botão de inclusão acionado, prompt preenchido, 9:16/x1 confirmados, mas verificação automática de anexos pendente) permanece válido.
+
 ## 2026-11-15 — MARCO VALIDADO: três imagens, prompt e configurações no Google Flow
 
 **Tentativa:** `a26d9f84-6152-4ed3-8270-54dd194af367`; **executor:** `23b491aef3ec`; início UTC 2026-11-15 22:23:10.022; duração 83.894 ms; ação `prepare-draft`.
