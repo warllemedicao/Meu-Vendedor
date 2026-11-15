@@ -1,3 +1,10 @@
+## 2026-11-15 — Reaproveitamento do executor Modal existente para Hyperbrowser
+
+- Identificado executor Modal já existente em `executors/google-flow/modal_app.py`, com imagem que inclui Playwright e rota privada `/control`.
+- Implementada nova rota `POST /hyperbrowser-navigate` no mesmo gateway, autenticada pelo secret Modal existente `MV_FLOW_EXECUTOR_SECRET`, com conexão Playwright CDP ao `wsEndpoint` do Hyperbrowser e navegação para `https://flow.google.com/`.
+- A função Supabase `hyperbrowser-profile` v9 já chama executor HTTPS configurado em `MV_HYPERBROWSER_EXECUTOR_URL` e `MV_HYPERBROWSER_EXECUTOR_SECRET`. Para usar Modal, definir URL como `https://warllemedicao--meu-vendedor-flow-gateway.us-east.modal.run/hyperbrowser-navigate` **após** redeploy do Modal; secret Supabase deve corresponder ao `MV_FLOW_EXECUTOR_SECRET` existente no Modal. Não expor secrets.
+- **Ainda pendente**: deploy Modal, secrets no Supabase, teste real da navegação, envio de prompts/imagens e geração de MP4. Commit não implica publicação Modal.
+
 ## 2026-11-15 — Ponte Supabase → executor Node.js Hyperbrowser
 
 - Criado `scripts/hyperbrowser-executor-server.mjs`, serviço HTTP Node.js com autenticação Bearer e Playwright CDP para navegar a sessão remota até Google Flow. Endpoint `POST /navigate`, saúde `GET /health`. Nunca registrar o endpoint WebSocket nem credenciais.
