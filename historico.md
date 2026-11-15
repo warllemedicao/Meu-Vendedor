@@ -1,3 +1,11 @@
+## 2026-11-15 — Reincidência do erro de upload no Flow e diagnóstico por logs
+
+- Usuário repetiu teste com 2 imagens e screenshot mostrou novamente a Biblioteca do Flow com opção `Fazer upload...`, sem prévia de arquivos, e mensagem do Meu Vendedor `A conexão não respondeu. Consulte os registros do Supabase.`
+- Consulta de logs do Supabase confirmou `POST | 502` na função `hyperbrowser-profile` às `2026-11-15T15:51:53` e `hyperbrowser_executor_http_error { status: 502, reason: \"executor_error\" }`. O `POST | 200` posterior é outra chamada e não comprova sucesso do upload.
+- Correção no executor Modal: agora captura o `filechooser` nativo via Playwright `page.expect_file_chooser` ao clicar em `Fazer upload`, usa `chooser.set_files` para múltiplas imagens e tenta `input[type=file]` somente como fallback. Se não localizar o controle, falha com motivo específico, sem iniciar geração. Commit `87901fb9`.
+- Ampliados erros seguros do executor para `flow_upload_action_not_found` e `flow_file_chooser_unavailable`, sem expor tokens/URLs privadas. Commit `9e4ecab8`.
+- **Pendente:** publicar Modal atualizado, repetir teste e confirmar visualmente anexos; não afirmar sucesso antecipadamente. Interface permanece com botão único e múltiplas imagens opcionais.
+
 ## 2026-11-15 — Flow abriu Biblioteca em vez de anexar imagens
 
 - Evidência do usuário: tela do Flow mostra a aba Biblioteca e a ação `Fazer upload...`; duas imagens estavam selecionadas no Meu Vendedor. A aplicação retornou `A conexão não respondeu` e nenhum anexo foi confirmado.
