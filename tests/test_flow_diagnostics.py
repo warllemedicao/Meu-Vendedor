@@ -221,16 +221,14 @@ class FlowDiagnosticTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['errorCode'], 'flow_settings_read_failed')
         self.assertNotIn('private-read-error', json.dumps(trace.report(result['errorCode'])))
 
-    def test_preview_inclusion_is_sequential_and_never_generates(self):
+    def test_batch_long_press_selection_and_single_include(self):
         source = (Path(__file__).parents[1] / 'executors/google-flow/flow_diagnostics.py').read_text()
         ast.parse(source)
-        self.assertIn("for asset_index, item in enumerate(image_files, 1)", source)
-        self.assertIn("leaves[0]?.closest('[role=\"option\"]')", source)
+        self.assertIn("await target.click(delay=950, timeout=4000)", source)
+        self.assertIn("expectedSelected", source)
+        self.assertIn("flow_reference_selection_unconfirmed", source)
         self.assertIn("await includes[0].click(timeout=3500)", source)
-        self.assertIn("if evidence['attachmentMatches'] >= included:", source)
-        self.assertIn("result['errorCode'] = 'flow_references_unverified'", source)
         self.assertNotIn("click_generate", source)
-        self.assertNotIn("return result\\n, re.I))", source)
 
     def test_reference_verification_does_not_require_html_form(self):
         source = (Path(__file__).parents[1] / 'executors/google-flow/flow_diagnostics.py').read_text()
