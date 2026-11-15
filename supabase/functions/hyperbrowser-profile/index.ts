@@ -1,7 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Hyperbrowser } from "npm:@hyperbrowser/sdk";
+import { chromium } from "npm:playwright-core";
 const cors={"access-control-allow-origin":"*","access-control-allow-headers":"authorization, x-client-info, apikey, content-type","access-control-allow-methods":"POST, OPTIONS"};
 const respond=(value:unknown,status=200)=>Response.json(value,{status,headers:{"cache-control":"no-store",...cors}});
+const openFlow=async(endpoint:unknown)=>{if(typeof endpoint!=="string"||!endpoint.startsWith("wss://"))return false;let browser;try{browser=await chromium.connectOverCDP(endpoint,{timeout:12000});const context=browser.contexts()[0];if(!context)return false;const page=context.pages()[0]??await context.newPage();await page.goto("https://flow.google.com/",{waitUntil:"domcontentloaded",timeout:20000});return true;}catch(e){console.warn("hyperbrowser_flow_navigation_failed",{name:e instanceof Error?e.name:"unknown"});return false;}finally{await browser?.close().catch(()=>{});}};
 const validLive=(value:unknown)=>{if(typeof value!=="string")return null;try{const u=new URL(value);return u.protocol==="https:"&&u.searchParams.has("token")&&((u.hostname==="app.hyperbrowser.ai"&&u.pathname==="/live")||(/^dp-[a-z0-9-]+\.hxproxy\.io$/.test(u.hostname)&&/^\/browser\/[0-9a-f-]{36}\/live\/vnc\.html$/.test(u.pathname)&&u.searchParams.has("path")))?value:null;}catch{return null;}};
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
@@ -51,7 +53,7 @@ Deno.serve(async(req:Request)=>{
     const old=await client.sessions.get(row.session_id);
     const live=validLive(old?.liveUrl);
     const started=row.session_started_at?new Date(row.session_started_at).getTime():0;
-    if(live&&started&&Date.now()-started<12*60*1000)return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live});
+    if(live&&started&&Date.now()-started<12*60*1000)return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live,navigationReady:await openFlow(old?.wsEndpoint)});
     await client.sessions.stop(row.session_id).catch(()=>{});
    }catch{/* expired remote session */}
    await update({session_id:null,session_started_at:null});
@@ -65,6 +67,6 @@ Deno.serve(async(req:Request)=>{
   stage="persist_session";
   try{await update({session_id:session.id,session_started_at:new Date().toISOString()});}
   catch(e){await client.sessions.stop(session.id).catch(()=>{});throw e;}
-  return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live});
+  return respond({configured:true,profileReady:true,sessionActive:true,loginSaved:Boolean(row.login_saved),liveViewUrl:live,navigationReady:await openFlow(session?.wsEndpoint)});
  }catch(e){console.error("google_flow_login_setup_error",{stage:typeof stage==="string"?stage:"unknown",errorName:e instanceof Error?e.name:"unknown",message:e instanceof Error?e.message.slice(0,300):"unknown"});return respond({error:"hyperbrowser_unavailable"},502);}
 });
