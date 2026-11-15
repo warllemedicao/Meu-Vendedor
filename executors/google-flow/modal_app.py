@@ -93,9 +93,14 @@ def gateway():
                             raise RuntimeError('flow_project_not_active')
                         matches = []
                         for prompt_frame in page.frames[:8]:
-                            locator = prompt_frame.get_by_role('textbox', name=re.compile(r'o que você quer criar|what do you want to create', re.I))
-                            if await locator.count() == 1 and await locator.is_visible():
-                                matches.append(locator)
+                            locator = prompt_frame.locator('[role="textbox"][data-placeholder], [role="textbox"][aria-label], [contenteditable="true"][data-placeholder], [contenteditable="true"][aria-label], [contenteditable="true"][placeholder]')
+                            for index in range(min(await locator.count(), 30)):
+                                field = locator.nth(index)
+                                if not await field.is_visible():
+                                    continue
+                                metadata = await field.evaluate("""el => [el.getAttribute('aria-label'), el.getAttribute('data-placeholder'), el.getAttribute('placeholder'), el.getAttribute('data-testid')].filter(Boolean).join(' ')""")
+                                if re.search(r'o que você quer criar|what do you want to create', metadata or '', re.I):
+                                    matches.append(field)
                         if len(matches) != 1:
                             raise RuntimeError('prompt_field_not_unique')
                         await matches[0].fill(prompt.strip(), timeout=8000)
@@ -189,7 +194,9 @@ def gateway():
                 'endpointHost': host,
                 'phase': 'connect_or_navigate',
             })
-            raise HTTPException(502, 'navigation_failed')
+            safe_errors = {'flow_project_not_active', 'prompt_field_not_unique', 'new_project_button_not_found'}
+            reason = str(exc) if str(exc) in safe_errors else 'navigation_failed'
+            raise HTTPException(502, reason)
 
     @api.post('/control')
     async def control(request: Request):
