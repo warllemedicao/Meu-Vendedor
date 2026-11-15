@@ -233,7 +233,7 @@ async def include_references(page, image_files, prompt_field, trace):
         found = []
         for frame in page.frames[:8]:
             controls = frame.get_by_role('button', name=re.compile(
-                r'^\s*(incluir no comando|add to prompt|include in prompt)\s*, re.I))
+                r'^\s*(incluir no comando|add to prompt|include in prompt)\s*
             for index in range(min(await controls.count(), 6)):
                 control = controls.nth(index)
                 if await control.is_visible() and await control.is_enabled():
