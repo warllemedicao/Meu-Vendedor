@@ -225,6 +225,8 @@ class FlowDiagnosticTests(unittest.IsolatedAsyncioTestCase):
         source = (Path(__file__).parents[1] / 'executors/google-flow/flow_diagnostics.py').read_text()
         ast.parse(source)
         self.assertIn("await target.click(delay=950, timeout=4000)", source)
+        self.assertIn("const matching=options.filter(option=>", source)
+        self.assertIn("libraryOptions:options.length", source)
         self.assertIn("await target.click(modifiers=['Control'], timeout=2500)", source)
         self.assertIn("selectionSemanticsUnavailable=True", source)
         self.assertIn("expectedSelected", source)
