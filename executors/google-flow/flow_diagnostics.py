@@ -141,8 +141,27 @@ async def inspect_settings(page, trace):
                         candidates.append(button)
             trace.event('settings', 'waiting', matches=len(candidates))
             if len(candidates) != 1:
-                result['errorCode'] = 'flow_settings_ambiguous' if candidates else 'flow_settings_not_found'
-                return result
+                # The page has both a global gear and a composer settings
+                # button. Prefer the one next to the prompt/send controls.
+                nearby = []
+                for candidate in candidates:
+                    try:
+                        distance = await candidate.evaluate(r"""el => {
+                            const textbox=Array.from(el.ownerDocument.querySelectorAll('[role="textbox"]'))
+                                .find(e=>/O que você quer criar|What do you want to create/i.test(e.getAttribute('aria-label')||''));
+                            if(!textbox)return 1e9;
+                            const a=el.getBoundingClientRect(),b=textbox.getBoundingClientRect();
+                            return Math.hypot(a.x-b.x,a.y-b.y);
+                        }""", timeout=1000)
+                        nearby.append((distance,candidate))
+                    except Exception:
+                        pass
+                nearby.sort(key=lambda entry: entry[0])
+                if len(nearby) >= 2 and nearby[0][0] + 80 < nearby[1][0]:
+                    candidates = [nearby[0][1]]
+                else:
+                    result['errorCode'] = 'flow_settings_ambiguous' if candidates else 'flow_settings_not_found'
+                    return result
             phase = 'open'
             await candidates[0].click(trial=True, timeout=1800)
             await candidates[0].click(timeout=1800)
