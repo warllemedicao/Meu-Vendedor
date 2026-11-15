@@ -183,185 +183,26 @@ def gateway():
                         image_attached = True
                         image_count = len(image_files)
                         # Accept rights only for this user-authorized upload batch.
-                        for attempt in range(12):
-                            rights_visible = False
-                            for frame in page.frames[:8]:
-                                dialog = frame.get_by_text('Direitos de uso desta imagem', exact=False)
-                                if await dialog.count() and await dialog.first.is_visible():
-                                    rights_visible = True
-                                    agree = frame.get_by_role('button', name=re.compile(r'^\s*Concordo\s*
-                    # Do not return arbitrary page text or account identifiers.
-                    await page.wait_for_timeout(1800)
-                    scan = """els => {
-                        const visible = el => {
-                            const r = el.getBoundingClientRect();
-                            const st = getComputedStyle(el);
-                            return r.width > 0 && r.height > 0 &&
-                                st.visibility !== 'hidden' && st.display !== 'none';
-                        };
-                        const safeLabel = el => {
-                            const value = (el.getAttribute('aria-label') ||
-                                el.getAttribute('title') || el.innerText || '').trim();
-                            const allowed = /novo projeto|new project|create|criar|projeto|project|flow|video|vídeo|gerar|generate|\+/i;
-                            return allowed.test(value) && !/@|conta do google|google account/i.test(value)
-                                ? value.slice(0,70) : '';
-                        };
-                        const candidates = els.filter(visible);
-                        return {
-                            visibleCount: candidates.length,
-                            controls: candidates.map(el => ({
-                                role: el.getAttribute('role') || el.tagName.toLowerCase(),
-                                label: safeLabel(el)
-                            })).filter(item => item.label).slice(0,25)
-                        };
-                    }"""
-                    # Read only metadata of editor inputs, never values or account data.
-                    editor_items = []
-                    editor_frames = 0
-                    editor_errors = 0
-                    if payload.get('mode') in ('inspect-editor', 'prepare-draft'):
-                        editor_scan = """els => {
-                            const safe = v => {
-                                const t=(v||'').trim();
-                                return t.length<=70 && !/@|https?:|token|password|senha/i.test(t) ? t : '';
-                            };
-                            return els.filter(el => {
-                                const r=el.getBoundingClientRect(), st=getComputedStyle(el);
-                                return el.type==='file' || (r.width>0 && r.height>0 && st.display!=='none' && st.visibility!=='hidden');
-                            }).slice(0,60).map(el => ({
-                                role:el.getAttribute('role')||el.tagName.toLowerCase(),
-                                label:safe(el.getAttribute('aria-label'))||safe(el.getAttribute('placeholder'))||safe(el.getAttribute('title'))||'',
-                                kind:el.type==='file'?'file':el.isContentEditable?'editable':el.tagName.toLowerCase(),
-                                accept:el.type==='file'?safe(el.getAttribute('accept')):''
-                            }));
-                        }"""
-                        for editor_frame in page.frames[:8]:
-                            try:
-                                found = await editor_frame.locator(
-                                    'input, textarea, select, [contenteditable="true"], [role="textbox"], [role="combobox"], [role="listbox"], [role="radio"], [role="switch"]'
-                                ).evaluate_all(editor_scan)
-                                editor_frames += 1
-                                editor_items.extend(found)
-                            except Exception:
-                                editor_errors += 1
-                    all_controls = []
-                    total_visible = 0
-                    inspected_frames = 0
-                    scan_errors = 0
-                    for frame in page.frames[:8]:
-                        try:
-                            found = await frame.locator(
-                                'button, [role="button"], a, [tabindex="0"]'
-                            ).evaluate_all(scan)
-                            inspected_frames += 1
-                            total_visible += found.get('visibleCount', 0)
-                            all_controls.extend(found.get('controls', []))
-                        except Exception:
-                            scan_errors += 1
-                            continue
-                    return {
-                        'navigationReady': True, 'inspectionReady': True,
-                        'controls': all_controls[:30], 'visibleCount': total_visible,
-                        'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
-                        'scanErrors': scan_errors,
-                        'flowPage': (page.url or '').startswith('https://flow.google.com/'),
-                        'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached, 'imageCount': image_count,
-                        'editorControls': editor_items[:80],
-                        'editorFrames': editor_frames, 'editorErrors': editor_errors
-                    }
-                await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
-                return {'navigationReady': True}
-        except Exception as exc:
-            # Only emit safe diagnostics: no CDP URL, query string, tokens,
-            # Google account data or remote live-view URL.
-            print('hyperbrowser_navigation_failed', {
-                'errorType': type(exc).__name__,
-                'endpointHost': host,
-                'phase': 'connect_or_navigate',
-            })
-            safe_errors = {'flow_project_not_active', 'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found', 'flow_upload_action_not_found', 'flow_file_chooser_unavailable', 'image_rights_dialog_unresolved', 'image_rights_confirmation_required'}
-            reason = str(exc) if str(exc) in safe_errors else 'navigation_failed'
-            raise HTTPException(502, reason)
-
-    @api.post('/control')
-    async def control(request: Request):
-        expected = os.environ.get('MV_FLOW_EXECUTOR_SECRET','')
-        if len(expected)<32 or not hmac.compare_digest(request.headers.get('authorization',''), 'Bearer '+expected):
-            raise HTTPException(401)
-        raw=await request.body()
-        if len(raw)>140000: raise HTTPException(413)
-        import json
-        body=json.loads(raw)
-        action=body.get('action')
-        if action=='health': return {'ready':True,'executor':'modal','generationReady':False}
-        if action not in ['start','status','verify','save','disconnect']: raise HTTPException(400)
-        user_key=body.get('userKey','')
-        if not isinstance(user_key,str) or not re.fullmatch('[a-f0-9]{64}',user_key): raise HTTPException(400)
-        # No Google identity, cookies or provider credentials enter this dictionary; only scoped session references.
-        row=await sessions.get.aio(user_key, None)
-        sandbox=None
-        if row:
-            try:
-                sandbox=await modal.Sandbox.from_id.aio(row['id'])
-                if row['expires']<=time.time() or await sandbox.poll.aio() is not None:
-                    await sandbox.terminate.aio()
-                    await sessions.pop.aio(user_key,None)
-                    row=None; sandbox=None
-            except Exception:
-                # Preserve references on transient provider failure; do not launch duplicates.
-                raise HTTPException(503,'executor_session_check_failed')
-        if action=='disconnect':
-            if sandbox:
-                await sandbox.terminate.aio()
-                await sessions.pop.aio(user_key,None)
-            return {'active':False}
-        if not row and action!='start': return {'active':False}
-        async with httpx.AsyncClient(timeout=65, follow_redirects=False) as client:
-            if not row:
-                view_token=secrets.token_urlsafe(32); control_token=secrets.token_urlsafe(32)
-                try:
-                    sandbox=await modal.Sandbox.create.aio(
-                        'uvicorn','browser:app','--host','0.0.0.0','--port','8000','--no-access-log',
-                        app=app, image=modal.Image.from_id(os.environ['MV_FLOW_BROWSER_IMAGE']), workdir='/opt/flow', timeout=600, idle_timeout=120,
-                        cpu=1, memory=2048, encrypted_ports=[8000],
-                        secrets=[modal.Secret.from_dict({'VIEW_TOKEN':view_token,'CONTROL_TOKEN':control_token})])
-                    tunnels=await sandbox.tunnels.aio()
-                    base=tunnels[8000].url.rstrip('/')
-                    row={'id':sandbox.object_id,'url':base,'view':view_token,'control':control_token,'expires':time.time()+600}
-                    # Health wait is bounded; a failed boot always closes its sandbox.
-                    for attempt in range(35):
-                        if await sandbox.poll.aio() is not None: raise RuntimeError('browser_process_stopped')
-                        try:
-                            response=await client.post(base+'/rpc',headers={'Authorization':'Bearer '+control_token},json={'action':'health'},timeout=2)
-                            if response.status_code==200: break
-                        except httpx.HTTPError: pass
-                        await asyncio.sleep(1)
-                    else: raise RuntimeError('browser_start_timeout')
-                    cookies=body.get('cookies')
-                    if cookies:
-                        response=await client.post(base+'/rpc',headers={'Authorization':'Bearer '+control_token},json={'action':'restore','cookies':cookies})
-                        if response.status_code!=200: raise RuntimeError('browser_restore_failed')
-                    await sessions.put.aio(user_key,row)
-                except Exception:
-                    if sandbox: await sandbox.terminate.aio()
-                    raise HTTPException(503,'browser_start_failed')
-            result={'active':True,'sessionId':row['id'],'expires':int(row['expires']*1000)}
-            if action=='start': result['liveViewUrl']=row['url']+'/view#'+row['view']
-            if action in ['verify','save']:
-                response=await client.post(row['url']+'/rpc',headers={'Authorization':'Bearer '+row['control']},json={'action':action})
-                if response.status_code!=200 or len(response.content)>140000: raise HTTPException(503,'browser_inspection_failed')
-                result.update(response.json())
-            return result
-    return api
-, re.I))
-                                    if await agree.count() == 1 and await agree.is_visible():
-                                        await agree.click(timeout=5000)
-                                    else:
-                                        raise RuntimeError('image_rights_dialog_unresolved')
+                        # The consent modal may appear once per image.
+                        for image_index in range(len(image_files)):
+                            found = False
+                            for attempt in range(12):
+                                for frame in page.frames[:8]:
+                                    dialog = frame.get_by_text('Direitos de uso desta imagem', exact=False)
+                                    if await dialog.count() and await dialog.first.is_visible():
+                                        agree = frame.get_by_role('button', name=re.compile(r'^\\s*Concordo\\s*$', re.I))
+                                        if await agree.count() == 1 and await agree.is_visible():
+                                            await agree.click(timeout=5000)
+                                            found = True
+                                        else:
+                                            raise RuntimeError('image_rights_dialog_unresolved')
+                                        break
+                                if found:
                                     break
-                            if rights_visible:
+                                await page.wait_for_timeout(350)
+                            if not found:
                                 break
-                            await page.wait_for_timeout(500)
+                            await page.wait_for_timeout(350)
                         await page.wait_for_timeout(1500)
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
