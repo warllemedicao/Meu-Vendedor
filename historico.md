@@ -1,3 +1,12 @@
+## 2026-11-15 — Mapeamento real do editor do Google Flow confirmado
+
+- Usuário abriu um projeto e executou `Mapear interface do Google Flow (sem gerar)`.
+- Resultado da captura: **página Flow sim; frames 5/5; controles visíveis 32; falhas de leitura 0; rótulos relevantes 4**.
+- **Campos do editor (3):** `input · Texto editável`, `input · Pesquisar`, `editable · textbox · O que você quer criar?`.
+- **Controles clicáveis (4):** `Mais opções para o projeto`, `Criar coleção`, `add Criar ferramenta` e uma opção de ajuda sobre custos de geração.
+- O campo `O que você quer criar?` é candidato a prompt; ainda **não foi testado o preenchimento**. Seleção de modo vídeo, upload de imagem e geração seguem pendentes.
+- Próxima ação técnica: testar preenchimento de prompt em modo supervisionado, sem enviar geração, e identificar entradas de imagem e configuração antes de conectar ao botão Google Flow de Gerar vídeo.
+
 ## 2026-11-15 — Unificação da inspeção do Google Flow
 
 - Pedido do usuário: `Identificar controles` e `Mapear campos do editor` são operações semelhantes e devem ter **um único botão**.
