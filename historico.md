@@ -1,3 +1,12 @@
+## 2026-11-15 — Unificação de criar projeto e preencher prompt (pedido do usuário)
+
+- **Validação real do usuário:** depois de clicar manualmente em `Criar projeto de teste (sem gerar)`, a ação `Preencher texto no Flow (sem gerar)` conseguiu preencher o prompt. O erro anterior ocorreu quando não havia projeto aberto; as instruções de teste estavam incompletas.
+- **Correção:** Modal modo `prepare-draft` reutiliza projeto aberto, ou procura `Novo projeto` e o abre antes de preencher o campo `O que você quer criar?`. Não aciona geração. Commit `4268526c`.
+- Supabase ação autenticada `prepare-flow-draft`, Edge Function `hyperbrowser-profile` **v34 ACTIVE**. Commit `2b2d929e`.
+- Frontend: removido botão separado de criação de projeto; ação única `Preparar projeto e preencher texto (sem gerar)`. Commit `ae0a6c78`.
+- **Pendente:** publicar Modal e frontend e validar a ação unificada em sessão aberta na página inicial e com projeto existente.
+- **Imagem:** não implementada ainda. O editor só expôs campo de prompt, sem input de arquivo no mapeamento. Próxima tarefa é identificar o botão de anexo, mapear a origem autenticada da imagem do produto e transferir o arquivo com segurança para a sessão Hyperbrowser sem iniciar geração.
+
 ## 2026-11-15 — Falha HTTP 502 no preenchimento de prompt Google Flow
 
 - Usuário recebeu `A conexão não respondeu. Consulte os registros do Supabase.` ao usar `Preencher texto no Flow (sem gerar)`.
