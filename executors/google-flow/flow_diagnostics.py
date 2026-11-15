@@ -315,7 +315,7 @@ async def include_references(page, image_files, prompt_field, trace):
                 if not label:
                     label = (await control.get_attribute('aria-label') or '').strip()
                 seen.append(label[:100])
-                quantity = re.search(r'\\b(\\d+)\\s+(?:itens?|items?)\\b', label, re.I)
+                quantity = re.search(r'\b(\d+)\s+(?:itens?|items?)\b', label, re.I)
                 if quantity:
                     if int(quantity.group(1)) != expected:
                         continue
@@ -326,7 +326,7 @@ async def include_references(page, image_files, prompt_field, trace):
                     # quantity is safe to click.
                     continue
                 elif not re.fullmatch(
-                    r'\\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\\s*',
+                    r'\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\s*',
                     label, re.I):
                     continue
                 if await control.is_enabled():
