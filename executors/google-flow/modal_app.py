@@ -62,21 +62,55 @@ def gateway():
                 # Exiting async_playwright() releases only this Playwright client.
                 if not browser.contexts: raise RuntimeError('no_context')
                 context = browser.contexts[0]
-                page = context.pages[0] if context.pages else await context.new_page()
-                await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
+                pages = [p for p in context.pages if not p.is_closed()]
+                page = next((p for p in pages if (p.url or '').startswith('https://flow.google.com/')), None)
+                if page is None:
+                    page = pages[0] if pages else await context.new_page()
                 if inspect_only:
-                    # Read-only UI discovery: no clicks, uploads, prompts or credits.
-                    controls = await page.locator('button, [role="button"]').evaluate_all(
-                        """els => els.filter(el => {
+                    # Inspect the already open page without resetting its navigation.
+                    # Do not return arbitrary page text or account identifiers.
+                    await page.wait_for_timeout(1800)
+                    scan = """els => {
+                        const visible = el => {
                             const r = el.getBoundingClientRect();
-                            return r.width > 0 && r.height > 0;
-                        }).slice(0,60).map(el => ({
-                            role: el.getAttribute('role') || el.tagName.toLowerCase(),
-                            label: (el.getAttribute('aria-label') || el.getAttribute('title') ||
-                                    el.innerText || '').trim().slice(0,80)
-                        })).filter(item => item.label).slice(0,30)"""
-                    )
-                    return {'navigationReady': True, 'inspectionReady': True, 'controls': controls}
+                            const st = getComputedStyle(el);
+                            return r.width > 0 && r.height > 0 &&
+                                st.visibility !== 'hidden' && st.display !== 'none';
+                        };
+                        const safeLabel = el => {
+                            const value = (el.getAttribute('aria-label') ||
+                                el.getAttribute('title') || el.innerText || '').trim();
+                            const allowed = /novo projeto|new project|create|criar|projeto|project|flow|video|vídeo|gerar|generate|\\+/i;
+                            return allowed.test(value) && !/@|conta do google|google account/i.test(value)
+                                ? value.slice(0,70) : '';
+                        };
+                        const candidates = els.filter(visible);
+                        return {
+                            visibleCount: candidates.length,
+                            controls: candidates.map(el => ({
+                                role: el.getAttribute('role') || el.tagName.toLowerCase(),
+                                label: safeLabel(el)
+                            })).filter(item => item.label).slice(0,25)
+                        };
+                    }"""
+                    all_controls = []
+                    total_visible = 0
+                    for frame in page.frames[:8]:
+                        try:
+                            found = await frame.locator(
+                                'button, [role="button"], a, [tabindex="0"]'
+                            ).evaluate_all(scan, timeout=8000)
+                            total_visible += found.get('visibleCount', 0)
+                            all_controls.extend(found.get('controls', []))
+                        except Exception:
+                            continue
+                    return {
+                        'navigationReady': True, 'inspectionReady': True,
+                        'controls': all_controls[:30], 'visibleCount': total_visible,
+                        'frameCount': len(page.frames),
+                        'flowPage': (page.url or '').startswith('https://flow.google.com/')
+                    }
+                await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
                 return {'navigationReady': True}
         except Exception as exc:
             # Only emit safe diagnostics: no CDP URL, query string, tokens,
