@@ -28,7 +28,7 @@ def gateway():
     from fastapi import FastAPI, Request, HTTPException
     # add_local_dir places helpers here in the Modal image.
     sys.path.insert(0, '/opt/flow')
-    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images, inspect_settings, include_references, editor_state
+    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images, inspect_settings, include_references, editor_state, click_generate_arrow
     executor_revision = hashlib.sha256(
         Path('/opt/flow/modal_app.py').read_bytes() + Path('/opt/flow/flow_diagnostics.py').read_bytes()
     ).hexdigest()[:12]
@@ -46,7 +46,7 @@ def gateway():
         try:
             payload = json.loads(raw)
             endpoint = payload.get('wsEndpoint')
-            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image', 'inspect-settings')
+            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image', 'inspect-settings', 'click-generate')
             create_project = payload.get('mode') == 'create-project'
             stage_prompt = payload.get('mode') in ('stage-prompt', 'prepare-draft', 'prepare-image')
             stage_image = payload.get('mode') == 'prepare-image' or bool(payload.get('images'))
@@ -251,8 +251,13 @@ def gateway():
                         # could not be confirmed; never start generation.
                         settings_result = await inspect_settings(page, trace)
                         settings_result["referencesVerified"] = reference_result["verified"]
+                    generation_result = None
+                    if payload.get('mode') == 'click-generate':
+                        generation_result = await click_generate_arrow(page, trace)
                     await editor_state(page, trace)
-                    if reference_result['errorCode']:
+                    if generation_result is not None:
+                        reason = generation_result['errorCode'] or 'flow_generate_clicked'
+                    elif reference_result['errorCode']:
                         reason = reference_result['errorCode']
                     elif (settings_result or {}).get('errorCode'):
                         reason = settings_result['errorCode']
@@ -348,7 +353,7 @@ def gateway():
                         'frameCount': len(page.frames), 'inspectedFrames': inspected_frames,
                         'scanErrors': scan_errors,
                         'flowPage': (page.url or '').startswith('https://flow.google.com/'),
-                        'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached, 'imageCount': image_count, 'settingsInspection': settings_result, 'referencesIncluded': reference_result['included'], 'referencesVerified': reference_result['verified'],
+                        'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached, 'imageCount': image_count, 'settingsInspection': settings_result, 'referencesIncluded': reference_result['included'], 'referencesVerified': reference_result['verified'], 'generateClicked': bool(generation_result and generation_result['clicked']),
                         'editorControls': editor_items[:80],
                         'editorFrames': editor_frames, 'editorErrors': editor_errors
                     }
