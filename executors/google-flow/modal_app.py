@@ -28,7 +28,7 @@ def gateway():
     from fastapi import FastAPI, Request, HTTPException
     # add_local_dir places helpers here in the Modal image.
     sys.path.insert(0, '/opt/flow')
-    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images, inspect_settings, include_references, editor_state, generate_video
+    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images, inspect_settings, include_references, editor_state
     executor_revision = hashlib.sha256(
         Path('/opt/flow/modal_app.py').read_bytes() + Path('/opt/flow/flow_diagnostics.py').read_bytes()
     ).hexdigest()[:12]
@@ -46,11 +46,9 @@ def gateway():
         try:
             payload = json.loads(raw)
             endpoint = payload.get('wsEndpoint')
-            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image', 'inspect-settings', 'generate-video')
+            inspect_only = payload.get('mode') in ('inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image', 'inspect-settings')
             create_project = payload.get('mode') == 'create-project'
             stage_prompt = payload.get('mode') in ('stage-prompt', 'prepare-draft', 'prepare-image')
-            if payload.get('mode') == 'generate-video' and payload.get('generationConfirmed') is not True:
-                raise ValueError('generation_confirmation_required')
             stage_image = payload.get('mode') == 'prepare-image' or bool(payload.get('images'))
             rights_confirmed = payload.get('imageRightsConfirmed') is True
             if stage_image and not rights_confirmed:
@@ -247,28 +245,14 @@ def gateway():
                     else:
                         trace.event('references', 'skipped', expected=0)
                     settings_result = None
-                    if payload.get('mode') in ('inspect-settings', 'prepare-draft', 'generate-video'):
+                    if payload.get('mode') in ('inspect-settings', 'prepare-draft'):
                         # Settings are independent of reference verification.
                         # Always inspect/save them, even if a reference click
                         # could not be confirmed; never start generation.
                         settings_result = await inspect_settings(page, trace)
                         settings_result["referencesVerified"] = reference_result["verified"]
-                    generation_result = None
-                    if payload.get('mode') == 'generate-video':
-                        # A distinct, opt-in operation; never run during prepare-draft.
-                        if not settings_result:
-                            settings_result = await inspect_settings(page, trace)
-                        if not (settings_result['vertical916'] and settings_result['singleOutput']
-                                and not settings_result['errorCode']):
-                            reason = 'flow_settings_read_failed'
-                            generation_result = {'generationStarted': False, 'confirmationAccepted': False,
-                                                 'errorCode': reason}
-                        else:
-                            generation_result = await generate_video(page, trace)
                     await editor_state(page, trace)
-                    if generation_result is not None:
-                        reason = generation_result['errorCode'] or 'flow_generation_started'
-                    elif reference_result['errorCode']:
+                    if reference_result['errorCode']:
                         reason = reference_result['errorCode']
                     elif (settings_result or {}).get('errorCode'):
                         reason = settings_result['errorCode']
@@ -365,8 +349,6 @@ def gateway():
                         'scanErrors': scan_errors,
                         'flowPage': (page.url or '').startswith('https://flow.google.com/'),
                         'projectClicked': project_clicked, 'promptStaged': prompt_staged, 'imageAttached': image_attached, 'imageCount': image_count, 'settingsInspection': settings_result, 'referencesIncluded': reference_result['included'], 'referencesVerified': reference_result['verified'],
-                        'generationStarted': bool(generation_result and generation_result['generationStarted']),
-                        'confirmationAccepted': bool(generation_result and generation_result['confirmationAccepted']),
                         'editorControls': editor_items[:80],
                         'editorFrames': editor_frames, 'editorErrors': editor_errors
                     }
