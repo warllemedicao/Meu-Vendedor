@@ -1,6 +1,6 @@
 import { flowError, missingFlowDiagnostic, readFlowDiagnostic } from "./flow-diagnostics.ts";
 
-export type FlowMode = "navigate" | "inspect" | "create-project" | "inspect-editor" | "stage-prompt" | "prepare-draft" | "prepare-image" | "inspect-settings";
+export type FlowMode = "navigate" | "inspect" | "create-project" | "inspect-editor" | "stage-prompt" | "prepare-draft" | "prepare-image" | "inspect-settings" | "click-generate";
 type Options = { target?: string; secret?: string; endpoint: unknown; mode: FlowMode; traceId: string; prompt?: string; imageMime?: string; imageBase64?: string; images?: Array<{mime:string;data:string}>; imageRightsConfirmed?: boolean };
 export async function requestFlowExecutor(options: Options, fetcher: typeof fetch = fetch): Promise<boolean | Record<string, unknown>> {
  const {target, secret, endpoint, mode, traceId, prompt, imageMime, imageBase64, images, imageRightsConfirmed}=options;
