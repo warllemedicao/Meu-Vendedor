@@ -1,16 +1,16 @@
 import { flowError, missingFlowDiagnostic, readFlowDiagnostic } from "./flow-diagnostics.ts";
 
-export type FlowMode = "navigate" | "inspect" | "create-project" | "inspect-editor" | "stage-prompt" | "prepare-draft" | "prepare-image" | "inspect-settings" | "generate-video";
-type Options = { target?: string; secret?: string; endpoint: unknown; mode: FlowMode; traceId: string; prompt?: string; imageMime?: string; imageBase64?: string; images?: Array<{mime:string;data:string}>; imageRightsConfirmed?: boolean; generationConfirmed?: boolean };
+export type FlowMode = "navigate" | "inspect" | "create-project" | "inspect-editor" | "stage-prompt" | "prepare-draft" | "prepare-image" | "inspect-settings";
+type Options = { target?: string; secret?: string; endpoint: unknown; mode: FlowMode; traceId: string; prompt?: string; imageMime?: string; imageBase64?: string; images?: Array<{mime:string;data:string}>; imageRightsConfirmed?: boolean };
 export async function requestFlowExecutor(options: Options, fetcher: typeof fetch = fetch): Promise<boolean | Record<string, unknown>> {
- const {target, secret, endpoint, mode, traceId, prompt, imageMime, imageBase64, images, imageRightsConfirmed, generationConfirmed}=options;
+ const {target, secret, endpoint, mode, traceId, prompt, imageMime, imageBase64, images, imageRightsConfirmed}=options;
  const started=Date.now();
  const failure=(reason:string, diagnostics?:unknown)=>({error:flowError(reason), diagnostics:readFlowDiagnostic(diagnostics,traceId,mode)??missingFlowDiagnostic(traceId,mode,reason,Date.now()-started)});
  if(!target||!secret||typeof endpoint!=="string") return mode==="navigate"?false:failure("executor_not_configured");
  try{
   const url=new URL(target);
   if(url.protocol!=="https:") return mode==="navigate"?false:failure("executor_not_configured");
-  const result=await fetcher(url.toString(),{method:"POST",redirect:"error",headers:{authorization:"Bearer "+secret,"content-type":"application/json"},body:JSON.stringify({wsEndpoint:endpoint,mode,traceId,...(["stage-prompt","prepare-draft","prepare-image"].includes(mode)?{prompt}:{}),...(mode==="prepare-image"?{imageMime,imageBase64,imageRightsConfirmed}:{}),...(mode==="prepare-draft"&&images?.length?{images,imageRightsConfirmed}:{}),...(mode==="generate-video"?{generationConfirmed}:{})}),signal:AbortSignal.timeout(mode==="prepare-draft"?105000:55000)});
+  const result=await fetcher(url.toString(),{method:"POST",redirect:"error",headers:{authorization:"Bearer "+secret,"content-type":"application/json"},body:JSON.stringify({wsEndpoint:endpoint,mode,traceId,...(["stage-prompt","prepare-draft","prepare-image"].includes(mode)?{prompt}:{}),...(mode==="prepare-image"?{imageMime,imageBase64,imageRightsConfirmed}:{}),...(mode==="prepare-draft"&&images?.length?{images,imageRightsConfirmed}:{})}),signal:AbortSignal.timeout(mode==="prepare-draft"?105000:55000)});
   const parsed:unknown=await result.json().catch(()=>({}));
   const body:Record<string,unknown>=parsed&&typeof parsed==="object"&&!Array.isArray(parsed)?parsed as Record<string,unknown>:{};
   if(mode==="navigate") return result.ok&&body.navigationReady===true;
