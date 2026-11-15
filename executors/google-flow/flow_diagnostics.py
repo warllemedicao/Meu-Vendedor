@@ -6,7 +6,7 @@ import time
 import uuid
 
 STAGES = frozenset(('request', 'connect', 'project', 'prompt', 'upload', 'rights',
-                    'images_wait', 'settings', 'references', 'inspection', 'finished'))
+                    'images_wait', 'settings', 'references', 'generation', 'inspection', 'finished'))
 METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls',
                      'frames', 'frameErrors', 'accepted', 'matches', 'elapsedMs',
                      'limitMs', 'includeVisible', 'includeEnabled', 'selected',
@@ -17,7 +17,7 @@ METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls
                      'submitVisible', 'submitEnabled', 'settingsCandidates',
                      'composerForms', 'composerFields', 'attachmentMatches',
                      'assetTextMatches', 'assetOptionParents', 'assetButtonParents',
-                     'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes'))
+                     'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes', 'submitClicked', 'confirmationAccepted', 'generationStarted'))
 REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found',
     'flow_upload_action_not_found', 'flow_file_chooser_unavailable',
@@ -27,17 +27,21 @@ REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'flow_settings_ambiguous', 'flow_settings_blocked', 'flow_settings_read_failed',
     'flow_reference_selection_unavailable', 'flow_reference_selection_unconfirmed',
     'flow_reference_include_unavailable', 'flow_reference_include_uncertain',
-    'flow_references_unverified', 'flow_draft_ready'))
+    'flow_references_unverified', 'flow_draft_ready', 'flow_generate_button_unavailable',
+    'flow_generation_submit_uncertain', 'flow_generation_confirmation_unverified',
+    'flow_generation_confirmation_ambiguous', 'flow_generation_confirmation_uncertain',
+    'flow_generation_started'))
 
 
 class FlowDiagnostics:
     def __init__(self, trace_id, action, revision, clock=time.monotonic, emit=print):
         self.trace_id = trace_id if isinstance(trace_id, str) and re.fullmatch(r'[0-9a-f-]{36}', trace_id) else str(uuid.uuid4())
-        self.action = action if action in ('navigate', 'inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image', 'inspect-settings') else 'inspect'
+        self.action = action if action in ('navigate', 'inspect', 'create-project', 'inspect-editor', 'stage-prompt', 'prepare-draft', 'prepare-image', 'inspect-settings', 'generate-video') else 'inspect'
         self.revision = revision
         self.clock, self.emit, self.started = clock, emit, clock()
         self.events, self.stage = [], 'request'
         self.references_included, self.references_verified = False, False
+        self.generation_started = False
         self.next_action = 'inspect_controls'
 
     def event(self, stage, status='ok', **metrics):
@@ -56,7 +60,7 @@ class FlowDiagnostics:
         return {'schemaVersion': 1, 'traceId': self.trace_id, 'action': self.action,
                 'executorRevision': self.revision, 'elapsedMs': int((self.clock() - self.started) * 1000),
                 'stopReason': reason if reason in REASONS else 'navigation_failed',
-                'lastStage': self.stage, 'generationStarted': False,
+                'lastStage': self.stage, 'generationStarted': self.generation_started,
                 'referencesIncluded': self.references_included,
                 'referencesVerified': self.references_verified,
                 'nextAction': self.next_action, 'events': list(self.events)}
@@ -241,6 +245,309 @@ async def inspect_settings(page, trace):
         trace.event('settings', 'error', opened=result['opened'], phase=phase,
                     errorType=type(exc).__name__)
     return result
+
+
+
+async def generate_video(page, trace):
+    """One explicitly authorized submit. Never retry a potentially successful click."""
+    result = {'generationStarted': False, 'confirmationAccepted': False,
+              'errorCode': None}
+    trace.next_action = 'generate_video'
+    trace.event('generation', 'started')
+    phase = 'locate'
+    try:
+        async with asyncio.timeout(25):
+            if not (page.url or '').startswith('https://flow.google.com/project/'):
+                result['errorCode'] = 'flow_project_not_active'
+                return result
+            candidates = []
+            for frame in page.frames[:8]:
+                textbox = frame.get_by_role('textbox', name=re.compile(
+                    r'o que você quer criar|what do you want to create', re.I))
+                if await textbox.count() != 1 or not await textbox.first.is_visible():
+                    continue
+                # The arrow button can be icon-only. Limit it to the composer
+                # containing the known textbox, never the global toolbar.
+                buttons = frame.locator('button, [role="button"]')
+                for index in range(min(await buttons.count(), 70)):
+                    button = buttons.nth(index)
+                    if not await button.is_visible() or not await button.is_enabled():
+                        continue
+                    match = await button.evaluate(r"""el => {
+                        const label=[el.getAttribute('aria-label'),el.getAttribute('title'),
+                            el.textContent,el.querySelector('mat-icon')?.textContent,
+                            el.querySelector('svg')?.getAttribute('data-lucide')]
+                            .filter(Boolean).join(' ').trim();
+                        if(!/^(send|submit|generate|gerar|enviar|arrow_forward|send.*|gerar vídeo)$/i.test(label))return false;
+                        const box=Array.from(el.ownerDocument.querySelectorAll('[role="textbox"]'))
+                            .find(e=>/O que você quer criar|What do you want to create/i.test(
+                                e.getAttribute('aria-label')||e.getAttribute('data-placeholder')||''));
+                        if(!box)return false;
+                        const a=el.getBoundingClientRect(),b=box.getBoundingClientRect();
+                        return Math.abs(a.bottom-b.bottom)<180 && Math.abs(a.right-b.right)<250;
+                    }""", timeout=1200)
+                    if match:
+                        candidates.append(button)
+            trace.event('generation', 'waiting', submitVisible=len(candidates))
+            if len(candidates) != 1:
+                result['errorCode'] = 'flow_generate_button_unavailable'
+                return result
+            phase = 'submit'
+            await candidates[0].click(trial=True, timeout=2000)
+            # This click may have spent credits even if Playwright times out.
+            await candidates[0].click(timeout=2000)
+            result['generationStarted'] = True
+            trace.generation_started = True
+            trace.event('generation', 'waiting', submitClicked=True)
+            phase = 'confirm'
+            for _ in range(12):
+                confirmations = []
+                for frame in page.frames[:8]:
+                    dialogs = frame.get_by_role('dialog')
+                    for idx in range(min(await dialogs.count(), 4)):
+                        dialog = dialogs.nth(idx)
+                        if not await dialog.is_visible():
+                            continue
+                        description = (await dialog.inner_text(timeout=1000))[:1200]
+                        if not re.search(r'crédit|credit|gerar|generate', description, re.I):
+                            continue
+                        controls = dialog.get_by_role('button', name=re.compile(
+                            r'^\\s*(sim|yes|confirmar|confirm|gerar|generate)\\s*page, trace, prompt_field=None, names=None):
+    """Current actionable controls, not arbitrary DOM text or input values."""
+    totals = dict(includeVisible=0, includeEnabled=0, submitVisible=0, submitEnabled=0,
+                  settingsCandidates=0, composerForms=0, composerFields=0, frameErrors=0)
+    for frame in page.frames[:8]:
+        try:
+            state = await asyncio.wait_for(frame.locator('body').evaluate(r"""body => {
+                const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';};
+                const buttons=Array.from(body.querySelectorAll('button,[role="button"]')).filter(visible);
+                const name=e=>(e.getAttribute('aria-label')||e.getAttribute('title')||e.textContent||'').trim();
+                const enabled=e=>!e.disabled&&e.getAttribute('aria-disabled')!=='true';
+                const includes=buttons.filter(e=>/^(incluir no comando|add to prompt|include in prompt)$/i.test(name(e)));
+                const submits=buttons.filter(e=>/^(enviar(?: comando)?|gerar(?: vídeo| video)?|send|submit|generate(?: video)?|arrow_forward)$/i.test(name(e)));
+                const settings=buttons.filter(e=>/^(configurações(?: do (agente|vídeo|video))?|(?:agent |video )?settings)$/i.test(name(e)));
+                const prompts=Array.from(body.querySelectorAll('[role="textbox"],[contenteditable="true"]')).filter(visible).filter(e=>/o que você quer criar|what do you want to create/i.test([e.getAttribute('aria-label'),e.getAttribute('data-placeholder'),e.getAttribute('placeholder')].join(' ')));
+                return {includeVisible:includes.length,includeEnabled:includes.filter(enabled).length,submitVisible:submits.length,submitEnabled:submits.filter(enabled).length,settingsCandidates:settings.length,composerFields:prompts.length,composerForms:new Set(prompts.map(e=>e.closest('form,[role="form"]')).filter(Boolean)).size};
+            }""", timeout=1200), timeout=1.4)
+            for key, value in state.items():
+                if key in totals and type(value) is int:
+                    totals[key] += value
+        except Exception:
+            totals['frameErrors'] += 1
+    trace.event('inspection', **totals)
+    return totals
+
+
+async def include_references(page, image_files, prompt_field, trace):
+    """Multi-select the uploaded batch and verify attachment count without generating."""
+    result = {'included': False, 'verified': False, 'errorCode': None}
+    trace.next_action = 'select_images'
+    trace.event('references', 'started', expected=len(image_files))
+    phase = 'select'
+    included = 0
+
+    async def editor_evidence():
+        # Flow renders thumbnail chips without the original filename.
+        # Count only removable images in the local composer, not gallery media.
+        return await prompt_field.evaluate(r"""textbox => {
+            const form=textbox.closest('form,[role="form"]');
+            const root=form || textbox.parentElement?.parentElement?.parentElement;
+            if(!root)return {attachmentMatches:0,attachmentCount:0,composerFound:false};
+            const imgs=Array.from(root.querySelectorAll('img')).filter(el=>
+                !el.closest('[role="dialog"],[role="listbox"]') &&
+                el.getBoundingClientRect().width>0);
+            const removable=imgs.filter(img=>{
+                let el=img;
+                for(let i=0;i<4 && el && el!==root;i++,el=el.parentElement){
+                    if(el.querySelector('button[aria-label*="emover"],button[aria-label*="emove"],button[title*="emover"],button[title*="emove"]'))return true;
+                }
+                return false;
+            });
+            return {composerFound:true,attachmentMatches:removable.length,
+                    attachmentCount:removable.length,visibleImages:imgs.length};
+        }""", timeout=1800)
+
+    async def find_include():
+        # The Flow button changes its accessible name with the selection:
+        # "Adicionar 3 itens ao comando" instead of "Incluir no comando".
+        expected = len(image_files)
+        found = []
+        seen = []
+        for frame in page.frames[:8]:
+            controls = frame.get_by_role('button', name=re.compile(
+                r'(?:incluir|adicionar|add|include).*?(?:comando|prompt)', re.I))
+            for index in range(min(await controls.count(), 12)):
+                control = controls.nth(index)
+                if not await control.is_visible():
+                    continue
+                label = (await control.inner_text(timeout=1000)).strip()
+                if not label:
+                    label = (await control.get_attribute('aria-label') or '').strip()
+                seen.append(label[:100])
+                quantity = re.search(r'\b(\d+)\s+(?:itens?|items?)\b', label, re.I)
+                if quantity:
+                    if int(quantity.group(1)) != expected:
+                        continue
+                    if not re.search(r'(?:ao comando|to (?:the )?prompt)', label, re.I):
+                        continue
+                elif expected != 1:
+                    # With multiple assets, only the explicit matching
+                    # quantity is safe to click.
+                    continue
+                elif not re.fullmatch(
+                    r'\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\s*',
+                    label, re.I):
+                    continue
+                if await control.is_enabled():
+                    found.append(control)
+        trace.event('references', 'waiting', includeLabels=seen[:8],
+                    expectedIncludeCount=expected, includeEnabled=len(found))
+        return found
+
+    try:
+        # The upload wait already confirmed that all uploaded images are ready.
+        # Flow supports long-press to enter multi-selection. Select the entire
+        # batch before pressing Include exactly once.
+        async with asyncio.timeout(75):
+            libraries = []
+            for frame in page.frames[:8]:
+                locator = frame.get_by_role('listbox', name=re.compile(
+                    r'^(lista de recursos|asset list|assets)$', re.I))
+                for index in range(min(await locator.count(), 3)):
+                    library = locator.nth(index)
+                    if await library.is_visible():
+                        libraries.append(library)
+            if len(libraries) != 1:
+                result['errorCode'] = 'flow_reference_selection_unavailable'
+                return result
+            library = libraries[0]
+            marker = 'data-mv-reference-target'
+            selected = []
+            for asset_index, item in enumerate(image_files, 1):
+                phase = 'select'
+                trace.next_action = 'select_images'
+                shape = await library.evaluate(r"""(root,args) => {
+                    const [name,marker]=args;
+                    root.querySelectorAll('['+marker+']').forEach(el=>el.removeAttribute(marker));
+                    // Flow sometimes truncates filenames in the rendered
+                    // library while retaining their unique product prefix.
+                    const values=el=>[el.textContent?.trim(),el.getAttribute('alt'),
+                        el.getAttribute('title'),el.getAttribute('aria-label')]
+                        .filter(Boolean);
+                    const prefix=name.replace(/\\.[^.]+$/,'').slice(0,18);
+                    const options=Array.from(root.querySelectorAll('[role="option"]'));
+                    const matching=options.filter(option=>{
+                        const all=[option,...option.querySelectorAll('*')];
+                        return all.some(el=>values(el).some(value=>
+                            value===name || value.includes(name) ||
+                            (prefix.length>=12 && value.includes(prefix))));
+                    });
+                    const targets=[...new Set(matching)];
+                    if(targets.length===1)targets[0].setAttribute(marker,'yes');
+                    return {matches:matching.length,targets:targets.length,
+                        libraryOptions:options.length, prefixLength:prefix.length};
+                }""", [item['name'],marker], timeout=1800)
+                trace.event('references', 'waiting', assetIndex=asset_index, **shape)
+                if shape['targets'] != 1:
+                    result['errorCode'] = 'flow_reference_selection_unavailable'
+                    return result
+                target = library.locator('[data-mv-reference-target="yes"]')
+                if await target.count() != 1:
+                    result['errorCode'] = 'flow_reference_selection_unavailable'
+                    return result
+                await target.click(trial=True, timeout=2500)
+                if asset_index == 1 and len(image_files) > 1:
+                    # Playwright's click delay holds the pointer down before
+                    # releasing it, matching the tested Flow gesture.
+                    await target.click(delay=950, timeout=4000)
+                else:
+                    # Keep the multi-selection active while adding items.
+                    await target.click(modifiers=['Control'], timeout=2500)
+                selected.append(item['name'])
+                trace.event('references', 'waiting', assetIndex=asset_index,
+                            longPress=(asset_index == 1 and len(image_files) > 1),
+                            ctrlClick=(asset_index > 1), selectedAttempts=len(selected))
+                await library.evaluate("(root,marker) => root.querySelectorAll('['+marker+']').forEach(el=>el.removeAttribute(marker))", marker, timeout=1800)
+            # A selection attempt is not proof of multi-selection. Inspect
+            # the options for semantic selection and stop if fewer are marked.
+            evidence = await library.evaluate(r"""(root,names) => {
+                const selected=Array.from(root.querySelectorAll('[role="option"]')).filter(el=>
+                    el.getAttribute('aria-selected')==='true' ||
+                    el.getAttribute('aria-checked')==='true' ||
+                    el.getAttribute('data-state')==='selected' ||
+                    el.classList.contains('selected') ||
+                    el.querySelector('[aria-checked="true"],[aria-selected="true"],[data-state="selected"]'));
+                const matched=names.filter(name=>selected.some(el=>
+                    (el.textContent||'').includes(name) ||
+                    Array.from(el.querySelectorAll('[alt],[title]')).some(child=>
+                        child.getAttribute('alt')===name || child.getAttribute('title')===name)));
+                return {semanticSelected:selected.length,expectedSelected:matched.length};
+            }""", [item['name'] for item in image_files], timeout=1800)
+            trace.event('references', 'waiting', **evidence)
+            if evidence['expectedSelected'] != len(image_files):
+                # Flow may expose selection only visually. An unconfirmed
+                # semantic state is not proof of failure. Click Include once
+                # and verify the *actual* number of composer attachments.
+                trace.event('references', 'waiting', selectionSemanticsUnavailable=True,
+                            expected=len(image_files))
+            phase = 'include_find'
+            includes = await find_include()
+            trace.event('references', 'waiting', includeEnabled=len(includes))
+            if len(includes) != 1:
+                result['errorCode'] = 'flow_reference_include_unavailable'
+                return result
+            phase = 'include_click'
+            await includes[0].click(trial=True, timeout=2500)
+            await includes[0].click(timeout=3500)
+            result['included'] = trace.references_included = True
+            trace.event('references', 'waiting', referencesIncluded=True,
+                        selectedExpected=len(image_files))
+            phase = 'verify'
+            trace.next_action = 'verify_references'
+            for _ in range(8):
+                evidence = await editor_evidence()
+                trace.event('references', 'waiting', **evidence)
+                if evidence['attachmentMatches'] >= len(image_files):
+                    result['verified'] = trace.references_verified = True
+                    trace.next_action = 'inspect_settings'
+                    trace.event('references', referencesIncluded=True,
+                                referencesVerified=True)
+                    return result
+                await page.wait_for_timeout(400)
+            result['errorCode'] = 'flow_references_unverified'
+    except Exception:
+        result['errorCode'] = ('flow_reference_include_uncertain' if phase == 'include_click'
+                               else 'flow_references_unverified' if phase == 'verify'
+                               else 'flow_reference_include_unavailable' if phase == 'include_find'
+                               else 'flow_reference_selection_unavailable')
+    finally:
+        if result['errorCode']:
+            trace.event('references', 'error', referencesIncluded=result['included'],
+                        referencesVerified=result['verified'])
+    return result
+, re.I))
+                        if await controls.count() == 1 and await controls.first.is_enabled():
+                            confirmations.append(controls.first)
+                if len(confirmations) == 1:
+                    await confirmations[0].click(trial=True, timeout=2000)
+                    await confirmations[0].click(timeout=2000)
+                    result['confirmationAccepted'] = True
+                    trace.event('generation', 'ok', confirmationAccepted=True)
+                    return result
+                if len(confirmations) > 1:
+                    result['errorCode'] = 'flow_generation_confirmation_ambiguous'
+                    return result
+                await page.wait_for_timeout(500)
+            result['errorCode'] = 'flow_generation_confirmation_unverified'
+    except Exception:
+        result['errorCode'] = ('flow_generation_submit_uncertain' if phase == 'submit'
+                               else 'flow_generation_confirmation_uncertain' if phase == 'confirm'
+                               else 'flow_generate_button_unavailable')
+    if result['errorCode']:
+        trace.event('generation', 'error', generationStarted=result['generationStarted'],
+                    confirmationAccepted=result['confirmationAccepted'])
+    return result
+
 
 
 async def editor_state(page, trace, prompt_field=None, names=None):
