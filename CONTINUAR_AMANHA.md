@@ -1,3 +1,27 @@
+## 2026-11-16 — Estratégia aprovada: reconhecimento de imagens, geração monitorada e entrega do MP4
+
+**Objetivo:** automatizar Google Flow com duas referências reais, sem clique prematuro em Gerar e sem encerrar o acompanhamento após o envio.
+
+**Fase A — Reconhecer e selecionar:**
+1. Após upload, aguardar o fim do processamento e três leituras estáveis.
+2. Ler a biblioteca sem cliques exploratórios: mapear nome/miniatura, opções selecionáveis, posição relativa e estado da seleção; guardar identificadores temporários, revalidando-os após mudanças no DOM.
+3. Identificar inequivocamente os dois arquivos; somente então testar clique prolongado na primeira imagem (proposta inicial 1,5s), confirmar modo multisseleção e selecionar a segunda conforme o gesto realmente suportado pelo Flow. Não assumir que Ctrl+clique funciona.
+4. Confirmar duas seleções, acionar uma vez “Incluir no comando” e verificar **duas referências efetivas no editor**, não apenas nomes presentes na biblioteca.
+5. Se não houver confirmação, interromper com erro diagnosticável, sem gerar nem consumir créditos.
+
+**Fase B — Geração assíncrona:**
+1. Validar prompt, referências, 9:16 e x1; registrar job idempotente e clicar Gerar uma única vez.
+2. Persistir identificadores seguros de job/projeto/sessão e acompanhar estados `preparando`, `selecionando_imagens`, `gerando`, `concluido`, `erro`, `tempo_excedido`; não bloquear uma requisição HTTP durante a renderização.
+3. Monitorar progresso/erros a cada ~5s, com espera inicial proposta de até 10min e sessão de até 15min, sujeitos aos limites reais de Modal/Hyperbrowser/Flow. Renovar sessão somente se suportado e seguro. Nunca repetir clique em estado incerto.
+4. Ao concluir, obter MP4 pela opção disponibilizada pelo Flow, validar tipo/tamanho, armazenar em bucket privado Supabase e vincular ao produto, job e histórico; disponibilizar visualização e download ao usuário.
+5. Se falhar ou expirar, preservar estado, motivo e possibilidade de retomada sem gerar duplicatas.
+
+**Estado da implementação nesta conversa:** commit `b2f9af279315e25c53e2488b793a08ce01fdc852` adicionou **somente a trava de segurança**: para pedidos com imagens, `prepare-draft` exige `reference_result.verified` antes de Gerar. **Não implementados ainda:** reconhecimento visual completo, gesto adaptativo, comprovação robusta de dois anexos, fila assíncrona, acompanhamento até fim, download e armazenamento MP4. Nenhum teste end-to-end ou deploy Modal confirmado. A trava pode impedir a geração até que a verificação de referências seja corrigida.
+
+**Execução/implantação:** o workflow `.github/workflows/deploy-hyperbrowser-modal.yml` é manual (`workflow_dispatch`); para executar, selecionar `main`, manter `rotate_cloudflare_secret=false` e confirmar logs/health check. Não interpretar commit como deploy.
+
+**Próxima prioridade:** implementar e testar fase A antes de permitir novo clique Gerar; depois projetar e implementar fase B, incluindo persistência de jobs, limites, recuperação e MP4. Revisar documentação e testes em cada entrega.
+
 ## 2026-11-16 — PRIORIDADE: concluir Google Flow (duas imagens + vídeo real)
 
 **Último commit de código:** `4a963db0` na `main`. O teste real `08af265b-64e2-4b26-a945-12f9d35ac2f4` comprovou clique único na seta Gerar, com 9:16 e x1 configurados, mas falha de seleção das imagens e mensagem do Flow solicitando nova tentativa. **Não existe prova de geração aceita, MP4 criado, baixado ou importado.** O relatório anterior ainda confundia “clique” com “geração iniciada”; o código recente ajustou parcialmente a telemetria.
