@@ -17,7 +17,8 @@ METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls
                      'submitVisible', 'submitEnabled', 'settingsCandidates',
                      'composerForms', 'composerFields', 'attachmentMatches',
                      'assetTextMatches', 'assetOptionParents', 'assetButtonParents',
-                     'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes', 'arrowCandidates', 'submitClicked'))
+                     'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes', 'arrowCandidates', 'submitClicked',
+                     'assetTargets', 'assetMatches', 'prefixLength', 'selectionClickFailed'))
 REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found',
     'flow_upload_action_not_found', 'flow_file_chooser_unavailable',
@@ -39,6 +40,7 @@ class FlowDiagnostics:
         self.clock, self.emit, self.started = clock, emit, clock()
         self.events, self.stage = [], 'request'
         self.references_included, self.references_verified = False, False
+        self.generate_clicked = False
         self.next_action = 'inspect_controls'
 
     def event(self, stage, status='ok', **metrics):
@@ -57,7 +59,7 @@ class FlowDiagnostics:
         return {'schemaVersion': 1, 'traceId': self.trace_id, 'action': self.action,
                 'executorRevision': self.revision, 'elapsedMs': int((self.clock() - self.started) * 1000),
                 'stopReason': reason if reason in REASONS else 'navigation_failed',
-                'lastStage': self.stage, 'generationStarted': False,
+                'lastStage': self.stage, 'generationStarted': self.generate_clicked,
                 'referencesIncluded': self.references_included,
                 'referencesVerified': self.references_verified,
                 'nextAction': self.next_action, 'events': list(self.events)}
@@ -291,6 +293,7 @@ async def click_generate_arrow(page, trace):
     try:
         await candidates[0].click(trial=True, timeout=2500)
         await candidates[0].click(timeout=3500)
+        trace.generate_clicked = True
         trace.event('generation', 'ok', submitClicked=True)
         return {'clicked': True, 'errorCode': None}
     except Exception as exc:
@@ -516,6 +519,7 @@ async def include_references(page, image_files, prompt_field, trace):
                 await page.wait_for_timeout(400)
             result['errorCode'] = 'flow_references_unverified'
     except Exception:
+        trace.event('references', 'waiting', selectionClickFailed=(phase == 'select'))
         result['errorCode'] = ('flow_reference_include_uncertain' if phase == 'include_click'
                                else 'flow_references_unverified' if phase == 'verify'
                                else 'flow_reference_include_unavailable' if phase == 'include_find'
