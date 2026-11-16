@@ -252,7 +252,25 @@ def gateway():
                         settings_result = await inspect_settings(page, trace)
                         settings_result["referencesVerified"] = reference_result["verified"]
                     generation_result = None
-                    if payload.get('mode') == 'click-generate':
+                    if payload.get('mode') == 'prepare-draft':
+                        # Generate only after the uploaded references and requested
+                        # settings have been positively verified; never spend
+                        # credits on an incomplete product draft.
+                        safe_to_generate = (
+                            bool(stage_prompt) and bool(matches) and
+                            (not image_files or reference_result['verified']) and
+                            bool(settings_result) and
+                            settings_result.get('vertical916') is True and
+                            settings_result.get('singleOutput') is True and
+                            not settings_result.get('errorCode')
+                        )
+                        if safe_to_generate:
+                            generation_result = await click_generate_arrow(page, trace)
+                        else:
+                            trace.event('generation', 'blocked',
+                                referencesVerified=reference_result['verified'],
+                                settingsVerified=bool(settings_result and settings_result.get('vertical916') and settings_result.get('singleOutput')))
+                    elif payload.get('mode') == 'click-generate':
                         generation_result = await click_generate_arrow(page, trace)
                     await editor_state(page, trace)
                     if generation_result is not None:
