@@ -111,19 +111,24 @@ def consume_view_ticket(ticket: str) -> bool:
 @app.get("/viewer", response_class=HTMLResponse)
 async def viewer():
     """Public shell only. The actual screen requires a one-time private ticket."""
-    return """<!doctype html><html lang="pt-BR"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
-    <p>Visualização privada do Google Chrome. Abra com um ticket temporário emitido pelo backend autenticado.</p>
-    <div id="screen" style="width:100%;height:85vh"></div>
+    return """<!doctype html><html lang="pt-BR"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Google Chrome privado</title></head><body style="margin:0;font-family:system-ui,sans-serif">
+    <p id="status" role="status" style="padding:12px">Conectando à tela privada do Google Chrome...</p>
+    <div id="screen" style="width:100%;height:90vh"></div>
     <script type="module">
+    const status=document.getElementById("status");
     const ticket=new URLSearchParams(location.search).get("ticket");
     history.replaceState(null,"",location.pathname);
-    if(!ticket){document.body.textContent="Ticket de acesso necessário";}else{
-      const {default:RFB}=await import("/novnc/core/rfb.js");
-      const protocol=location.protocol==="https:"?"wss:":"ws:";
-      const ws=protocol+"//"+location.host+"/viewer/ws?ticket="+encodeURIComponent(ticket);
-      const rfb=new RFB(document.getElementById("screen"),ws);
-      rfb.scaleViewport=true;rfb.resizeSession=false;
-      rfb.addEventListener("disconnect",()=>document.body.insertAdjacentText("beforeend","Sessão encerrada."));
+    if(!ticket){status.textContent="Acesso não autorizado. Volte à Loja e clique em Abrir tela para gerar um novo acesso temporário.";}else{
+      try{
+        const {default:RFB}=await import("/novnc/core/rfb.js");
+        const protocol=location.protocol==="https:"?"wss:":"ws:";
+        const ws=protocol+"//"+location.host+"/viewer/ws?ticket="+encodeURIComponent(ticket);
+        const rfb=new RFB(document.getElementById("screen"),ws);
+        rfb.scaleViewport=true;rfb.resizeSession=false;
+        rfb.addEventListener("connect",()=>{status.textContent="Chrome conectado.";});
+        rfb.addEventListener("securityfailure",()=>{status.textContent="Acesso recusado. Volte à Loja e solicite uma nova visualização.";});
+        rfb.addEventListener("disconnect",event=>{status.textContent=event.detail?.clean?"Visualização encerrada.":"Não foi possível conectar à tela. Volte à Loja e clique em Abrir tela novamente.";});
+      }catch(error){status.textContent="Não foi possível carregar o visualizador. Tente novamente pela Loja.";}
     }
     </script></body></html>"""
 
