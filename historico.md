@@ -1,3 +1,7 @@
+## 2026-11-16 — Preparação de teste Firefox no navegador privado
+
+Alterados `browser-service/modal_app.py` e `browser-service/app.py` na branch `feat/navegador-proprio-chromium` para instalar Firefox via Playwright e iniciar contexto persistente Firefox. Perfil separado em `/data/browser/firefox` para preservar os dados do Chromium anterior. Mantidos endpoints autenticados, noVNC e Supabase. **Alterações apenas commitadas; NÃO houve deploy Modal nem teste de login Google Flow.** O Firefox aceita automação Playwright para tarefas permitidas, mas o Google pode recusar a autenticação. Não contornar verificações de segurança.
+
 ## 2026-11-16 — Simplificação da tela de conexões Google Flow
 
 - Conforme solicitação, removidos da renderização de `AccountHub` os cartões antigos `GoogleFlowConnection` e `HyperbrowserProfile`, mantendo apenas `PrivateBrowserConnection` para o Chromium próprio quando a conta estiver autenticada.
