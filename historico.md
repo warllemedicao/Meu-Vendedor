@@ -1,3 +1,9 @@
+## 2026-11-16 — Persistência e smoke test pós-deploy
+
+- Ajustado `browser-service/modal_app.py` para confirmar alterações do volume Modal após encerramento autenticado do Chromium (`POST /session/stop`), além da confirmação no desligamento do contêiner.
+- Acrescentado ao workflow de deploy um teste HTTPS pós-publicação que exige `401` na rota `/health` sem credenciais; isso não comprova login, inicialização ou vídeo.
+- Alterações somente na branch `feat/navegador-proprio-chromium`, pendentes de novo deploy para aplicação no Modal. A integração Supabase requer segredos privados ainda não confirmados; Hyperbrowser permanece intacto.
+
 ## 2026-11-16 — Navegador Chromium: implantação e ponte autenticada
 
 - GitHub Actions: validação Docker do Chromium aprovada e workflow de implantação Modal concluído com sucesso (execução #2).
