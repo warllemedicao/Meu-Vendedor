@@ -15,6 +15,7 @@ SECRET = os.getenv("MV_BROWSER_CONTROL_SECRET", "")
 PROFILE = os.getenv("MV_BROWSER_PROFILE_DIR", "/data/browser")
 lock = asyncio.Lock()
 view_tickets = {}
+active_viewers = 0
 playwright = None
 context = None
 
@@ -133,9 +134,15 @@ async def viewer_socket(socket: WebSocket):
     ticket = socket.query_params.get("ticket", "")
     origin = socket.headers.get("origin", "")
     expected_origin = os.getenv("MV_BROWSER_PUBLIC_ORIGIN", "")
-    if not expected_origin.startswith("https://") or origin != expected_origin or not consume_view_ticket(ticket):
+    global active_viewers
+    if not expected_origin.startswith("https://") or origin != expected_origin:
         await socket.close(code=1008)
         return
+    async with lock:
+        if context is None or active_viewers or not consume_view_ticket(ticket):
+            await socket.close(code=1008)
+            return
+        active_viewers += 1
     await socket.accept(subprotocol="binary" if "binary" in socket.scope.get("subprotocols", []) else None)
     try:
         async with websockets.connect("ws://127.0.0.1:6080/", subprotocols=["binary"], max_size=16*1024*1024) as upstream:
@@ -160,6 +167,7 @@ async def viewer_socket(socket: WebSocket):
     except (OSError, WebSocketDisconnect, websockets.exceptions.WebSocketException):
         pass
     finally:
+        active_viewers = max(0, active_viewers - 1)
         try:
             await socket.close()
         except RuntimeError:
