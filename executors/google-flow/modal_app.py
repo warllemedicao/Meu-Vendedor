@@ -108,7 +108,7 @@ def gateway():
                     'traceId': trace.trace_id, 'executorRevision': trace.revision,
                     'gitCommit': trace.git_commit, 'containerTag': trace.container_tag,
                     'sessionTag': trace.session_tag, 'lastStage': item['stage'],
-                    'event': {'source': 'modal', 'stage': item['stage'], 'status': item['status'],
+                    'event': {'source': 'hyperbrowser' if item['stage'] in ('browser_disconnected','browser_page_closed','browser_page_crashed') else ('playwright' if item['stage'].startswith('browser_') else 'modal'), 'stage': item['stage'], 'status': item['status'],
                               'atMs': item['atMs'], 'metrics': item['metrics']}
                 }
                 async def send_event():
@@ -166,6 +166,35 @@ def gateway():
                 if page is None:
                     page = pages[0] if pages else await context.new_page()
                 trace.event("connect", frames=len(page.frames), flowPage=(page.url or "").startswith("https://flow.google.com/"), projectPage=(page.url or "").startswith("https://flow.google.com/project/"))
+
+                # Passive browser diagnostics, scoped to this CDP client. No URLs, response
+                # bodies, headers, cookies, prompts, or personal data are collected.
+                # These listeners never click controls or change the browser session.
+                browser_event_counts = {}
+                def browser_signal(stage, **metrics):
+                    count = browser_event_counts.get(stage, 0)
+                    browser_event_counts[stage] = count + 1
+                    if count >= 12:
+                        return
+                    try:
+                        trace.event(stage, "error" if stage in (
+                            "browser_disconnected", "browser_page_crashed",
+                            "browser_page_error", "browser_request_failed",
+                            "browser_http_error") else "ok", **metrics)
+                    except Exception:
+                        pass
+                browser.on("disconnected", lambda: browser_signal("browser_disconnected"))
+                page.on("close", lambda: browser_signal("browser_page_closed"))
+                page.on("crash", lambda: browser_signal("browser_page_crashed"))
+                page.on("pageerror", lambda error: browser_signal("browser_page_error"))
+                page.on("requestfailed", lambda request: browser_signal(
+                    "browser_request_failed", isFlowRequest=(request.url or "").startswith("https://flow.google.com/")))
+                page.on("response", lambda response: browser_signal(
+                    "browser_http_error", httpStatus=response.status,
+                    isFlowRequest=(response.url or "").startswith("https://flow.google.com/"))
+                    if response.status >= 400 else None)
+                browser_signal("browser_monitor_ready", frames=len(page.frames))
+
                 if inspect_only:
                     # Inspect the already open page without resetting its navigation.
                     # Create only a blank project when explicitly requested; never generate media.
