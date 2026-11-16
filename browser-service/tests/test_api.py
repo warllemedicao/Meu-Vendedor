@@ -33,6 +33,23 @@ class BrowserApiTests(unittest.TestCase):
         self.assertEqual(response.json()["service"], "chromium")
         self.assertNotIn(service.SECRET, response.text)
 
+    def test_ticket_requires_authentication(self):
+        self.assertEqual(self.client.post("/session/view-ticket").status_code, 401)
+        self.assertEqual(self.client.post("/session/view-ticket", headers=self.headers).status_code, 409)
+
+    def test_ticket_is_single_use(self):
+        import time
+        service.view_tickets["test-token"] = time.monotonic() + 30
+        self.assertTrue(service.consume_view_ticket("test-token"))
+        self.assertFalse(service.consume_view_ticket("test-token"))
+        service.view_tickets["expired-token"] = time.monotonic() - 1
+        self.assertFalse(service.consume_view_ticket("expired-token"))
+
+    def test_viewer_does_not_embed_secret(self):
+        response = self.client.get("/viewer")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(service.SECRET, response.text)
+
     def test_status_when_stopped(self):
         response = self.client.get("/session/status", headers=self.headers)
         self.assertEqual(response.status_code, 200)
