@@ -30,3 +30,6 @@ Não há mecanismo de anti-hibernação, bypass de detecção, exportação de c
 - `GET /viewer?ticket=...` carrega a interface noVNC; o ticket é removido da barra de endereço imediatamente.
 - `WS /viewer/ws?ticket=...` aceita somente origem igual a `MV_BROWSER_PUBLIC_ORIGIN` e ticket válido, encaminhando dados ao websockify em loopback.
 - **Não habilitar acesso público ainda:** falta integrar autenticação Supabase e isolamento de sessões, testar imagem Docker e execução real, além de confirmar armazenamento privado persistente.
+
+## Inicialização segura
+O processo agora recusa inicialização se `MV_BROWSER_CONTROL_SECRET` não tiver 32 caracteres ou se `MV_BROWSER_PUBLIC_ORIGIN` não for uma origem HTTPS exata. Tickets pendentes são invalidados ao encerrar o Chromium. A interface visual ainda requer uma ponte de autenticação com a sessão do Meu Vendedor, isolamento e validação end-to-end antes de qualquer publicação pública.
