@@ -33,3 +33,13 @@ Não há mecanismo de anti-hibernação, bypass de detecção, exportação de c
 
 ## Inicialização segura
 O processo agora recusa inicialização se `MV_BROWSER_CONTROL_SECRET` não tiver 32 caracteres ou se `MV_BROWSER_PUBLIC_ORIGIN` não for uma origem HTTPS exata. Tickets pendentes são invalidados ao encerrar o Chromium. A interface visual ainda requer uma ponte de autenticação com a sessão do Meu Vendedor, isolamento e validação end-to-end antes de qualquer publicação pública.
+
+
+## Hospedagem Modal (implementada em código, ainda não implantada)
+- Aplicação: `browser-service/modal_app.py`, nome `meu-vendedor-private-browser`.
+- Imagem: Chromium Playwright, Xvfb, fluxbox, x11vnc e websockify em loopback.
+- Perfil: volume privado Modal `mv-private-browser-profile`, montado em `/data/browser`. O volume é persistente, mas **não é um cofre criptográfico de aplicação**; verificar a proteção em repouso do provedor e não afirmar que o perfil esteja cifrado pela aplicação.
+- Secret Modal a cadastrar **fora do repositório**: `mv-private-browser-control` com `MV_BROWSER_CONTROL_SECRET` (aleatório, mínimo 32 caracteres) e `MV_BROWSER_PUBLIC_ORIGIN` (origem HTTPS exata do endpoint Modal publicado). Não enviar os valores ao chat.
+- Workflow manual: `.github/workflows/deploy-private-browser-modal.yml`, dependente de `MODAL_TOKEN_ID` e `MODAL_TOKEN_SECRET` já cadastrados no GitHub Actions. O workflow não é disparado automaticamente.
+- A Edge Function `private-browser` também exige `MV_PRIVATE_BROWSER_URL`, `MV_PRIVATE_BROWSER_SECRET`, `MV_PRIVATE_BROWSER_OWNER_USER_ID` e `MV_APP_ORIGIN` em segredos Supabase. O segredo de controle deve ser idêntico ao do Modal, nunca publicado no frontend.
+- **Bloqueios antes de liberar login:** confirmar URL e origem HTTPS reais, validar acesso no celular, proteger a persistência do perfil conforme o nível de segurança pretendido, integrar CDP do executor Flow e executar testes end-to-end. Não retirar Hyperbrowser ainda.
