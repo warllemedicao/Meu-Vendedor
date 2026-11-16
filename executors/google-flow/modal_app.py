@@ -253,12 +253,11 @@ def gateway():
                         settings_result["referencesVerified"] = reference_result["verified"]
                     generation_result = None
                     if payload.get('mode') == 'prepare-draft':
-                        # User authorized one generation, but never spend credits
-                        # with unverified uploaded references. No automatic retry
-                        # after an uncertain click or provider error.
+                        # Reference inspection is diagnostic, not a generation gate.
+                        # Proceed after prompt and settings are confirmed, as before.
+                        # Never automatically repeat an uncertain generation click.
                         safe_to_generate = (
                             bool(stage_prompt) and bool(matches) and
-                            (not image_files or reference_result.get('verified') is True) and
                             bool(settings_result) and
                             settings_result.get('vertical916') is True and
                             settings_result.get('singleOutput') is True and
