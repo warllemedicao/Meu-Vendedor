@@ -247,18 +247,18 @@ def gateway():
                     settings_result = None
                     if payload.get('mode') in ('inspect-settings', 'prepare-draft'):
                         # Settings are independent of reference verification.
-                        # Always inspect/save them, even if a reference click
-                        # could not be confirmed; never start generation.
+                        # Always inspect/save settings even when reference selection
+                        # cannot be confirmed; prepare-draft may generate afterward.
                         settings_result = await inspect_settings(page, trace)
                         settings_result["referencesVerified"] = reference_result["verified"]
                     generation_result = None
                     if payload.get('mode') == 'prepare-draft':
-                        # Generate only after the uploaded references and requested
-                        # settings have been positively verified; never spend
-                        # credits on an incomplete product draft.
+                        # User explicitly authorized a single generation click after
+                        # configuring the editor. Reference verification is diagnostic,
+                        # not a generation gate: Flow may hide attached thumbnails
+                        # from accessibility inspection. Do not repeat uncertain clicks.
                         safe_to_generate = (
                             bool(stage_prompt) and bool(matches) and
-                            (not image_files or reference_result['verified']) and
                             bool(settings_result) and
                             settings_result.get('vertical916') is True and
                             settings_result.get('singleOutput') is True and
