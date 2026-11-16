@@ -446,9 +446,18 @@ async def include_references(page, image_files, prompt_field, trace):
                     // A unique image can also be represented by a button inside
                     // an option. Resolve it to the enclosing selectable option.
                     const targets=[...new Set(matching.map(el=>el.closest('[role="option"]')||el.closest('button,[role="button"]')||el))];
-                    if(targets.length===1)targets[0].setAttribute(marker,'yes');
-                    return {matches:matching.length,targets:targets.length,
-                        libraryOptions:options.length, prefixLength:prefix.length, assetMatches:matching.length, assetTargets:targets.length};
+                    // Distinct nested matches often describe the SAME asset.
+                    // Prefer a unique matching option; otherwise a unique
+                    // clickable button, rather than an image inside its button.
+                    const optionTargets=targets.filter(el=>el.matches('[role="option"]'));
+                    const buttonTargets=targets.filter(el=>el.matches('button,[role="button"]'));
+                    const chosen=optionTargets.length===1?optionTargets[0]:
+                        buttonTargets.length===1?buttonTargets[0]:
+                        targets.length===1?targets[0]:null;
+                    if(chosen)chosen.setAttribute(marker,'yes');
+                    return {matches:matching.length,targets:chosen?1:targets.length,
+                        libraryOptions:options.length, prefixLength:prefix.length,
+                        assetMatches:matching.length, assetTargets:targets.length};
                 }""", [item['name'],marker], timeout=1800)
                 trace.event('references', 'waiting', assetIndex=asset_index, **shape)
                 if shape['targets'] != 1:
