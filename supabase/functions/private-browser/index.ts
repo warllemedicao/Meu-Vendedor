@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
   const routes: Record<string, { path: string; method: string }> = {
     status: { path: "/session/status", method: "GET" },
     inspect: { path: "/session/inspect", method: "GET" },
+    stage: { path: "/session/stage", method: "POST" },
     start: { path: "/session/start", method: "POST" },
     stop: { path: "/session/stop", method: "POST" },
     view: { path: "/session/view-ticket", method: "POST" },
@@ -53,11 +54,16 @@ Deno.serve(async (req) => {
   const action = input?.action;
   if (typeof action !== "string" || !Object.hasOwn(routes, action))
     return reply({ error: "invalid_action" }, 400);
+  if (action === "stage") {
+    if (typeof input?.prompt !== "string" || input.prompt.trim().length < 1 || input.prompt.length > 4000 || !Array.isArray(input.images) || input.images.length > 3 || (input.images.length > 0 && input.imageRightsConfirmed !== true)) return reply({ error: "invalid_draft" }, 400);
+    if (JSON.stringify(input).length > 3_800_000) return reply({ error: "payload_too_large" }, 413);
+  }
   const target = routes[action];
   const response = await fetch(new URL(target.path, base), {
     method: target.method,
-    headers: { authorization: "Bearer " + serviceSecret },
-    signal: AbortSignal.timeout(action === "start" ? 60000 : 12000),
+    headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" ? { "content-type": "application/json" } : {}) },
+    ...(action === "stage" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed }) } : {}),
+    signal: AbortSignal.timeout(action === "start" || action === "stage" ? 60000 : 12000),
   }).catch(() => null);
   if (!response) return reply({ error: "browser_unavailable" }, 502);
   const result = await response.json().catch(() => null);
