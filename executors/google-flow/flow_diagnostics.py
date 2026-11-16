@@ -549,7 +549,9 @@ async def include_references(page, image_files, prompt_field, trace):
                         selectedExpected=len(image_files))
             phase = 'verify'
             trace.next_action = 'verify_references'
-            for _ in range(8):
+            # Keep the synchronous RPC short; the client may time out before
+            # settings and Generate if attachment verification takes too long.
+            for _ in range(3):
                 evidence = await editor_evidence()
                 trace.event('references', 'waiting', **evidence)
                 if evidence['attachmentMatches'] >= len(image_files):
