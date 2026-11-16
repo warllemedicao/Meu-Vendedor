@@ -313,7 +313,10 @@ async def click_generate_arrow(page, trace):
                         const alerts=Array.from(root.querySelectorAll('[role="alert"],[role="alertdialog"],[aria-live],div,p,span')).filter(visible);
                         const error=alerts.some(e=>{const t=text(e);return t.length<180&&/algo deu errado|something went wrong|não foi possível gerar|failed to generate|generation failed/i.test(t)});
                         const dialogs=Array.from(root.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog')).filter(visible);
-                        const creditDialog=dialogs.some(e=>/créditos|credits|confirmar|confirm|custo|cost/i.test(text(e).slice(0,800)));
+                        const creditWords=/créditos|créditos de ia|credits|aprovar|approve|confirmar|confirm|custo|cost/i;
+                        const creditButtons=buttons.filter(e=>/^(aprovar|approve|confirmar|confirm|continuar|continue)$/i.test(text(e)));
+                        const creditDialog=dialogs.some(e=>creditWords.test(text(e).slice(0,800))) ||
+                          creditButtons.some(e=>{const panel=e.closest('[role="dialog"],[role="alertdialog"],dialog,section,article')||e.parentElement?.parentElement;return panel&&creditWords.test(text(panel).slice(0,1000))});
                         const processing=Array.from(root.querySelectorAll('[role="progressbar"],[aria-busy="true"]')).some(visible);
                         return {errorVisible:error,retryVisible:retry,creditDialog,processing};
                     }""", timeout=1500)
