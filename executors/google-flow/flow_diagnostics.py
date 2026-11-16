@@ -46,6 +46,9 @@ class FlowDiagnostics:
         self.references_included, self.references_verified = False, False
         self.generate_clicked = False
         self.next_action = 'inspect_controls'
+        self.git_commit = 'unknown'
+        self.container_tag = 'unknown'
+        self.session_tag = 'unknown'
 
     def event(self, stage, status='ok', **metrics):
         if stage not in STAGES or status not in ('started', 'ok', 'waiting', 'skipped', 'blocked', 'error'):
@@ -61,7 +64,8 @@ class FlowDiagnostics:
 
     def report(self, reason):
         return {'schemaVersion': 1, 'traceId': self.trace_id, 'action': self.action,
-                'executorRevision': self.revision, 'elapsedMs': int((self.clock() - self.started) * 1000),
+                'executorRevision': self.revision, 'gitCommit': self.git_commit,
+                'containerTag': self.container_tag, 'sessionTag': self.session_tag, 'elapsedMs': int((self.clock() - self.started) * 1000),
                 'stopReason': reason if reason in REASONS else 'navigation_failed',
                 'lastStage': self.stage, 'generationStarted': self.generate_clicked,
                 'referencesIncluded': self.references_included,
