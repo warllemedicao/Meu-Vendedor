@@ -1943,3 +1943,12 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - **Verificação interna feita:** inspeção estática das três rotas e dos limites/autorização; **não foi possível executar build/testes automatizados ou interagir com a sessão real do Flow neste ambiente**. Não considerar testado em produção.
 - **Implantação necessária:** atualizar o Modal com `python -m modal deploy browser-service/modal_app.py`, publicar Edge Function `private-browser` e reconstruir/publicar Cloudflare; ordem importante para evitar interface chamando rota ainda ausente.
 - Commits desta etapa: `4bc1f77`, `a38a41d`, `8e5118f`.
+
+## 2026-11-16 — Telemetria segura do Chrome para logs do Supabase
+- `browser-service/app.py`: ring buffer em memória (até 40 eventos) com códigos fixos para início/falha/encerramento do Chrome, visualizador e preparação de rascunho. A rota autenticada `/session/status` expõe até 20 eventos recentes e sinal de processo encerrado. Os mesmos códigos são impressos nos logs do Modal.
+- `supabase/functions/private-browser/index.ts`: grava no console da Edge Function erros upstream com ação, status HTTP e latência; ao receber `status`, registra somente eventos de diagnóstico allowlisted. Os registros ficam consultáveis pelo painel/logs do Supabase. Função publicada diretamente como versão **10**.
+- **Privacidade:** não registrar prompt, URL, imagem, cookie, token, senha, corpo da requisição nem mensagem arbitrária de exceção.
+- **Limites:** não há streaming contínuo ou acesso integral aos logs privados do Modal; eventos anteriores ao deploy ou encerramentos abruptos de contêiner podem não chegar ao Supabase. Eventos do ring são encaminhados quando a Loja consulta `status`; eventos do bridge são gravados por requisição.
+- **Implantação pendente:** `python -m modal deploy browser-service/modal_app.py` a partir da branch atualizada. O Supabase v10 já está publicado. A interface Cloudflare não foi alterada nesta etapa.
+- **Verificação:** conferência estática de alterações e retorno do deploy Supabase; sem teste de integração real do Chrome nesta sessão.
+- Commits: `5d8d968`, `c94a5d4`.
