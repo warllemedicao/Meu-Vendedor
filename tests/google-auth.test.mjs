@@ -28,7 +28,7 @@ test('OAuth solicita somente identidade e retorna ao próprio site, sem autoriza
  assert.throws(()=>googleSignInOptions('javascript:alert(1)'));
 });
 
-test('formulário mantém login Google e PKCE, com conexão Flow em Contas',async()=>{
+test('formulário mantém login Google e PKCE, com navegador Chromium próprio em Contas',async()=>{
  const [form,provider,client,hub,redirect,studio]=await Promise.all([
   readFile(new URL('../src/components/auth/AuthForm.tsx',import.meta.url),'utf8'),
   readFile(new URL('../src/components/auth/AuthProvider.tsx',import.meta.url),'utf8'),
@@ -43,8 +43,10 @@ test('formulário mantém login Google e PKCE, com conexão Flow em Contas',asyn
  assert.match(provider,/auth\.getSession\(\)/);
  assert.match(provider,/eventReceived/);
  assert.match(client,/flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true/);
- assert.match(hub,/<GoogleFlowConnection/);
- assert.match(hub,/import \{ GoogleFlowConnection \} from "\.\/GoogleFlowConnection"/);
+ assert.match(hub,/<PrivateBrowserConnection/);
+ assert.match(hub,/import \{ PrivateBrowserConnection \} from "\.\/PrivateBrowserConnection"/);
+ assert.doesNotMatch(hub,/<GoogleFlowConnection/);
+ assert.doesNotMatch(hub,/<HyperbrowserProfile/);
  assert.match(studio,/Abrir Google Flow/);
  assert.match(studio,/https:\/\/labs\.google\/fx\/tools\/flow/);
  assert.match(hub,/<YouTubeConnection/);
