@@ -1,3 +1,11 @@
+## 2026-11-16 — Navegador Chromium: implantação e ponte autenticada
+
+- GitHub Actions: validação Docker do Chromium aprovada e workflow de implantação Modal concluído com sucesso (execução #2).
+- Modal: aplicativo `meu-vendedor-private-browser` implantado, função `browser_gateway` publicada em `https://warllemedicao--meu-vendedor-private-browser-browser-gateway.us-east.modal.run`. A chamada anônima `/health` retornou `401 unauthorized`, confirmando serviço acessível e rota protegida, mas **não** o início do Chromium.
+- Supabase: Edge Function `private-browser` implantada (versão 1, JWT obrigatório), com autorização restrita ao usuário proprietário e configuração fail-closed. **Ainda depende** dos segredos `MV_APP_ORIGIN`, `MV_PRIVATE_BROWSER_URL`, `MV_PRIVATE_BROWSER_SECRET` e `MV_PRIVATE_BROWSER_OWNER_USER_ID`.
+- Interface: componente `PrivateBrowserConnection` conectado à seção autenticada `Lojas e redes` do `AccountHub` na branch `feat/navegador-proprio-chromium`; ainda não publicado no frontend de produção.
+- Bloqueios para login e migração: configurar os segredos Supabase sem divulgar valores, validar inicialização e visualização protegida, testar persistência do perfil e integração com executor Google Flow. Hyperbrowser permanece intacto até substituição verificada.
+
 ## 2026-11-16 — Autorização para reutilizar Modal e preparação de hospedagem Chromium
 
 Usuário autorizou hospedar o navegador próprio no Modal existente. Adicionado `browser-service/modal_app.py` com aplicativo `meu-vendedor-private-browser`, imagem Chromium/Playwright e interface gráfica isolada, volume persistente Modal `mv-private-browser-profile`, limites de contêiner e uso de segredo Modal `mv-private-browser-control`. Adicionado workflow manual `.github/workflows/deploy-private-browser-modal.yml` para deploy mediante credenciais GitHub Actions existentes. Documentados segredos exigidos, URL HTTPS e limitação de proteção criptográfica do volume em `browser-service/README.md`. Commits `801a2f2`, `2d23514`, `be036b3`, `7057d38`.
