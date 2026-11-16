@@ -92,6 +92,56 @@ def gateway():
         trace.git_commit = git_commit
         trace.container_tag = container_tag
         trace.session_tag = hashlib.sha256(endpoint.encode()).hexdigest()[:12]
+        # Best-effort progressive telemetry: failures never block the video workflow.
+        telemetry_key = os.environ.get('MV_FLOW_TELEMETRY_SERVICE_ROLE_KEY', '')
+        telemetry_url = 'https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/flow-telemetry'
+        pending_telemetry = []
+        def emit_telemetry(line):
+            print(line, flush=True)
+            if not telemetry_key:
+                return
+            try:
+                import json
+                item = json.loads(line[len('flow_step '):])
+                body = {
+                    'traceId': trace.trace_id, 'executorRevision': trace.revision,
+                    'gitCommit': trace.git_commit, 'containerTag': trace.container_tag,
+                    'sessionTag': trace.session_tag, 'lastStage': item['stage'],
+                    'event': {'source': 'modal', 'stage': item['stage'], 'status': item['status'],
+                              'atMs': item['atMs'], 'metrics': item['metrics']}
+                }
+                async def send_event():
+                    try:
+                        async with httpx.AsyncClient(timeout=5) as client:
+                            response = await client.post(telemetry_url, json=body,
+                                headers={'authorization':'Bearer '+telemetry_key})
+                            if response.status_code != 200:
+                                print('flow_telemetry_delivery_failed status='+str(response.status_code),flush=True)
+                    except Exception as error:
+                        print('flow_telemetry_delivery_failed type='+type(error).__name__,flush=True)
+                task = asyncio.create_task(send_event())
+                pending_telemetry.append(task)
+            except Exception:
+                print('flow_telemetry_event_invalid',flush=True)
+        async def flush_telemetry(reason):
+            if not telemetry_key:
+                return
+            try:
+                import json
+                body = {'traceId':trace.trace_id, 'executorRevision':trace.revision,
+                        'gitCommit':trace.git_commit,'containerTag':trace.container_tag,
+                        'sessionTag':trace.session_tag,'lastStage':trace.stage,
+                        'stopReason':reason,'durationMs':int((time.monotonic()-trace.started)*1000),
+                        'status':'completed' if reason in ('flow_generate_clicked','flow_credit_confirmation_pending','flow_draft_ready') else 'failed',
+                        'finished':True}
+                async with httpx.AsyncClient(timeout=5) as client:
+                    await client.post(telemetry_url,json=body,
+                        headers={'authorization':'Bearer '+telemetry_key})
+                if pending_telemetry:
+                    await asyncio.wait(pending_telemetry,timeout=6)
+            except Exception as error:
+                print('flow_telemetry_flush_failed type='+type(error).__name__,flush=True)
+        trace.emit = emit_telemetry
         trace.event("request", expected=len(image_files))
         from playwright.async_api import async_playwright
         from urllib.parse import parse_qsl, urlencode, urlunsplit
@@ -390,6 +440,7 @@ def gateway():
                             continue
                     trace.event("inspection", frames=inspected_frames, frameErrors=scan_errors)
                     trace.event("finished")
+                    await flush_telemetry(reason)
                     return {
                         'diagnostics': trace.report(reason),
                         'navigationReady': True, 'inspectionReady': True,
@@ -412,6 +463,7 @@ def gateway():
                 else 'navigation_failed'
             )
             trace.event(trace.stage, "error")
+            await flush_telemetry(reason)
             raise HTTPException(502, {'code': reason, 'diagnostics': trace.report(reason)})
 
     @api.post('/control')
