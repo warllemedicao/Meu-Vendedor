@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 
-type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; events?: { role: string; type: string }[] };
+type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; events?: { role: string; type: string }[]; imageDirectory?: string; imagesAvailable?: number };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
@@ -62,14 +62,27 @@ export function PrivateBrowserConnection() {
 
   async function toggleLearning() {
     if (busy) return;
+    if (!learning && images.length && !rightsConfirmed) {
+      setMessage("Confirme os direitos de uso das imagens antes de iniciar a captura.");
+      return;
+    }
     setBusy(true);
     setMessage("");
     try {
-      const result = await invoke(learning ? "learning_stop" : "learning_start");
+      const encoded = learning ? [] : await Promise.all(images.map(async (file) => {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let binary = "";
+        for (let index = 0; index < bytes.length; index += 8192) {
+          binary += String.fromCharCode(...bytes.subarray(index, index + 8192));
+        }
+        return { mime: file.type, data: btoa(binary) };
+      }));
+      const result = await invoke(learning ? "learning_stop" : "learning_start",
+        learning ? {} : { images: encoded, imageRightsConfirmed: rightsConfirmed });
       setLearning(result.active === true);
       if (result.active) {
         setLearningResult("");
-        setMessage("Captura iniciada. Clique nos controles do Flow e depois finalize. Não digite dados sensíveis durante a demonstração.");
+        setMessage(`Captura iniciada. ${result.imagesAvailable ?? 0} imagem(ns) disponível(is) na pasta ${result.imageDirectory ?? "/tmp/meu-vendedor/treinamento/"} do Chrome. Finalize para apagar os arquivos temporários.`);
       } else {
         setLearningResult(`Interações capturadas: ${result.recorded ?? 0}. Registro estrutural temporário; ainda não reproduz os cliques automaticamente.`);
         setMessage("Captura encerrada.");
