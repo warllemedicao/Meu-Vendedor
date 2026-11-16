@@ -2,6 +2,8 @@
 import asyncio
 import hmac
 import os
+import secrets
+import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from playwright.async_api import async_playwright
@@ -9,6 +11,7 @@ from playwright.async_api import async_playwright
 SECRET = os.getenv("MV_BROWSER_CONTROL_SECRET", "")
 PROFILE = os.getenv("MV_BROWSER_PROFILE_DIR", "/data/browser")
 lock = asyncio.Lock()
+view_tickets = {}
 playwright = None
 context = None
 
@@ -74,3 +77,22 @@ async def stop(request: Request):
 async def status(request: Request):
     authorize(request)
     return {"running": context is not None, "pages": len(context.pages) if context else 0}
+
+@app.post("/session/view-ticket")
+async def view_ticket(request: Request):
+    """Issue a short-lived, single-use credential for a protected visual proxy."""
+    authorize(request)
+    if context is None:
+        raise HTTPException(409, "browser_not_running")
+    now = time.monotonic()
+    for key, expiry in list(view_tickets.items()):
+        if expiry <= now:
+            del view_tickets[key]
+    ticket = secrets.token_urlsafe(32)
+    view_tickets[ticket] = now + 60
+    return {"ticket": ticket, "expiresInSeconds": 60}
+
+def consume_view_ticket(ticket: str) -> bool:
+    """Atomic in-process validation; callers must not log ticket values."""
+    expiry = view_tickets.pop(ticket, 0)
+    return bool(expiry > time.monotonic())
