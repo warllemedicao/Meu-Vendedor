@@ -20,7 +20,7 @@ METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls
                      'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes', 'arrowCandidates', 'submitClicked',
                      'assetTargets', 'assetMatches', 'prefixLength', 'selectionClickFailed',
                       'errorVisible', 'retryVisible', 'errorObservedMs', 'errorFramesRead',
-                      'creditDialogVisible', 'responseObservedMs', 'responseFramesRead', 'responseUnconfirmed', 'dialogVisible', 'checkboxVisible', 'checkboxChecked', 'confirmButtonVisible', 'confirmButtonEnabled', 'creditMentioned', 'framesRead'))
+                      'creditDialogVisible', 'responseObservedMs', 'responseFramesRead', 'responseUnconfirmed', 'dialogVisible', 'checkboxVisible', 'checkboxChecked', 'confirmButtonVisible', 'confirmButtonEnabled', 'creditMentioned', 'framesRead', 'approvalVisible', 'approveButtonVisible', 'alwaysApproveVisible', 'rejectButtonVisible', 'creditCostMentioned'))
 REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found',
     'flow_upload_action_not_found', 'flow_file_chooser_unavailable',
@@ -351,35 +351,41 @@ async def click_generate_arrow(page, trace):
 
 
 async def observe_generation_confirmation(page, trace):
-    """Read-only bounded snapshot of confirmation controls. Never read cookies, input values or page text."""
-    summary = {'dialogVisible': False, 'checkboxVisible': False, 'checkboxChecked': False,
-               'confirmButtonVisible': False, 'confirmButtonEnabled': False,
-               'creditMentioned': False, 'framesRead': 0, 'frameErrors': 0}
+    """Read-only Flow chat approval/error observation; never capture page text or secrets."""
+    summary = {'approvalVisible': False, 'approveButtonVisible': False,
+               'alwaysApproveVisible': False, 'rejectButtonVisible': False,
+               'creditCostMentioned': False, 'errorVisible': False,
+               'retryButtonVisible': False, 'framesRead': 0, 'frameErrors': 0}
+    # The Flow agent shows approval as a chat card, not necessarily a dialog.
     for frame in page.frames[:8]:
         try:
             state = await asyncio.wait_for(frame.locator('body').evaluate(r"""root => {
                 const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'};
-                const text=e=>(e.innerText||e.textContent||'').trim().slice(0,600);
-                const dialogs=Array.from(root.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog')).filter(visible);
-                const panels=dialogs.length?dialogs:[root];
-                const credit=/créditos|credits|aprovar|approve|confirmar|confirm|custo|cost|geração|generation/i;
-                const relevant=panels.filter(p=>credit.test(text(p).slice(0,600)));
-                const controls=relevant.flatMap(p=>Array.from(p.querySelectorAll('button,[role="button"],input[type="checkbox"],[role="checkbox"]'))).filter(visible);
-                const buttons=controls.filter(e=>e.matches('button,[role="button"]')&&/^(aprovar|approve|confirmar|confirm|continuar|continue|gerar|generate)$/i.test(text(e)));
-                const boxes=controls.filter(e=>e.matches('input[type="checkbox"],[role="checkbox"]'));
-                return {dialogVisible:dialogs.length>0,checkboxVisible:boxes.length>0,
-                    checkboxChecked:boxes.some(e=>e.checked===true||e.getAttribute('aria-checked')==='true'),
-                    confirmButtonVisible:buttons.length>0,
-                    confirmButtonEnabled:buttons.some(e=>!e.disabled&&e.getAttribute('aria-disabled')!=='true'),
-                    creditMentioned:relevant.length>0};
+                const text=e=>(e.innerText||e.textContent||'').trim();
+                const buttons=Array.from(root.querySelectorAll('button,[role="button"]')).filter(visible);
+                const named=pattern=>buttons.some(e=>pattern.test(text(e).slice(0,90)));
+                const approve=named(/^aprovar$|^approve$/i);
+                const always=named(/^sempre aprovar no projeto$|^always approve (?:in|for) (?:this )?project$/i);
+                const reject=named(/^rejeitar$|^reject$/i);
+                const retry=named(/^tentar de novo$|^try again$|^retry$/i);
+                const leaves=Array.from(root.querySelectorAll('p,span,div')).filter(e=>visible(e)&&e.children.length===0);
+                const short=leaves.map(e=>text(e).slice(0,180));
+                const credit=short.some(t=>/custa\\s*\\d+\\s*créditos|costs?\\s*\\d+\\s*credits/i.test(t));
+                const error=short.some(t=>/algo deu errado|something went wrong|não foi possível gerar|generation failed/i.test(t));
+                return {approvalVisible:approve&&(always||reject||credit),
+                    approveButtonVisible:approve,alwaysApproveVisible:always,
+                    rejectButtonVisible:reject,creditCostMentioned:credit,
+                    errorVisible:error,retryButtonVisible:retry};
             }""", timeout=1800), timeout=2.5)
             summary['framesRead'] += 1
-            for key in ('dialogVisible','checkboxVisible','checkboxChecked','confirmButtonVisible','confirmButtonEnabled','creditMentioned'):
+            for key in ('approvalVisible','approveButtonVisible','alwaysApproveVisible',
+                        'rejectButtonVisible','creditCostMentioned','errorVisible','retryButtonVisible'):
                 summary[key] = summary[key] or bool(state.get(key))
         except Exception:
             summary['frameErrors'] += 1
     trace.event('confirmation', 'ok', **summary)
     return summary
+
 
 async def editor_state(page, trace, prompt_field=None, names=None):
     """Current actionable controls, not arbitrary DOM text or input values."""
