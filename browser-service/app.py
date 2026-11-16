@@ -7,6 +7,7 @@ import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from playwright.async_api import async_playwright
 
 SECRET = os.getenv("MV_BROWSER_CONTROL_SECRET", "")
