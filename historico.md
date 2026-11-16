@@ -1,3 +1,9 @@
+## 2026-11-16 — Correção de requisito: aprovação é necessária para gerar vídeo
+
+**Correção solicitada pelo usuário:** o fluxo pretendido do Meu Vendedor deve clicar em **Aprovar** quando o Google Flow apresentar o cartão de confirmação de créditos, pois sem essa aprovação o vídeo não começa a gerar. A documentação anterior que descrevia aprovação exclusivamente manual como comportamento definitivo estava **incorreta para o requisito do projeto**. Não confundir **Aprovar** (uma geração) com **Sempre aprovar no projeto** (preferência persistente). O usuário relatou três falhas anteriores à chegada a essa etapa. A implementação atual somente observa o cartão; **o clique automático em Aprovar ainda não foi implementado/validado**. Evitar afirmar que a geração foi concluída.
+
+**Telemetria:** consulta direta ao Supabase nesta atualização retornou **0 execuções** em `public.flow_execution_logs` e **0 eventos** em `public.flow_execution_events`. O acesso de leitura ao Supabase funciona, mas a persistência de logs do Modal ainda não foi comprovada.
+
 ## 2026-11-16 — Capturas reais: aprovação do Flow e erro após Gerar
 
 Capturas enviadas pelo usuário identificam o cartão de aprovação **dentro da conversa do agente**, com a mensagem de custo de **10 créditos** e botões **Aprovar**, **Sempre aprovar no projeto** e **Rejeitar**. Não se trata necessariamente de um modal DOM `role=dialog`. Outra captura mostra o erro **“Algo deu errado. Tente de novo.”** após o envio. A captura de configurações mostra **Confirmar antes de gerar: Sempre**, vídeo **9:16** e botão **Salvar**. A aprovação deve continuar **manual**, sem clicar automaticamente nem selecionar “Sempre aprovar”.
