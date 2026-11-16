@@ -1,3 +1,11 @@
+## 2026-11-16 — Marco funcional do robô Google Flow e investigação de intermitência
+
+**Marco observado nos testes (não equivale a MP4 concluído):** o robô conseguiu preencher o prompt, enviar e selecionar lotes de **2 e 3 imagens**, acionar **Incluir no comando**, configurar **9:16** e **x1**, e clicar em **Gerar**. Na tentativa `1e00845e-d965-4ff9-b688-679a6185a5ca` (executor `c48a9bb6b49e`, 31.777 ms), dois nomes foram detectados aos 13.180 ms, seleção de duas imagens e Incluir acionado aos 18.199 ms, 9:16/x1 confirmados aos 24.835 ms e Gerar clicado aos 26.231 ms. A verificação de chips no editor retornou zero: **anexos no prompt não comprovados; vídeo gerado não comprovado**. Houve relato visual de erro eventual do Flow ao gerar.
+
+**Intermitência:** tentativa `24619b4a-eadc-469d-a68d-2361e7cb6623` (11:57:38 UTC) terminou após 91.366 ms com `client_response_unavailable`, `Executor: unknown` e nenhuma etapa remota recebida; o estado real do executor é desconhecido. Tentativa anterior `ca773217-81a2-4b3a-8473-986d06e6a116` também não retornou resposta após 93.477 ms. Diferenciar falha de resposta do cliente de falha de automação no navegador. O usuário relata três testes com resultados distintos, mas o terceiro relatório completo ainda não consta deste registro.
+
+**Prioridade:** auditar rotas duplicadas de preparação/geração, versões de frontend e executor, timeouts em camadas, concorrência e reutilização da sessão; preservar seleção de 2/3 imagens que já funcionou; não introduzir bloqueios por confirmação de anexos. Não repetir clique Gerar quando o estado da tentativa for desconhecido.
+
 ## 2026-11-16 — Comparação de 1, 2 e 3 imagens; seleção e timeout
 
 Relatórios do executor antigo `66d3f43a9f87`: com 1 imagem, primeira detecção +14,099s, espera estável +17,288s, Incluir acionado; com 2 imagens, primeira detecção +14,035s, espera estável +17,120s, seleção da primeira falhou; com 3 imagens, primeira detecção +10,422s com indicador de processamento presente, indicador ausente +12,443s, espera estável +14,377s, três seleções e Incluir acionado. Nenhum relatório comprovou anexos no editor. Os três registraram bloqueio de Gerar porque o executor antigo ainda estava publicado; a branch main já havia removido a trava por referências no commit `9b8f1536`.
