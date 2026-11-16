@@ -423,9 +423,9 @@ async def include_references(page, image_files, prompt_field, trace):
                     const values=el=>[el.textContent?.trim(),el.getAttribute('alt'),
                         el.getAttribute('title'),el.getAttribute('aria-label')]
                         .filter(Boolean);
-                    const prefix=name.replace(/\\.[^.]+$/,'').slice(0,18);
+                    const prefix=name.replace(/\.[^.]+$/,'').slice(0,18);
                     const options=Array.from(root.querySelectorAll('[role="option"]'));
-                    const nodes=options.length?options:Array.from(root.querySelectorAll('button,[role="button"]'));
+                    const nodes=[...new Set([...options,...root.querySelectorAll('button,[role="button"],img,[role="img"]')])];
                     const matching=nodes.filter(option=>{
                         const all=[option,...option.querySelectorAll('*')];
                         return all.some(el=>values(el).some(value=>
@@ -434,10 +434,10 @@ async def include_references(page, image_files, prompt_field, trace):
                     });
                     // A unique image can also be represented by a button inside
                     // an option. Resolve it to the enclosing selectable option.
-                    const targets=[...new Set(matching.map(el=>el.closest('[role="option"]')||el))];
+                    const targets=[...new Set(matching.map(el=>el.closest('[role="option"]')||el.closest('button,[role="button"]')||el))];
                     if(targets.length===1)targets[0].setAttribute(marker,'yes');
                     return {matches:matching.length,targets:targets.length,
-                        libraryOptions:options.length, prefixLength:prefix.length};
+                        libraryOptions:options.length, prefixLength:prefix.length, assetMatches:matching.length, assetTargets:targets.length};
                 }""", [item['name'],marker], timeout=1800)
                 trace.event('references', 'waiting', assetIndex=asset_index, **shape)
                 if shape['targets'] != 1:
