@@ -105,9 +105,9 @@ jobs:
       - name: Verify deployment
         run: |
           npx wrangler deployments list --name meu-vendedor
-          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors \\
-            https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev/ \\
-            --output "$RUNNER_TEMP/index.html"
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors \
+            --output "$RUNNER_TEMP/index.html" \
+            "https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev/"
           grep -qi '<html' "$RUNNER_TEMP/index.html"
 
   deploy:
