@@ -3,10 +3,12 @@
 import { useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 
-type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number };
+type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; events?: { role: string; type: string }[] };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
+  const [learning, setLearning] = useState(false);
+  const [learningResult, setLearningResult] = useState("");
   const [message, setMessage] = useState("");
   const [viewUrl, setViewUrl] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -53,6 +55,27 @@ export function PrivateBrowserConnection() {
       setMessage("Chrome conectado. Use a sessão do Google Flow para os testes.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erro ao abrir o Chrome.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleLearning() {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await invoke(learning ? "learning_stop" : "learning_start");
+      setLearning(result.active === true);
+      if (result.active) {
+        setLearningResult("");
+        setMessage("Captura iniciada. Clique nos controles do Flow e depois finalize. Não digite dados sensíveis durante a demonstração.");
+      } else {
+        setLearningResult(`Interações capturadas: ${result.recorded ?? 0}. Registro estrutural temporário; ainda não reproduz os cliques automaticamente.`);
+        setMessage("Captura encerrada.");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha na captura.");
     } finally {
       setBusy(false);
     }
@@ -134,6 +157,12 @@ export function PrivateBrowserConnection() {
       )} disabled={!prompt.trim()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
         Copiar prompt
       </button>
+    </div>
+    <div className="space-y-2 rounded-lg border border-border p-3">
+      <p className="text-sm font-medium">Modo aprendizado experimental</p>
+      <p className="text-xs text-muted">Captura somente tipos de controles clicados no Flow, sem conteúdo digitado. Não grava um procedimento permanente nem executa ações sozinho.</p>
+      <button type="button" disabled={busy || !viewUrl} onClick={() => void toggleLearning()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{learning ? "Finalizar captura" : "Iniciar captura de cliques"}</button>
+      {learningResult && <p className="text-xs" role="status">{learningResult}</p>}
     </div>
     {message && <p role="status" className="text-sm">{message}</p>}
     {viewUrl && <div className="space-y-2">
