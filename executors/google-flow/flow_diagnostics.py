@@ -66,65 +66,62 @@ class FlowDiagnostics:
                 'nextAction': self.next_action, 'events': list(self.events)}
 
 
-async def wait_for_images(page, image_files, trace, clock=time.monotonic, timeout=45):
+async def wait_for_images(page, image_files, trace, clock=time.monotonic, timeout=15):
+    """Observe library readiness briefly; never treat an unreadable frame as upload failure.
+
+    The selection routine is the authoritative next interaction, and must run
+    even if DOM inspection is unavailable through the remote browser.
+    """
     expected_names = {item['name'] for item in image_files}
     stable_reads = 0
-    wait_started = clock()
-    upload_deadline = wait_started + timeout
-    trace.event("images_wait", "started", expected=len(expected_names), limitMs=int(timeout*1000), required=3)
+    started = clock()
+    trace.event("images_wait", "started", expected=len(expected_names),
+                limitMs=int(timeout * 1000), required=2)
     polls = 0
-    last_sample = None
-    last_logged = wait_started
-    while clock() < upload_deadline:
+    while clock() - started < timeout:
+        polls += 1
         visible_names = set()
         busy = False
-        polls += 1
         frames_read = frame_errors = indicator_count = 0
-        for asset_frame in page.frames[:8]:
+        # Read the main page first. Remote CDP can stall on every iframe;
+        # bound the total observation rather than waiting 1.5s per frame.
+        for frame in [page.main_frame] + [f for f in page.frames if f != page.main_frame][:2]:
             try:
-                remaining_ms = int((upload_deadline-clock())*1000)
-                if remaining_ms <= 0:
-                    busy, frame_errors = True, frame_errors + 1
-                    break
-                state = await asyncio.wait_for(asset_frame.locator('body').evaluate("""(body) => {
+                state = await asyncio.wait_for(frame.locator('body').evaluate("""(body) => {
                     const visible = el => {
-                        const r = el.getBoundingClientRect();
-                        const s = getComputedStyle(el);
-                        return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+                        const r=el.getBoundingClientRect(), s=getComputedStyle(el);
+                        return r.width>0 && r.height>0 && s.visibility!=='hidden' && s.display!=='none';
                     };
-                    const text = Array.from(body.querySelectorAll('*'))
-                        .filter(el => visible(el) && el.children.length === 0)
-                        .map(el => (el.textContent || '').trim()).filter(Boolean);
-                    const indicators = Array.from(body.querySelectorAll('[role="progressbar"], [aria-busy="true"]')).filter(visible);
-                    const busy = indicators.length > 0;
-                    return { text: text.slice(0, 600), busy, indicatorCount: indicators.length };
-                }""", timeout=min(1500, remaining_ms)), timeout=min(1.5, remaining_ms/1000))
+                    const text=Array.from(body.querySelectorAll('*'))
+                        .filter(el=>visible(el) && el.children.length===0)
+                        .map(el=>(el.textContent||'').trim()).filter(Boolean);
+                    const indicators=Array.from(body.querySelectorAll('[role="progressbar"],[aria-busy="true"]')).filter(visible);
+                    return {text:text.slice(0,600), busy:indicators.length>0, indicatorCount:indicators.length};
+                }""", timeout=1100), timeout=1.2)
                 frames_read += 1
                 busy = busy or state['busy']
-                indicator_count += state.get('indicatorCount', 0)
+                indicator_count += state['indicatorCount']
                 for name in expected_names:
                     if any(name.lower() in label.lower() for label in state['text']):
                         visible_names.add(name)
             except Exception:
-                busy = True
                 frame_errors += 1
-        if expected_names.issubset(visible_names) and not busy:
-            stable_reads += 1
-        else:
-            stable_reads = 0
-        sample = (len(visible_names), busy, stable_reads, frame_errors, indicator_count)
-        if sample != last_sample or clock() - last_logged >= 5 or clock() >= upload_deadline:
-            trace.event("images_wait", "ok" if stable_reads >= 3 else "waiting", expected=len(expected_names), visible=len(visible_names), busy=busy, indicatorCount=indicator_count, stable=stable_reads, required=3, polls=polls, frames=frames_read, frameErrors=frame_errors, elapsedMs=int((clock()-wait_started)*1000), limitMs=int(timeout*1000))
-            last_sample, last_logged = sample, clock()
-        if stable_reads >= 3:
-            break
-        await page.wait_for_timeout(750)
-    if stable_reads < 3:
-        trace.event("images_wait", "error", expected=len(expected_names), visible=len(visible_names),
-                    busy=busy, stable=stable_reads, required=3, polls=polls,
-                    frames=frames_read, frameErrors=frame_errors,
-                    elapsedMs=int((clock()-wait_started)*1000), limitMs=int(timeout*1000))
-        raise RuntimeError('flow_images_not_ready')
+        stable_reads = stable_reads + 1 if expected_names.issubset(visible_names) and not busy else 0
+        trace.event("images_wait", "ok" if stable_reads >= 2 else "waiting",
+                    expected=len(expected_names), visible=len(visible_names),
+                    busy=busy, indicatorCount=indicator_count, stable=stable_reads,
+                    required=2, polls=polls, frames=frames_read,
+                    frameErrors=frame_errors, elapsedMs=int((clock()-started)*1000),
+                    limitMs=int(timeout*1000))
+        if stable_reads >= 2:
+            return
+        if frames_read == 0 and polls >= 2:
+            trace.event("images_wait", "skipped", reason="remote_frames_unreadable",
+                        nextAction="select_images")
+            return
+        await page.wait_for_timeout(450)
+    trace.event("images_wait", "skipped", reason="visual_readiness_unconfirmed",
+                nextAction="select_images")
 
 
 async def inspect_settings(page, trace):
