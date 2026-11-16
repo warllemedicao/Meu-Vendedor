@@ -227,6 +227,80 @@ async def resolve_flow_control(page, purpose):
     return None, None
 
 
+# Manual teaching mode: metadata only, bounded in memory, no page text or inputs.
+learning_state = {"active": False, "events": []}
+LEARNING_SCRIPT = r"""(() => {
+  if (window.__mvLearningListener) return;
+  window.__mvLearningListener = e => {
+    const el = e.target?.closest?.('button,[role="button"],[role="menuitem"],[role="tab"],[role="option"],input[type="file"]');
+    if (!el || el.closest('input[type="password"]')) return;
+    const role = el.getAttribute('role') || el.tagName.toLowerCase();
+    const label = (el.getAttribute('aria-label') || '').slice(0,80);
+    const type = (el.getAttribute('type') || '').slice(0,30);
+    window.__mvLearningEvents ||= [];
+    if (window.__mvLearningEvents.length < 80) window.__mvLearningEvents.push({role,type,label});
+  };
+  document.addEventListener('click',window.__mvLearningListener,true);
+})()"""
+
+async def learning_browser_page(pw):
+    browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+    pages = [p for ctx in browser.contexts for p in ctx.pages
+             if not p.is_closed() and p.url.startswith("https://flow.google.com/")]
+    if not pages:
+        raise HTTPException(409, "flow_page_not_active")
+    return pages[0]
+
+@app.post("/session/learning/start")
+async def learning_start(request: Request):
+    authorize(request)
+    if not chrome_running():
+        raise HTTPException(409, "browser_not_running")
+    async with lock:
+        async with async_playwright() as pw:
+            page = await learning_browser_page(pw)
+            learning_state["events"] = []
+            learning_state["active"] = True
+            for frame in page.frames[:8]:
+                try:
+                    await frame.evaluate("delete window.__mvLearningEvents; if(window.__mvLearningListener) {document.removeEventListener('click',window.__mvLearningListener,true); delete window.__mvLearningListener}")
+                    await frame.evaluate(LEARNING_SCRIPT)
+                except Exception:
+                    continue
+    return {"active": True, "recorded": 0}
+
+@app.get("/session/learning/status")
+async def learning_status(request: Request):
+    authorize(request)
+    return {"active": learning_state["active"], "recorded": len(learning_state["events"])}
+
+@app.post("/session/learning/stop")
+async def learning_stop(request: Request):
+    authorize(request)
+    async with lock:
+        if learning_state["active"] and chrome_running():
+            async with async_playwright() as pw:
+                page = await learning_browser_page(pw)
+                for frame in page.frames[:8]:
+                    try:
+                        events = await frame.evaluate("""() => {
+                          if(window.__mvLearningListener) document.removeEventListener('click',window.__mvLearningListener,true);
+                          delete window.__mvLearningListener;
+                          const events = window.__mvLearningEvents || [];
+                          delete window.__mvLearningEvents;
+                          return events;
+                        }""")
+                        for event in events[:80]:
+                            if len(learning_state["events"]) >= 80: break
+                            # Labels can contain private information; keep only role/type.
+                            learning_state["events"].append({"role": str(event.get("role",""))[:32],
+                                                             "type": str(event.get("type",""))[:24]})
+                    except Exception:
+                        continue
+        learning_state["active"] = False
+    return {"active": False, "recorded": len(learning_state["events"]),
+            "events": learning_state["events"][-80:]}
+
 @app.post("/session/stage")
 async def stage_flow(request: Request):
     """Attach locally to the running Chrome; stage draft without generating video."""
