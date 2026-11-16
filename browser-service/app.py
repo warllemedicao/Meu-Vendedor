@@ -132,12 +132,46 @@ async def status(request: Request):
 
 @app.get("/session/inspect")
 async def inspect(request: Request):
+    """Inspect Flow controls, not page contents or account information."""
     authorize(request)
     if not chrome_running():
         record_event("chrome_not_running")
         raise HTTPException(409, "browser_not_running")
-    # Inspection will be integrated after manual-login validation.
-    return {"running": True, "inspectionAvailable": False, "reason": "manual_chrome_mode"}
+    async with lock:
+        try:
+            async with async_playwright() as pw:
+                browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+                pages = [p for ctx in browser.contexts for p in ctx.pages
+                         if not p.is_closed() and p.url.startswith("https://flow.google.com/")]
+                if not pages:
+                    raise HTTPException(409, "flow_page_not_active")
+                page = pages[0]
+                controls = []
+                for frame in page.frames[:8]:
+                    found = await frame.locator('button, [role="button"], [role="dialog"], [role="menuitem"], input[type="file"], [role="textbox"], textarea').evaluate_all("""elements => elements.slice(0, 120).map(el => {
+                      const r = el.getBoundingClientRect();
+                      const style = getComputedStyle(el);
+                      const visible = r.width > 0 && r.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+                      const role = el.getAttribute('role') || el.tagName.toLowerCase();
+                      const type = el.getAttribute('type') || '';
+                      const label = (el.getAttribute('aria-label') || el.getAttribute('data-placeholder') || el.getAttribute('placeholder') || '').slice(0, 100);
+                      return {role, type, label, visible, enabled: !el.disabled && el.getAttribute('aria-disabled') !== 'true'};
+                    })""")
+                    # Only allow structural data. Labels may contain private content,
+                    # so do not send them outside the Modal container.
+                    for item in found:
+                        controls.append({key: len(controls), role: item["role"][:32],
+                                         type: item["type"][:24],
+                                         visible: bool(item["visible"]),
+                                         enabled: bool(item["enabled"])})
+                return {"running": True, "inspectionAvailable": True,
+                        "flowProjectOpen": page.url.startswith("https://flow.google.com/project/"),
+                        "frameCount": min(len(page.frames), 8), "controls": controls[:120]}
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(502, "inspection_failed") from None
+
 
 @app.post("/session/stage")
 async def stage_flow(request: Request):
