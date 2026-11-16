@@ -1960,3 +1960,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Supabase `private-browser` passa a encaminhar as ações `learning_start`, `learning_status` e `learning_stop` após autenticação do proprietário.
 - Interface Loja ganha botões para iniciar e finalizar a captura. **Não há aprendizagem persistente nem reprodução automática de ações nesta fase**; o modo serve apenas como instrumentação inicial.
 - Alterações commitadas na branch `feat/navegador-proprio-chromium`, **sem confirmação de deploy Modal/Cloudflare/Supabase e sem validação ponta a ponta**. A captura não cobre navegações de página após o início, que exigem reinstrumentação.
+
+
+## 2026-11-16 — Imagens acessíveis no Chrome durante a captura
+- Ao iniciar a captura, as imagens já selecionadas na aba Loja são transferidas autenticadamente ao Modal e salvas em `/tmp/meu-vendedor/treinamento/imagem-1.png` (ou .jpg/.webp), até 3 arquivos, limite combinado 2,5 MB.
+- A interface informa o diretório e a quantidade transferida. Os arquivos são apagados ao finalizar a captura e substituídos ao iniciar uma nova; não persistem entre reinicializações do serviço. O seletor de arquivos do Chrome pode navegar até o diretório.
+- Supabase Edge Function `private-browser` versão 12 publicada. Código Modal e interface Cloudflare ainda precisam de deploy e teste ponta a ponta.
