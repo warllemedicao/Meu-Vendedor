@@ -79,7 +79,7 @@ async def wait_for_images(page, image_files, trace, clock=time.monotonic, timeou
         visible_names = set()
         busy = False
         polls += 1
-        frames_read = frame_errors = 0
+        frames_read = frame_errors = indicator_count = 0
         for asset_frame in page.frames[:8]:
             try:
                 remaining_ms = int((upload_deadline-clock())*1000)
@@ -95,12 +95,13 @@ async def wait_for_images(page, image_files, trace, clock=time.monotonic, timeou
                     const text = Array.from(body.querySelectorAll('*'))
                         .filter(el => visible(el) && el.children.length === 0)
                         .map(el => (el.textContent || '').trim()).filter(Boolean);
-                    const busy = Array.from(body.querySelectorAll('[role="progressbar"], [aria-busy="true"]'))
-                        .some(visible);
-                    return { text: text.slice(0, 600), busy };
+                    const indicators = Array.from(body.querySelectorAll('[role="progressbar"], [aria-busy="true"]')).filter(visible);
+                    const busy = indicators.length > 0;
+                    return { text: text.slice(0, 600), busy, indicatorCount: indicators.length };
                 }""", timeout=min(1500, remaining_ms)), timeout=min(1.5, remaining_ms/1000))
                 frames_read += 1
                 busy = busy or state['busy']
+                indicator_count += state.get('indicatorCount', 0)
                 for name in expected_names:
                     if any(name.lower() in label.lower() for label in state['text']):
                         visible_names.add(name)
@@ -111,9 +112,9 @@ async def wait_for_images(page, image_files, trace, clock=time.monotonic, timeou
             stable_reads += 1
         else:
             stable_reads = 0
-        sample = (len(visible_names), busy, stable_reads, frame_errors)
+        sample = (len(visible_names), busy, stable_reads, frame_errors, indicator_count)
         if sample != last_sample or clock() - last_logged >= 5 or clock() >= upload_deadline:
-            trace.event("images_wait", "ok" if stable_reads >= 3 else "waiting", expected=len(expected_names), visible=len(visible_names), busy=busy, stable=stable_reads, required=3, polls=polls, frames=frames_read, frameErrors=frame_errors, elapsedMs=int((clock()-wait_started)*1000), limitMs=int(timeout*1000))
+            trace.event("images_wait", "ok" if stable_reads >= 3 else "waiting", expected=len(expected_names), visible=len(visible_names), busy=busy, indicatorCount=indicator_count, stable=stable_reads, required=3, polls=polls, frames=frames_read, frameErrors=frame_errors, elapsedMs=int((clock()-wait_started)*1000), limitMs=int(timeout*1000))
             last_sample, last_logged = sample, clock()
         if stable_reads >= 3:
             break
@@ -453,6 +454,12 @@ async def include_references(page, image_files, prompt_field, trace):
                         .filter(Boolean);
                     const prefix=name.replace(/\.[^.]+$/,'').slice(0,18);
                     const options=Array.from(root.querySelectorAll('[role="option"]'));
+                    const visible=el=>{const r=el.getBoundingClientRect(),st=getComputedStyle(el);return r.width>0&&r.height>0&&st.display!=='none'&&st.visibility!=='hidden'};
+                    const normalized=v=>(v||'').trim().toLocaleLowerCase();
+                    const exact=el=>[el,...el.querySelectorAll('*')].some(n=>values(n).some(v=>normalized(v)===normalized(name)));
+                    const uniquelyNamed=el=>[el,...el.querySelectorAll('*')].some(n=>values(n).some(v=>normalized(v).includes(normalized(name))));
+                    const exactOptions=options.filter(el=>visible(el)&&exact(el));
+                    const fullNameOptions=options.filter(el=>visible(el)&&uniquelyNamed(el));
                     const nodes=[...new Set([...options,...root.querySelectorAll('button,[role="button"],img,[role="img"]')])];
                     const matching=nodes.filter(option=>{
                         const all=[option,...option.querySelectorAll('*')];
@@ -468,12 +475,16 @@ async def include_references(page, image_files, prompt_field, trace):
                     // clickable button, rather than an image inside its button.
                     const optionTargets=targets.filter(el=>el.matches('[role="option"]'));
                     const buttonTargets=targets.filter(el=>el.matches('button,[role="button"]'));
-                    const chosen=optionTargets.length===1?optionTargets[0]:
+                    // Prefer exact/full filename within a visible option before
+                    // using truncated prefixes that can collide across uploads.
+                    const chosen=exactOptions.length===1?exactOptions[0]:
+                        fullNameOptions.length===1?fullNameOptions[0]:
+                        optionTargets.length===1?optionTargets[0]:
                         buttonTargets.length===1?buttonTargets[0]:
                         targets.length===1?targets[0]:null;
                     if(chosen)chosen.setAttribute(marker,'yes');
                     return {matches:matching.length,targets:chosen?1:targets.length,
-                        libraryOptions:options.length, prefixLength:prefix.length,
+                        libraryOptions:options.length, exactOptions:exactOptions.length, fullNameOptions:fullNameOptions.length, prefixLength:prefix.length,
                         assetMatches:matching.length, assetTargets:targets.length};
                 }""", [item['name'],marker], timeout=1800)
                 trace.event('references', 'waiting', assetIndex=asset_index, **shape)
