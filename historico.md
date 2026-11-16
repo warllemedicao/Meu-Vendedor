@@ -1,3 +1,9 @@
+## 2026-11-16 — Autorização para reutilizar Modal e preparação de hospedagem Chromium
+
+Usuário autorizou hospedar o navegador próprio no Modal existente. Adicionado `browser-service/modal_app.py` com aplicativo `meu-vendedor-private-browser`, imagem Chromium/Playwright e interface gráfica isolada, volume persistente Modal `mv-private-browser-profile`, limites de contêiner e uso de segredo Modal `mv-private-browser-control`. Adicionado workflow manual `.github/workflows/deploy-private-browser-modal.yml` para deploy mediante credenciais GitHub Actions existentes. Documentados segredos exigidos, URL HTTPS e limitação de proteção criptográfica do volume em `browser-service/README.md`. Commits `801a2f2`, `2d23514`, `be036b3`, `7057d38`.
+
+**Estado verificado:** código commitado na branch de migração. Não foi executado workflow, não foi criado o segredo Modal nem publicada Edge Function; nenhum teste de login, armazenamento persistente ou comunicação Modal/CDP foi concluído. Ainda falta integração do executor do Google Flow com a nova sessão e validação ponta a ponta. Hyperbrowser continua em produção para evitar interrupção. **Próxima dependência externa:** provisionar secret Modal com origem HTTPS definitiva, verificar o endereço publicado e definir política de proteção do perfil antes de autorizar login.
+
 ## 2026-11-16 — Proteção contra concorrência no visualizador Chromium (continuação)
 
 Na branch `feat/navegador-proprio-chromium`, a rota WebSocket `/viewer/ws` passou a verificar a origem **antes** de consumir o ticket de uso único e a impedir que duas conexões visuais assumam simultaneamente o navegador. Foram adicionados testes de regressão para origem não confiável e segunda conexão. Commits `f9e6da8` e `9452fcc`.
