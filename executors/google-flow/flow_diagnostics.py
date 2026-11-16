@@ -18,7 +18,8 @@ METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls
                      'composerForms', 'composerFields', 'attachmentMatches',
                      'assetTextMatches', 'assetOptionParents', 'assetButtonParents',
                      'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes', 'arrowCandidates', 'submitClicked',
-                     'assetTargets', 'assetMatches', 'prefixLength', 'selectionClickFailed'))
+                     'assetTargets', 'assetMatches', 'prefixLength', 'selectionClickFailed',
+                      'errorVisible', 'retryVisible', 'errorObservedMs', 'errorFramesRead'))
 REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found',
     'flow_upload_action_not_found', 'flow_file_chooser_unavailable',
@@ -294,22 +295,35 @@ async def click_generate_arrow(page, trace):
         await candidates[0].click(timeout=3500)
         trace.generate_clicked = True
         trace.event('generation', 'ok', submitClicked=True)
-        # A successful Playwright click does not prove that Flow accepted
-        # the request. Observe errors without retrying (which could spend
-        # credits twice).
-        await page.wait_for_timeout(1800)
-        for frame in page.frames[:8]:
-            try:
-                status = await frame.locator('body').evaluate(r"""root => {
-                    const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
-                    const alerts=Array.from(root.querySelectorAll('[role="alert"],[role="alertdialog"],[aria-live="assertive"]')).filter(visible);
-                    return {errorVisible:alerts.some(e=>/tente novamente|try again|something went wrong|algo deu errado|não foi possível|failed to generate/i.test(e.textContent||''))};
-                }""", timeout=1800)
-                if status['errorVisible']:
-                    trace.event('generation', 'error', submitClicked=True)
-                    return {'clicked': True, 'errorCode': 'flow_generation_rejected'}
-            except Exception:
-                trace.event('generation', 'waiting', frameErrors=1)
+        # Observe delayed non-ARIA Flow error cards without clicking Retry.
+        observed_at = time.monotonic()
+        for poll in range(5):
+            if poll:
+                await page.wait_for_timeout(950)
+            readable = 0
+            for frame in page.frames[:8]:
+                try:
+                    status = await frame.locator('body').evaluate(r"""root => {
+                        const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'};
+                        const text=e=>(e.innerText||e.textContent||'').trim();
+                        const buttons=Array.from(root.querySelectorAll('button,[role="button"]')).filter(visible);
+                        const retry=buttons.some(e=>/^(tentar de novo|tente novamente|try again|retry)$/i.test(text(e)));
+                        const alerts=Array.from(root.querySelectorAll('[role="alert"],[role="alertdialog"],[aria-live],div,p,span')).filter(visible);
+                        const error=alerts.some(e=>{const t=text(e);return t.length<180&&/algo deu errado|something went wrong|não foi possível gerar|failed to generate|generation failed/i.test(t)});
+                        return {errorVisible:error,retryVisible:retry};
+                    }""", timeout=1500)
+                    readable += 1
+                    if status['errorVisible'] or status['retryVisible']:
+                        trace.event('generation', 'error', submitClicked=True,
+                                    errorVisible=status['errorVisible'],
+                                    retryVisible=status['retryVisible'],
+                                    errorObservedMs=int((time.monotonic()-observed_at)*1000),
+                                    errorFramesRead=readable)
+                        return {'clicked': True, 'errorCode': 'flow_generation_rejected'}
+                except Exception:
+                    trace.event('generation', 'waiting', frameErrors=1)
+            trace.event('generation', 'waiting', errorVisible=False,
+                        retryVisible=False, errorFramesRead=readable)
         return {'clicked': True, 'errorCode': None}
     except Exception as exc:
         trace.event('generation', 'error', errorType=type(exc).__name__)
