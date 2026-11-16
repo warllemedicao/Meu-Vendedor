@@ -29,6 +29,7 @@ async def lifespan(app: FastAPI):
     await stop_browser()
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+app.mount('/novnc', StaticFiles(directory='/usr/share/novnc', check_dir=False), name='novnc')
 
 async def stop_browser():
     global context, playwright
