@@ -152,7 +152,9 @@ async def inspect_settings(page, trace):
                                 .find(e=>/O que você quer criar|What do you want to create/i.test(e.getAttribute('aria-label')||''));
                             if(!textbox)return 1e9;
                             const a=el.getBoundingClientRect(),b=textbox.getBoundingClientRect();
-                            return Math.hypot(a.x-b.x,a.y-b.y);
+                            // Compare the gear against the editor's lower-right
+                            // controls, not the textbox's upper-left corner.
+                            return Math.hypot(a.right-b.right,a.bottom-b.bottom);
                         }""", timeout=1000)
                         nearby.append((distance,candidate))
                     except Exception:
