@@ -425,13 +425,16 @@ async def include_references(page, image_files, prompt_field, trace):
                         .filter(Boolean);
                     const prefix=name.replace(/\\.[^.]+$/,'').slice(0,18);
                     const options=Array.from(root.querySelectorAll('[role="option"]'));
-                    const matching=options.filter(option=>{
+                    const nodes=options.length?options:Array.from(root.querySelectorAll('button,[role="button"]'));
+                    const matching=nodes.filter(option=>{
                         const all=[option,...option.querySelectorAll('*')];
                         return all.some(el=>values(el).some(value=>
                             value===name || value.includes(name) ||
                             (prefix.length>=12 && value.includes(prefix))));
                     });
-                    const targets=[...new Set(matching)];
+                    // A unique image can also be represented by a button inside
+                    // an option. Resolve it to the enclosing selectable option.
+                    const targets=[...new Set(matching.map(el=>el.closest('[role="option"]')||el))];
                     if(targets.length===1)targets[0].setAttribute(marker,'yes');
                     return {matches:matching.length,targets:targets.length,
                         libraryOptions:options.length, prefixLength:prefix.length};
