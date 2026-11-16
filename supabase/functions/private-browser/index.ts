@@ -67,7 +67,18 @@ Deno.serve(async (req) => {
   }).catch(() => null);
   if (!response) return reply({ error: "browser_unavailable" }, 502);
   const result = await response.json().catch(() => null);
-  if (!response.ok) return reply({ error: "browser_unavailable" }, 502);
+  if (!response.ok) {
+    // Forward only known, fixed browser error codes; never relay arbitrary upstream content.
+    const allowed = new Set([
+      "browser_not_running", "flow_page_not_active", "flow_project_not_active",
+      "new_project_button_not_found", "prompt_field_not_unique",
+      "flow_upload_action_not_found", "flow_interaction_failed",
+      "invalid_draft", "payload_too_large",
+    ]);
+    const code = typeof result?.detail === "string" && allowed.has(result.detail)
+      ? result.detail : "browser_unavailable";
+    return reply({ error: code }, response.status === 409 ? 409 : 502);
+  }
   if (action === "view") {
     if (typeof result?.ticket !== "string" || !/^[A-Za-z0-9_-]{32,128}$/.test(result.ticket))
       return reply({ error: "invalid_ticket" }, 502);
