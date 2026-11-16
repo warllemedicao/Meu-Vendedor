@@ -1,3 +1,11 @@
+## 2026-11-16 — Capturas reais: aprovação do Flow e erro após Gerar
+
+Capturas enviadas pelo usuário identificam o cartão de aprovação **dentro da conversa do agente**, com a mensagem de custo de **10 créditos** e botões **Aprovar**, **Sempre aprovar no projeto** e **Rejeitar**. Não se trata necessariamente de um modal DOM `role=dialog`. Outra captura mostra o erro **“Algo deu errado. Tente de novo.”** após o envio. A captura de configurações mostra **Confirmar antes de gerar: Sempre**, vídeo **9:16** e botão **Salvar**. A aprovação deve continuar **manual**, sem clicar automaticamente nem selecionar “Sempre aprovar”.
+
+Tentativa `a319c65c-636c-4d4a-949d-a09b5db5841a` (15:42:38 UTC): duas imagens foram detectadas na biblioteca, mas a seleção da primeira referência falhou; configurações abriram e não foram salvas, geração bloqueada. Detectar imagens na biblioteca **não equivale** a anexá-las ao prompt. Esses problemas são intermitentes e distintos da aprovação.
+
+Observador de confirmação atualizado para reconhecer **cartão da conversa**, três botões e mensagem de erro/repetição, sem coletar texto livre, cookies ou credenciais e sem efetuar cliques. Supabase `flow-telemetry` v6 aceita novas métricas. Commits `ddd876d`, `c10c561`. **Ainda requer deploy Modal e validação ponta a ponta; não afirmar correção das falhas intermitentes.**
+
 ## 2026-11-16 — Observador de confirmação Google Flow (aguardando deploy Modal e teste)
 
 Implementado no executor um observador **somente leitura** após o clique em Gerar, para detectar caixas de diálogo, checkboxes e botões de confirmação/aprovação no DOM do navegador remoto, inspecionando até 8 frames e registrando apenas indicadores booleanos e contadores. Não coleta cookies, valores de campos, texto livre, credenciais ou screenshots; não clica em aprovação. Foi acrescentado o estágio `confirmation` em `flow_diagnostics.py`, e o retorno `confirmationInspection` no caminho de geração. Corrigida também a ausência de `flush_telemetry` no retorno antecipado após o clique em Gerar. A Edge Function Supabase `flow-telemetry` v4 foi atualizada para aceitar as novas métricas. Commits: `dd856d4` e `d7ee7a4`. **Ainda falta publicar o Modal e executar um teste ponta a ponta.** As rotinas de upload, seleção de imagens, prompt e configurações foram preservadas.
