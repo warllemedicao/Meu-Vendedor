@@ -1920,3 +1920,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Adicionada ação `inspect` à ponte `supabase/functions/private-browser/index.ts`, preservando a autorização do proprietário e segredo de controle.
 - Commits: `3df1d3c`, `9aeaf53` na branch `feat/navegador-proprio-chromium`.
 - Não houve alteração no componente visual da Loja, no robô antigo ou em produção. Falta implantar a versão do Modal e a Edge Function, testar a inspeção real e então conectar o executor de envio de prompt/imagens e obtenção do MP4.
+
+## 2026-11-16 — Chrome manual independente e botão de abertura na Loja
+- `browser-service/app.py`: início do Google Chrome oficial como processo gráfico independente, sem inicialização pelo Playwright; reutiliza `/data/browser/chrome-official` e mantém VNC restrito, tickets e autenticação existentes. O endpoint `inspect` fica indisponível no modo manual até existir executor conectado.
+- `src/components/auth/PrivateBrowserConnection.tsx`: botão `Abrir Chrome para login` executa start e view em sequência; preservados os controles anteriores.
+- Persistência: volume Modal existente, com commit no encerramento; perfil e sessões podem persistir, mas expiração de login depende do Google. Não armazenar senha no Supabase e não garantir armazenamento criptografado de senha no contêiner Linux.
+- Commits: `2bc08d5`, `2e72c9a`. Mudanças apenas na branch `feat/navegador-proprio-chromium`, sem deploy ou teste real de login nesta etapa. Requer publicar frontend/Edge quando aplicável e executar `python -m modal deploy browser-service/modal_app.py` após atualizar o checkout. Antes de usar senha real, revisar segurança do perfil persistido e comportamento do gerenciador de senhas do Chrome.
