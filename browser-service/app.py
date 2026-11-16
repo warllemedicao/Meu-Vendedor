@@ -214,6 +214,7 @@ async def stage_flow(request: Request):
                 if len(matches) != 1:
                     raise RuntimeError("prompt_field_not_unique")
                 await matches[0].fill(prompt.strip(), timeout=8000)
+                record_event("stage_prompt_filled")
                 uploaded = 0
                 if images:
                     async def upload():
@@ -234,6 +235,7 @@ async def stage_flow(request: Request):
                                     return True
                         return False
                     if not await upload():
+                        record_event("stage_upload_failed")
                         raise RuntimeError("flow_upload_action_not_found")
                     uploaded = len(images)
                 record_event("stage_completed")
