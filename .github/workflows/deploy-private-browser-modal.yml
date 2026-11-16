@@ -34,3 +34,24 @@ jobs:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: modal deploy browser-service/modal_app.py
+      - name: Smoke test deployed browser access protection
+        env:
+          MV_BROWSER_URL: https://warllemedicao--meu-vendedor-private-browser-browser-gateway.us-east.modal.run
+        run: |
+          python - <<'PY'
+          import os, time, urllib.request, urllib.error
+          endpoint = os.environ["MV_BROWSER_URL"] + "/health"
+          for attempt in range(6):
+              try:
+                  with urllib.request.urlopen(endpoint, timeout=45) as response:
+                      raise SystemExit(f"Unexpected public access: HTTP {response.status}")
+              except urllib.error.HTTPError as exc:
+                  if exc.code == 401:
+                      print("PASS: private health endpoint rejects unauthenticated requests")
+                      break
+                  raise SystemExit(f"Unexpected HTTP status: {exc.code}")
+              except (TimeoutError, OSError) as exc:
+                  if attempt == 5:
+                      raise SystemExit(f"Browser endpoint unreachable: {type(exc).__name__}")
+                  time.sleep(10)
+          PY
