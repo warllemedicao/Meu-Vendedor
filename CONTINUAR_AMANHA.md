@@ -1,3 +1,9 @@
+## 2026-11-16 — Comparação de 1, 2 e 3 imagens; seleção e timeout
+
+Relatórios do executor antigo `66d3f43a9f87`: com 1 imagem, primeira detecção +14,099s, espera estável +17,288s, Incluir acionado; com 2 imagens, primeira detecção +14,035s, espera estável +17,120s, seleção da primeira falhou; com 3 imagens, primeira detecção +10,422s com indicador de processamento presente, indicador ausente +12,443s, espera estável +14,377s, três seleções e Incluir acionado. Nenhum relatório comprovou anexos no editor. Os três registraram bloqueio de Gerar porque o executor antigo ainda estava publicado; a branch main já havia removido a trava por referências no commit `9b8f1536`.
+
+Implementado agora: commit `19a3e567` melhora escolha de opções com nome exato/completo e registra quantidade de indicadores visíveis de progresso no diagnóstico. A seleção por prefixo permanece como fallback; não foi possível testar o DOM real do Flow. A trava por referências **não** foi reintroduzida. Não confundir encerramento normal do RPC (24–33s nos relatórios) com timeout de Modal: limites conhecidos incluem função 120s, sandbox 600s, idle 120s. Ainda faltam acompanhamento da geração, MP4, testes e publicação do executor atualizado pelo workflow manual `deploy-hyperbrowser-modal.yml`.
+
 ## 2026-11-16 — Estratégia aprovada: reconhecimento de imagens, geração monitorada e entrega do MP4
 
 **Objetivo:** automatizar Google Flow com duas referências reais, sem clique prematuro em Gerar e sem encerrar o acompanhamento após o envio.
