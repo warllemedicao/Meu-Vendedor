@@ -1,5 +1,7 @@
 """Private browser control prototype. Never expose raw VNC or CDP to the Internet."""
 import asyncio
+import base64
+import re
 import subprocess
 import hmac
 import os
@@ -10,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from playwright.async_api import async_playwright
 
 SECRET = os.getenv("MV_BROWSER_CONTROL_SECRET", "")
 PROFILE = os.getenv("MV_BROWSER_PROFILE_DIR", "/data/browser/chrome-official")
@@ -77,7 +80,9 @@ async def start(request: Request):
                 "/opt/google/chrome/chrome", "--no-sandbox",
                 "--user-data-dir=" + PROFILE,
                 "--no-first-run", "--no-default-browser-check",
-                "--window-size=1280,800", "https://flow.google.com/"
+                "--window-size=1280,800",
+                "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=9222",
+                "https://flow.google.com/"
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             await asyncio.sleep(2)
             if not chrome_running():
@@ -106,6 +111,112 @@ async def inspect(request: Request):
         raise HTTPException(409, "browser_not_running")
     # Inspection will be integrated after manual-login validation.
     return {"running": True, "inspectionAvailable": False, "reason": "manual_chrome_mode"}
+
+@app.post("/session/stage")
+async def stage_flow(request: Request):
+    """Attach locally to the running Chrome; stage draft without generating video."""
+    authorize(request)
+    raw = await request.body()
+    if len(raw) > 3_800_000:
+        raise HTTPException(413, "payload_too_large")
+    try:
+        import json
+        data = json.loads(raw)
+        prompt = data.get("prompt", "")
+        supplied = data.get("images", [])
+        if not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 4000:
+            raise ValueError("invalid_prompt")
+        if not isinstance(supplied, list) or len(supplied) > 3:
+            raise ValueError("invalid_images")
+        if supplied and data.get("imageRightsConfirmed") is not True:
+            raise ValueError("image_rights_confirmation_required")
+        images = []
+        for index, item in enumerate(supplied):
+            mime = item.get("mime")
+            encoded = item.get("data")
+            if mime not in ("image/png", "image/jpeg", "image/webp") or not isinstance(encoded, str):
+                raise ValueError("invalid_image")
+            content = base64.b64decode(encoded, validate=True)
+            signatures = {
+                "image/png": content.startswith(bytes.fromhex("89504e470d0a1a0a")),
+                "image/jpeg": content.startswith(bytes.fromhex("ffd8ff")),
+                "image/webp": content.startswith(b"RIFF") and content[8:12] == b"WEBP",
+            }
+            if not content or not signatures[mime]:
+                raise ValueError("invalid_image")
+            extension = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}[mime]
+            images.append({"name": f"produto-{index+1}.{extension}", "mimeType": mime, "buffer": content})
+        if sum(len(item["buffer"]) for item in images) > 2_500_000:
+            raise ValueError("images_too_large")
+    except (ValueError, TypeError, AttributeError, KeyError):
+        raise HTTPException(400, "invalid_draft")
+
+    async with lock:
+        if not chrome_running():
+            raise HTTPException(409, "browser_not_running")
+        try:
+            async with async_playwright() as pw:
+                # CDP is loopback-only, never sent to the client or Supabase.
+                browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+                if not browser.contexts:
+                    raise RuntimeError("no_context")
+                pages = [p for p in browser.contexts[0].pages if not p.is_closed()]
+                page = next((p for p in pages if p.url.startswith("https://flow.google.com/")), None)
+                if page is None:
+                    raise RuntimeError("flow_page_not_active")
+                if not page.url.startswith("https://flow.google.com/project/"):
+                    candidates = page.get_by_role("button", name=re.compile(r"novo projeto|new project", re.I))
+                    if await candidates.count() != 1:
+                        raise RuntimeError("new_project_button_not_found")
+                    await candidates.click(timeout=8000)
+                    await page.wait_for_timeout(1800)
+                if not page.url.startswith("https://flow.google.com/project/"):
+                    raise RuntimeError("flow_project_not_active")
+                matches = []
+                for frame in page.frames[:8]:
+                    fields = frame.locator('[role="textbox"][data-placeholder], [role="textbox"][aria-label], [contenteditable="true"][data-placeholder], [contenteditable="true"][aria-label], [contenteditable="true"][placeholder]')
+                    for idx in range(min(await fields.count(), 30)):
+                        field = fields.nth(idx)
+                        if not await field.is_visible():
+                            continue
+                        label = await field.evaluate("""el => [el.getAttribute('aria-label'),el.getAttribute('data-placeholder'),el.getAttribute('placeholder')].filter(Boolean).join(' ')""")
+                        if re.search(r"o que você quer criar|what do you want to create", label or "", re.I):
+                            matches.append(field)
+                if len(matches) != 1:
+                    raise RuntimeError("prompt_field_not_unique")
+                await matches[0].fill(prompt.strip(), timeout=8000)
+                uploaded = 0
+                if images:
+                    async def upload():
+                        for frame in page.frames[:8]:
+                            for selector in ('input[type="file"]',):
+                                inputs = frame.locator(selector)
+                                if await inputs.count() == 1:
+                                    await inputs.set_input_files(images, timeout=12000)
+                                    return True
+                        for frame in page.frames[:8]:
+                            actions = frame.get_by_role("button", name=re.compile(r"fazer upload|upload", re.I))
+                            for idx in range(min(await actions.count(), 8)):
+                                button = actions.nth(idx)
+                                if await button.is_visible():
+                                    async with page.expect_file_chooser(timeout=4000) as chooser:
+                                        await button.click(timeout=4000)
+                                    await (await chooser.value).set_files(images, timeout=12000)
+                                    return True
+                        return False
+                    if not await upload():
+                        raise RuntimeError("flow_upload_action_not_found")
+                    uploaded = len(images)
+                return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded,
+                        "generationStarted": False}
+        except Exception as exc:
+            # Only return fixed diagnostic codes, never browser content or credentials.
+            allowed = {"no_context", "flow_page_not_active", "new_project_button_not_found",
+                       "flow_project_not_active", "prompt_field_not_unique",
+                       "flow_upload_action_not_found"}
+            code = str(exc) if str(exc) in allowed else "flow_interaction_failed"
+            raise HTTPException(409, code) from None
+
 
 @app.post("/session/view-ticket")
 async def view_ticket(request: Request):
