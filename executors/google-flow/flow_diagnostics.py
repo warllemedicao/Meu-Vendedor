@@ -29,7 +29,8 @@ REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'flow_reference_selection_unavailable', 'flow_reference_selection_unconfirmed',
     'flow_reference_include_unavailable', 'flow_reference_include_uncertain',
     'flow_references_unverified', 'flow_draft_ready',
-    'flow_generate_button_unavailable', 'flow_generation_click_uncertain', 'flow_generate_clicked'))
+    'flow_generate_button_unavailable', 'flow_generation_click_uncertain',
+    'flow_generation_rejected', 'flow_generate_clicked'))
 
 
 class FlowDiagnostics:
@@ -295,6 +296,22 @@ async def click_generate_arrow(page, trace):
         await candidates[0].click(timeout=3500)
         trace.generate_clicked = True
         trace.event('generation', 'ok', submitClicked=True)
+        # A successful Playwright click does not prove that Flow accepted
+        # the request. Observe errors without retrying (which could spend
+        # credits twice).
+        await page.wait_for_timeout(1800)
+        for frame in page.frames[:8]:
+            try:
+                status = await frame.locator('body').evaluate(r"""root => {
+                    const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
+                    const alerts=Array.from(root.querySelectorAll('[role="alert"],[role="alertdialog"],[aria-live="assertive"]')).filter(visible);
+                    return {errorVisible:alerts.some(e=>/tente novamente|try again|something went wrong|algo deu errado|não foi possível|failed to generate/i.test(e.textContent||''))};
+                }""", timeout=1800)
+                if status['errorVisible']:
+                    trace.event('generation', 'error', submitClicked=True)
+                    return {'clicked': True, 'errorCode': 'flow_generation_rejected'}
+            except Exception:
+                trace.event('generation', 'waiting', frameErrors=1)
         return {'clicked': True, 'errorCode': None}
     except Exception as exc:
         trace.event('generation', 'error', errorType=type(exc).__name__)
