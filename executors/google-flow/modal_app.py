@@ -284,6 +284,27 @@ def gateway():
                         trace.next_action = 'generate_video' if settings_result and settings_result['vertical916'] and settings_result['singleOutput'] else 'inspect_settings'
                     else:
                         reason = 'inspection_only'
+                    # Once Generate was clicked, avoid a second expensive scan
+                    # across all remote CDP frames. That scan can stall the RPC
+                    # after the irreversible action and lose the entire report.
+                    # The browser remains available for subsequent inspection.
+                    if generation_result and generation_result.get('clicked'):
+                        trace.event("inspection", "skipped")
+                        trace.event("finished")
+                        return {
+                            'diagnostics': trace.report(reason),
+                            'navigationReady': True, 'inspectionReady': True,
+                            'controls': [], 'visibleCount': 0,
+                            'frameCount': len(page.frames), 'inspectedFrames': 0,
+                            'scanErrors': 0, 'flowPage': (page.url or '').startswith('https://flow.google.com/'),
+                            'projectClicked': project_clicked, 'promptStaged': prompt_staged,
+                            'imageAttached': image_attached, 'imageCount': image_count,
+                            'settingsInspection': settings_result,
+                            'referencesIncluded': reference_result['included'],
+                            'referencesVerified': reference_result['verified'],
+                            'generateClicked': True,
+                            'editorControls': [], 'editorFrames': 0, 'editorErrors': 0
+                        }
                     trace.event("inspection", "started")
                     # Do not return arbitrary page text or account identifiers.
                     await page.wait_for_timeout(1800)
