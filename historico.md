@@ -1,3 +1,9 @@
+## 2026-11-16 — Simplificação da tela de conexões Google Flow
+
+- Conforme solicitação, removidos da renderização de `AccountHub` os cartões antigos `GoogleFlowConnection` e `HyperbrowserProfile`, mantendo apenas `PrivateBrowserConnection` para o Chromium próprio quando a conta estiver autenticada.
+- Nenhum segredo, perfil de navegador ou integração de backend legada foi apagado; a remoção é **somente visual**, para permitir rollback até validar a migração.
+- Commit `262f895` na branch `feat/navegador-proprio-chromium`; produção ainda depende de publicação do frontend atualizado.
+
 ## 2026-11-16 — Persistência e smoke test pós-deploy
 
 - Ajustado `browser-service/modal_app.py` para confirmar alterações do volume Modal após encerramento autenticado do Chromium (`POST /session/stop`), além da confirmação no desligamento do contêiner.
