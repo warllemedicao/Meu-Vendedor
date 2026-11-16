@@ -262,7 +262,14 @@ async def click_generate_arrow(page, trace):
                     if(e===gears[0]||!visible(e)||e.disabled||e.getAttribute('aria-disabled')==='true')return false;
                     const r=e.getBoundingClientRect();
                     const hint=[label(e),e.querySelector('mat-icon')?.textContent,e.querySelector('svg')?.getAttribute('data-testid'),e.getAttribute('data-testid')].filter(Boolean).join(' ');
-                    return Math.abs(r.top-g.top)<75&&Math.abs(r.left-g.left)<220&&/send|submit|generate|gerar|enviar|arrow_forward|north|upward/i.test(hint);
+                    // Prefer a uniquely identifiable send icon. For unlabeled arrows,
+                    // accept only a single compact button directly to the right
+                    // of the composer settings gear, aligned on the same row.
+                    const named=/send|submit|generate|gerar|enviar|arrow_forward|north|upward/i.test(hint);
+                    const sameRow=Math.abs((r.top+r.height/2)-(g.top+g.height/2))<=18;
+                    const toRight=r.left>=g.right-3&&r.left-g.right<=115;
+                    const compact=r.width>=20&&r.width<=76&&r.height>=20&&r.height<=76;
+                    return sameRow&&toRight&&compact&&(named||!label(e).trim());
                 }).map(({i})=>i);
                 return {gears:1,indices};
             }""",timeout=1800)
