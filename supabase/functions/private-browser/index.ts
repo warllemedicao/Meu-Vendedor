@@ -45,6 +45,7 @@ Deno.serve(async (req) => {
   const input = await req.json().catch(() => null);
   const routes: Record<string, { path: string; method: string }> = {
     status: { path: "/session/status", method: "GET" },
+    inspect: { path: "/session/inspect", method: "GET" },
     start: { path: "/session/start", method: "POST" },
     stop: { path: "/session/stop", method: "POST" },
     view: { path: "/session/view-ticket", method: "POST" },
