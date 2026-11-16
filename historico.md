@@ -1,3 +1,19 @@
+## 2026-11-16 — Google Flow: geração acionada, seleção de duas imagens e diagnóstico pós-clique
+
+Nesta conversa, foram analisadas três tentativas reais do executor Hyperbrowser/Modal:
+- `80c3f6b5-543c-4dd5-8ddd-684831bbcac2`: imagens enviadas, mas seleção travada no primeiro recurso; configurações 9:16 e x1 confirmadas; clique Gerar bloqueado por referências não verificadas.
+- `e478aab4-3452-4e11-b245-550b5a4317eb` (01:32 UTC): duas imagens selecionadas e “Incluir no comando” acionado, mas anexos não reconhecidos no editor; rotina Gerar não localizou seta (zero candidatos), embora mapeamento posterior encontrasse um.
+- `08af265b-64e2-4b26-a945-12f9d35ac2f4` (01:38 UTC): 2 arquivos enviados, falha na seleção das referências ainda na primeira imagem, configurações 9:16/x1 confirmadas; **clique em Gerar executado** (`flow_generate_clicked`). Usuário observou somente uma imagem carregada e aviso do Flow pedindo para tentar novamente. Clique não comprova geração aceita nem MP4 produzido.
+
+Alterações commitadas na `main`:
+- `00166890`: remove exigência de `referencesVerified` para permitir tentativa de gerar após confirmar prompt/configurações; **pode consumir créditos mesmo sem anexos corretos**.
+- `1392a44a`: alinha busca da seta Gerar à geometria do editor; clique único quando candidato inequívoco.
+- `1e783fbd`: relatório registra clique real e expõe métricas de seleção.
+- `d24202ca`: prioriza um único controle selecionável por imagem quando há elementos aninhados na biblioteca.
+- `4a963db0`: inspeciona alertas imediatos após Gerar e distingue `flow_generation_rejected`, sem repetir clique e consumir créditos duas vezes.
+
+**Estado confirmado:** os logs anteriores demonstram clique no botão, mas não vídeo concluído. As últimas duas alterações foram enviadas ao GitHub; **não houve confirmação nesta conversa de deploy Modal nem de teste real após elas**. Seleção múltipla, confirmação de anexos no composer, aceitação da geração e obtenção do MP4 permanecem pendentes. Sem alterações de frontend, Edge Function ou banco nesses commits.
+
 ## 2026-11-15 — Correção do gravador manual na aba Lojas e Redes
 
 Ao analisar dois logs `prepare-draft` (executor `c4324aedc836`), confirmou-se que nenhum clique manual foi gravado; o relatório foi produzido antes do clique e não inclui listener de usuário. A inspeção do repositório revelou que a ação havia sido adicionada ao backend mas **os controles de gravação não haviam sido renderizados no JSX**, o allowlist da sessão ativa não aceitava as ações de gravação e o frontend não guardava seus resultados no relatório. Correções em `src/components/auth/HyperbrowserProfile.tsx` (botões Iniciar/Parar/Ler e log copiável) e `supabase/functions/hyperbrowser-profile/index.ts` (roteamento). O componente é renderizado por `AccountHub.tsx` na seção Lojas e Redes. Necessário publicar frontend, Supabase e Modal; sem comprovação de deploy ou teste de captura real. Os dois relatórios `prepare-draft` não permitem confirmar se o clique posterior em Gerar iniciou o vídeo.
