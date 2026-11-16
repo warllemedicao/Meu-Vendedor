@@ -253,12 +253,12 @@ def gateway():
                         settings_result["referencesVerified"] = reference_result["verified"]
                     generation_result = None
                     if payload.get('mode') == 'prepare-draft':
-                        # User explicitly authorized a single generation click after
-                        # configuring the editor. Reference verification is diagnostic,
-                        # not a generation gate: Flow may hide attached thumbnails
-                        # from accessibility inspection. Do not repeat uncertain clicks.
+                        # User authorized one generation, but never spend credits
+                        # with unverified uploaded references. No automatic retry
+                        # after an uncertain click or provider error.
                         safe_to_generate = (
                             bool(stage_prompt) and bool(matches) and
+                            (not image_files or reference_result.get('verified') is True) and
                             bool(settings_result) and
                             settings_result.get('vertical916') is True and
                             settings_result.get('singleOutput') is True and
