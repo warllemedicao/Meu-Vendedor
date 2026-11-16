@@ -6,7 +6,7 @@ import time
 import uuid
 
 STAGES = frozenset(('request', 'connect', 'project', 'prompt', 'upload', 'rights',
-                    'images_wait', 'settings', 'references', 'generation', 'inspection', 'finished'))
+                    'images_wait', 'settings', 'references', 'generation', 'inspection', 'confirmation', 'finished'))
 METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls',
                      'frames', 'frameErrors', 'accepted', 'matches', 'elapsedMs',
                      'limitMs', 'includeVisible', 'includeEnabled', 'selected',
@@ -20,7 +20,7 @@ METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls
                      'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes', 'arrowCandidates', 'submitClicked',
                      'assetTargets', 'assetMatches', 'prefixLength', 'selectionClickFailed',
                       'errorVisible', 'retryVisible', 'errorObservedMs', 'errorFramesRead',
-                      'creditDialogVisible', 'responseObservedMs', 'responseFramesRead', 'responseUnconfirmed'))
+                      'creditDialogVisible', 'responseObservedMs', 'responseFramesRead', 'responseUnconfirmed', 'dialogVisible', 'checkboxVisible', 'checkboxChecked', 'confirmButtonVisible', 'confirmButtonEnabled', 'creditMentioned', 'framesRead'))
 REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found',
     'flow_upload_action_not_found', 'flow_file_chooser_unavailable',
@@ -348,6 +348,38 @@ async def click_generate_arrow(page, trace):
         trace.event('generation', 'error', errorType=type(exc).__name__)
         return {'clicked': False, 'errorCode': 'flow_generation_click_uncertain'}
 
+
+
+async def observe_generation_confirmation(page, trace):
+    """Read-only bounded snapshot of confirmation controls. Never read cookies, input values or page text."""
+    summary = {'dialogVisible': False, 'checkboxVisible': False, 'checkboxChecked': False,
+               'confirmButtonVisible': False, 'confirmButtonEnabled': False,
+               'creditMentioned': False, 'framesRead': 0, 'frameErrors': 0}
+    for frame in page.frames[:8]:
+        try:
+            state = await asyncio.wait_for(frame.locator('body').evaluate(r"""root => {
+                const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'};
+                const text=e=>(e.innerText||e.textContent||'').trim().slice(0,600);
+                const dialogs=Array.from(root.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog')).filter(visible);
+                const panels=dialogs.length?dialogs:[root];
+                const credit=/créditos|credits|aprovar|approve|confirmar|confirm|custo|cost|geração|generation/i;
+                const relevant=panels.filter(p=>credit.test(text(p).slice(0,600)));
+                const controls=relevant.flatMap(p=>Array.from(p.querySelectorAll('button,[role="button"],input[type="checkbox"],[role="checkbox"]'))).filter(visible);
+                const buttons=controls.filter(e=>e.matches('button,[role="button"]')&&/^(aprovar|approve|confirmar|confirm|continuar|continue|gerar|generate)$/i.test(text(e)));
+                const boxes=controls.filter(e=>e.matches('input[type="checkbox"],[role="checkbox"]'));
+                return {dialogVisible:dialogs.length>0,checkboxVisible:boxes.length>0,
+                    checkboxChecked:boxes.some(e=>e.checked===true||e.getAttribute('aria-checked')==='true'),
+                    confirmButtonVisible:buttons.length>0,
+                    confirmButtonEnabled:buttons.some(e=>!e.disabled&&e.getAttribute('aria-disabled')!=='true'),
+                    creditMentioned:relevant.length>0};
+            }""", timeout=1800), timeout=2.5)
+            summary['framesRead'] += 1
+            for key in ('dialogVisible','checkboxVisible','checkboxChecked','confirmButtonVisible','confirmButtonEnabled','creditMentioned'):
+                summary[key] = summary[key] or bool(state.get(key))
+        except Exception:
+            summary['frameErrors'] += 1
+    trace.event('confirmation', 'ok', **summary)
+    return summary
 
 async def editor_state(page, trace, prompt_field=None, names=None):
     """Current actionable controls, not arbitrary DOM text or input values."""
