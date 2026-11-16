@@ -1,5 +1,6 @@
 name: Validate private Chromium browser service
 on:
+  workflow_dispatch:
   push:
     branches: [feat/navegador-proprio-chromium]
     paths: ['browser-service/**', '.github/workflows/browser-service-checks.yml']
