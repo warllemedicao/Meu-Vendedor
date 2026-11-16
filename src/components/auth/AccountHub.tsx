@@ -14,6 +14,7 @@ import { FacebookConnection } from "./FacebookConnection";
 import { TikTokConnection } from "./TikTokConnection";
 import { GoogleFlowConnection } from "./GoogleFlowConnection";
 import { HyperbrowserProfile } from "./HyperbrowserProfile";
+import { PrivateBrowserConnection } from "./PrivateBrowserConnection";
 import { Camera, Pin, Video, Sparkles, ExternalLink } from "lucide-react";
 
 const sections = [{ id: "acesso", label: "Meu acesso" }, { id: "google", label: "Lojas e redes" }] as const;
@@ -106,6 +107,7 @@ export function AccountHub() {
         <YouTubeConnection key={`youtube:${user?.id ?? "anonymous"}`} compact />
         <TikTokConnection key={`tiktok:${user?.id ?? "anonymous"}`} />
         <GoogleFlowConnection key={`google-flow:${user?.id ?? "anonymous"}`} />
+        {user && <PrivateBrowserConnection key={`private-browser:${user.id}`} />}
         {user && <HyperbrowserProfile key={`hyperbrowser:${user.id}`} />}
         {[
           { name: "Instagram", icon: Camera, href: "/videos", status: "Publicação manual" },
