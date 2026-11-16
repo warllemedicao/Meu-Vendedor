@@ -1,3 +1,9 @@
+## 2026-11-16 — Ponte autenticada para navegador Chromium próprio (branch de migração)
+
+Implementada em código a Edge Function `supabase/functions/private-browser/index.ts`, com verificação do JWT via Supabase Auth, restrição por ID do proprietário configurado em segredo, verificação da origem do aplicativo e encaminhamento servidor-servidor das ações `status`, `start`, `stop` e `view`. O segredo do navegador não é enviado ao frontend. Criado componente responsivo `src/components/auth/PrivateBrowserConnection.tsx` para controlar a sessão e abrir a tela noVNC, ainda **não integrado ao AccountHub** para evitar exibir um serviço sem hospedagem configurada. Ajustado o proxy para a raiz do websockify e ampliados testes de origem WebSocket.
+
+**Estado:** arquivos enviados à branch de desenvolvimento; Edge Function ainda não publicada, não há endpoint de hospedagem Chromium configurado nem testes de integração ou login executados. Ainda faltam integração Modal/CDP, armazenamento persistente protegido, isolamento de sessões e remoção das dependências legadas. Produção não alterada.
+
 ## 2026-11-16 — Início da migração para navegador Chromium próprio (branch de desenvolvimento)
 
 **Decisão:** abandonar a dependência do Hyperbrowser na arquitetura final do Meu Vendedor, preservando a automação Python/Playwright no Modal, os fluxos do Google Flow e a telemetria Supabase. A mudança está sendo desenvolvida em `feat/navegador-proprio-chromium`, sem alterar a produção antes da validação.
