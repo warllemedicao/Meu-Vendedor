@@ -2,11 +2,11 @@
 import os
 import sys
 import unittest
-from unittest.mock import AsyncMock, patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 os.environ["MV_BROWSER_CONTROL_SECRET"] = "test-only-secret-not-for-production-0123456789"
+os.environ["MV_BROWSER_PUBLIC_ORIGIN"] = "https://browser.example.test"
 from fastapi.testclient import TestClient
 import app as service
 
@@ -44,6 +44,24 @@ class BrowserApiTests(unittest.TestCase):
         self.assertFalse(service.consume_view_ticket("test-token"))
         service.view_tickets["expired-token"] = time.monotonic() - 1
         self.assertFalse(service.consume_view_ticket("expired-token"))
+
+    def test_viewer_requires_ticket_to_connect(self):
+        from starlette.websockets import WebSocketDisconnect
+        with self.assertRaises(WebSocketDisconnect):
+            with self.client.websocket_connect("/viewer/ws", headers={"origin": "https://browser.example.test"}):
+                pass
+
+    def test_viewer_rejects_untrusted_origin(self):
+        from starlette.websockets import WebSocketDisconnect
+        import time
+        service.view_tickets["ticket-for-origin-test"] = time.monotonic() + 30
+        with self.assertRaises(WebSocketDisconnect):
+            with self.client.websocket_connect(
+                "/viewer/ws?ticket=ticket-for-origin-test",
+                headers={"origin": "https://evil.example.test"}
+            ):
+                pass
+        service.view_tickets.pop("ticket-for-origin-test", None)
 
     def test_viewer_does_not_embed_secret(self):
         response = self.client.get("/viewer")
