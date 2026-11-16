@@ -1,5 +1,6 @@
 """Private browser control prototype. Never expose raw VNC or CDP to the Internet."""
 import asyncio
+import subprocess
 import hmac
 import os
 import secrets
@@ -9,14 +10,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from playwright.async_api import async_playwright
 
 SECRET = os.getenv("MV_BROWSER_CONTROL_SECRET", "")
 PROFILE = os.getenv("MV_BROWSER_PROFILE_DIR", "/data/browser/chrome-official")
 lock = asyncio.Lock()
 view_tickets = {}
 active_viewers = 0
-playwright = None
+chrome_process = None
 context = None
 
 def authorize(request: Request):
@@ -39,39 +39,49 @@ async def lifespan(app: FastAPI):
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 app.mount('/novnc', StaticFiles(directory='/usr/share/novnc', check_dir=False), name='novnc')
 
+def chrome_running():
+    return chrome_process is not None and chrome_process.poll() is None
+
 async def stop_browser():
-    global context, playwright
+    global chrome_process
     view_tickets.clear()
-    if context is not None:
-        try:
-            await context.close()
-        finally:
-            context = None
-    if playwright is not None:
-        try:
-            await playwright.stop()
-        finally:
-            playwright = None
+    if chrome_process is not None:
+        if chrome_running():
+            chrome_process.terminate()
+            try:
+                await asyncio.wait_for(asyncio.to_thread(chrome_process.wait), timeout=12)
+            except asyncio.TimeoutError:
+                chrome_process.kill()
+                await asyncio.to_thread(chrome_process.wait)
+        chrome_process = None
 
 @app.get("/health")
 async def health(request: Request):
     authorize(request)
-    return {"service": "chrome", "ready": bool(context and context.pages), "configured": len(SECRET) >= 32}
+    return {"service": "chrome", "ready": chrome_running(), "configured": len(SECRET) >= 32}
 
 @app.post("/session/start")
 async def start(request: Request):
-    global playwright, context
+    global chrome_process
     authorize(request)
     async with lock:
-        if context is not None:
+        if chrome_running():
             return {"status": "already_running"}
+        if chrome_process is not None:
+            await stop_browser()
         try:
-            playwright = await async_playwright().start()
-            context = await playwright.chromium.launch_persistent_context(
-                PROFILE, channel="chrome", headless=False, viewport={"width": 1280, "height": 800}
-            )
-            page = context.pages[0] if context.pages else await context.new_page()
-            await page.goto("https://flow.google.com/", wait_until="domcontentloaded", timeout=30000)
+            os.makedirs(PROFILE, mode=0o700, exist_ok=True)
+            # Open a regular Chrome GUI independently of Playwright.
+            # Never enable an unauthenticated remote-debugging port.
+            chrome_process = subprocess.Popen([
+                "/opt/google/chrome/chrome", "--no-sandbox",
+                "--user-data-dir=" + PROFILE,
+                "--no-first-run", "--no-default-browser-check",
+                "--window-size=1280,800", "https://flow.google.com/"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            await asyncio.sleep(2)
+            if not chrome_running():
+                raise RuntimeError("chrome_exited")
         except Exception:
             await stop_browser()
             raise HTTPException(503, "browser_start_failed")
@@ -87,49 +97,21 @@ async def stop(request: Request):
 @app.get("/session/status")
 async def status(request: Request):
     authorize(request)
-    return {"running": context is not None, "pages": len(context.pages) if context else 0}
+    return {"running": chrome_running(), "pages": None}
 
 @app.get("/session/inspect")
 async def inspect(request: Request):
-    """Read-only Flow inspection for robot integration; never expose page content."""
     authorize(request)
-    async with lock:
-        if context is None:
-            raise HTTPException(409, "browser_not_running")
-        pages = [page for page in context.pages if not page.is_closed()]
-        flow_page = next((page for page in pages if urlsplit(page.url).hostname == "flow.google.com"), None)
-        if flow_page is None:
-            return {"running": True, "flowPage": False, "pageCount": len(pages),
-                    "loginRequired": None, "controls": {}}
-        try:
-            result = await flow_page.evaluate("""() => {
-              const visible = el => {
-                const rect = el.getBoundingClientRect();
-                const style = getComputedStyle(el);
-                return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
-              };
-              const count = selector => [...document.querySelectorAll(selector)].filter(visible).length;
-              return {
-                titlePresent: Boolean(document.title),
-                inputs: count('textarea, input[type="text"], [contenteditable="true"], [role="textbox"]'),
-                fileInputs: count('input[type="file"]'),
-                buttons: count('button, [role="button"]'),
-                videos: count('video'),
-                signInLinks: [...document.querySelectorAll('a[href]')].filter(el => visible(el) && /accounts\\.google\\.com/.test(el.href)).length
-              };
-            }""")
-        except Exception:
-            raise HTTPException(503, "flow_inspection_failed")
-        return {"running": True, "flowPage": True, "pageCount": len(pages),
-                "loginRequired": bool(result["signInLinks"]) if result["signInLinks"] else None,
-                "controls": {key: result[key] for key in ("inputs", "fileInputs", "buttons", "videos")},
-                "titlePresent": result["titlePresent"]}
+    if not chrome_running():
+        raise HTTPException(409, "browser_not_running")
+    # Inspection will be integrated after manual-login validation.
+    return {"running": True, "inspectionAvailable": False, "reason": "manual_chrome_mode"}
 
 @app.post("/session/view-ticket")
 async def view_ticket(request: Request):
     """Issue a short-lived, single-use credential for a protected visual proxy."""
     authorize(request)
-    if context is None:
+    if not chrome_running():
         raise HTTPException(409, "browser_not_running")
     now = time.monotonic()
     for key, expiry in list(view_tickets.items()):
@@ -179,7 +161,7 @@ async def viewer_socket(socket: WebSocket):
         await socket.close(code=1008)
         return
     async with lock:
-        if context is None or active_viewers or not consume_view_ticket(ticket):
+        if not chrome_running() or active_viewers or not consume_view_ticket(ticket):
             await socket.close(code=1008)
             return
         active_viewers += 1
