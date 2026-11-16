@@ -22,6 +22,26 @@ active_viewers = 0
 chrome_process = None
 context = None
 
+# Fixed-code diagnostic ring. No prompts, URLs, cookies, secrets or exception text.
+DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrome_stopped",
+    "chrome_exited", "chrome_start_failed", "chrome_not_running", "viewer_ticket_issued",
+    "viewer_rejected", "viewer_connected", "viewer_disconnected", "viewer_proxy_failed",
+    "stage_started", "stage_completed", "stage_failed", "service_started", "service_stopped"))
+diagnostic_events = []
+
+def record_event(code):
+    if code not in DIAGNOSTIC_CODES:
+        return
+    event = {"code": code, "at": int(time.time())}
+    diagnostic_events.append(event)
+    del diagnostic_events[:-40]
+    print("mv_browser_event " + __import__("json").dumps(event), flush=True)
+
+def diagnostic_snapshot():
+    return {"running": chrome_running(),
+            "processExited": chrome_process is not None and chrome_process.poll() is not None,
+            "events": list(diagnostic_events[-20:])}
+
 def authorize(request: Request):
     if len(SECRET) < 32 or not hmac.compare_digest(
         request.headers.get("authorization", ""), "Bearer " + SECRET
@@ -36,7 +56,9 @@ async def lifespan(app: FastAPI):
     parsed = urlsplit(origin)
     if parsed.scheme != "https" or not parsed.hostname or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
         raise RuntimeError("MV_BROWSER_PUBLIC_ORIGIN must be an exact HTTPS origin")
+    record_event("service_started")
     yield
+    record_event("service_stopped")
     await stop_browser()
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -69,6 +91,7 @@ async def start(request: Request):
     authorize(request)
     async with lock:
         if chrome_running():
+            record_event("chrome_already_running")
             return {"status": "already_running"}
         if chrome_process is not None:
             await stop_browser()
@@ -86,10 +109,13 @@ async def start(request: Request):
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             await asyncio.sleep(2)
             if not chrome_running():
+                record_event("chrome_exited")
                 raise RuntimeError("chrome_exited")
         except Exception:
+            record_event("chrome_start_failed")
             await stop_browser()
             raise HTTPException(503, "browser_start_failed")
+        record_event("chrome_started")
         return {"status": "running"}
 
 @app.post("/session/stop")
@@ -102,12 +128,13 @@ async def stop(request: Request):
 @app.get("/session/status")
 async def status(request: Request):
     authorize(request)
-    return {"running": chrome_running(), "pages": None}
+    return {"running": chrome_running(), "pages": None, "diagnostics": diagnostic_snapshot()}
 
 @app.get("/session/inspect")
 async def inspect(request: Request):
     authorize(request)
     if not chrome_running():
+        record_event("chrome_not_running")
         raise HTTPException(409, "browser_not_running")
     # Inspection will be integrated after manual-login validation.
     return {"running": True, "inspectionAvailable": False, "reason": "manual_chrome_mode"}
@@ -152,7 +179,9 @@ async def stage_flow(request: Request):
         raise HTTPException(400, "invalid_draft")
 
     async with lock:
+        record_event("stage_started")
         if not chrome_running():
+            record_event("chrome_not_running")
             raise HTTPException(409, "browser_not_running")
         try:
             async with async_playwright() as pw:
@@ -207,9 +236,11 @@ async def stage_flow(request: Request):
                     if not await upload():
                         raise RuntimeError("flow_upload_action_not_found")
                     uploaded = len(images)
+                record_event("stage_completed")
                 return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded,
                         "generationStarted": False}
         except Exception as exc:
+            record_event("stage_failed")
             # Only return fixed diagnostic codes, never browser content or credentials.
             allowed = {"no_context", "flow_page_not_active", "new_project_button_not_found",
                        "flow_project_not_active", "prompt_field_not_unique",
@@ -230,6 +261,7 @@ async def view_ticket(request: Request):
             del view_tickets[key]
     ticket = secrets.token_urlsafe(32)
     view_tickets[ticket] = now + 60
+    record_event("viewer_ticket_issued")
     return {"ticket": ticket, "expiresInSeconds": 60}
 
 def consume_view_ticket(ticket: str) -> bool:
@@ -273,9 +305,11 @@ async def viewer_socket(socket: WebSocket):
         return
     async with lock:
         if not chrome_running() or active_viewers or not consume_view_ticket(ticket):
+            record_event("viewer_rejected")
             await socket.close(code=1008)
             return
         active_viewers += 1
+    record_event("viewer_connected")
     await socket.accept(subprotocol="binary" if "binary" in socket.scope.get("subprotocols", []) else None)
     try:
         async with websockets.connect("ws://127.0.0.1:6080/", subprotocols=["binary"], max_size=16*1024*1024) as upstream:
@@ -298,8 +332,9 @@ async def viewer_socket(socket: WebSocket):
             done,pending=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
             for task in pending: task.cancel()
     except (OSError, WebSocketDisconnect, websockets.exceptions.WebSocketException):
-        pass
+        record_event("viewer_proxy_failed")
     finally:
+        record_event("viewer_disconnected")
         active_viewers = max(0, active_viewers - 1)
         try:
             await socket.close()
