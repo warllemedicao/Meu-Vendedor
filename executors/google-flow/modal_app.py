@@ -28,7 +28,7 @@ def gateway():
     from fastapi import FastAPI, Request, HTTPException
     # add_local_dir places helpers here in the Modal image.
     sys.path.insert(0, '/opt/flow')
-    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images, inspect_settings, include_references, editor_state, click_generate_arrow
+    from flow_diagnostics import FlowDiagnostics, REASONS, wait_for_images, inspect_settings, include_references, editor_state, click_generate_arrow, observe_generation_confirmation
     executor_revision = hashlib.sha256(
         Path('/opt/flow/modal_app.py').read_bytes() + Path('/opt/flow/flow_diagnostics.py').read_bytes()
     ).hexdigest()[:12]
@@ -346,8 +346,12 @@ def gateway():
                     # after the irreversible action and lose the entire report.
                     # The browser remains available for subsequent inspection.
                     if generation_result and generation_result.get('clicked'):
+                        # Read-only confirmation observation after the irreversible Generate click.
+                        # No clicks, cookies, credentials, screenshots or page text captured.
+                        confirmation_state = await observe_generation_confirmation(page, trace)
                         trace.event("inspection", "skipped")
                         trace.event("finished")
+                        await flush_telemetry(reason)
                         return {
                             'diagnostics': trace.report(reason),
                             'navigationReady': True, 'inspectionReady': True,
@@ -359,7 +363,7 @@ def gateway():
                             'settingsInspection': settings_result,
                             'referencesIncluded': reference_result['included'],
                             'referencesVerified': reference_result['verified'],
-                            'generateClicked': True,
+                            'generateClicked': True, 'confirmationInspection': confirmation_state,
                             'editorControls': [], 'editorFrames': 0, 'editorErrors': 0
                         }
                     trace.event("inspection", "started")
