@@ -4,6 +4,7 @@ import hmac
 import os
 import secrets
 import time
+from urllib.parse import urlsplit
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -25,6 +26,12 @@ def authorize(request: Request):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if len(SECRET) < 32:
+        raise RuntimeError("MV_BROWSER_CONTROL_SECRET must contain at least 32 characters")
+    origin = os.getenv("MV_BROWSER_PUBLIC_ORIGIN", "")
+    parsed = urlsplit(origin)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+        raise RuntimeError("MV_BROWSER_PUBLIC_ORIGIN must be an exact HTTPS origin")
     yield
     await stop_browser()
 
@@ -33,6 +40,7 @@ app.mount('/novnc', StaticFiles(directory='/usr/share/novnc', check_dir=False), 
 
 async def stop_browser():
     global context, playwright
+    view_tickets.clear()
     if context is not None:
         try:
             await context.close()
@@ -128,7 +136,7 @@ async def viewer_socket(socket: WebSocket):
     if not expected_origin.startswith("https://") or origin != expected_origin or not consume_view_ticket(ticket):
         await socket.close(code=1008)
         return
-    await socket.accept()
+    await socket.accept(subprotocol="binary" if "binary" in socket.scope.get("subprotocols", []) else None)
     try:
         async with websockets.connect("ws://127.0.0.1:6080/websockify", max_size=16*1024*1024) as upstream:
             async def to_browser():
