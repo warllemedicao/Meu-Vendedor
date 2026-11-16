@@ -138,7 +138,7 @@ async def viewer_socket(socket: WebSocket):
         return
     await socket.accept(subprotocol="binary" if "binary" in socket.scope.get("subprotocols", []) else None)
     try:
-        async with websockets.connect("ws://127.0.0.1:6080/websockify", max_size=16*1024*1024) as upstream:
+        async with websockets.connect("ws://127.0.0.1:6080/", subprotocols=["binary"], max_size=16*1024*1024) as upstream:
             async def to_browser():
                 while True:
                     message=await socket.receive()
