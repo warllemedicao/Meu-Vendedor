@@ -17,7 +17,7 @@ export function PrivateBrowserConnection() {
   const [viewUrl, setViewUrl] = useState("");
   const [running, setRunning] = useState(false);
 
-  async function act(action: "status" | "start" | "stop" | "view") {
+  async function act(action: "status" | "start" | "stop" | "view" | "open") {
     if (busy) return;
     setBusy(true);
     setMessage("");
@@ -25,14 +25,26 @@ export function PrivateBrowserConnection() {
       const supabase = getSupabase();
       if (!supabase) throw new Error("Autenticação indisponível.");
       const { data, error } = await supabase.functions.invoke<BrowserResponse>("private-browser", {
-        body: { action },
+        body: { action: action === "open" ? "start" : action },
       });
       if (error || !data || data.error) throw new Error(
         data?.error === "browser_not_configured"
           ? "Navegador ainda não configurado no servidor."
           : "Não foi possível acessar o navegador privado."
       );
-      if (action === "status") {
+      if (action === "open") {
+        setRunning(true);
+        const view = await supabase.functions.invoke<BrowserResponse>("private-browser", {
+          body: { action: "view" },
+        });
+        if (view.error || !view.data?.viewUrl) throw new Error("Chrome iniciado, mas não foi possível abrir a tela.");
+        const url = new URL(view.data.viewUrl);
+        if (url.protocol !== "https:" || !url.pathname.endsWith("/viewer") || !url.searchParams.has("ticket")) {
+          throw new Error("Endereço de visualização inválido.");
+        }
+        setViewUrl(url.toString());
+        setMessage("Chrome aberto para login manual. O perfil será preservado ao encerrar.");
+      } else if (action === "status") {
         setRunning(Boolean(data.running));
         setMessage(data.running ? "Navegador ativo." : "Navegador desligado.");
       } else if (action === "start") {
@@ -59,8 +71,9 @@ export function PrivateBrowserConnection() {
 
   return <article className="space-y-3 rounded-xl border border-border bg-surface p-4 sm:col-span-2">
     <h3 className="font-semibold">Google Flow · Navegador próprio (prévia)</h3>
-    <p className="text-sm text-muted">Use somente após a implantação segura do Chromium. Faça login diretamente na página oficial do Google; não informe sua senha ao Meu Vendedor.</p>
+    <p className="text-sm text-muted">Abra o Chrome oficial para fazer login diretamente no Google Flow. O perfil é persistente, mas o Google pode solicitar nova autenticação. Não informe sua senha ao Meu Vendedor.</p>
     <div className="flex flex-wrap gap-2">
+      <button type="button" disabled={busy} onClick={() => void act("open")} className="rounded-lg bg-primary px-3 py-2 text-sm text-white">Abrir Chrome para login</button>
       <button type="button" disabled={busy} onClick={() => void act("status")} className="rounded-lg border border-border px-3 py-2 text-sm">Consultar</button>
       <button type="button" disabled={busy} onClick={() => void act("start")} className="rounded-lg border border-border px-3 py-2 text-sm">Iniciar</button>
       <button type="button" disabled={busy || !running} onClick={() => void act("view")} className="rounded-lg border border-border px-3 py-2 text-sm">Abrir tela</button>
