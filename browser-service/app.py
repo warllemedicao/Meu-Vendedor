@@ -5,6 +5,7 @@ import re
 import subprocess
 import hmac
 import os
+from pathlib import Path
 import secrets
 import time
 from urllib.parse import urlsplit
@@ -228,7 +229,15 @@ async def resolve_flow_control(page, purpose):
 
 
 # Manual teaching mode: metadata only, bounded in memory, no page text or inputs.
+LEARNING_DIR = Path("/tmp/meu-vendedor/treinamento")
 learning_state = {"active": False, "events": []}
+
+def clear_learning_images():
+    if LEARNING_DIR.exists():
+        for file in LEARNING_DIR.iterdir():
+            if file.is_file() and re.fullmatch(r"imagem-[1-3]\\.(png|jpg|webp)", file.name):
+                file.unlink()
+
 LEARNING_SCRIPT = r"""(() => {
   if (window.__mvLearningListener) return;
   window.__mvLearningListener = e => {
@@ -256,9 +265,37 @@ async def learning_start(request: Request):
     authorize(request)
     if not chrome_running():
         raise HTTPException(409, "browser_not_running")
+    raw = await request.body()
+    if len(raw) > 3_800_000:
+        raise HTTPException(413, "payload_too_large")
+    try:
+        import json
+        payload = json.loads(raw or b"{}")
+        supplied = payload.get("images", [])
+        if not isinstance(supplied, list) or len(supplied) > 3 or (supplied and payload.get("imageRightsConfirmed") is not True):
+            raise ValueError("invalid_images")
+        prepared = []
+        for idx, item in enumerate(supplied):
+            mime, encoded = item.get("mime"), item.get("data")
+            extensions = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
+            if mime not in extensions or not isinstance(encoded, str):
+                raise ValueError("invalid_image")
+            data = base64.b64decode(encoded, validate=True)
+            valid = (mime == "image/png" and data.startswith(bytes.fromhex("89504e470d0a1a0a"))) or (mime == "image/jpeg" and data.startswith(bytes.fromhex("ffd8ff"))) or (mime == "image/webp" and data.startswith(b"RIFF") and data[8:12] == b"WEBP")
+            if not valid:
+                raise ValueError("invalid_image")
+            prepared.append((f"imagem-{idx+1}.{extensions[mime]}", data))
+        if sum(len(data) for _, data in prepared) > 2_500_000:
+            raise ValueError("images_too_large")
+    except (ValueError, TypeError, AttributeError, KeyError):
+        raise HTTPException(400, "invalid_draft")
     async with lock:
         async with async_playwright() as pw:
             page = await learning_browser_page(pw)
+            clear_learning_images()
+            LEARNING_DIR.mkdir(parents=True, exist_ok=True)
+            for filename, data in prepared:
+                (LEARNING_DIR / filename).write_bytes(data)
             learning_state["events"] = []
             learning_state["active"] = True
             for frame in page.frames[:8]:
@@ -267,7 +304,7 @@ async def learning_start(request: Request):
                     await frame.evaluate(LEARNING_SCRIPT)
                 except Exception:
                     continue
-    return {"active": True, "recorded": 0}
+    return {"active": True, "recorded": 0, "imageDirectory": str(LEARNING_DIR), "imagesAvailable": len(prepared)}
 
 @app.get("/session/learning/status")
 async def learning_status(request: Request):
@@ -298,6 +335,7 @@ async def learning_stop(request: Request):
                     except Exception:
                         continue
         learning_state["active"] = False
+        clear_learning_images()
     return {"active": False, "recorded": len(learning_state["events"]),
             "events": learning_state["events"][-80:]}
 
