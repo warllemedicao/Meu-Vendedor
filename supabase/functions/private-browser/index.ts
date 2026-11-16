@@ -59,15 +59,22 @@ Deno.serve(async (req) => {
     if (JSON.stringify(input).length > 3_800_000) return reply({ error: "payload_too_large" }, 413);
   }
   const target = routes[action];
+  const startedAt = Date.now();
   const response = await fetch(new URL(target.path, base), {
     method: target.method,
     headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" ? { "content-type": "application/json" } : {}) },
     ...(action === "stage" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed }) } : {}),
     signal: AbortSignal.timeout(action === "start" || action === "stage" ? 60000 : 12000),
   }).catch(() => null);
-  if (!response) return reply({ error: "browser_unavailable" }, 502);
+  if (!response) {
+    console.log(JSON.stringify({ source: "private_browser_bridge", action, outcome: "upstream_unreachable",
+      elapsedMs: Date.now() - startedAt }));
+    return reply({ error: "browser_unavailable" }, 502);
+  }
   const result = await response.json().catch(() => null);
   if (!response.ok) {
+    console.log(JSON.stringify({ source: "private_browser_bridge", action, outcome: "upstream_error",
+      upstreamStatus: response.status, elapsedMs: Date.now() - startedAt }));
     // Forward only known, fixed browser error codes; never relay arbitrary upstream content.
     const allowed = new Set([
       "browser_not_running", "flow_page_not_active", "flow_project_not_active",
@@ -78,6 +85,22 @@ Deno.serve(async (req) => {
     const code = typeof result?.detail === "string" && allowed.has(result.detail)
       ? result.detail : "browser_unavailable";
     return reply({ error: code }, response.status === 409 ? 409 : 502);
+  }
+  // Status requests carry a bounded, fixed-code diagnostic ring from Modal.
+  // Log only allowlisted event codes and coarse process state, never browser content.
+  if (action === "status" && Array.isArray(result?.diagnostics?.events)) {
+    const allowedEvents = new Set(["chrome_started", "chrome_already_running", "chrome_stopped",
+      "chrome_exited", "chrome_start_failed", "chrome_not_running", "viewer_ticket_issued",
+      "viewer_rejected", "viewer_connected", "viewer_disconnected", "viewer_proxy_failed",
+      "stage_started", "stage_completed", "stage_failed", "service_started", "service_stopped"]);
+    const events = result.diagnostics.events.slice(-20)
+      .filter((event: unknown) => typeof event === "object" && event !== null)
+      .map((event: Record<string, unknown>) => ({
+        code: typeof event.code === "string" && allowedEvents.has(event.code) ? event.code : "unknown",
+        at: typeof event.at === "number" && Number.isInteger(event.at) ? event.at : 0,
+      }));
+    console.log(JSON.stringify({ source: "private_browser_diagnostics",
+      running: result.running === true, processExited: result.diagnostics.processExited === true, events }));
   }
   if (action === "view") {
     if (typeof result?.ticket !== "string" || !/^[A-Za-z0-9_-]{32,128}$/.test(result.ticket))
