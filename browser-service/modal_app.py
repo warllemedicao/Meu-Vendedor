@@ -1,4 +1,4 @@
-"""Deploy the isolated Chromium service to Modal.
+"""Deploy the isolated Firefox service to Modal.
 
 Deploy only after configuring the private Modal secret and an HTTPS origin.
 No browser credentials, cookies or control tokens are stored in source control.
@@ -15,7 +15,7 @@ image = (
         "fastapi==0.115.12", "uvicorn==0.34.2", "playwright==1.56.0",
         "httpx==0.28.1", "websockets==15.0.1",
     )
-    .run_commands("playwright install --with-deps chromium")
+    .run_commands("playwright install --with-deps firefox")
     .add_local_dir(Path(__file__).parent, remote_path="/opt/private-browser", copy=True)
 )
 profile_volume = modal.Volume.from_name("mv-private-browser-profile", create_if_missing=True)
