@@ -19,7 +19,8 @@ METRICS = frozenset(('expected', 'visible', 'busy', 'stable', 'required', 'polls
                      'assetTextMatches', 'assetOptionParents', 'assetButtonParents',
                      'assetCheckboxParents', 'libraryOptions', 'libraryCheckboxes', 'arrowCandidates', 'submitClicked',
                      'assetTargets', 'assetMatches', 'prefixLength', 'selectionClickFailed',
-                      'errorVisible', 'retryVisible', 'errorObservedMs', 'errorFramesRead'))
+                      'errorVisible', 'retryVisible', 'errorObservedMs', 'errorFramesRead',
+                      'creditDialogVisible', 'responseObservedMs', 'responseFramesRead', 'responseUnconfirmed'))
 REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'prompt_field_not_unique', 'new_project_button_not_found', 'image_input_not_found',
     'flow_upload_action_not_found', 'flow_file_chooser_unavailable',
@@ -31,7 +32,8 @@ REASONS = frozenset(('flow_page_not_active', 'flow_project_not_active',
     'flow_reference_include_unavailable', 'flow_reference_include_uncertain',
     'flow_references_unverified', 'flow_draft_ready',
     'flow_generate_button_unavailable', 'flow_generation_click_uncertain',
-    'flow_generation_rejected', 'flow_generate_clicked'))
+    'flow_generation_rejected', 'flow_generate_clicked',
+    'flow_credit_confirmation_pending', 'flow_generation_response_unconfirmed'))
 
 
 class FlowDiagnostics:
