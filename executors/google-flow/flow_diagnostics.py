@@ -474,16 +474,24 @@ async def include_references(page, image_files, prompt_field, trace):
                     const buttonTargets=targets.filter(el=>el.matches('button,[role="button"]'));
                     // Prefer exact/full filename within a visible option before
                     // using truncated prefixes that can collide across uploads.
+                    // When the visible gallery consists exactly of the uploaded
+                    // batch, use its visual order as a last-resort disambiguator.
+                    // This is the same option-click/long-press/Ctrl-click path for
+                    // one, two and three images, not a special two-image flow.
+                    const visibleOptions=options.filter(visible);
+                    const batchIndex=args[2],batchSize=args[3];
+                    const galleryOrder=visibleOptions.length===batchSize &&
+                        batchIndex>=0 && batchIndex<batchSize ? visibleOptions[batchIndex] : null;
                     const chosen=exactOptions.length===1?exactOptions[0]:
                         fullNameOptions.length===1?fullNameOptions[0]:
                         optionTargets.length===1?optionTargets[0]:
                         buttonTargets.length===1?buttonTargets[0]:
-                        targets.length===1?targets[0]:null;
+                        targets.length===1?targets[0]:galleryOrder;
                     if(chosen)chosen.setAttribute(marker,'yes');
                     return {matches:matching.length,targets:chosen?1:targets.length,
-                        libraryOptions:options.length, exactOptions:exactOptions.length, fullNameOptions:fullNameOptions.length, prefixLength:prefix.length,
+                        libraryOptions:options.length, visibleOptions:visibleOptions.length, selectionMethod:chosen===galleryOrder?'gallery_order':chosen?'filename':'ambiguous', exactOptions:exactOptions.length, fullNameOptions:fullNameOptions.length, prefixLength:prefix.length,
                         assetMatches:matching.length, assetTargets:targets.length};
-                }""", [item['name'],marker], timeout=1800)
+                }""", [item['name'],marker,asset_index-1,len(image_files)], timeout=1800)
                 trace.event('references', 'waiting', assetIndex=asset_index, **shape)
                 if shape['targets'] != 1:
                     result['errorCode'] = 'flow_reference_selection_unavailable'
