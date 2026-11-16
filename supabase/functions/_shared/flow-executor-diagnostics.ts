@@ -1,6 +1,6 @@
 import { flowError, missingFlowDiagnostic, readFlowDiagnostic } from "./flow-diagnostics.ts";
 
-export type FlowMode = "navigate" | "inspect" | "create-project" | "inspect-editor" | "stage-prompt" | "prepare-draft" | "prepare-image" | "inspect-settings" | "click-generate" | "record-user-clicks" | "read-user-clicks" | "stop-user-clicks";
+export type FlowMode = "navigate" | "inspect" | "create-project" | "inspect-editor" | "stage-prompt" | "prepare-draft" | "prepare-image" | "inspect-settings" | "click-generate";
 type Options = { target?: string; secret?: string; endpoint: unknown; mode: FlowMode; traceId: string; prompt?: string; imageMime?: string; imageBase64?: string; images?: Array<{mime:string;data:string}>; imageRightsConfirmed?: boolean };
 export async function requestFlowExecutor(options: Options, fetcher: typeof fetch = fetch): Promise<boolean | Record<string, unknown>> {
  const {target, secret, endpoint, mode, traceId, prompt, imageMime, imageBase64, images, imageRightsConfirmed}=options;
@@ -22,8 +22,7 @@ export async function requestFlowExecutor(options: Options, fetcher: typeof fetc
    console.warn("flow_executor_result",JSON.stringify({traceId,status:result.status,diagnostics:diagnostic.diagnostics}));
    return diagnostic;
   }
-  const recordingMode=["record-user-clicks","read-user-clicks","stop-user-clicks"].includes(mode);
-  if(recordingMode ? (body.navigationReady!==true || !Array.isArray(body.manualClicks)) : body.inspectionReady!==true) return failure("flow_inspection_unavailable");
+  if(body.inspectionReady!==true) return failure("flow_inspection_unavailable");
   const diagnostics=readFlowDiagnostic(body.diagnostics,traceId,mode)??missingFlowDiagnostic(traceId,mode,"executor_report_unavailable",Date.now()-started);
   console.info("flow_executor_result",JSON.stringify({traceId,status:result.status,diagnostics}));
   return {...body,diagnostics};
