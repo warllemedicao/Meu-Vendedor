@@ -286,12 +286,26 @@ async def stage_flow(request: Request):
                     if candidate is None:
                         raise RuntimeError("new_project_button_not_found")
                     await candidate.click(timeout=8000)
-                    await page.wait_for_url(re.compile(r"^https://flow\\.google\\.com/project/"), timeout=12000)
+                    await page.wait_for_timeout(1800)
                 if not page.url.startswith("https://flow.google.com/project/"):
                     raise RuntimeError("flow_project_not_active")
-                prompt_control, _ = await resolve_flow_control(page, "prompt")
-                if prompt_control is None:
-                    raise RuntimeError("prompt_field_not_unique")
+                # Preserve the previously working Flow prompt locator as primary.
+                matches = []
+                for frame in page.frames[:8]:
+                    fields = frame.locator('[role="textbox"][data-placeholder], [role="textbox"][aria-label], [contenteditable="true"][data-placeholder], [contenteditable="true"][aria-label], [contenteditable="true"][placeholder]')
+                    for idx in range(min(await fields.count(), 30)):
+                        field = fields.nth(idx)
+                        if not await field.is_visible():
+                            continue
+                        label = await field.evaluate("""el => [el.getAttribute('aria-label'),el.getAttribute('data-placeholder'),el.getAttribute('placeholder')].filter(Boolean).join(' ')""")
+                        if re.search(r"o que você quer criar|what do you want to create", label or "", re.I):
+                            matches.append(field)
+                if len(matches) == 1:
+                    prompt_control = matches[0]
+                else:
+                    prompt_control, _ = await resolve_flow_control(page, "prompt")
+                    if prompt_control is None:
+                        raise RuntimeError("prompt_field_not_unique")
                 await prompt_control.fill(prompt.strip(), timeout=8000)
                 record_event("stage_prompt_filled")
                 uploaded = 0
