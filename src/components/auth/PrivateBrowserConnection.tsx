@@ -20,7 +20,21 @@ export function PrivateBrowserConnection() {
     const { data, error } = await supabase.functions.invoke<BrowserResponse>("private-browser", {
       body: { action, ...extra },
     });
-    if (error || !data || data.error) throw new Error(data?.error ?? "Não foi possível acessar o Chrome.");
+    if (error || !data || data.error) {
+      const code = data?.error ?? (error && "context" in error && typeof error.context === "object" && error.context !== null
+        ? (await (error.context as Response).clone().json().catch(() => null))?.error : null);
+      const labels: Record<string, string> = {
+        browser_not_running: "O Chrome não está iniciado. Clique em Chrome para abrir novamente.",
+        flow_page_not_active: "Abra o Google Flow no Chrome antes de enviar.",
+        flow_project_not_active: "O projeto do Google Flow não abriu. Confira a tela.",
+        new_project_button_not_found: "O robô não encontrou o botão de novo projeto.",
+        prompt_field_not_unique: "O robô não identificou com segurança o campo do prompt.",
+        flow_upload_action_not_found: "O prompt foi preenchido, mas o robô não encontrou o envio de imagens. Confira a tela do Flow.",
+        flow_interaction_failed: "O Flow não concluiu a preparação. O Chrome permanece aberto; confira o prompt e as imagens.",
+        browser_unavailable: "A comunicação com o Chrome falhou. Tente consultar o status novamente.",
+      };
+      throw new Error(typeof code === "string" ? (labels[code] ?? code) : "Não foi possível acessar o Chrome.");
+    }
     return data;
   }
 
@@ -123,7 +137,7 @@ export function PrivateBrowserConnection() {
     </div>
     {message && <p role="status" className="text-sm">{message}</p>}
     {viewUrl && <div className="space-y-2">
-      <iframe title="Tela privada do Chrome" src={viewUrl} referrerPolicy="no-referrer" className="h-[480px] w-full rounded-lg border border-border" />
+      <iframe title="Tela privada do Chrome" src={viewUrl} referrerPolicy="no-referrer" className="h-[min(80vh,900px)] w-full rounded-lg border border-border" />
       <a href={viewUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="text-sm underline">Abrir Chrome em tela cheia</a>
     </div>}
   </article>;
