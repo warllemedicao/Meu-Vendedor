@@ -5,7 +5,8 @@ import os
 import secrets
 import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 from playwright.async_api import async_playwright
 
 SECRET = os.getenv("MV_BROWSER_CONTROL_SECRET", "")
@@ -96,3 +97,60 @@ def consume_view_ticket(ticket: str) -> bool:
     """Atomic in-process validation; callers must not log ticket values."""
     expiry = view_tickets.pop(ticket, 0)
     return bool(expiry > time.monotonic())
+
+@app.get("/viewer", response_class=HTMLResponse)
+async def viewer():
+    """Public shell only. The actual screen requires a one-time private ticket."""
+    return """<!doctype html><html lang="pt-BR"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
+    <p>Visualização privada do Chromium. Abra com um ticket temporário emitido pelo backend autenticado.</p>
+    <div id="screen" style="width:100%;height:85vh"></div>
+    <script type="module">
+    const ticket=new URLSearchParams(location.search).get("ticket");
+    history.replaceState(null,"",location.pathname);
+    if(!ticket){document.body.textContent="Ticket de acesso necessário";}else{
+      const {default:RFB}=await import("/novnc/core/rfb.js");
+      const protocol=location.protocol==="https:"?"wss:":"ws:";
+      const ws=protocol+"//"+location.host+"/viewer/ws?ticket="+encodeURIComponent(ticket);
+      const rfb=new RFB(document.getElementById("screen"),ws);
+      rfb.scaleViewport=true;rfb.resizeSession=false;
+      rfb.addEventListener("disconnect",()=>document.body.insertAdjacentText("beforeend","Sessão encerrada."));
+    }
+    </script></body></html>"""
+
+@app.websocket("/viewer/ws")
+async def viewer_socket(socket: WebSocket):
+    import websockets
+    ticket = socket.query_params.get("ticket", "")
+    origin = socket.headers.get("origin", "")
+    expected_origin = os.getenv("MV_BROWSER_PUBLIC_ORIGIN", "")
+    if not expected_origin.startswith("https://") or origin != expected_origin or not consume_view_ticket(ticket):
+        await socket.close(code=1008)
+        return
+    await socket.accept()
+    try:
+        async with websockets.connect("ws://127.0.0.1:6080/websockify", max_size=16*1024*1024) as upstream:
+            async def to_browser():
+                while True:
+                    message=await socket.receive()
+                    if message["type"]=="websocket.disconnect":
+                        break
+                    if message.get("bytes") is not None:
+                        await upstream.send(message["bytes"])
+                    elif message.get("text") is not None:
+                        await upstream.send(message["text"])
+            async def to_viewer():
+                async for message in upstream:
+                    if isinstance(message, bytes):
+                        await socket.send_bytes(message)
+                    else:
+                        await socket.send_text(message)
+            tasks=[asyncio.create_task(to_browser()),asyncio.create_task(to_viewer())]
+            done,pending=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
+            for task in pending: task.cancel()
+    except (OSError, WebSocketDisconnect, websockets.exceptions.WebSocketException):
+        pass
+    finally:
+        try:
+            await socket.close()
+        except RuntimeError:
+            pass
