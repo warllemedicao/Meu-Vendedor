@@ -398,7 +398,13 @@ def gateway():
                 await page.goto('https://flow.google.com/', wait_until='domcontentloaded', timeout=30000)
                 return {'navigationReady': True}
         except Exception as exc:
-            reason = str(exc) if str(exc) in REASONS else 'navigation_failed'
+            # A failure after clicking Generate is not a navigation failure.
+            # Preserve the irreversible click evidence and classify the
+            # observation failure without retrying the action.
+            reason = str(exc) if str(exc) in REASONS else (
+                'flow_generation_response_unconfirmed' if trace.generate_clicked
+                else 'navigation_failed'
+            )
             trace.event(trace.stage, "error")
             raise HTTPException(502, {'code': reason, 'diagnostics': trace.report(reason)})
 
