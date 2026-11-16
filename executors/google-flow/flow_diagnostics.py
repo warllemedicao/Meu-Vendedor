@@ -256,22 +256,22 @@ async def click_generate_arrow(page, trace):
                 const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
                 const label=e=>[e.getAttribute('aria-label'),e.getAttribute('title'),e.textContent].filter(Boolean).join(' ').trim();
                 const gears=els.filter(e=>visible(e)&&/^(configurações(?: do (?:agente|vídeo|video))?|(?:agent |video )?settings)$/i.test(label(e)));
-                if(gears.length!==1)return {gears:gears.length,indices:[]};
-                const g=gears[0].getBoundingClientRect();
+                const prompts=Array.from(document.querySelectorAll('[role="textbox"],[contenteditable="true"]')).filter(visible).filter(e=>/o que você quer criar|what do you want to create/i.test([e.getAttribute('aria-label'),e.getAttribute('placeholder'),e.getAttribute('data-placeholder')].join(' ')));
+                if(prompts.length!==1||!gears.length)return {gears:gears.length,indices:[]};
+                const p=prompts[0].getBoundingClientRect();
+                const ranked=gears.map(e=>{const r=e.getBoundingClientRect();return {e,d:Math.hypot(r.right-p.right,r.bottom-p.bottom)}}).sort((a,b)=>a.d-b.d);
+                if(ranked.length>1&&ranked[1].d-ranked[0].d<60)return {gears:gears.length,indices:[]};
+                const gear=ranked[0].e,g=gear.getBoundingClientRect();
                 const indices=els.map((e,i)=>({e,i})).filter(({e})=>{
-                    if(e===gears[0]||!visible(e)||e.disabled||e.getAttribute('aria-disabled')==='true')return false;
+                    if(e===gear||!visible(e)||e.disabled||e.getAttribute('aria-disabled')==='true')return false;
                     const r=e.getBoundingClientRect();
                     const hint=[label(e),e.querySelector('mat-icon')?.textContent,e.querySelector('svg')?.getAttribute('data-testid'),e.getAttribute('data-testid')].filter(Boolean).join(' ');
-                    // Prefer a uniquely identifiable send icon. For unlabeled arrows,
-                    // accept only a single compact button directly to the right
-                    // of the composer settings gear, aligned on the same row.
-                    const named=/send|submit|generate|gerar|enviar|arrow_forward|north|upward/i.test(hint);
                     const sameRow=Math.abs((r.top+r.height/2)-(g.top+g.height/2))<=18;
                     const toRight=r.left>=g.right-3&&r.left-g.right<=115;
                     const compact=r.width>=20&&r.width<=76&&r.height>=20&&r.height<=76;
-                    return sameRow&&toRight&&compact&&(named||!label(e).trim());
+                    return sameRow&&toRight&&compact&&(/send|submit|generate|gerar|enviar|arrow_forward|north|upward/i.test(hint)||!label(e).trim());
                 }).map(({i})=>i);
-                return {gears:1,indices};
+                return {gears:gears.length,indices};
             }""",timeout=1800)
             trace.event('generation','waiting',settingsCandidates=evidence['gears'],arrowCandidates=len(evidence['indices']))
             for i in evidence['indices']:candidates.append(buttons.nth(i))
