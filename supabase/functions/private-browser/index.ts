@@ -57,17 +57,17 @@ Deno.serve(async (req) => {
   const action = input?.action;
   if (typeof action !== "string" || !Object.hasOwn(routes, action))
     return reply({ error: "invalid_action" }, 400);
-  if (action === "stage") {
-    if (typeof input?.prompt !== "string" || input.prompt.trim().length < 1 || input.prompt.length > 4000 || !Array.isArray(input.images) || input.images.length > 3 || (input.images.length > 0 && input.imageRightsConfirmed !== true)) return reply({ error: "invalid_draft" }, 400);
+  if (action === "stage" || action === "learning_start") {
+    if ((action === "stage" && (typeof input?.prompt !== "string" || input.prompt.trim().length < 1 || input.prompt.length > 4000)) || !Array.isArray(input.images) || input.images.length > 3 || (input.images.length > 0 && input.imageRightsConfirmed !== true)) return reply({ error: "invalid_draft" }, 400);
     if (JSON.stringify(input).length > 3_800_000) return reply({ error: "payload_too_large" }, 413);
   }
   const target = routes[action];
   const startedAt = Date.now();
   const response = await fetch(new URL(target.path, base), {
     method: target.method,
-    headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" ? { "content-type": "application/json" } : {}) },
-    ...(action === "stage" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed }) } : {}),
-    signal: AbortSignal.timeout(action === "start" || action === "stage" ? 60000 : 12000),
+    headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" || action === "learning_start" ? { "content-type": "application/json" } : {}) },
+    ...(action === "stage" || action === "learning_start" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed }) } : {}),
+    signal: AbortSignal.timeout(action === "start" || action === "stage" || action === "learning_start" ? 60000 : 12000),
   }).catch(() => null);
   if (!response) {
     console.log(JSON.stringify({ source: "private_browser_bridge", action, outcome: "upstream_unreachable",
