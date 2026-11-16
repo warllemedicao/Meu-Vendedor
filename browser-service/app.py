@@ -89,6 +89,42 @@ async def status(request: Request):
     authorize(request)
     return {"running": context is not None, "pages": len(context.pages) if context else 0}
 
+@app.get("/session/inspect")
+async def inspect(request: Request):
+    """Read-only Flow inspection for robot integration; never expose page content."""
+    authorize(request)
+    async with lock:
+        if context is None:
+            raise HTTPException(409, "browser_not_running")
+        pages = [page for page in context.pages if not page.is_closed()]
+        flow_page = next((page for page in pages if urlsplit(page.url).hostname == "flow.google.com"), None)
+        if flow_page is None:
+            return {"running": True, "flowPage": False, "pageCount": len(pages),
+                    "loginRequired": None, "controls": {}}
+        try:
+            result = await flow_page.evaluate("""() => {
+              const visible = el => {
+                const rect = el.getBoundingClientRect();
+                const style = getComputedStyle(el);
+                return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+              };
+              const count = selector => [...document.querySelectorAll(selector)].filter(visible).length;
+              return {
+                titlePresent: Boolean(document.title),
+                inputs: count('textarea, input[type="text"], [contenteditable="true"], [role="textbox"]'),
+                fileInputs: count('input[type="file"]'),
+                buttons: count('button, [role="button"]'),
+                videos: count('video'),
+                signInLinks: [...document.querySelectorAll('a[href]')].filter(el => visible(el) && /accounts\\.google\\.com/.test(el.href)).length
+              };
+            }""")
+        except Exception:
+            raise HTTPException(503, "flow_inspection_failed")
+        return {"running": True, "flowPage": True, "pageCount": len(pages),
+                "loginRequired": bool(result["signInLinks"]) if result["signInLinks"] else None,
+                "controls": {key: result[key] for key in ("inputs", "fileInputs", "buttons", "videos")},
+                "titlePresent": result["titlePresent"]}
+
 @app.post("/session/view-ticket")
 async def view_ticket(request: Request):
     """Issue a short-lived, single-use credential for a protected visual proxy."""
