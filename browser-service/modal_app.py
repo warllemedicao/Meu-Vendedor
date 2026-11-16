@@ -77,6 +77,16 @@ def browser_gateway():
                 except subprocess.TimeoutExpired:
                     process.kill()
 
+    # Persist profile changes after an authenticated stop, not only on container shutdown.
+    # Chromium must be closed before committing its profile to the Modal Volume.
+    from fastapi import Request
+    @browser_service.app.middleware("http")
+    async def persist_stopped_profile(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path == "/session/stop" and request.method == "POST" and response.status_code == 200:
+            profile_volume.commit()
+        return response
+
     # The FastAPI instance from app.py owns the routes; install the startup
     # manager without changing the authenticated endpoints.
     browser_service.app.router.lifespan_context = lifecycle
