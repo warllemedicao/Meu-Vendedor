@@ -1,0 +1,11 @@
+FROM mcr.microsoft.com/playwright/python:v1.56.0-noble
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 DISPLAY=:99
+RUN apt-get update && apt-get install -y --no-install-recommends xvfb x11vnc novnc websockify fluxbox supervisor && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+RUN useradd --create-home --uid 10001 browser && mkdir -p /data/browser && chown -R browser:browser /data/browser /app
+USER browser
+EXPOSE 7860
+CMD ["/usr/bin/supervisord", "-c", "/app/supervisord.conf"]
