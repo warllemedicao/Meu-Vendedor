@@ -310,9 +310,18 @@ async def click_generate_arrow(page, trace):
                         const retry=buttons.some(e=>/^(tentar de novo|tente novamente|try again|retry)$/i.test(text(e)));
                         const alerts=Array.from(root.querySelectorAll('[role="alert"],[role="alertdialog"],[aria-live],div,p,span')).filter(visible);
                         const error=alerts.some(e=>{const t=text(e);return t.length<180&&/algo deu errado|something went wrong|não foi possível gerar|failed to generate|generation failed/i.test(t)});
-                        return {errorVisible:error,retryVisible:retry};
+                        const dialogs=Array.from(root.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog')).filter(visible);
+                        const creditDialog=dialogs.some(e=>/créditos|credits|confirmar|confirm|custo|cost/i.test(text(e).slice(0,800)));
+                        const processing=Array.from(root.querySelectorAll('[role="progressbar"],[aria-busy="true"]')).some(visible);
+                        return {errorVisible:error,retryVisible:retry,creditDialog,processing};
                     }""", timeout=1500)
                     readable += 1
+                    if status['creditDialog']:
+                        trace.event('generation', 'ok', submitClicked=True,
+                                    creditDialogVisible=True,
+                                    responseObservedMs=int((time.monotonic()-observed_at)*1000),
+                                    responseFramesRead=readable)
+                        return {'clicked': True, 'errorCode': 'flow_credit_confirmation_pending'}
                     if status['errorVisible'] or status['retryVisible']:
                         trace.event('generation', 'error', submitClicked=True,
                                     errorVisible=status['errorVisible'],
@@ -324,7 +333,8 @@ async def click_generate_arrow(page, trace):
                     trace.event('generation', 'waiting', frameErrors=1)
             trace.event('generation', 'waiting', errorVisible=False,
                         retryVisible=False, errorFramesRead=readable)
-        return {'clicked': True, 'errorCode': None}
+        trace.event('generation', 'waiting', responseUnconfirmed=True)
+        return {'clicked': True, 'errorCode': 'flow_generation_response_unconfirmed'}
     except Exception as exc:
         trace.event('generation', 'error', errorType=type(exc).__name__)
         return {'clicked': False, 'errorCode': 'flow_generation_click_uncertain'}
