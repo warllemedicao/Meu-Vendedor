@@ -173,6 +173,60 @@ async def inspect(request: Request):
             raise HTTPException(502, "inspection_failed") from None
 
 
+# Per-process semantic locator cache. Never persist page text or coordinates.
+# Revalidate on every use; discard stale locators and rescan when UI changes.
+FLOW_LOCATORS = {
+    "new_project": [
+        ("role", "button", r"novo projeto|new project"),
+        ("text", None, r"^\\s*(novo projeto|new project)\\s*$"),
+    ],
+    "prompt": [
+        ("css", '[role="textbox"][data-placeholder], [role="textbox"][aria-label], [contenteditable="true"][data-placeholder], [contenteditable="true"][aria-label], [contenteditable="true"][placeholder]', r"o que você quer criar|what do you want to create"),
+        ("css", 'textarea[placeholder], textarea[aria-label]', r"o que você quer criar|what do you want to create"),
+    ],
+    "upload": [
+        ("css", 'input[type="file"]', None),
+        ("role", "button", r"fazer upload|upload|adicionar mídia|add media"),
+    ],
+}
+locator_cache = {}
+
+async def resolve_flow_control(page, purpose):
+    """Prefer cached semantic strategy; rediscover visible, unique controls if stale."""
+    strategies = FLOW_LOCATORS[purpose]
+    preferred = locator_cache.get(purpose)
+    order = ([preferred] if preferred in strategies else []) + [s for s in strategies if s != preferred]
+    for strategy in order:
+        kind, selector, pattern = strategy
+        found = []
+        for frame in page.frames[:8]:
+            if kind == "role":
+                locator = frame.get_by_role(selector, name=re.compile(pattern, re.I))
+            elif kind == "text":
+                locator = frame.get_by_text(re.compile(pattern, re.I), exact=True)
+            else:
+                locator = frame.locator(selector)
+            for idx in range(min(await locator.count(), 35)):
+                item = locator.nth(idx)
+                try:
+                    # File inputs are commonly hidden; Playwright can still set files.
+                    if purpose != "upload" or kind != "css":
+                        if not await item.is_visible() or not await item.is_enabled():
+                            continue
+                    if purpose == "prompt":
+                        label = await item.evaluate("""el => [el.getAttribute('aria-label'), el.getAttribute('data-placeholder'), el.getAttribute('placeholder')].filter(Boolean).join(' ')""")
+                        if not re.search(pattern, label or "", re.I):
+                            continue
+                    found.append(item)
+                except Exception:
+                    continue
+        if len(found) == 1:
+            locator_cache[purpose] = strategy
+            return found[0], kind
+    locator_cache.pop(purpose, None)
+    return None, None
+
+
 @app.post("/session/stage")
 async def stage_flow(request: Request):
     """Attach locally to the running Chrome; stage draft without generating video."""
@@ -228,46 +282,31 @@ async def stage_flow(request: Request):
                 if page is None:
                     raise RuntimeError("flow_page_not_active")
                 if not page.url.startswith("https://flow.google.com/project/"):
-                    candidates = page.get_by_role("button", name=re.compile(r"novo projeto|new project", re.I))
-                    if await candidates.count() != 1:
+                    candidate, _ = await resolve_flow_control(page, "new_project")
+                    if candidate is None:
                         raise RuntimeError("new_project_button_not_found")
-                    await candidates.click(timeout=8000)
-                    await page.wait_for_timeout(1800)
+                    await candidate.click(timeout=8000)
+                    await page.wait_for_url(re.compile(r"^https://flow\\.google\\.com/project/"), timeout=12000)
                 if not page.url.startswith("https://flow.google.com/project/"):
                     raise RuntimeError("flow_project_not_active")
-                matches = []
-                for frame in page.frames[:8]:
-                    fields = frame.locator('[role="textbox"][data-placeholder], [role="textbox"][aria-label], [contenteditable="true"][data-placeholder], [contenteditable="true"][aria-label], [contenteditable="true"][placeholder]')
-                    for idx in range(min(await fields.count(), 30)):
-                        field = fields.nth(idx)
-                        if not await field.is_visible():
-                            continue
-                        label = await field.evaluate("""el => [el.getAttribute('aria-label'),el.getAttribute('data-placeholder'),el.getAttribute('placeholder')].filter(Boolean).join(' ')""")
-                        if re.search(r"o que você quer criar|what do you want to create", label or "", re.I):
-                            matches.append(field)
-                if len(matches) != 1:
+                prompt_control, _ = await resolve_flow_control(page, "prompt")
+                if prompt_control is None:
                     raise RuntimeError("prompt_field_not_unique")
-                await matches[0].fill(prompt.strip(), timeout=8000)
+                await prompt_control.fill(prompt.strip(), timeout=8000)
                 record_event("stage_prompt_filled")
                 uploaded = 0
                 if images:
                     async def upload():
-                        for frame in page.frames[:8]:
-                            for selector in ('input[type="file"]',):
-                                inputs = frame.locator(selector)
-                                if await inputs.count() == 1:
-                                    await inputs.set_input_files(images, timeout=12000)
-                                    return True
-                        for frame in page.frames[:8]:
-                            actions = frame.get_by_role("button", name=re.compile(r"fazer upload|upload", re.I))
-                            for idx in range(min(await actions.count(), 8)):
-                                button = actions.nth(idx)
-                                if await button.is_visible():
-                                    async with page.expect_file_chooser(timeout=4000) as chooser:
-                                        await button.click(timeout=4000)
-                                    await (await chooser.value).set_files(images, timeout=12000)
-                                    return True
-                        return False
+                        control, kind = await resolve_flow_control(page, "upload")
+                        if control is None:
+                            return False
+                        if kind == "css":
+                            await control.set_input_files(images, timeout=12000)
+                            return True
+                        async with page.expect_file_chooser(timeout=8000) as chooser:
+                            await control.click(timeout=8000)
+                        await (await chooser.value).set_files(images, timeout=12000)
+                        return True
                     if not await upload():
                         record_event("stage_upload_failed")
                         raise RuntimeError("flow_upload_action_not_found")
