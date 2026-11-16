@@ -63,6 +63,42 @@ class BrowserApiTests(unittest.TestCase):
                 pass
         service.view_tickets.pop("ticket-for-origin-test", None)
 
+    def test_untrusted_origin_does_not_consume_valid_ticket(self):
+        from starlette.websockets import WebSocketDisconnect
+        import time
+        ticket = "ticket-origin-must-not-consume"
+        service.view_tickets[ticket] = time.monotonic() + 30
+        with self.assertRaises(WebSocketDisconnect):
+            with self.client.websocket_connect(
+                "/viewer/ws?ticket=" + ticket,
+                headers={"origin": "https://evil.example.test"}
+            ):
+                pass
+        self.assertIn(ticket, service.view_tickets)
+        service.view_tickets.pop(ticket, None)
+
+    def test_only_one_viewer_can_claim_session(self):
+        from starlette.websockets import WebSocketDisconnect
+        import time
+        ticket = "ticket-second-viewer"
+        service.view_tickets[ticket] = time.monotonic() + 30
+        original_context = service.context
+        original_viewers = service.active_viewers
+        try:
+            service.context = object()
+            service.active_viewers = 1
+            with self.assertRaises(WebSocketDisconnect):
+                with self.client.websocket_connect(
+                    "/viewer/ws?ticket=" + ticket,
+                    headers={"origin": "https://browser.example.test"}
+                ):
+                    pass
+            self.assertIn(ticket, service.view_tickets)
+        finally:
+            service.context = original_context
+            service.active_viewers = original_viewers
+            service.view_tickets.pop(ticket, None)
+
     def test_viewer_does_not_embed_secret(self):
         response = self.client.get("/viewer")
         self.assertEqual(response.status_code, 200)
