@@ -1913,3 +1913,10 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - `start-login` cria perfil quando ausente e inicia sessão Hyperbrowser com `persistChanges: true`, retornando URL de Live View somente ao usuário autenticado. `save-login` encerra sessão pelo SDK para persistir estado. `status` não abre navegador. A indicação `login_saved` registra encerramento/salvamento do perfil, não comprova autenticação Google.
 - Interface: `HyperbrowserProfile.tsx` exibe somente marca Google Flow e oferece Abrir Google Flow para login, Salvar acesso e fechar, Verificar conexão, janela Live View e opção de tela cheia. A navegação até labs.google/fx/tools/flow deve ser feita pelo usuário na janela remota.
 - Atenção: sem teste ponta a ponta com JWT do usuário, sem prova de API Key funcional, sem prova de sessão persistida, sem deploy Cloudflare (conector Cloudflare indisponível). Não declarar ferramenta publicada ou login pronto em produção. A sessão remota pode gerar consumo de créditos do provedor.
+
+## 2026-11-16 — Integração inicial do robô ao Chrome próprio (sem alterar Loja)
+- Mantida a interface atual Loja → Google Flow para testes manuais de login e treinamento do executor Modal.
+- Criada rota autenticada de leitura `GET /session/inspect` no serviço `browser-service/app.py`: identifica página Flow, quantidade de páginas e contagem de controles visíveis (campos, upload, botões, vídeos), sem coletar prompt, conteúdo de página, senhas ou cookies.
+- Adicionada ação `inspect` à ponte `supabase/functions/private-browser/index.ts`, preservando a autorização do proprietário e segredo de controle.
+- Commits: `3df1d3c`, `9aeaf53` na branch `feat/navegador-proprio-chromium`.
+- Não houve alteração no componente visual da Loja, no robô antigo ou em produção. Falta implantar a versão do Modal e a Edge Function, testar a inspeção real e então conectar o executor de envio de prompt/imagens e obtenção do MP4.
