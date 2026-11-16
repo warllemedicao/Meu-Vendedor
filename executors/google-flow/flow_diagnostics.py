@@ -248,48 +248,54 @@ async def inspect_settings(page, trace):
 
 
 async def click_generate_arrow(page, trace):
-    """Click once next to the composer gear; do not confirm any credit dialog."""
-    trace.event('generation','started')
-    candidates=[]
+    """Click one verified composer send arrow, using the editor's own geometry."""
+    trace.event('generation', 'started')
+    candidates = []
     for frame in page.frames[:8]:
         try:
-            buttons=frame.locator('button,[role="button"]')
-            evidence=await buttons.evaluate_all(r"""els=>{
-                const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
+            buttons = frame.locator('button,[role="button"]')
+            evidence = await frame.locator('body').evaluate(r"""body => {
+                const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'};
                 const label=e=>[e.getAttribute('aria-label'),e.getAttribute('title'),e.textContent].filter(Boolean).join(' ').trim();
-                const gears=els.filter(e=>visible(e)&&/^(configurações(?: do (?:agente|vídeo|video))?|(?:agent |video )?settings)$/i.test(label(e)));
-                const prompts=Array.from(document.querySelectorAll('[role="textbox"],[contenteditable="true"]')).filter(visible).filter(e=>/o que você quer criar|what do you want to create/i.test([e.getAttribute('aria-label'),e.getAttribute('placeholder'),e.getAttribute('data-placeholder')].join(' ')));
-                if(prompts.length!==1||!gears.length)return {gears:gears.length,indices:[]};
+                const buttons=Array.from(body.querySelectorAll('button,[role="button"]'));
+                const prompts=Array.from(body.querySelectorAll('[role="textbox"],[contenteditable="true"]')).filter(visible).filter(e=>/o que você quer criar|what do you want to create/i.test([e.getAttribute('aria-label'),e.getAttribute('placeholder'),e.getAttribute('data-placeholder')].join(' ')));
+                if(prompts.length!==1)return {indices:[],reason:'prompt_not_unique',prompts:prompts.length};
                 const p=prompts[0].getBoundingClientRect();
-                const ranked=gears.map(e=>{const r=e.getBoundingClientRect();return {e,d:Math.hypot(r.right-p.right,r.bottom-p.bottom)}}).sort((a,b)=>a.d-b.d);
-                if(ranked.length>1&&ranked[1].d-ranked[0].d<60)return {gears:gears.length,indices:[]};
-                const gear=ranked[0].e,g=gear.getBoundingClientRect();
-                const indices=els.map((e,i)=>({e,i})).filter(({e})=>{
+                const gears=buttons.filter(e=>visible(e)&&/^(configurações(?: do (?:agente|vídeo|video))?|(?:agent |video )?settings)$/i.test(label(e)));
+                const nearbyGears=gears.map(e=>{const r=e.getBoundingClientRect();return {e,d:Math.hypot(r.right-p.right,r.bottom-p.bottom)}}).sort((a,b)=>a.d-b.d);
+                const gear=nearbyGears[0]?.e;
+                const g=gear?.getBoundingClientRect();
+                const indices=buttons.map((e,i)=>({e,i})).filter(({e})=>{
                     if(e===gear||!visible(e)||e.disabled||e.getAttribute('aria-disabled')==='true')return false;
                     const r=e.getBoundingClientRect();
-                    const hint=[label(e),e.querySelector('mat-icon')?.textContent,e.querySelector('svg')?.getAttribute('data-testid'),e.getAttribute('data-testid')].filter(Boolean).join(' ');
-                    const sameRow=Math.abs((r.top+r.height/2)-(g.top+g.height/2))<=18;
-                    const toRight=r.left>=g.right-3&&r.left-g.right<=115;
+                    const hint=[label(e),e.getAttribute('data-testid'),e.querySelector('mat-icon')?.textContent,e.querySelector('svg')?.getAttribute('data-testid'),e.querySelector('svg')?.getAttribute('class')].filter(Boolean).join(' ');
+                    const named=/send|submit|generate|gerar|enviar|arrow_forward|north|upward/i.test(hint);
+                    const nearPrompt=Math.abs(r.bottom-p.bottom)<180&&Math.abs(r.right-p.right)<280;
+                    const besideGear=!!g&&Math.abs((r.top+r.height/2)-(g.top+g.height/2))<=22&&r.left>=g.right-3&&r.left-g.right<=115;
                     const compact=r.width>=20&&r.width<=76&&r.height>=20&&r.height<=76;
-                    return sameRow&&toRight&&compact&&(/send|submit|generate|gerar|enviar|arrow_forward|north|upward/i.test(hint)||!label(e).trim());
+                    return compact&&((named&&nearPrompt)||(besideGear&&(!label(e)||named)));
                 }).map(({i})=>i);
-                return {gears:gears.length,indices};
-            }""",timeout=1800)
-            trace.event('generation','waiting',settingsCandidates=evidence['gears'],arrowCandidates=len(evidence['indices']))
-            for i in evidence['indices']:candidates.append(buttons.nth(i))
-        except Exception:
-            trace.event('generation','waiting',frameErrors=1)
-    if len(candidates)!=1:
-        trace.event('generation','blocked',arrowCandidates=len(candidates))
-        return {'clicked':False,'errorCode':'flow_generate_button_unavailable'}
+                return {indices,reason:'ok',prompts:prompts.length,gears:gears.length};
+            }""", timeout=4500)
+            trace.event('generation', 'waiting', arrowCandidates=len(evidence['indices']),
+                        settingsCandidates=evidence.get('gears', 0),
+                        promptCandidates=evidence.get('prompts', 0))
+            for index in evidence['indices']:
+                candidates.append(buttons.nth(index))
+        except Exception as exc:
+            trace.event('generation', 'waiting', frameErrors=1,
+                        errorType=type(exc).__name__)
+    if len(candidates) != 1:
+        trace.event('generation', 'blocked', arrowCandidates=len(candidates))
+        return {'clicked': False, 'errorCode': 'flow_generate_button_unavailable'}
     try:
-        await candidates[0].click(trial=True,timeout=1800)
-        await candidates[0].click(timeout=2500)
-        trace.event('generation','ok',submitClicked=True)
-        return {'clicked':True,'errorCode':None}
-    except Exception:
-        trace.event('generation','error')
-        return {'clicked':False,'errorCode':'flow_generation_click_uncertain'}
+        await candidates[0].click(trial=True, timeout=2500)
+        await candidates[0].click(timeout=3500)
+        trace.event('generation', 'ok', submitClicked=True)
+        return {'clicked': True, 'errorCode': None}
+    except Exception as exc:
+        trace.event('generation', 'error', errorType=type(exc).__name__)
+        return {'clicked': False, 'errorCode': 'flow_generation_click_uncertain'}
 
 
 async def editor_state(page, trace, prompt_field=None, names=None):
