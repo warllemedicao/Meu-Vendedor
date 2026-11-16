@@ -370,7 +370,7 @@ async def observe_generation_confirmation(page, trace):
                 const retry=named(/^tentar de novo$|^try again$|^retry$/i);
                 const leaves=Array.from(root.querySelectorAll('p,span,div')).filter(e=>visible(e)&&e.children.length===0);
                 const short=leaves.map(e=>text(e).slice(0,180));
-                const credit=short.some(t=>/custa\\s*\\d+\\s*créditos|costs?\\s*\\d+\\s*credits/i.test(t));
+                const credit=short.some(t=>/custa\s*\d+\s*créditos|costs?\s*\d+\s*credits/i.test(t));
                 const error=short.some(t=>/algo deu errado|something went wrong|não foi possível gerar|generation failed/i.test(t));
                 return {approvalVisible:approve&&(always||reject||credit),
                     approveButtonVisible:approve,alwaysApproveVisible:always,
