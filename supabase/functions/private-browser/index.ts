@@ -46,6 +46,9 @@ Deno.serve(async (req) => {
   const routes: Record<string, { path: string; method: string }> = {
     status: { path: "/session/status", method: "GET" },
     inspect: { path: "/session/inspect", method: "GET" },
+    learning_start: { path: "/session/learning/start", method: "POST" },
+    learning_stop: { path: "/session/learning/stop", method: "POST" },
+    learning_status: { path: "/session/learning/status", method: "GET" },
     stage: { path: "/session/stage", method: "POST" },
     start: { path: "/session/start", method: "POST" },
     stop: { path: "/session/stop", method: "POST" },
