@@ -1952,3 +1952,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - **Implantação pendente:** `python -m modal deploy browser-service/modal_app.py` a partir da branch atualizada. O Supabase v10 já está publicado. A interface Cloudflare não foi alterada nesta etapa.
 - **Verificação:** conferência estática de alterações e retorno do deploy Supabase; sem teste de integração real do Chrome nesta sessão.
 - Commits: `5d8d968`, `c94a5d4`.
+
+
+## 2026-11-16 — Captura manual experimental de controles do Google Flow
+- Adicionadas rotas autenticadas no Chrome privado: `/session/learning/start`, `/session/learning/status` e `/session/learning/stop`.
+- Captura voluntária de cliques em controles estruturais do Flow, limitada a 80 eventos em memória; não coleta texto digitado, credenciais, cookies ou HTML completo. O registro retornado inclui somente tipo e função estrutural dos controles, sem nomes privados.
+- Supabase `private-browser` passa a encaminhar as ações `learning_start`, `learning_status` e `learning_stop` após autenticação do proprietário.
+- Interface Loja ganha botões para iniciar e finalizar a captura. **Não há aprendizagem persistente nem reprodução automática de ações nesta fase**; o modo serve apenas como instrumentação inicial.
+- Alterações commitadas na branch `feat/navegador-proprio-chromium`, **sem confirmação de deploy Modal/Cloudflare/Supabase e sem validação ponta a ponta**. A captura não cobre navegações de página após o início, que exigem reinstrumentação.
