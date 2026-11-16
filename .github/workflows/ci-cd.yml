@@ -63,6 +63,53 @@ jobs:
       - name: Build static frontend
         run: npm run build:pages
 
+  deploy_frontend:
+    name: Publish frontend to existing Cloudflare Worker
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://jzchlrvxdaffnrgbvabv.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_WORKERS_BUILDS_DISABLED: ${{ vars.CLOUDFLARE_WORKERS_BUILDS_DISABLED }}
+    steps:
+      - name: Require deploy credentials and single publisher
+        run: |
+          for name in NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing required Actions variable/secret: $name"
+              exit 1
+            fi
+          done
+          if [[ "$CLOUDFLARE_WORKERS_BUILDS_DISABLED" != "true" ]]; then
+            echo "::error::Confirm no competing Cloudflare Builds publisher, then set CLOUDFLARE_WORKERS_BUILDS_DISABLED=true."
+            exit 1
+          fi
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build static frontend
+        run: npm run build:pages
+      - name: Publish existing Worker
+        run: npx wrangler deploy --name meu-vendedor
+      - name: Verify deployment
+        run: |
+          npx wrangler deployments list --name meu-vendedor
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors \\
+            https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev/ \\
+            --output "$RUNNER_TEMP/index.html"
+          grep -qi '<html' "$RUNNER_TEMP/index.html"
+
   deploy:
     name: Deploy Supabase and Cloudflare
     needs: validate
