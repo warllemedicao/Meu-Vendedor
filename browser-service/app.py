@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from playwright.async_api import async_playwright
 
 SECRET = os.getenv("MV_BROWSER_CONTROL_SECRET", "")
-PROFILE = os.getenv("MV_BROWSER_PROFILE_DIR", "/data/browser/firefox")
+PROFILE = os.getenv("MV_BROWSER_PROFILE_DIR", "/data/browser/chrome-official")
 lock = asyncio.Lock()
 view_tickets = {}
 active_viewers = 0
@@ -56,7 +56,7 @@ async def stop_browser():
 @app.get("/health")
 async def health(request: Request):
     authorize(request)
-    return {"service": "firefox", "ready": bool(context and context.pages), "configured": len(SECRET) >= 32}
+    return {"service": "chrome", "ready": bool(context and context.pages), "configured": len(SECRET) >= 32}
 
 @app.post("/session/start")
 async def start(request: Request):
@@ -67,8 +67,8 @@ async def start(request: Request):
             return {"status": "already_running"}
         try:
             playwright = await async_playwright().start()
-            context = await playwright.firefox.launch_persistent_context(
-                PROFILE, headless=False, viewport={"width": 1280, "height": 800}
+            context = await playwright.chromium.launch_persistent_context(
+                PROFILE, channel="chrome", headless=False, viewport={"width": 1280, "height": 800}
             )
             page = context.pages[0] if context.pages else await context.new_page()
             await page.goto("https://flow.google.com/", wait_until="domcontentloaded", timeout=30000)
@@ -112,7 +112,7 @@ def consume_view_ticket(ticket: str) -> bool:
 async def viewer():
     """Public shell only. The actual screen requires a one-time private ticket."""
     return """<!doctype html><html lang="pt-BR"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
-    <p>Visualização privada do Firefox. Abra com um ticket temporário emitido pelo backend autenticado.</p>
+    <p>Visualização privada do Google Chrome. Abra com um ticket temporário emitido pelo backend autenticado.</p>
     <div id="screen" style="width:100%;height:85vh"></div>
     <script type="module">
     const ticket=new URLSearchParams(location.search).get("ticket");
