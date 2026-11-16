@@ -32,6 +32,9 @@ def gateway():
     executor_revision = hashlib.sha256(
         Path('/opt/flow/modal_app.py').read_bytes() + Path('/opt/flow/flow_diagnostics.py').read_bytes()
     ).hexdigest()[:12]
+    build_file = Path('/opt/flow/build_revision.txt')
+    git_commit = build_file.read_text().strip()[:40] if build_file.is_file() else 'unknown'
+    container_tag = hashlib.sha256(os.uname().nodename.encode()).hexdigest()[:12]
     api = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @api.post('/hyperbrowser-navigate')
@@ -86,6 +89,9 @@ def gateway():
         except (ValueError, TypeError, AttributeError):
             raise HTTPException(400, 'invalid_endpoint')
         trace = FlowDiagnostics(payload.get("traceId"), payload.get("mode", "navigate"), executor_revision)
+        trace.git_commit = git_commit
+        trace.container_tag = container_tag
+        trace.session_tag = hashlib.sha256(endpoint.encode()).hexdigest()[:12]
         trace.event("request", expected=len(image_files))
         from playwright.async_api import async_playwright
         from urllib.parse import parse_qsl, urlencode, urlunsplit
@@ -418,7 +424,7 @@ def gateway():
         import json
         body=json.loads(raw)
         action=body.get('action')
-        if action=='health': return {'ready':True,'executor':'modal','generationReady':False}
+        if action=='health': return {'ready':True,'executor':'modal','generationReady':False,'executorRevision':executor_revision,'gitCommit':git_commit,'containerTag':container_tag}
         if action not in ['start','status','verify','save','disconnect']: raise HTTPException(400)
         user_key=body.get('userKey','')
         if not isinstance(user_key,str) or not re.fullmatch('[a-f0-9]{64}',user_key): raise HTTPException(400)
