@@ -1,3 +1,9 @@
+## 2026-11-16 — Proteção contra concorrência no visualizador Chromium (continuação)
+
+Na branch `feat/navegador-proprio-chromium`, a rota WebSocket `/viewer/ws` passou a verificar a origem **antes** de consumir o ticket de uso único e a impedir que duas conexões visuais assumam simultaneamente o navegador. Foram adicionados testes de regressão para origem não confiável e segunda conexão. Commits `f9e6da8` e `9452fcc`.
+
+**Escopo:** alterações de código e testes commitadas no GitHub; sem alegação de execução bem-sucedida da CI, deploy, persistência de sessão ou integração ao executor Modal. O corte de Hyperbrowser continua bloqueado até existir hospedagem HTTPS com armazenamento privado persistente, credenciais configuradas fora do Git e validação de login e fluxo completo. A produção permanece inalterada.
+
 ## 2026-11-16 — Ponte autenticada para navegador Chromium próprio (branch de migração)
 
 Implementada em código a Edge Function `supabase/functions/private-browser/index.ts`, com verificação do JWT via Supabase Auth, restrição por ID do proprietário configurado em segredo, verificação da origem do aplicativo e encaminhamento servidor-servidor das ações `status`, `start`, `stop` e `view`. O segredo do navegador não é enviado ao frontend. Criado componente responsivo `src/components/auth/PrivateBrowserConnection.tsx` para controlar a sessão e abrir a tela noVNC, ainda **não integrado ao AccountHub** para evitar exibir um serviço sem hospedagem configurada. Ajustado o proxy para a raiz do websockify e ampliados testes de origem WebSocket.
