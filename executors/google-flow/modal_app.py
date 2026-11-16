@@ -96,7 +96,8 @@ def gateway():
         telemetry_key = os.environ.get('MV_FLOW_TELEMETRY_SERVICE_ROLE_KEY', '')
         telemetry_url = 'https://jzchlrvxdaffnrgbvabv.supabase.co/functions/v1/flow-telemetry'
         pending_telemetry = []
-        def emit_telemetry(line):
+        def emit_telemetry(line, **kwargs):
+            # FlowDiagnostics emits with flush=True; preserve its callback contract.
             print(line, flush=True)
             if not telemetry_key:
                 return
