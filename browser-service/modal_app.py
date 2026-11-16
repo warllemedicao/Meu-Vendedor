@@ -40,6 +40,7 @@ def browser_gateway():
     from fastapi import FastAPI
     from fastapi.responses import Response
 
+    os.environ["DISPLAY"] = ":99"
     sys.path.insert(0, "/opt/private-browser")
     import app as browser_service
 
