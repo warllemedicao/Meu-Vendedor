@@ -229,7 +229,7 @@ async def resolve_flow_control(page, purpose):
 
 
 # Manual teaching mode: metadata only, bounded in memory, no page text or inputs.
-LEARNING_DIR = Path("/tmp/meu-vendedor/treinamento")
+LEARNING_DIR = Path.home() / "Imagens-Treinamento"
 learning_state = {"active": False, "events": []}
 
 def clear_learning_images():
