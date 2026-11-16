@@ -22,7 +22,8 @@ export async function requestFlowExecutor(options: Options, fetcher: typeof fetc
    console.warn("flow_executor_result",JSON.stringify({traceId,status:result.status,diagnostics:diagnostic.diagnostics}));
    return diagnostic;
   }
-  if(body.inspectionReady!==true) return failure("flow_inspection_unavailable");
+  const recordingMode=["record-user-clicks","read-user-clicks","stop-user-clicks"].includes(mode);
+  if(recordingMode ? (body.navigationReady!==true || !Array.isArray(body.manualClicks)) : body.inspectionReady!==true) return failure("flow_inspection_unavailable");
   const diagnostics=readFlowDiagnostic(body.diagnostics,traceId,mode)??missingFlowDiagnostic(traceId,mode,"executor_report_unavailable",Date.now()-started);
   console.info("flow_executor_result",JSON.stringify({traceId,status:result.status,diagnostics}));
   return {...body,diagnostics};
