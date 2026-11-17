@@ -2081,3 +2081,12 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - O resultado é exibido na interface ao finalizar a captura, sem armazenar texto da página, URLs, senhas ou conteúdo de campos.
 - Ainda é necessário executar um teste manual no Google Flow para identificar quais sinais representam seleção real. Nenhuma lógica automática de envio foi alterada.
 - Código commitado na branch `feat/navegador-proprio-chromium`; implantação no Modal/Cloudflare/Supabase e teste de produção **não confirmados**.
+
+## 2026-11-17 — Captura durante execução automática do robô
+
+- O botão de diagnóstico foi desacoplado do envio de imagens: iniciar a captura não exige anexar fotos; elas são enviadas pelo fluxo normal de prompt ou manualmente no Chrome.
+- A interface permite iniciar a captura, executar o envio do prompt e, após a operação, finalizar a captura para visualizar os eventos estruturais.
+- O serviço reativa a observação quando o robô navega para o projeto do Google Flow e coleta eventos das abas do Flow ao finalizar.
+- A instrumentação observa clique, duração de pressionamento, alterações de atributos de seleção e mudanças estruturais filtradas, sem texto de página ou conteúdo de formulário.
+- Não altera a estratégia de seleção das imagens, nem afirma confirmação de seleção sem evidência do DOM.
+- Commits na branch `feat/navegador-proprio-chromium`. Publicação em Modal, Supabase e Cloudflare e testes integrados permanecem pendentes.
