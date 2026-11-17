@@ -28,7 +28,7 @@ DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrom
     "chrome_exited", "chrome_start_failed", "chrome_not_running", "viewer_ticket_issued",
     "viewer_rejected", "viewer_connected", "viewer_disconnected", "viewer_proxy_failed",
     "stage_started", "stage_completed", "stage_failed", "stage_prompt_filled", "stage_upload_failed",
-    "click_prompt", "click_add_elements", "click_upload", "click_settings", "click_generate", "click_rights", "click_reference", "click_include",
+    "click_new_project", "click_prompt", "click_add_elements", "click_upload", "click_settings", "click_generate", "click_rights", "click_reference", "click_include",
     "add_elements_not_found", "upload_not_found", "service_started", "service_stopped"))
 diagnostic_events = []
 
@@ -728,10 +728,34 @@ async def stage_flow(request: Request):
                     candidate, _ = await resolve_flow_control(page, "new_project")
                     if candidate is None:
                         raise RuntimeError("new_project_button_not_found")
+                    await show_red_click(page, candidate, "click_new_project")
                     await candidate.click(timeout=8000)
-                    await page.wait_for_timeout(1800)
+                    # Project creation is asynchronous. Keep the same request
+                    # alive until the project editor is ready; never require
+                    # a second click on the Meu Vendedor submit button.
+                    try:
+                        await page.wait_for_url(re.compile(
+                            r"^https://flow\\.google\\.com/project/"), timeout=25000)
+                    except Exception:
+                        # Flow can open the new project in another tab.
+                        for _ in range(20):
+                            pages = [p for ctx in browser.contexts for p in ctx.pages if not p.is_closed()]
+                            found = next((p for p in pages if p.url.startswith("https://flow.google.com/project/")), None)
+                            if found:
+                                page = found
+                                break
+                            await asyncio.sleep(0.5)
                 if not page.url.startswith("https://flow.google.com/project/"):
                     raise RuntimeError("flow_project_not_active")
+                # The URL can change before the composer has hydrated.
+                # Wait for its interactive field rather than a fixed sleep.
+                try:
+                    await page.get_by_role("textbox", name=re.compile(
+                        r"o que você quer criar|what do you want to create", re.I)).first.wait_for(
+                        state="visible", timeout=15000)
+                except Exception:
+                    await page.locator('[contenteditable="true"],[role="textbox"]').first.wait_for(
+                        state="visible", timeout=10000)
                 # Preserve the previously working Flow prompt locator as primary.
                 matches = []
                 for frame in page.frames[:8]:
