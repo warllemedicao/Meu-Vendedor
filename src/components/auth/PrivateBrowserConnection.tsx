@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 
-type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; events?: { role: string; type: string }[]; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
+type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
@@ -229,7 +229,7 @@ export function PrivateBrowserConnection() {
       <p className="text-sm font-medium">Modo aprendizado experimental</p>
       <p className="text-xs text-muted">Captura somente tipos de controles clicados no Flow, sem conteúdo digitado. Não grava um procedimento permanente nem executa ações sozinho.</p>
       <button type="button" disabled={busy || !viewUrl} onClick={() => void toggleLearning()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{learning ? "Finalizar captura" : "Iniciar captura de cliques"}</button>
-      {learningResult && <p className="text-xs" role="status">{learningResult}</p>}
+      {learningResult && <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded border border-border p-3 text-xs" role="status">{learningResult}</pre>}
     </div>
     {message && <p role="status" className="text-sm">{message}</p>}
     {viewUrl && <div className="space-y-2">
