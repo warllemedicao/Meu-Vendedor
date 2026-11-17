@@ -2153,3 +2153,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - A rotina anterior procurava apenas opções visíveis no painel; menus suspensos podem ocultar as opções e renderizá-las em portal externo ao diálogo.
 - Novo algoritmo identifica controles da seção, abre somente um dropdown não ambíguo e busca opções visíveis por papel option em frames, sem clique por coordenada ou fallback global para 9:16.
 - Mantida remoção de 'Nunca'; parâmetros 9:16, x1 e Nano Banana 2.1 permanecem. O código não foi validado no Flow real nem implantado no Modal nesta sessão.
+
+### 2026-11-17 — Painel real de configurações e zoom 100%
+- Captura fornecida pelo usuário: confirmação Sempre; imagens 4:3, x2, Nano Banana 2.1; vídeo 16:9, x1, Veo 3.1 Lite.
+- Zoom do Chrome privado redefinido para 100% na abertura (removido incremento 110%).
+- Seleção segmentada por cabeçalhos de imagens/vídeos e linhas de proporção/quantidade; modelo de imagem já correto é preservado, bem como confirmação e modelo de vídeo.
+- A correção foi commitada na branch, sem deploy nem teste real nesta sessão.
