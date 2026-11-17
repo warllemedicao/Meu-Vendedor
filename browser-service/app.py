@@ -34,6 +34,7 @@ DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrom
     "service_started", "service_stopped"))
 diagnostic_events = []
 generate_diagnostic_events = []  # Bounded, sanitized; independent of legacy learning mode.
+last_stage_failure = None  # Fixed error code only; no browser content.
 
 def record_event(code):
     if code not in DIAGNOSTIC_CODES:
@@ -50,7 +51,8 @@ def diagnostic_snapshot():
     return {"running": chrome_running(),
             "processExited": chrome_process is not None and chrome_process.poll() is not None,
             "events": list(diagnostic_events[-20:]),
-            "generateDiagnostics": list(generate_diagnostic_events[-60:])}
+            "generateDiagnostics": list(generate_diagnostic_events[-60:]),
+            "lastStageFailure": last_stage_failure}
 
 def authorize(request: Request):
     if len(SECRET) < 32 or not hmac.compare_digest(
@@ -1116,6 +1118,7 @@ async def stage_flow(request: Request):
         raise HTTPException(400, "invalid_draft")
 
     async with lock:
+        last_stage_failure = None
         record_event("stage_started")
         if not chrome_running():
             record_event("chrome_not_running")
@@ -1235,6 +1238,7 @@ async def stage_flow(request: Request):
                        "flow_settings_missing_video_count", "flow_settings_missing_image_model",
                        "flow_generate_button_unverified"}
             code = str(exc) if str(exc) in allowed else "flow_interaction_failed"
+            last_stage_failure = {"code": code, "errorType": type(exc).__name__, "at": int(time.time())}
             raise HTTPException(409, code) from None
 
 
