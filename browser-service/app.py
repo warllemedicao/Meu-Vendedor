@@ -128,10 +128,9 @@ async def start(request: Request):
                         if flow_pages:
                             await flow_pages[0].bring_to_front()
                             await flow_pages[0].keyboard.press("Control+0")
-                            await flow_pages[0].keyboard.press("Control+Equal")
-                            record_event("flow_zoom_110_requested")
+                            record_event("flow_zoom_100_requested")
                 except Exception:
-                    record_event("flow_zoom_110_unverified")
+                    record_event("flow_zoom_100_unverified")
             if not chrome_running():
                 record_event("chrome_exited")
                 raise RuntimeError("chrome_exited")
@@ -763,108 +762,78 @@ async def configure_flow_agent(page, prompt_control):
     if panel is None:
         raise RuntimeError("flow_settings_panel_not_found")
 
-    async def select_in_section(section_names, values, step):
-        """Interact with section-scoped controls, including collapsed dropdowns."""
+    async def choose_segmented_option(section, row, value, step):
+        """Choose the correct row within the image or video section of Flow."""
         record_event("settings_search_" + step)
-        # A dropdown may render its options in a portal outside the settings dialog.
-        # First inspect the current value and open only the control in the named section.
-        for attempt in range(3):
-            outcome = await panel.evaluate("""(root,args) => {
-                const [sections,values]=args;
+        for attempt in range(5):
+            result=await panel.evaluate("""(root,args)=>{
+                const [section,row,value]=args;
                 const norm=s=>(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
                     .trim().toLowerCase().replace(/\\s+/g,' ');
                 const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
-                const text=e=>norm(e.getAttribute('aria-label')||e.getAttribute('data-value')||
-                    e.getAttribute('title')||e.textContent||e.value);
-                const heading=[...root.querySelectorAll('*')].filter(e=>visible(e)&&
-                    e.children.length===0&&sections.some(s=>norm(e.textContent).includes(norm(s))));
-                const controlSelector='button,[role="radio"],[role="combobox"],[role="button"],select,input[type="radio"]';
-                let matches=[],openers=[];
-                for(const h of heading){
-                    let parent=h.parentElement;
-                    for(let depth=0;depth<5&&parent;depth++,parent=parent.parentElement){
-                        const controls=[...parent.querySelectorAll(controlSelector)]
-                            .filter(e=>visible(e)&&!e.disabled);
-                        const found=controls.filter(e=>values.some(v=>text(e)===norm(v)));
-                        if(found.length){matches.push(...found);break;}
-                        if(controls.length && depth<=3){openers.push(...controls);}
+                const leaves=[...root.querySelectorAll('*')].filter(e=>visible(e)&&
+                    e.children.length===0);
+                const headings=leaves.filter(e=>norm(e.textContent).includes(norm(section)));
+                if(headings.length!==1)return {state:'heading',count:headings.length};
+                const start=headings[0].getBoundingClientRect().top;
+                const other=leaves.filter(e=>norm(e.textContent).includes(
+                    norm(section==='Padrão da geração de imagens'?
+                        'Padrão para geração de vídeo':'Padrão da geração de imagens')));
+                const end=section==='Padrão da geração de imagens'?
+                    (other.length?other[0].getBoundingClientRect().top:Infinity):Infinity;
+                const labels=leaves.filter(e=>{
+                    const y=e.getBoundingClientRect().top;
+                    return y>start&&y<end&&norm(e.textContent)===norm(value);
+                });
+                const candidates=labels.filter(e=>{
+                    const r=e.getBoundingClientRect();
+                    return row==='ratio'?r.top<start+180:r.top>=start+30;
+                });
+                // The ratio grid and quantity row have repeated values only across sections.
+                if(candidates.length!==1)return {state:'option',count:candidates.length};
+                let target=candidates[0];
+                for(let i=0;i<3&&target.parentElement;i++){
+                    if(target.matches('button,[role="radio"],[role="button"]'))break;
+                    if(target.parentElement.matches('button,[role="radio"],[role="button"]')){
+                        target=target.parentElement;break;
                     }
+                    if(target.parentElement.children.length>1)break;
+                    target=target.parentElement;
                 }
-                matches=[...new Set(matches)];
-                if(matches.length===1){
-                    const el=matches[0];
-                    if(el.getAttribute('aria-checked')==='true'||
-                       el.getAttribute('aria-pressed')==='true'||
-                       el.getAttribute('data-state')==='checked'||
-                       (el.matches('input')&&el.checked))return {state:'selected'};
-                    el.setAttribute('data-mv-setting-target','yes');
-                    return {state:'click'};
-                }
-                openers=[...new Set(openers)].filter(e=>e.matches('select,[role="combobox"]')||
-                    e.getAttribute('aria-haspopup')||e.getAttribute('aria-expanded')!==null);
-                if(matches.length===0&&openers.length===1){
-                    openers[0].setAttribute('data-mv-setting-opener','yes');
-                    return {state:'open'};
-                }
-                return {state:'missing',candidates:matches.length,openers:openers.length};
-            }""",[section_names,values],timeout=2500)
-            state=outcome["state"]
-            if state=="selected":
-                record_event("settings_already_selected_" + step)
+                const checked=[target,...Array.from((target.parentElement||target).querySelectorAll('*'))]
+                    .some(e=>e.getAttribute('aria-checked')==='true'||
+                        e.getAttribute('aria-pressed')==='true'||
+                        e.getAttribute('data-state')==='checked');
+                if(checked)return {state:'selected'};
+                target.setAttribute('data-mv-setting-target','yes');
+                return {state:'click'};
+            }""",[section,row,value],timeout=2000)
+            if result["state"]=="selected":
+                record_event("settings_already_selected_"+step)
                 return
-            if state=="click":
+            if result["state"]=="click":
                 target=panel.locator('[data-mv-setting-target="yes"]')
                 try:
                     if await target.count()!=1:
-                        raise RuntimeError("flow_settings_ambiguous_" + step)
+                        raise RuntimeError("flow_settings_ambiguous_"+step)
                     await target.click(timeout=4000)
-                    record_event("settings_applied_" + step)
+                    record_event("settings_applied_"+step)
                     return
                 finally:
                     if await target.count():
                         await target.first.evaluate("(el)=>el.removeAttribute('data-mv-setting-target')")
-            if state=="open":
-                opener=panel.locator('[data-mv-setting-opener="yes"]')
-                try:
-                    if await opener.count()!=1:
-                        raise RuntimeError("flow_settings_ambiguous_" + step)
-                    await opener.click(timeout=4000)
-                finally:
-                    if await opener.count():
-                        await opener.first.evaluate("(el)=>el.removeAttribute('data-mv-setting-opener')")
-                await page.wait_for_timeout(250)
-                # The dropdown options may be mounted in a document-level portal.
-                options=[]
-                for frame in page.frames[:8]:
-                    for value in values:
-                        candidate=frame.get_by_role("option",name=value,exact=True)
-                        for i in range(min(await candidate.count(),8)):
-                            item=candidate.nth(i)
-                            if await item.is_visible():
-                                options.append(item)
-                if len(options)==1:
-                    if await options[0].get_attribute("aria-selected")=="true":
-                        record_event("settings_already_selected_" + step)
-                        return
-                    await options[0].click(timeout=4000)
-                    record_event("settings_applied_" + step)
-                    return
-                if len(options)>1:
-                    raise RuntimeError("flow_settings_ambiguous_" + step)
-            await page.wait_for_timeout(300)
-        record_event("settings_missing_" + step)
-        raise RuntimeError("flow_settings_missing_" + step)
+            await page.wait_for_timeout(250)
+        record_event("settings_missing_"+step)
+        raise RuntimeError("flow_settings_missing_"+step)
 
-    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],
-                            ["9:16"],"image_ratio")
-    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],
-                            ["x1","1x"],"image_count")
-    await select_in_section(["Padrão para geração de vídeo","Video generation defaults"],
-                            ["9:16"],"video_ratio")
-    await select_in_section(["Padrão para geração de vídeo","Video generation defaults"],
-                            ["x1","1x"],"video_count")
-    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],
-                            ["Nano Banana 2.1"],"image_model")
+    # The screenshot shows two independent groups: image defaults and video defaults.
+    # Never infer a 9:16 control from the whole panel.
+    await choose_segmented_option("Padrão da geração de imagens","ratio","9:16","image_ratio")
+    await choose_segmented_option("Padrão da geração de imagens","quantity","x1","image_count")
+    await choose_segmented_option("Padrão para geração de vídeo","ratio","9:16","video_ratio")
+    await choose_segmented_option("Padrão para geração de vídeo","quantity","x1","video_count")
+    # The screenshot already shows Nano Banana 2.1; leave the model dropdown unchanged.
+    record_event("settings_image_model_preserved")
     save=panel.get_by_role("button",name=re.compile(r"^(Salvar|Save)$",re.I))
     if await save.count()!=1 or not await save.is_enabled():
         raise RuntimeError("flow_settings_save_not_found")
