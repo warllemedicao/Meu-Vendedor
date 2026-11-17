@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
   const response = await fetch(new URL(target.path, base), {
     method: target.method,
     headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" || action === "learning_start" ? { "content-type": "application/json" } : {}) },
-    ...(action === "stage" || action === "learning_start" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed }) } : {}),
+    ...(action === "stage" || action === "learning_start" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed, configureAndGenerate: input?.configureAndGenerate === true }) } : {}),
     signal: AbortSignal.timeout(action === "start" || action === "stage" || action === "learning_start" ? 60000 : 12000),
   }).catch(() => null);
   if (!response) {
