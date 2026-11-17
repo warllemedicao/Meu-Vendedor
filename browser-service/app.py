@@ -245,14 +245,16 @@ def clear_learning_images():
 LEARNING_SCRIPT = r"""(() => {
   if (window.__mvLearningCleanup) return;
   const events = window.__mvLearningEvents = [];
-  const push = item => { if (events.length < 120) events.push(item); };
+  const push = item => { if (events.length < 200) events.push(item); };
   const describe = target => {
     if (!(target instanceof Element)) return null;
     const el = target.closest('button,[role],img,input,label,[tabindex],li,[data-state],[aria-selected]') || target;
     if (el.closest('input[type="password"],textarea,[contenteditable="true"]')) return null;
     const state = {};
+    const selectedAncestor = el.closest('[aria-selected],[aria-pressed],[data-state]');
+    const inspected = selectedAncestor || el;
     for (const key of ['aria-selected','aria-pressed','aria-checked','data-state','aria-expanded']) {
-      const value = el.getAttribute(key);
+      const value = inspected.getAttribute(key);
       if (value !== null) state[key] = value.slice(0,32);
     }
     return {role:(el.getAttribute('role') || el.tagName.toLowerCase()).slice(0,32),state};
@@ -274,8 +276,9 @@ LEARNING_SCRIPT = r"""(() => {
   ['pointerdown','pointerup','click'].forEach(t=>document.addEventListener(t,handler,true));
   const observer = new MutationObserver(changes => {
     for (const change of changes) {
-      if (events.length >= 120) break;
+      if (events.length >= 200) break;
       if (change.type !== 'attributes') continue;
+      if (!(change.target instanceof Element) || !change.target.closest('button,[role],img,[aria-selected],[aria-pressed],[data-state],li')) continue;
       const element = describe(change.target);
       if (element) push({kind:'mutation',attribute:change.attributeName,element});
     }
@@ -361,8 +364,8 @@ async def learning_stop(request: Request):
                           delete window.__mvLearningEvents;
                           return events;
                         }""")
-                        for event in events[:120]:
-                            if len(learning_state["events"]) >= 120:
+                        for event in events[:200]:
+                            if len(learning_state["events"]) >= 200:
                                 break
                             element = event.get("element") or {}
                             state = element.get("state") or {}
@@ -379,7 +382,7 @@ async def learning_stop(request: Request):
         learning_state["active"] = False
         clear_learning_images()
     return {"active": False, "recorded": len(learning_state["events"]),
-            "events": learning_state["events"][-120:]}
+            "events": learning_state["events"][-200:]}
 
 
 @app.get("/session/diagnose")
@@ -790,6 +793,14 @@ async def stage_flow(request: Request):
                 page = next((p for p in pages if p.url.startswith("https://flow.google.com/")), None)
                 if page is None:
                     raise RuntimeError("flow_page_not_active")
+                # Keep the observer active across project navigation and robot clicks.
+                if learning_state["active"]:
+                    await page.context.add_init_script(script=LEARNING_SCRIPT)
+                    for frame in page.frames[:8]:
+                        try:
+                            await frame.evaluate(LEARNING_SCRIPT)
+                        except Exception:
+                            pass
                 if not page.url.startswith("https://flow.google.com/project/"):
                     candidate, _ = await resolve_flow_control(page, "new_project")
                     if candidate is None:
