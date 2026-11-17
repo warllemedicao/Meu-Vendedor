@@ -763,54 +763,73 @@ async def configure_flow_agent(page, prompt_control):
     if panel is None:
         raise RuntimeError("flow_settings_panel_not_found")
 
-    async def select_in_section(section_names, value):
-        # Resolve the option anew after every click: Flow re-renders the settings form.
-        found = await panel.evaluate("""(root,args) => {
-            const [sections,value]=args;
-            const norm=s=>(s||'').trim().toLowerCase().replace(/\\s+/g,' ');
-            const headings=Array.from(root.querySelectorAll('*')).filter(el=>
-                el.children.length===0 && sections.some(s=>norm(el.textContent)===norm(s)));
-            const candidates=[];
-            for(const heading of headings){
-                let container=heading.parentElement;
-                for(let depth=0;depth<6&&container;depth++,container=container.parentElement){
-                    const controls=Array.from(container.querySelectorAll(
-                        'button,[role="radio"],[role="button"],[role="option"],label'));
-                    const matches=controls.filter(el=>{
-                        const rect=el.getBoundingClientRect();
-                        return rect.width>0&&rect.height>0&&
-                          norm(el.getAttribute('aria-label')||el.textContent)===norm(value);
-                    });
-                    if(matches.length===1){
-                        candidates.push(matches[0]);
-                        break;
+    async def select_in_section(section_names, values, step):
+        """Find one visible option in its own section, with a precise failure code."""
+        record_event("settings_search_" + step)
+        for attempt in range(8):
+            result = await panel.evaluate("""(root,args) => {
+                const [sections,values]=args;
+                const norm=s=>(s||'').trim().toLowerCase()
+                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
+                    .replace(/\\s+/g,' ');
+                const controls='button,[role="radio"],[role="button"],[role="option"],label,input[type="radio"]';
+                const visible=el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0};
+                const labels=Array.from(root.querySelectorAll('*')).filter(el=>
+                    el.children.length===0 && sections.some(s=>norm(el.textContent).includes(norm(s))));
+                let matches=[];
+                for(const label of labels){
+                    let node=label.parentElement;
+                    for(let depth=0;depth<7&&node;depth++,node=node.parentElement){
+                        const found=Array.from(node.querySelectorAll(controls)).filter(el=>{
+                            if(!visible(el))return false;
+                            const label=norm(el.getAttribute('aria-label')||
+                                el.getAttribute('data-value')||el.textContent||el.value);
+                            return values.some(v=>label===norm(v));
+                        });
+                        if(found.length){matches.push(...found);break;}
                     }
                 }
-            }
-            const unique=[...new Set(candidates)];
-            if(unique.length!==1)return false;
-            unique[0].setAttribute('data-mv-setting-target','yes');
-            return true;
-        }""", [section_names,value], timeout=1800)
-        if not found:
-            raise RuntimeError("flow_settings_option_not_found")
-        target=panel.locator('[data-mv-setting-target="yes"]')
-        if await target.count()!=1:
-            raise RuntimeError("flow_settings_option_not_found")
-        try:
-            await show_red_click(page,target,"click_settings")
-            await target.click(timeout=4000)
-        finally:
-            if await target.count():
-                await target.first.evaluate("(el)=>el.removeAttribute('data-mv-setting-target')")
+                matches=[...new Set(matches)];
+                if(matches.length===0){
+                    // Some Flow panels use compact sections without accessible headings.
+                    const all=Array.from(root.querySelectorAll(controls)).filter(visible);
+                    const global=all.filter(el=>values.some(v=>norm(
+                        el.getAttribute('aria-label')||el.getAttribute('data-value')||
+                        el.textContent||el.value)===norm(v)));
+                    if(global.length===1)matches=global;
+                }
+                if(matches.length!==1)return {count:matches.length};
+                matches[0].setAttribute('data-mv-setting-target','yes');
+                return {count:1};
+            }""", [section_names,values], timeout=2000)
+            if result["count"] == 1:
+                target=panel.locator('[data-mv-setting-target="yes"]')
+                try:
+                    if await target.count()==1:
+                        await show_red_click(page,target,"click_settings_" + step)
+                        await target.click(timeout=4000)
+                        record_event("settings_applied_" + step)
+                        return
+                finally:
+                    if await target.count():
+                        await target.first.evaluate(
+                            "(el)=>el.removeAttribute('data-mv-setting-target')")
+            await page.wait_for_timeout(350)
+        record_event("settings_missing_" + step)
+        raise RuntimeError("flow_settings_missing_" + step)
 
-    await select_in_section(["Confirmar antes de gerar","Confirm before generating"],"Nunca")
-    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],"9:16")
-    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],"x1")
-    await select_in_section(["Padrão para geração de vídeo","Video generation defaults"],"9:16")
-    await select_in_section(["Padrão para geração de vídeo","Video generation defaults"],"x1")
-    # Explicitly select the requested model rather than merely checking for its text.
-    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],"Nano Banana 2.1")
+    await select_in_section(["Confirmar antes de gerar","Confirm before generating"],
+                            ["Nunca","Never"],"confirmation")
+    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],
+                            ["9:16"],"image_ratio")
+    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],
+                            ["x1","1x"],"image_count")
+    await select_in_section(["Padrão para geração de vídeo","Video generation defaults"],
+                            ["9:16"],"video_ratio")
+    await select_in_section(["Padrão para geração de vídeo","Video generation defaults"],
+                            ["x1","1x"],"video_count")
+    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],
+                            ["Nano Banana 2.1"],"image_model")
     save=panel.get_by_role("button",name=re.compile(r"^(Salvar|Save)$",re.I))
     if await save.count()!=1 or not await save.is_enabled():
         raise RuntimeError("flow_settings_save_not_found")
@@ -991,6 +1010,9 @@ async def stage_flow(request: Request):
                        "flow_settings_panel_not_found", "flow_settings_option_not_found",
                        "flow_settings_model_unverified", "flow_settings_save_not_found",
                        "flow_settings_save_unverified",
+                       "flow_settings_missing_confirmation", "flow_settings_missing_image_ratio",
+                       "flow_settings_missing_image_count", "flow_settings_missing_video_ratio",
+                       "flow_settings_missing_video_count", "flow_settings_missing_image_model",
                        "flow_generate_button_unverified"}
             code = str(exc) if str(exc) in allowed else "flow_interaction_failed"
             raise HTTPException(409, code) from None
