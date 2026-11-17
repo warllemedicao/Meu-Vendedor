@@ -684,8 +684,21 @@ async def flow_upload_references(page, images, prompt_control):
     # Never reopen the composer or try to attach images individually.
     if image_count == 2:
         selection_log("two_library_only_started")
-        async def two_selected_count():
-            return await library.locator('[role="option"][aria-selected="true"]').count()
+        async def two_target(name):
+            target = library.locator('[role="option"]').filter(has_text=name)
+            if await target.count() != 1:
+                target = library.locator('[role="option"]').filter(
+                    has=library.locator('[title="' + name + '"], [alt="' + name + '"]'))
+            return target
+
+        async def two_verified_targets():
+            states = []
+            for name in names:
+                target = await two_target(name)
+                if await target.count() != 1:
+                    return False
+                states.append(await target.first.get_attribute("aria-selected"))
+            return states == ["true", "true"]
 
         for index, name in enumerate(names):
             ordinal = index + 1
@@ -701,14 +714,12 @@ async def flow_upload_references(page, images, prompt_control):
                     selection_log("two_premature_auto_attach", ordinal=ordinal,
                                   chips_added=chips)
                     raise RuntimeError("flow_two_premature_auto_attach")
-                target = library.locator('[role="option"]').filter(has_text=name)
-                if await target.count() != 1:
-                    target = library.locator('[role="option"]').filter(
-                        has=library.locator('[title="' + name + '"], [alt="' + name + '"]'))
+                target = await two_target(name)
                 matches = await target.count()
                 selection_log("two_target_observed", ordinal=ordinal,
                               attempt=attempt + 1, matches=matches,
-                              selected_count=await two_selected_count())
+                              target_selected=(await target.first.get_attribute("aria-selected")
+                                               if matches == 1 else "unavailable"))
                 if matches == 1:
                     item = target.first
                     selected = await item.get_attribute("aria-selected", timeout=1000)
@@ -733,16 +744,23 @@ async def flow_upload_references(page, images, prompt_control):
                 await page.wait_for_timeout(2000)
             if not selected_confirmed:
                 raise RuntimeError("flow_two_selection_not_confirmed")
-            count = await two_selected_count()
-            selection_log("two_selected_verified", ordinal=ordinal,
-                          selected_count=count)
-            if count != ordinal:
-                raise RuntimeError("flow_two_selected_count_mismatch")
-        if not await library.is_visible() or await two_selected_count() != 2:
-            raise RuntimeError("flow_two_selected_count_unverified")
+            selection_log("two_target_verified", ordinal=ordinal)
+        # Wait for the gallery to settle, then verify BOTH specific references
+        # again; global selected counts include unrelated UI options.
+        for check in range(3):
+            await page.wait_for_timeout(2000)
+            if not await library.is_visible():
+                raise RuntimeError("flow_two_library_closed_before_include")
+            verified = await two_verified_targets()
+            selection_log("two_pre_include_stability_check",
+                          check=check + 1, both_targets_selected=verified)
+            if not verified:
+                raise RuntimeError("flow_two_target_selection_lost")
+        # Never authorize Include solely on the global selected-option count.
+
         if await ingredient_count() != baseline_chips:
             raise RuntimeError("flow_two_premature_auto_attach")
-        selection_log("two_both_selected_before_include", selected_count=2)
+        selection_log("two_both_selected_before_include", targets_verified=2)
         record_event("reference_selection_finished")
 
     for index, name in enumerate(names) if image_count != 2 else []:
