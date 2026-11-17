@@ -2135,3 +2135,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Ao iniciar nova sessão do Chrome privado, o serviço redefine o zoom para 100% e solicita o primeiro incremento do Chrome (110%) na aba do Google Flow.
 - Diagnóstico de referência: 3 imagens foram incluídas, mas a tentativa click_settings terminou em stage_failed, sem settings_saved. Configurações ainda não verificadas.
 - Alteração na branch feat/navegador-proprio-chromium; precisa de deploy Modal e confirmação visual.
+
+### 2026-11-17 — Diagnóstico específico de configurações
+- Relatório mais recente: click_settings seguido de stage_failed; nenhuma opção individual ou salvamento confirmados.
+- Identificadores exatos por etapa: confirmation, image_ratio, image_count, video_ratio, video_count e image_model.
+- Seletores agora normalizam acentos, toleram traduções e aguardam renderização; fallback global só atua com um único candidato visível para evitar cliques aleatórios.
+- Não foi possível recuperar nem comprovar nesta sessão o estado operacional de 16/11 às 15h; a correção exige validação real após deploy no Modal.
