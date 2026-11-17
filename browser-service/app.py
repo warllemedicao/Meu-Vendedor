@@ -920,7 +920,7 @@ async def configure_flow_agent(page, prompt_control):
     raise RuntimeError("flow_settings_save_unverified")
 
 
-async def click_flow_generate(page, prompt_control):
+async def click_flow_generate(page, prompt_control, reference_count=0):
     """Find the Flow composer send arrow using prompt geometry and icon metadata."""
     import json
 
@@ -1000,26 +1000,49 @@ async def click_flow_generate(page, prompt_control):
                      error_type=type(exc).__name__)
         raise
 
-    # Read-only post-click observation; never click approval or retry controls.
-    try:
-        await page.wait_for_timeout(1200)
-        outcome = await page.locator("body").evaluate(r"""body=>{
-            const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
-            const text=e=>(e.innerText||'').trim();
-            const buttons=Array.from(body.querySelectorAll('button,[role="button"]')).filter(visible);
-            const dialogs=Array.from(body.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog')).filter(visible);
-            return {
-                approvalVisible:buttons.some(e=>/^(aprovar|approve|confirmar|confirm)$/i.test(text(e))),
-                retryVisible:buttons.some(e=>/^(tentar de novo|try again|retry)$/i.test(text(e))),
-                errorVisible:Array.from(body.querySelectorAll('[role="alert"],[role="alertdialog"]'))
-                    .filter(visible).some(e=>/algo deu errado|something went wrong|não foi possível gerar|generation failed/i.test(text(e))),
-                dialogVisible:dialogs.length>0,
-                processingVisible:Array.from(body.querySelectorAll('[role="progressbar"],[aria-busy="true"]')).some(visible)
-            };
-        }""", timeout=2500)
-        generate_log("generate_post_click_observed", **outcome)
-    except Exception as exc:
-        generate_log("generate_post_click_unverified", error_type=type(exc).__name__)
+    # Three-reference pilot only: wait for the delayed credit prompt.
+    # Observation is read-only. Never spend credits or choose "always approve".
+    if reference_count == 3:
+        try:
+            import time
+            deadline = time.monotonic() + 45
+            poll = 0
+            while time.monotonic() < deadline:
+                poll += 1
+                found = False
+                for frame_index, frame in enumerate(page.frames[:8]):
+                    try:
+                        state = await frame.locator("body").evaluate(r"""body=>{
+                            const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);
+                                return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'};
+                            const norm=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+                            const controls=Array.from(body.querySelectorAll('button,[role="button"]')).filter(visible);
+                            const names=controls.map(e=>norm(e.innerText||e.getAttribute('aria-label')||''));
+                            const approve=names.filter(s=>s==='aprovar'||s==='approve');
+                            const always=names.filter(s=>s==='sempre aprovar no projeto'||s==='always approve in this project');
+                            const reject=names.filter(s=>s==='rejeitar'||s==='reject');
+                            const dialogs=Array.from(body.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog')).filter(visible);
+                            const question=Array.from(body.querySelectorAll('p,div,span')).some(e=>visible(e)&&
+                                e.children.length===0&&/quer que eu inicie essa.*gerac.{0,3}o de v.deo.*cr.ditos/i.test(norm(e.textContent)));
+                            return {approveCount:approve.length,alwaysCount:always.length,rejectCount:reject.length,
+                                dialogCount:dialogs.length,creditQuestionVisible:question};
+                        }""", timeout=2500)
+                        if state["approveCount"] or state["creditQuestionVisible"]:
+                            generate_log("credit_prompt_candidate", frame=frame_index, poll=poll, **state)
+                        if state["approveCount"] == 1 and state["alwaysCount"] == 1 and state["rejectCount"] == 1:
+                            generate_log("credit_prompt_verified_no_click", frame=frame_index, poll=poll, **state)
+                            found = True
+                            break
+                    except Exception as exc:
+                        generate_log("credit_prompt_frame_error", frame=frame_index,
+                                     error_type=type(exc).__name__)
+                if found:
+                    break
+                await page.wait_for_timeout(1500)
+            else:
+                generate_log("credit_prompt_not_detected", polls=poll)
+        except Exception as exc:
+            generate_log("credit_prompt_observation_failed", error_type=type(exc).__name__)
     return True
 
 
@@ -1159,7 +1182,7 @@ async def stage_flow(request: Request):
                     settings_applied = await configure_flow_agent(page, prompt_control)
                 if generate_authorized and settings_applied:
                     record_event("generate_authorized")
-                    generation_clicked = await click_flow_generate(page, prompt_control)
+                    generation_clicked = await click_flow_generate(page, prompt_control, uploaded)
                 record_event("stage_completed")
                 return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded, "referencesIncluded": references_included,
                         "referencesVerified": False, "settingsApplied": settings_applied,
