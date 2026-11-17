@@ -1,4 +1,10 @@
 
+## 2026-11-16 — Correção complementar do build estático
+
+- O Codespaces confirmou `git pull` e mostrou erro de configuração parcial (`Configure juntas a URL e a chave publicável do Supabase`).
+- `next.config.ts` agora completa **individualmente** as variáveis públicas ausentes, sem sobrescrever valores definidos pelo ambiente. Continua validando que a chave é publishable/anon e a URL usa HTTPS. Commit `564f5031`.
+- Publicação Cloudflare ainda **não confirmada**; executar `git pull --ff-only` e `npm run deploy:cloudflare` e verificar resultado.
+
 ## 2026-11-16 — Configuração pública do Supabase no build Cloudflare
 
 - Corrigido `next.config.ts` para fornecer a URL e a chave **publishable** do projeto Supabase existente quando ambas as variáveis públicas estiverem ausentes no ambiente de build. A chave publishable é destinada ao frontend; nenhuma credencial administrativa foi incorporada.
