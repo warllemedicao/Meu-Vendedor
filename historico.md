@@ -2098,3 +2098,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - O código do frontend está commitado na branch, mas **Cloudflare não publicado**, conforme etapa reservada ao usuário.
 - Testes Python, lint, typecheck e build completos **não executados nesta sessão**: o repositório não está acessível no ambiente de execução local e não houve confirmação de CI para o commit.
 - A captura durante a automação permanece **não validada em ambiente real** até o Modal e frontend serem publicados.
+
+## 2026-11-17 — Ajuste das configurações do agente Flow (imagem de referência)
+
+- Referência visual fornecida pelo usuário: geração de imagens 9:16, x1, modelo Nano Banana 2.1; geração de vídeo 9:16, x1; botão Salvar.
+- Inspecionado `configure_flow_agent` em `browser-service/app.py`: já selecionava 9:16/x1 de imagem, 9:16 de vídeo, verificava o texto Nano Banana 2.1 e acionava Salvar. Corrigida a ausência de **x1 na geração de vídeo**.
+- A opção `Confirmar antes de gerar: Nunca` permanece prevista no código anterior, mas não aparece na captura de tela; não foi confirmada visualmente nesta sessão.
+- Logs da Edge Function `private-browser` consultados no Supabase em 2026-11-17: respostas POST 200 e 409, inclusive 409 às 03:27:28 UTC. Os logs HTTP disponíveis não revelam qual ação de clique foi executada nem o motivo detalhado do 409; não há comprovação de configuração concluída.
+- A alteração foi commitada na branch. **Novo deploy Modal e teste real são necessários** para ativar e confirmar o ajuste. Não houve deploy Cloudflare nesta etapa.
