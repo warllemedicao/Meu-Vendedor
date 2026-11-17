@@ -2106,3 +2106,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - A opção `Confirmar antes de gerar: Nunca` permanece prevista no código anterior, mas não aparece na captura de tela; não foi confirmada visualmente nesta sessão.
 - Logs da Edge Function `private-browser` consultados no Supabase em 2026-11-17: respostas POST 200 e 409, inclusive 409 às 03:27:28 UTC. Os logs HTTP disponíveis não revelam qual ação de clique foi executada nem o motivo detalhado do 409; não há comprovação de configuração concluída.
 - A alteração foi commitada na branch. **Novo deploy Modal e teste real são necessários** para ativar e confirmar o ajuste. Não houve deploy Cloudflare nesta etapa.
+
+## 2026-11-17 — Continuação do diagnóstico do Chrome
+
+- Confirmado que a captura de tela de produção ainda apresenta a interface antiga `Modo aprendizado experimental`; a branch possui `Diagnóstico do navegador — manual ou acompanhando o robô`. **Frontend novo ainda não publicado no Cloudflare**.
+- Ajustado `record_event` no serviço Python: durante captura ativa, códigos fixos das ações do robô são adicionados ao relatório, além dos eventos de DOM, sem conteúdo de prompts, URLs ou credenciais.
+- Adicionado botão `Copiar relatório para análise` no frontend após finalizar a captura.
+- Mudanças commitadas na branch `feat/navegador-proprio-chromium`; ainda exigem deploy do Modal (serviço Python) e do Cloudflare (frontend). Supabase `private-browser` v15 já expõe as rotas necessárias, sem necessidade de novo deploy nesta etapa.
+- Teste integrado do diagnóstico permanece pendente. Nenhuma publicação de Cloudflare ou Modal foi executada nesta continuação.
