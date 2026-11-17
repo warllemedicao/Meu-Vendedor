@@ -2208,3 +2208,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - **Causa:** alteração anterior retirou o retorno específico para inclusão automática de uma imagem, forçando a busca pelo botão Incluir por 45 segundos. Além disso, o clique único usava `delay=1100`, necessário apenas na seleção múltipla.
 - **Correção:** no caminho exclusivo `image_count == 1`, clicar sem segurar, aguardar até 6 segundos a presença de exatamente um chip novo no prompt e retornar `referencesIncluded=True` para seguir às configurações e ao botão Gerar. Sem segundo clique na biblioteca e sem busca pelo botão Incluir. Se o chip não surgir, falhar com segurança.
 - **Preservação:** nenhuma alteração no clique prolongado, seleção com Control ou botão Incluir para duas e três imagens; os cinco testes de três imagens seguem como referência. Implantação e novo teste de uma imagem ainda pendentes.
+
+### 2026-11-17 — Validação positiva: envio de uma imagem até Gerar vídeo (14h52–14h55)
+- **Teste 1, 14h52 — aprovado:** prompt inserido no Google Flow, exatamente 1 imagem enviada e geração acionada. Mensagem exibida: “Prompt inserido no Flow; 1 imagem(ns) enviada(s). Geração acionada; confira os créditos e a confirmação no Flow.”
+- **Teste 2, 14h54 — aprovado:** mesmo resultado, com 1 imagem enviada e geração acionada.
+- **Teste 3, 14h55 — aprovado segundo relato do usuário:** após encerrar e reabrir o Chrome, o fluxo com uma imagem voltou a funcionar; o usuário compartilhou o prompt de cena utilizado. Não foi apresentada a mesma mensagem de conclusão dos dois primeiros testes para esta terceira execução.
+- **Evidência dos relatórios estruturais dos dois primeiros testes:** `click_reference`, `reference_click_confirmed`, dois `click_settings`, `click_generate` e `stage_completed`, sem etapa `click_include`, compatível com a inclusão automática de uma imagem no prompt.
+- **Marco:** caminho exclusivo de **1 imagem** aprovado em três testes relatados, incluindo reinício do Chrome. Os testes comprovam acionamento da geração, não conclusão de MP4 nem cobrança de créditos.
+- **Preservação:** registro apenas documental, sem alteração de código. O usuário iniciou testes com **2 imagens**, cujos resultados ainda serão registrados separadamente; manter os fluxos de 2 e 3 imagens intactos.
