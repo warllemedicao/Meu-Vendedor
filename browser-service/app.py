@@ -28,7 +28,7 @@ DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrom
     "chrome_exited", "chrome_start_failed", "chrome_not_running", "viewer_ticket_issued",
     "viewer_rejected", "viewer_connected", "viewer_disconnected", "viewer_proxy_failed",
     "stage_started", "stage_completed", "stage_failed", "stage_prompt_filled", "stage_upload_failed",
-    "click_add_elements", "click_upload", "click_rights", "click_reference", "click_include",
+    "click_prompt", "click_add_elements", "click_upload", "click_rights", "click_reference", "click_include",
     "add_elements_not_found", "upload_not_found", "service_started", "service_stopped"))
 diagnostic_events = []
 
@@ -428,33 +428,35 @@ async def flow_upload_references(page, images, prompt_control):
     # next to the composer. Resolve by accessible name, tooltip/title and
     # spatial proximity to the prompt; never click an unrelated Add control.
     async def open_add_elements():
+        # Read one DOM snapshot per frame to avoid duplicate role/CSS locators.
+        # Prioritize the Add elements button in the prompt's own composer.
+        prompt_handle = await prompt_control.element_handle()
         candidates = []
         for frame in page.frames[:8]:
-            for locator in (
-                frame.get_by_role("button", name=re.compile(
-                    r"adicionar elementos|add elements", re.I)),
-                frame.locator('button[title],button[aria-label],[role="button"][title],[role="button"][aria-label]'),
-            ):
-                for index in range(min(await locator.count(), 50)):
-                    button = locator.nth(index)
+            try:
+                controls = frame.locator('button,[role="button"]')
+                for index in range(min(await controls.count(), 120)):
+                    button = controls.nth(index)
                     if not await button.is_visible() or not await button.is_enabled():
                         continue
-                    try:
-                        evidence = await button.evaluate("""el => {
-                            const labels=[el.getAttribute('aria-label'),el.getAttribute('title'),
-                                el.getAttribute('data-tooltip'),el.textContent].filter(Boolean).join(' ');
-                            return {match:/adicionar elementos|add elements/i.test(labels)};
-                        }""", timeout=1200)
-                        if not evidence["match"]:
-                            continue
-                        distance = await button.evaluate("""(el,selector) => {
-                            const a=el.getBoundingClientRect(),b=selector.getBoundingClientRect();
-                            return Math.hypot((a.left+a.right)/2-(b.left+b.right)/2,
-                                              (a.top+a.bottom)/2-(b.top+b.bottom)/2);
-                        }""", await prompt_control.element_handle(), timeout=1200)
-                        candidates.append((distance, button))
-                    except Exception:
+                    labels = await button.evaluate("""el => [
+                        el.getAttribute('aria-label'),el.getAttribute('title'),
+                        el.getAttribute('data-tooltip'),el.textContent
+                    ].filter(Boolean).join(' ')""", timeout=1000)
+                    if not re.search(r"adicionar elementos|add elements", labels or "", re.I):
                         continue
+                    # In same frame, score by distance to the prompt.
+                    try:
+                        distance = await button.evaluate("""(el,prompt) => {
+                            const a=el.getBoundingClientRect(),b=prompt.getBoundingClientRect();
+                            return Math.hypot((a.left+a.right-b.left-b.right)/2,
+                                              (a.top+a.bottom-b.top-b.bottom)/2);
+                        }""", prompt_handle, timeout=1000)
+                    except Exception:
+                        distance = 100000
+                    candidates.append((distance, button))
+            except Exception:
+                continue
         if not candidates:
             record_event("add_elements_not_found")
             return False
@@ -644,6 +646,8 @@ async def stage_flow(request: Request):
                     prompt_control, _ = await resolve_flow_control(page, "prompt")
                     if prompt_control is None:
                         raise RuntimeError("prompt_field_not_unique")
+                await show_red_click(page, prompt_control, "click_prompt")
+                await prompt_control.click(timeout=4000)
                 await prompt_control.fill(prompt.strip(), timeout=8000)
                 record_event("stage_prompt_filled")
                 uploaded = 0
