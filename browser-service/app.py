@@ -562,7 +562,7 @@ async def flow_upload_references(page, images, prompt_control):
         candidates = []
         for frame in page.frames[:8]:
             controls = frame.get_by_role("button", name=re.compile(
-                r"(?:incluir|adicionar|add|include).*?(?:comando|prompt)", re.I))
+                r"(?:incluir|adicionar|enviar|add|include|send).*?(?:comando|prompt)", re.I))
             for i in range(min(await controls.count(), 12)):
                 control = controls.nth(i)
                 try:
@@ -570,7 +570,7 @@ async def flow_upload_references(page, images, prompt_control):
                         continue
                     label = ((await control.get_attribute("aria-label")) or
                              (await control.inner_text(timeout=1000))).strip()
-                    quantity = re.search(r"\b(\d+)\s+(?:itens?|items?)\b", label, re.I)
+                    quantity = re.search(r"\b(\d+)\s+(?:itens?|items?|arquivos?|files?)\b", label, re.I)
                     if quantity and int(quantity.group(1)) == len(names):
                         candidates.append(control)
                     elif len(names) == 1 and re.fullmatch(
