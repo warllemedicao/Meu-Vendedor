@@ -2180,3 +2180,13 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Ponto de atenção no browser-service/app.py: o caminho exclusivo para image_count == 2 verifica se a biblioteca continua visível após a primeira seleção e pode lançar flow_reference_library_closed_before_second. Isso é uma hipótese, não diagnóstico confirmado sem o relatório do teste com 2 imagens.
 - **Próximo passo:** obter o relatório da execução que falhou com exatamente 2 imagens; identificar último evento e erro concreto antes de alterar código. Investigar exclusivamente o caminho de 2 imagens. Preservar sem mudanças os caminhos aprovados de 1 e 3 imagens e a configuração/salvamento; pedir autorização antes de modificar qualquer outro comportamento.
 - Nenhuma correção da rotina de imagens foi aplicada nesta análise; apenas documentação do ponto de retomada.
+
+### 2026-11-17 — Marco informado: três imagens, configurações e clique em Gerar vídeo
+
+**Registro solicitado pelo usuário:** “o robô conseguiu enviar as 3 imagens, ajustar configurações, e clicar no botão gerar vídeo”. O usuário confirmou este marco após publicar e testar o navegador próprio no Google Flow.
+
+- Fluxo relatado como bem-sucedido: envio de três imagens, ajuste das configurações e acionamento do botão/seta **Gerar vídeo**.
+- O ajuste recente da identificação da seta está no commit `c8ef2ff` (`browser-service/app.py`), na branch `feat/navegador-proprio-chromium`, sem migração ao Hyperbrowser.
+- **Escopo da evidência:** confirmação do usuário; este registro não inclui novo relatório técnico que comprove geração concluída, consumo de créditos ou arquivo MP4 produzido. Não confundir clique em Gerar com vídeo finalizado.
+- **Preservação:** manter independentes as rotinas de 1, 2 e 3 imagens. O marco não elimina a investigação separada de eventuais falhas de seleção em outros testes.
+- Esta atualização é exclusivamente documental; nenhum código de automação foi alterado.
