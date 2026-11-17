@@ -8,6 +8,7 @@ type BrowserResponse = { status?: string; viewUrl?: string; error?: string; prom
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
   const [learning, setLearning] = useState(false);
+  const [learningBusy, setLearningBusy] = useState(false);
   const [learningResult, setLearningResult] = useState("");
   const [message, setMessage] = useState("");
   const [viewUrl, setViewUrl] = useState("");
@@ -90,36 +91,26 @@ export function PrivateBrowserConnection() {
   }
 
   async function toggleLearning() {
-    if (busy) return;
-    if (!learning && images.length && !rightsConfirmed) {
-      setMessage("Confirme os direitos de uso das imagens antes de iniciar a captura.");
-      return;
-    }
-    setBusy(true);
+    if (learningBusy || busy) return;
+    setLearningBusy(true);
     setMessage("");
     try {
-      const encoded = learning ? [] : await Promise.all(images.map(async (file) => {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        let binary = "";
-        for (let index = 0; index < bytes.length; index += 8192) {
-          binary += String.fromCharCode(...bytes.subarray(index, index + 8192));
-        }
-        return { mime: file.type, data: btoa(binary) };
-      }));
+      // Diagnostics do not need image uploads. Images are submitted by the
+      // existing stage action or manually inside the private Chrome.
       const result = await invoke(learning ? "learning_stop" : "learning_start",
-        learning ? {} : { images: encoded, imageRightsConfirmed: rightsConfirmed });
+        learning ? {} : { images: [], imageRightsConfirmed: false });
       setLearning(result.active === true);
       if (result.active) {
         setLearningResult("");
-        setMessage(`Captura iniciada. ${result.imagesAvailable ?? 0} imagem(ns) disponível(is) na pasta ${result.imageDirectory ?? "/tmp/meu-vendedor/treinamento/"} do Chrome. Finalize para apagar os arquivos temporários.`);
+        setMessage("Diagnóstico ativo. Envie o prompt normalmente ou clique manualmente no Chrome. Finalize a captura depois da operação.");
       } else {
-        setLearningResult(`Interações capturadas: ${result.recorded ?? 0}. Diagnóstico estrutural (sem senhas ou conteúdo):\n${JSON.stringify(result.events ?? [], null, 2)}`);
-        setMessage("Captura encerrada.");
+        setLearningResult(`Interações capturadas: ${result.recorded ?? 0}. Eventos estruturais (sem conteúdo de campos):\n${JSON.stringify(result.events ?? [], null, 2)}`);
+        setMessage("Captura encerrada. Confira os eventos abaixo.");
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha na captura.");
     } finally {
-      setBusy(false);
+      setLearningBusy(false);
     }
   }
 
@@ -226,9 +217,10 @@ export function PrivateBrowserConnection() {
       </button>
     </div>
     <div className="space-y-2 rounded-lg border border-border p-3">
-      <p className="text-sm font-medium">Modo aprendizado experimental</p>
-      <p className="text-xs text-muted">Captura somente tipos de controles clicados no Flow, sem conteúdo digitado. Não grava um procedimento permanente nem executa ações sozinho.</p>
-      <button type="button" disabled={busy || !viewUrl} onClick={() => void toggleLearning()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{learning ? "Finalizar captura" : "Iniciar captura de cliques"}</button>
+      <p className="text-sm font-medium">Diagnóstico do navegador — manual ou acompanhando o robô</p>
+      <p className="text-xs text-muted">Ative a captura, depois envie o prompt normalmente ou faça os cliques manualmente no Chrome. Ao terminar, finalize para consultar duração dos cliques e alterações estruturais do navegador. Não grava senhas, textos ou imagens.</p>
+      <button type="button" disabled={busy || learningBusy || !viewUrl} onClick={() => void toggleLearning()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{learningBusy ? "Aguarde..." : learning ? "Finalizar captura e ver logs" : "Iniciar diagnóstico de cliques"}</button>
+      {learning && <p className="text-xs" role="status">Diagnóstico ativo: você pode enviar o prompt e as imagens com o botão acima.</p>}
       {learningResult && <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded border border-border p-3 text-xs" role="status">{learningResult}</pre>}
     </div>
     {message && <p role="status" className="text-sm">{message}</p>}
