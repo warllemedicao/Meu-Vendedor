@@ -1015,21 +1015,24 @@ async def click_flow_generate(page, prompt_control, reference_count=0):
                         state = await frame.locator("body").evaluate(r"""body=>{
                             const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);
                                 return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'};
-                            const norm=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
-                            const controls=Array.from(body.querySelectorAll('button,[role="button"]')).filter(visible);
-                            const names=controls.map(e=>norm(e.innerText||e.getAttribute('aria-label')||''));
-                            const approve=names.filter(s=>s==='aprovar'||s==='approve');
-                            const always=names.filter(s=>s==='sempre aprovar no projeto'||s==='always approve in this project');
-                            const reject=names.filter(s=>s==='rejeitar'||s==='reject');
+                            const norm=s=>(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
+                                .replace(/\\s+/g,' ').trim().toLowerCase();
+                            const nodes=Array.from(body.querySelectorAll('button,[role="button"],[role="option"],[role="menuitem"],[role="radio"],label,div,span'));
+                            const matches=phrase=>nodes.filter(e=>visible(e)&&norm(e.innerText||e.textContent)===phrase
+                                && !Array.from(e.children).some(c=>visible(c)&&norm(c.innerText||c.textContent)===phrase));
+                            const approve=matches('aprovar'),always=matches('sempre aprovar no projeto'),
+                                reject=matches('rejeitar');
+                            const leaf=Array.from(body.querySelectorAll('p,div,span')).filter(e=>visible(e)&&
+                                !Array.from(e.children).some(c=>visible(c)&&norm(c.textContent).includes('credit')));
+                            const question=leaf.some(e=>/quer que eu inicie essa.*geracao de video.*creditos/.test(norm(e.textContent)));
                             const dialogs=Array.from(body.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog')).filter(visible);
-                            const question=Array.from(body.querySelectorAll('p,div,span')).some(e=>visible(e)&&
-                                e.children.length===0&&/quer que eu inicie essa.*gerac.{0,3}o de v.deo.*cr.ditos/i.test(norm(e.textContent)));
                             return {approveCount:approve.length,alwaysCount:always.length,rejectCount:reject.length,
-                                dialogCount:dialogs.length,creditQuestionVisible:question};
+                                dialogCount:dialogs.length,creditQuestionVisible:question,
+                                candidateRoles:[...new Set([...approve,...always,...reject].map(e=>e.getAttribute('role')||e.tagName.toLowerCase()))].slice(0,8)};
                         }""", timeout=2500)
-                        if state["approveCount"] or state["creditQuestionVisible"]:
+                        if state["approveCount"] or state["alwaysCount"] or state["rejectCount"] or state["creditQuestionVisible"]:
                             generate_log("credit_prompt_candidate", frame=frame_index, poll=poll, **state)
-                        if state["approveCount"] == 1 and state["alwaysCount"] == 1 and state["rejectCount"] == 1:
+                        if state["approveCount"] >= 1 and state["alwaysCount"] >= 1 and state["rejectCount"] >= 1:
                             generate_log("credit_prompt_verified_no_click", frame=frame_index, poll=poll, **state)
                             found = True
                             break
