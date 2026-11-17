@@ -2019,3 +2019,8 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Commit `a8f82a80`: allowlist da Edge Function ampliada para códigos seguros de upload incompleto, seleção de referências, botão Adicionar elementos, configurações e geração; eventos estruturais de clique permitidos no diagnóstico.
 - Commit `c401c5b6`: interface apresenta mensagens de falha por etapa em vez de uma mensagem genérica de comunicação.
 - **Edge Function `private-browser` publicada no Supabase, versão 14 ACTIVE, JWT exigido.** Frontend/Cloudflare e código do Chrome/Modal ainda requerem publicação para refletir todas as mensagens e esperas recentes. Não há evidência de falha de rede Chrome→Flow a partir dos logs consultados.
+
+## 2026-11-17 — Botão Encerrar Chrome e robô
+- Adicionado à interface `PrivateBrowserConnection.tsx` o botão **Encerrar Chrome e robô**. Ele chama a ação `stop` existente na Edge Function e na rota `/session/stop` do Modal, que fecha o processo Chrome e invalida tickets de visualização. A interface limpa a URL do visualizador e o estado de aprendizado/autorização.
+- Perfil persistente é preservado para manter o login no Google Flow; fechar o Chrome não apaga projetos já salvos no Flow. A rota stop usa o mesmo lock da operação stage: se houver uma execução ativa, o encerramento espera o lock, não garante interrupção instantânea.
+- Commit `e6d6de8b`. **Frontend ainda precisa ser publicado no Cloudflare** para o botão aparecer; sem teste ponta a ponta nesta sessão.
