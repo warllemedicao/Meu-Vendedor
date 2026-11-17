@@ -29,7 +29,7 @@ DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrom
     "viewer_rejected", "viewer_connected", "viewer_disconnected", "viewer_proxy_failed",
     "stage_started", "stage_completed", "stage_failed", "stage_prompt_filled", "stage_upload_failed",
     "click_new_project", "click_prompt", "click_add_elements", "click_upload", "click_settings", "click_generate", "click_rights", "click_reference", "click_include",
-    "add_elements_not_found", "upload_not_found", "service_started", "service_stopped"))
+    "add_elements_not_found", "upload_not_found", "upload_incomplete", "service_started", "service_stopped"))
 diagnostic_events = []
 
 def record_event(code):
@@ -475,45 +475,51 @@ async def flow_upload_references(page, images, prompt_control):
         record_event("upload_not_found")
         raise RuntimeError("flow_upload_action_not_found")
 
-    # Confirm user-authorized image rights prompts, without submitting a generation.
-    for _ in images:
-        accepted = False
-        for attempt in range(12):
-            for frame in page.frames[:8]:
+    # A file chooser accepting N files does NOT mean Flow finished uploading N.
+    # Wait for each expected image in the asset library before selecting anything.
+    names = [item["name"] for item in images]
+    deadline = time.monotonic() + 75
+    last_seen = set()
+    stable = 0
+    while time.monotonic() < deadline:
+        # Rights confirmation can appear asynchronously, once per image.
+        for frame in page.frames[:8]:
+            try:
+                agree = frame.get_by_role("button", name=re.compile(r"^\\s*Concordo\\s*$", re.I))
                 dialog = frame.get_by_text("Direitos de uso desta imagem", exact=False)
                 if await dialog.count() and await dialog.first.is_visible():
-                    agree = frame.get_by_role("button", name=re.compile(r"^\s*Concordo\s*$", re.I))
-                    if await agree.count() != 1 or not await agree.is_visible():
+                    if await agree.count() != 1 or not await agree.is_enabled():
                         raise RuntimeError("flow_image_rights_unresolved")
                     await show_red_click(page, agree, "click_rights")
-                    await agree.click(timeout=5000)
-                    accepted = True
-                    break
-            if accepted:
-                break
-            await page.wait_for_timeout(350)
-        if not accepted:
-            break
-
-    # Wait for the library to render the uploaded filenames. No Generate click.
-    names = [item["name"] for item in images]
-    stable = 0
-    for _ in range(30):
-        visible = set()
-        busy = False
-        for frame in page.frames[:3]:
-            try:
-                body = frame.locator("body")
-                for name in names:
-                    if await body.get_by_text(name, exact=False).count():
-                        visible.add(name)
-                busy = busy or await frame.locator('[role="progressbar"],[aria-busy="true"]').count() > 0
+                    await agree.click(timeout=6000)
+            except RuntimeError:
+                raise
             except Exception:
                 continue
-        stable = stable + 1 if len(visible) == len(names) and not busy else 0
-        if stable >= 2:
-            break
-        await page.wait_for_timeout(450)
+        seen = set()
+        for frame in page.frames[:8]:
+            try:
+                options = frame.locator('[role="option"]')
+                # Require evidence of each named image, not just a finished
+                # browser file chooser or one thumbnail.
+                for name in names:
+                    if await options.filter(has_text=name).count() or await frame.locator(
+                        '[role="option"] [title], [role="option"] [alt]').evaluate_all(
+                        "(els,name)=>els.some(el=>el.getAttribute('title')===name||el.getAttribute('alt')===name)", name):
+                        seen.add(name)
+            except Exception:
+                continue
+        if seen == set(names):
+            stable += 1
+            if stable >= 3:
+                break
+        else:
+            stable = 0
+        last_seen = seen
+        await page.wait_for_timeout(700)
+    if stable < 3:
+        record_event("upload_incomplete")
+        raise RuntimeError("flow_upload_incomplete")
 
     libraries = []
     for frame in page.frames[:8]:
@@ -797,7 +803,7 @@ async def stage_flow(request: Request):
             # Only return fixed diagnostic codes, never browser content or credentials.
             allowed = {"no_context", "flow_page_not_active", "new_project_button_not_found",
                        "flow_project_not_active", "prompt_field_not_unique",
-                       "flow_upload_action_not_found", "flow_add_elements_not_found",
+                       "flow_upload_action_not_found", "flow_upload_incomplete", "flow_add_elements_not_found",
                        "flow_add_elements_ambiguous", "flow_image_rights_unresolved",
                        "flow_reference_selection_unavailable", "flow_reference_include_unavailable",
                        "flow_settings_button_not_found", "flow_settings_button_ambiguous",
