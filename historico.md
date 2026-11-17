@@ -1,3 +1,20 @@
+## 2026-11-16 — Testes reais do robô: envio de imagens ao Google Flow
+
+**Avanço confirmado pelo usuário:** "conseguimos fazer o robo enviar as 3 imagens". A operação **ainda é intermitente**; não considerar a etapa de seleção e envio de referências concluída.
+
+| Tentativa | Resultado observado |
+| --- | --- |
+| 1 | Passou pela etapa de imagens e avançou até configuração. O número efetivamente enviado não foi informado nesta tentativa. |
+| 2 | Enviou apenas **1 das 3 imagens**. O robô não chegou a clicar nas imagens antes de enviar; enviou somente a primeira que apareceu. |
+| 3 | Enviou **as 3 imagens** e avançou até configuração. |
+| 4 | Enviou **as 3 imagens** e avançou até configuração. |
+| 5 | Enviou apenas **1 das 3 imagens**. O robô não chegou a clicar nas imagens antes de enviar. |
+| 6 — 23h43 | Teste com **2 fotos**: enviou apenas **1 imagem** e parou. |
+
+**Conclusão provisória:** há sucesso confirmado no envio de três imagens (tentativas 3 e 4), mas a seleção múltipla não é confiável. Em tentativas com falha, o envio ocorreu antes de selecionar todas as fotos. Próxima investigação: verificar, antes do botão de envio, o estado de seleção de cada referência e a quantidade efetivamente indicada pela interface; impedir o envio quando a contagem selecionada não corresponder à solicitada. Os relatos acima são observações do usuário, não validação independente de logs do Modal.
+
+---
+
 
 ## 2026-11-16 — Seleção prolongada das três fotos no Flow
 
