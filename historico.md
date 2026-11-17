@@ -2190,3 +2190,14 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - **Escopo da evidência:** confirmação do usuário; este registro não inclui novo relatório técnico que comprove geração concluída, consumo de créditos ou arquivo MP4 produzido. Não confundir clique em Gerar com vídeo finalizado.
 - **Preservação:** manter independentes as rotinas de 1, 2 e 3 imagens. O marco não elimina a investigação separada de eventuais falhas de seleção em outros testes.
 - Esta atualização é exclusivamente documental; nenhum código de automação foi alterado.
+
+### 2026-11-17 — Marco validado pelo usuário: cinco testes de três imagens até Gerar vídeo (14h25–14h30)
+- 14h25: primeiro teste executou os comandos; o Google Flow exibiu “tentar de novo” (falha do serviço não atribuída conclusivamente ao robô).
+- 14h27: segundo teste aprovado; clique em **Gerar vídeo** executado; interface aguardou autorização de uso dos créditos.
+- 14h28: terceiro teste aprovado.
+- 14h30: quarto teste aprovado; interface aguardou autorização de créditos.
+- Quinto teste: aba fechada e reaberta, fluxo novamente aprovado.
+- Relatório estrutural fornecido: três eventos `click_reference`, três `reference_click_confirmed`, `reference_selection_finished`, `include_button_ready`, `click_include`, dois `click_settings`, `click_generate` e `stage_completed`. Não há confirmação de MP4 finalizado ou créditos consumidos.
+- **Marco funcional:** o usuário confirmou o funcionamento de ponta a ponta **até o botão Gerar vídeo**, em cinco testes de três imagens. Preservar esse comportamento aprovado como referência e evitar regressões.
+- **Adaptação para 1 e 2 imagens:** a seleção por quantidade já usa o mesmo laço com clique prolongado de 1.100 ms, tecla Control para seleções adicionais, observação e espera. Ajustado o caminho de **uma imagem** para não retornar antecipadamente quando aparece um chip; agora prossegue para o botão Incluir, configurações e Gerar. O caminho de **duas imagens** já utiliza a mesma rotina compartilhada, sem alteração na sequência de três imagens.
+- **Validação pendente:** executar testes reais de uma e duas imagens após implantação no Modal; não afirmar aprovação antes do retorno do usuário.
