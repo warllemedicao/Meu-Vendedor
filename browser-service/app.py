@@ -811,8 +811,8 @@ async def configure_flow_agent(page, prompt_control):
         for attempt in range(5):
             result=await panel.evaluate("""(root,args)=>{
                 const [section,row,value]=args;
-                const norm=s=>(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
-                    .trim().toLowerCase().replace(/\\s+/g,' ');
+                const norm=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+                    .trim().toLowerCase().replace(/\s+/g,' ');
                 const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
                 const leaves=[...root.querySelectorAll('*')].filter(e=>visible(e)&&
                     e.children.length===0);
