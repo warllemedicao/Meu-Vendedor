@@ -2260,3 +2260,10 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 Após seis testes aprovados de seleção e acionamento de Gerar, o usuário forneceu captura de tela da confirmação do Google Flow: “Quer que eu inicie essa 1 geração de vídeo que custa 10 créditos?”, com as opções “Aprovar”, “Sempre aprovar no projeto” e “Rejeitar”. Os logs de 34 interações confirmaram `click_generate` e `stage_completed`, mas não identificaram o pop-up devido ao curto intervalo observado.
 
 Implementado em `browser-service/app.py`: somente quando `reference_count == 3`, o robô monitora por até 45 segundos os frames após clicar em Gerar, identifica individualmente as três opções, e emite `credit_prompt_candidate`, `credit_prompt_verified_no_click` ou `credit_prompt_not_detected`. **O teste é somente de reconhecimento; não clica em Aprovar e não consome créditos.** A seleção de 1, 2 e 3 imagens não foi modificada. Commit de implementação: `492bedb9f5b6ec584ca83f7502191f9281480772`. Pendente: deploy no Modal e validação ao vivo do reconhecimento.
+
+
+## 2026-11-17 — Teste real do observador de créditos: pop-up visível, não reconhecido
+
+Captura de tela do usuário mostra o Google Flow com três imagens anexadas e janela de confirmação de 10 créditos aberta, com as opções Aprovar, Sempre aprovar no projeto e Rejeitar. Relatório de 33 interações: `click_generate` em 1794946862 e `stage_completed` em 1794946908 (46 segundos depois), compatível com o observador de 45 segundos. Nenhum clique de aprovação registrado. O relatório estrutural não contém os diagnósticos `mv_generate_diagnostic` do servidor Modal, portanto não confirma a causa exata do não reconhecimento.
+
+Correção piloto em `browser-service/app.py`: procurar opções também em elementos não-button (`div`, `span`, `label`, papéis alternativos), normalizar espaços/acentos e registrar os tipos de elementos encontrados. A rotina continua somente para três imagens, somente leitura e sem aprovação automática. Commits: `b2da8c81c56dbb82f843a6a3f6346e7f5c1f3c41`, `9803378909dc89a8d69e9fac19b8929967e8640a`. Pendente: publicar no Modal e testar com diagnósticos do servidor.
