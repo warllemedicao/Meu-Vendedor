@@ -2253,3 +2253,10 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 **Resultado:** 6 testes aprovados até o acionamento do botão Gerar (2 para cada quantidade de imagens); a terceira tentativa de 3 imagens foi interrompida pelo fechamento e reabertura do Chrome/aba e não deve ser contada como aprovação. Os testes alcançaram a etapa de aprovação de uso de créditos no Google Flow; **não comprovam aprovação de créditos nem geração/conclusão de MP4**.
 
 **Arquitetura preservada:** o identificador da quantidade de imagens direciona a seleção ao arquivo dedicado `browser-service/flow_references/single_image.py`, `two_images.py` ou `three_images.py`; as etapas comuns de inclusão, configuração e acionamento da geração permanecem no controlador. Registro documental somente; nenhuma mudança de código nesta atualização.
+
+
+## 2026-11-17 — Treinamento do pop-up de autorização de créditos (piloto de 3 imagens)
+
+Após seis testes aprovados de seleção e acionamento de Gerar, o usuário forneceu captura de tela da confirmação do Google Flow: “Quer que eu inicie essa 1 geração de vídeo que custa 10 créditos?”, com as opções “Aprovar”, “Sempre aprovar no projeto” e “Rejeitar”. Os logs de 34 interações confirmaram `click_generate` e `stage_completed`, mas não identificaram o pop-up devido ao curto intervalo observado.
+
+Implementado em `browser-service/app.py`: somente quando `reference_count == 3`, o robô monitora por até 45 segundos os frames após clicar em Gerar, identifica individualmente as três opções, e emite `credit_prompt_candidate`, `credit_prompt_verified_no_click` ou `credit_prompt_not_detected`. **O teste é somente de reconhecimento; não clica em Aprovar e não consome créditos.** A seleção de 1, 2 e 3 imagens não foi modificada. Commit de implementação: `492bedb9f5b6ec584ca83f7502191f9281480772`. Pendente: deploy no Modal e validação ao vivo do reconhecimento.
