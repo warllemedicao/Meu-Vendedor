@@ -854,7 +854,7 @@ async def configure_flow_agent(page, prompt_control):
     # Flow sometimes renders this footer outside the dialog container.
     save_candidates = []
     for frame in page.frames[:8]:
-        veo_labels = frame.get_by_text(re.compile(r"Veo\\s*3\\.1", re.I))
+        veo_labels = frame.get_by_text(re.compile(r"Veo\s*3\.1", re.I))
         anchors = []
         for i in range(min(await veo_labels.count(), 12)):
             label = veo_labels.nth(i)
