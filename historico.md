@@ -2013,3 +2013,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Commit `6849758b`: aguardar até 75 s pela presença estável de todas as referências nomeadas na biblioteca, tratando diálogo de direitos durante o carregamento. Se incompleto, retornar `flow_upload_incomplete` e não selecionar/gerar parcialmente.
 - Commit `c67d0471`: reduzir espera do marcador vermelho de 450 para 120 ms; manter indicador por 2,5 s via DOM, sem bloquear cada clique. Removida espera fixa de 500 ms antes de procurar upload.
 - A lentidão do Chrome/noVNC pode ser causada por recursos, latência ou renderização remota; **não há medição de CPU/memória/latência nesta sessão**. Não alterar CPU Modal sem estimativa de custo. **Deploy e teste ponta a ponta pendentes.**
+
+## 2026-11-17 — Erro genérico Chrome mascarava falha real do Flow
+- Consulta aos logs da função `private-browser`: tentativas `stage` com `upstreamStatus:409`, tempos de 5.661 ms e 11.553 ms. O serviço Chrome respondeu, mas a Edge Function substituía erros específicos não reconhecidos por `browser_unavailable`.
+- Commit `a8f82a80`: allowlist da Edge Function ampliada para códigos seguros de upload incompleto, seleção de referências, botão Adicionar elementos, configurações e geração; eventos estruturais de clique permitidos no diagnóstico.
+- Commit `c401c5b6`: interface apresenta mensagens de falha por etapa em vez de uma mensagem genérica de comunicação.
+- **Edge Function `private-browser` publicada no Supabase, versão 14 ACTIVE, JWT exigido.** Frontend/Cloudflare e código do Chrome/Modal ainda requerem publicação para refletir todas as mensagens e esperas recentes. Não há evidência de falha de rede Chrome→Flow a partir dos logs consultados.
