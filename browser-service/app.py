@@ -284,8 +284,9 @@ LEARNING_SCRIPT = r"""(() => {
     const after = snapshot();
     const delta = {};
     for (const k of Object.keys(after)) if (after[k] !== active.before[k]) delta[k] = {before:active.before[k],after:after[k]};
+    const observed = Object.keys(delta).length>0 || pending.length>0;
     emit({kind:'browser-response',target:active.target,elapsedMs:Math.round(performance.now()-active.at),
-      changes:pending.splice(0,24),delta,observed:Object.keys(delta).length>0 || pending.length>0});
+      changes:pending.splice(0,24),delta,observed});
     last=after;
   };
   const click = e => {
@@ -401,13 +402,6 @@ async def learning_stop(request: Request):
                                 break
                             element = event.get("element") or {}
                             state = element.get("state") or {}
-                            def safe_counts(value):
-                                if not isinstance(value, dict):
-                                    return {}
-                                return {key: min(max(int(v), 0), 1000) for key, v in value.items()
-                                        if key in ("selectedTrue", "selectedFalse", "pressedTrue", "pressedFalse",
-                                                   "checkedTrue", "expandedTrue", "dialogs", "disabledButtons", "visibleImages")
-                                        and isinstance(v, int)}
                             delta = event.get("delta") if isinstance(event.get("delta"), dict) else {}
                             changes = event.get("changes") if isinstance(event.get("changes"), list) else []
                             learning_state["events"].append({
@@ -420,6 +414,7 @@ async def learning_stop(request: Request):
                                 },
                                 "elapsedMs": min(max(event.get("elapsedMs", 0), 0), 30000) if isinstance(event.get("elapsedMs"), int) else None,
                                 "timeMs": event.get("timeMs") if isinstance(event.get("timeMs"), int) else None,
+                                "observed": event.get("observed") is True,
                                 "delta": {k: {"before": v.get("before"), "after": v.get("after")}
                                           for k, v in delta.items() if k in
                                           ("selectedTrue", "selectedFalse", "pressedTrue", "pressedFalse",
