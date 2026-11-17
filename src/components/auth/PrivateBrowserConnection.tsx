@@ -221,7 +221,7 @@ export function PrivateBrowserConnection() {
       <p className="text-xs text-muted">Ative a captura, depois envie o prompt normalmente ou faça os cliques manualmente no Chrome. Ao terminar, finalize para consultar duração dos cliques e alterações estruturais do navegador. Não grava senhas, textos ou imagens.</p>
       <button type="button" disabled={busy || learningBusy || !viewUrl} onClick={() => void toggleLearning()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{learningBusy ? "Aguarde..." : learning ? "Finalizar captura e ver logs" : "Iniciar diagnóstico de cliques"}</button>
       {learning && <p className="text-xs" role="status">Diagnóstico ativo: você pode enviar o prompt e as imagens com o botão acima.</p>}
-      {learningResult && <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded border border-border p-3 text-xs" role="status">{learningResult}</pre>}
+      {learningResult && <div className="space-y-2"><button type="button" onClick={() => void navigator.clipboard.writeText(learningResult).then(() => setMessage("Relatório copiado.")).catch(() => setMessage("Não foi possível copiar automaticamente. Selecione o texto abaixo."))} className="rounded-lg border border-border px-3 py-2 text-sm">Copiar relatório para análise</button><pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded border border-border p-3 text-xs" role="status">{learningResult}</pre></div>}
     </div>
     {message && <p role="status" className="text-sm">{message}</p>}
     {viewUrl && <div className="space-y-2">
