@@ -1080,6 +1080,7 @@ async def click_flow_generate(page, prompt_control, reference_count=0):
 
 @app.post("/session/stage")
 async def stage_flow(request: Request):
+    global last_stage_failure
     """Attach locally to the running Chrome; stage draft without generating video."""
     authorize(request)
     raw = await request.body()
