@@ -1966,3 +1966,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Ao iniciar a captura, as imagens já selecionadas na aba Loja são transferidas autenticadamente ao Modal e salvas em `/tmp/meu-vendedor/treinamento/imagem-1.png` (ou .jpg/.webp), até 3 arquivos, limite combinado 2,5 MB.
 - A interface informa o diretório e a quantidade transferida. Os arquivos são apagados ao finalizar a captura e substituídos ao iniciar uma nova; não persistem entre reinicializações do serviço. O seletor de arquivos do Chrome pode navegar até o diretório.
 - Supabase Edge Function `private-browser` versão 12 publicada. Código Modal e interface Cloudflare ainda precisam de deploy e teste ponta a ponta.
+
+
+## 2026-11-16 — Diagnóstico automático do Flow
+- Nova rota autenticada de leitura `GET /session/diagnose` no Modal: verifica sessão Flow, abertura de projeto, quantidade de campos candidatos ao prompt, inputs de arquivo e botões de upload, sem enviar prompt, anexar imagens ou gerar vídeo. Não retorna URLs nem textos da página.
+- Nova ação `diagnose` no bridge Supabase (Edge Function `private-browser` v13 publicada) e botão `Diagnosticar Flow automaticamente` na aba Loja.
+- A rotina existente `stage` continua responsável por tentar preencher o prompt e anexar imagens; **o diagnóstico é somente estrutural e não prova que uploads funcionam**. Falta publicar Modal e Cloudflare, executar teste real e aprimorar verificação de anexos após upload.
