@@ -95,17 +95,31 @@ export function PrivateBrowserConnection() {
     setLearningBusy(true);
     setMessage("");
     try {
-      // Diagnostics do not need image uploads. Images are submitted by the
-      // existing stage action or manually inside the private Chrome.
+      // The existing click-diagnostic button now includes the robot's own
+      // generation trace, independently of the legacy recording state.
       const result = await invoke(learning ? "learning_stop" : "learning_start",
         learning ? {} : { images: [], imageRightsConfirmed: false });
       setLearning(result.active === true);
       if (result.active) {
         setLearningResult("");
-        setMessage("Diagnóstico ativo. Envie o prompt normalmente ou clique manualmente no Chrome. Finalize a captura depois da operação.");
+        setMessage("Diagnóstico ativo. Envie o prompt e as imagens normalmente; os rastros do robô serão incluídos ao finalizar.");
       } else {
-        setLearningResult(`Interações capturadas: ${result.recorded ?? 0}. Eventos estruturais (sem conteúdo de campos):\n${JSON.stringify(result.events ?? [], null, 2)}`);
-        setMessage("Captura encerrada. Confira os eventos abaixo.");
+        let robotTrace: unknown = [];
+        let statusError = "";
+        try {
+          const status = await invoke("status");
+          const diagnostics = (status as BrowserResponse & { diagnostics?: { generateDiagnostics?: unknown } }).diagnostics;
+          robotTrace = Array.isArray(diagnostics?.generateDiagnostics) ? diagnostics.generateDiagnostics : [];
+        } catch {
+          statusError = "Não foi possível consultar os diagnósticos do robô no Modal.";
+        }
+        setLearningResult(
+          `Interações capturadas: ${result.recorded ?? 0}.\n` +
+          `Eventos estruturais do navegador (sem conteúdo de campos):\n${JSON.stringify(result.events ?? [], null, 2)}\n\n` +
+          `Rastro automático do robô após Gerar (diagnósticos do Modal):\n${JSON.stringify(robotTrace, null, 2)}` +
+          (statusError ? `\n${statusError}` : "")
+        );
+        setMessage("Captura encerrada. O relatório inclui os eventos do navegador e os diagnósticos do robô.");
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha na captura.");
@@ -218,7 +232,7 @@ export function PrivateBrowserConnection() {
     </div>
     <div className="space-y-2 rounded-lg border border-border p-3">
       <p className="text-sm font-medium">Diagnóstico do navegador — manual ou acompanhando o robô</p>
-      <p className="text-xs text-muted">Ative a captura, depois envie o prompt normalmente ou faça os cliques manualmente no Chrome. Ao terminar, finalize para consultar duração dos cliques e alterações estruturais do navegador. Não grava senhas, textos ou imagens.</p>
+      <p className="text-xs text-muted">Ative o diagnóstico e envie o prompt normalmente. Ao finalizar, o relatório reúne os cliques observados e o rastro automático do robô após Gerar, incluindo a busca pela aprovação de créditos. Não grava senhas, textos ou imagens.</p>
       <button type="button" disabled={busy || learningBusy || !viewUrl} onClick={() => void toggleLearning()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{learningBusy ? "Aguarde..." : learning ? "Finalizar captura e ver logs" : "Iniciar diagnóstico de cliques"}</button>
       {learning && <p className="text-xs" role="status">Diagnóstico ativo: você pode enviar o prompt e as imagens com o botão acima.</p>}
       {learningResult && <div className="space-y-2"><button type="button" onClick={() => void navigator.clipboard.writeText(learningResult).then(() => setMessage("Relatório copiado.")).catch(() => setMessage("Não foi possível copiar automaticamente. Selecione o texto abaixo."))} className="rounded-lg border border-border px-3 py-2 text-sm">Copiar relatório para análise</button><pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded border border-border p-3 text-xs" role="status">{learningResult}</pre></div>}
