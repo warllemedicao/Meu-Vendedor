@@ -339,6 +339,37 @@ async def learning_stop(request: Request):
     return {"active": False, "recorded": len(learning_state["events"]),
             "events": learning_state["events"][-80:]}
 
+
+@app.get("/session/diagnose")
+async def diagnose_flow(request: Request):
+    """Read-only inspection of Flow controls; never return text, URLs or credentials."""
+    authorize(request)
+    if not chrome_running():
+        raise HTTPException(409, "browser_not_running")
+    async with lock:
+        try:
+            async with async_playwright() as pw:
+                browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+                pages = [p for ctx in browser.contexts for p in ctx.pages if not p.is_closed()]
+                page = next((p for p in pages if p.url.startswith("https://flow.google.com/")), None)
+                if page is None:
+                    return {"status": "flow_not_open", "projectOpen": False, "promptCandidates": 0, "fileInputs": 0, "uploadControls": 0}
+                prompts = 0
+                inputs = 0
+                upload_controls = 0
+                for frame in page.frames[:8]:
+                    try:
+                        prompts += await frame.locator('[role="textbox"][data-placeholder], [role="textbox"][aria-label], [contenteditable="true"][data-placeholder], [contenteditable="true"][aria-label], [contenteditable="true"][placeholder]').count()
+                        inputs += await frame.locator('input[type="file"]').count()
+                        upload_controls += await frame.get_by_role("button", name=re.compile("upload|add image|reference|enviar|imagem|adicionar", re.I)).count()
+                    except Exception:
+                        continue
+                return {"status": "inspected", "projectOpen": page.url.startswith("https://flow.google.com/project/"),
+                        "promptCandidates": min(prompts, 100), "fileInputs": min(inputs, 100),
+                        "uploadControls": min(upload_controls, 100), "generationStarted": False}
+        except Exception:
+            raise HTTPException(409, "flow_interaction_failed") from None
+
 @app.post("/session/stage")
 async def stage_flow(request: Request):
     """Attach locally to the running Chrome; stage draft without generating video."""
