@@ -2224,3 +2224,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Duas imagens: lógica atual aprovada nos três testes 15h46–15h48 foi copiada para módulo exclusivo.
 - Três imagens: sequência de cliques de 1.100 ms com Control nas seleções adicionais recuperada do commit histórico `c8ef2ff`, associado aos marcos anteriores; ainda requer validação após a separação.
 - Nenhuma alteração de interface. O Modal precisa de novo deploy; não há comprovação de testes integrados nem de MP4 concluído nesta etapa.
+
+### 2026-11-17 — Investigação e correção isolada do seletor de três imagens (16h06–16h10)
+- Rodada de quatro testes: teste 1 falhou após a primeira imagem; 16h06 aprovado até solicitar créditos; 16h08 e 16h10 falharam após a primeira imagem. Resultado: 1/4 aprovado.
+- Nos relatórios de falha, após `click_reference`/`reference_click_confirmed`, a biblioteca desapareceu (`aria-expanded=false` e opções selecionáveis zeradas) e apareceram `flow-ingredient-chip` no editor. Evidência compatível com inclusão automática da primeira imagem, antes das demais.
+- A versão anterior de `three_images.py` usava clique sem Ctrl na primeira imagem, enquanto o seletor de duas imagens aprovado usa Ctrl desde o primeiro clique.
+- Correção exclusiva em `browser-service/flow_references/three_images.py`: Ctrl + clique prolongado (1.100 ms) desde a primeira imagem; confirmação de `aria-selected=true` e biblioteca aberta após cada seleção; verificação das três opções específicas em três observações antes de permitir o botão Incluir. Falha explícita se a galeria fechar ou incluir antecipadamente, sem prosseguir para Gerar com quantidade errada.
+- Referência positiva histórica já registrada: cinco testes de três imagens entre 14h25 e 14h30, chegando ao botão Gerar. A correção nova ainda depende de deploy no Modal e testes reais; não declarar resolução comprovada nem MP4 produzido.
+- Fluxos de uma e duas imagens, configuração e acionamento de geração não foram alterados.
