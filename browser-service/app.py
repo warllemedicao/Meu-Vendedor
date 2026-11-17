@@ -248,47 +248,74 @@ def clear_learning_images():
 LEARNING_SCRIPT = r"""(() => {
   if (window.__mvLearningCleanup) return;
   const events = window.__mvLearningEvents = [];
-  const push = item => { if (events.length < 200) events.push(item); };
-  const describe = target => {
-    if (!(target instanceof Element)) return null;
-    const el = target.closest('button,[role],img,input,label,[tabindex],li,[data-state],[aria-selected]') || target;
-    if (el.closest('input[type="password"],textarea,[contenteditable="true"]')) return null;
+  const MAX = 160;
+  const emit = item => {
+    events.push({...item, timeMs: Math.round(performance.now())});
+    if (events.length > MAX) events.shift();
+  };
+  const sensitive = el => !!el.closest('input,textarea,[contenteditable],form,[type="password"]');
+  const safe = el => {
+    if (!(el instanceof Element) || sensitive(el)) return null;
+    const target = el.closest('button,[role="button"],[role="checkbox"],[aria-selected],[aria-pressed],[data-state],img,li') || el;
     const state = {};
-    const selectedAncestor = el.closest('[aria-selected],[aria-pressed],[data-state]');
-    const inspected = selectedAncestor || el;
-    for (const key of ['aria-selected','aria-pressed','aria-checked','data-state','aria-expanded']) {
-      const value = inspected.getAttribute(key);
-      if (value !== null) state[key] = value.slice(0,32);
+    for (const key of ['aria-selected','aria-pressed','aria-checked','aria-expanded','data-state']) {
+      const v = target.getAttribute(key);
+      if (v !== null && /^(true|false|open|closed|checked|unchecked|on|off|active|inactive)$/.test(v)) state[key] = v;
     }
-    return {role:(el.getAttribute('role') || el.tagName.toLowerCase()).slice(0,32),state};
+    return {role:(target.getAttribute('role') || target.tagName.toLowerCase()).slice(0,24),
+      state, disabled:target.matches(':disabled,[aria-disabled="true"]'),
+      visible:!!target.getClientRects().length};
   };
-  let down = null;
-  const handler = e => {
-    const element = describe(e.target);
-    if (!element) return;
-    if (e.type === 'pointerdown') down = performance.now();
-    if (e.type === 'pointerup') {
-      push({kind:'pointerup',element,holdMs:down === null ? null : Math.round(performance.now()-down)});
-      down = null;
-    }
-    if (e.type === 'click') {
-      push({kind:'click',element});
-      setTimeout(()=>push({kind:'after-click',element:describe(e.target)}),350);
-    }
+  const snapshot = () => {
+    const scope = document.querySelector('[role="dialog"]') || document;
+    const nodes = [...scope.querySelectorAll('[aria-selected],[aria-pressed],[aria-checked],[data-state],[aria-expanded]')]
+      .filter(el => !sensitive(el) && el.getClientRects().length).slice(0,120);
+    const count = (key,val) => nodes.filter(el=>el.getAttribute(key)===val).length;
+    return {selectedTrue:count('aria-selected','true'),selectedFalse:count('aria-selected','false'),
+      pressedTrue:count('aria-pressed','true'),pressedFalse:count('aria-pressed','false'),
+      checkedTrue:count('aria-checked','true'),expandedTrue:count('aria-expanded','true'),
+      dialogs:document.querySelectorAll('[role="dialog"]').length,
+      disabledButtons:[...scope.querySelectorAll('button:disabled,[role="button"][aria-disabled="true"]')].length,
+      visibleImages:[...scope.querySelectorAll('img')].filter(el=>el.getClientRects().length).length};
   };
-  ['pointerdown','pointerup','click'].forEach(t=>document.addEventListener(t,handler,true));
+  let active = null, timer = null, last = snapshot(), pending = [];
+  const flush = () => {
+    if (!active) return;
+    const after = snapshot();
+    const delta = {};
+    for (const k of Object.keys(after)) if (after[k] !== active.before[k]) delta[k] = {before:active.before[k],after:after[k]};
+    emit({kind:'browser-response',target:active.target,elapsedMs:Math.round(performance.now()-active.at),
+      changes:pending.splice(0,24),delta,observed:Object.keys(delta).length>0 || pending.length>0});
+    last=after;
+  };
+  const click = e => {
+    const target=safe(e.target);
+    if (!target) return;
+    if (timer) clearTimeout(timer);
+    if (active) flush();
+    active={target,before:snapshot(),at:performance.now()};
+    pending=[];
+    timer=setTimeout(()=>{flush();active=null;},1200);
+  };
   const observer = new MutationObserver(changes => {
-    for (const change of changes) {
-      if (events.length >= 200) break;
-      if (change.type !== 'attributes') continue;
-      if (!(change.target instanceof Element) || !change.target.closest('button,[role],img,[aria-selected],[aria-pressed],[data-state],li')) continue;
-      const element = describe(change.target);
-      if (element) push({kind:'mutation',attribute:change.attributeName,element});
+    if (!active) return;
+    for (const m of changes) {
+      if (pending.length>=24) break;
+      if (!(m.target instanceof Element) || sensitive(m.target)) continue;
+      if (m.type==='attributes' && m.attributeName==='class') continue;
+      const element=safe(m.target);
+      if (!element) continue;
+      pending.push({type:m.type,attribute:m.attributeName || 'structure',
+        role:element.role,state:element.state,disabled:element.disabled});
     }
   });
-  observer.observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['aria-selected','aria-pressed','aria-checked','data-state','aria-expanded','class']});
-  window.__mvLearningCleanup = () => {
-    ['pointerdown','pointerup','click'].forEach(t=>document.removeEventListener(t,handler,true));
+  document.addEventListener('click',click,true);
+  observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,
+    attributeFilter:['aria-selected','aria-pressed','aria-checked','aria-expanded','data-state','disabled']});
+  window.__mvLearningCleanup=()=>{
+    if(timer) clearTimeout(timer);
+    if(active) flush();
+    document.removeEventListener('click',click,true);
     observer.disconnect();
     delete window.__mvLearningCleanup;
   };
@@ -374,13 +401,40 @@ async def learning_stop(request: Request):
                                 break
                             element = event.get("element") or {}
                             state = element.get("state") or {}
+                            def safe_counts(value):
+                                if not isinstance(value, dict):
+                                    return {}
+                                return {key: min(max(int(v), 0), 1000) for key, v in value.items()
+                                        if key in ("selectedTrue", "selectedFalse", "pressedTrue", "pressedFalse",
+                                                   "checkedTrue", "expandedTrue", "dialogs", "disabledButtons", "visibleImages")
+                                        and isinstance(v, int)}
+                            delta = event.get("delta") if isinstance(event.get("delta"), dict) else {}
+                            changes = event.get("changes") if isinstance(event.get("changes"), list) else []
                             learning_state["events"].append({
-                                "kind": str(event.get("kind", ""))[:24],
-                                "role": str(element.get("role", ""))[:32],
-                                "state": {key: str(value)[:32] for key, value in state.items()
-                                          if key in ("aria-selected", "aria-pressed", "aria-checked", "data-state", "aria-expanded")},
-                                "attribute": str(event.get("attribute", ""))[:24],
-                                "holdMs": event.get("holdMs") if isinstance(event.get("holdMs"), int) else None
+                                "kind": "browser-response",
+                                "target": {
+                                    "role": str((event.get("target") or {}).get("role", ""))[:24],
+                                    "state": {k: v for k, v in ((event.get("target") or {}).get("state") or {}).items()
+                                              if k in ("aria-selected", "aria-pressed", "aria-checked", "aria-expanded", "data-state")
+                                              and v in ("true", "false", "open", "closed", "checked", "unchecked", "on", "off", "active", "inactive")},
+                                },
+                                "elapsedMs": min(max(event.get("elapsedMs", 0), 0), 30000) if isinstance(event.get("elapsedMs"), int) else None,
+                                "timeMs": event.get("timeMs") if isinstance(event.get("timeMs"), int) else None,
+                                "delta": {k: {"before": v.get("before"), "after": v.get("after")}
+                                          for k, v in delta.items() if k in
+                                          ("selectedTrue", "selectedFalse", "pressedTrue", "pressedFalse",
+                                           "checkedTrue", "expandedTrue", "dialogs", "disabledButtons", "visibleImages")
+                                          and isinstance(v, dict)},
+                                "changes": [
+                                    {"type": str(c.get("type", ""))[:12],
+                                     "attribute": str(c.get("attribute", ""))[:24],
+                                     "role": str(c.get("role", ""))[:24],
+                                     "state": {k: v for k, v in (c.get("state") or {}).items()
+                                               if k in ("aria-selected", "aria-pressed", "aria-checked", "aria-expanded", "data-state")
+                                               and v in ("true", "false", "open", "closed", "checked", "unchecked", "on", "off", "active", "inactive")},
+                                     "disabled": c.get("disabled") is True}
+                                    for c in changes[:24] if isinstance(c, dict)
+                                ],
                             })
                     except Exception:
                         continue
