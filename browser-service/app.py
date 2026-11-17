@@ -370,6 +370,137 @@ async def diagnose_flow(request: Request):
         except Exception:
             raise HTTPException(409, "flow_interaction_failed") from None
 
+async def flow_upload_references(page, images, prompt_control):
+    """Adapt the proven Flow library workflow to the private local Chromium CDP."""
+    async def click_upload():
+        for frame in page.frames[:8]:
+            for locator in (
+                frame.get_by_text(re.compile(r"^\\s*Fazer upload\\s*(?:\\.\\.\\.|…)?\\s*$", re.I)),
+                frame.get_by_role("button", name=re.compile(r"fazer upload|upload", re.I)),
+            ):
+                for index in range(min(await locator.count(), 12)):
+                    control = locator.nth(index)
+                    if not await control.is_visible():
+                        continue
+                    try:
+                        async with page.expect_file_chooser(timeout=3500) as event:
+                            await control.click(timeout=3500)
+                        await (await event.value).set_files(images, timeout=12000)
+                        return True
+                    except Exception:
+                        for subframe in page.frames[:8]:
+                            inputs = subframe.locator('input[type="file"]')
+                            if await inputs.count() == 1:
+                                await inputs.set_input_files(images, timeout=12000)
+                                return True
+        return False
+
+    # The Flow library may need to be opened before its Upload action exists.
+    if not await click_upload():
+        for frame in page.frames[:8]:
+            opened = False
+            for selector in ('button[aria-label*="Adicionar"]', 'button[aria-label*="Add"]',
+                             'button[title*="Adicionar"]', 'button[title*="Add"]'):
+                control = frame.locator(selector)
+                if await control.count() == 1 and await control.is_visible():
+                    await control.click(timeout=4000)
+                    opened = True
+                    break
+            if opened:
+                break
+        await page.wait_for_timeout(500)
+        if not await click_upload():
+            raise RuntimeError("flow_upload_action_not_found")
+
+    # Confirm user-authorized image rights prompts, without submitting a generation.
+    for _ in images:
+        accepted = False
+        for attempt in range(12):
+            for frame in page.frames[:8]:
+                dialog = frame.get_by_text("Direitos de uso desta imagem", exact=False)
+                if await dialog.count() and await dialog.first.is_visible():
+                    agree = frame.get_by_role("button", name=re.compile(r"^\\s*Concordo\\s*$", re.I))
+                    if await agree.count() != 1 or not await agree.is_visible():
+                        raise RuntimeError("flow_image_rights_unresolved")
+                    await agree.click(timeout=5000)
+                    accepted = True
+                    break
+            if accepted:
+                break
+            await page.wait_for_timeout(350)
+        if not accepted:
+            break
+
+    # Wait for the library to render the uploaded filenames. No Generate click.
+    names = [item["name"] for item in images]
+    stable = 0
+    for _ in range(30):
+        visible = set()
+        busy = False
+        for frame in page.frames[:3]:
+            try:
+                body = frame.locator("body")
+                for name in names:
+                    if await body.get_by_text(name, exact=False).count():
+                        visible.add(name)
+                busy = busy or await frame.locator('[role="progressbar"],[aria-busy="true"]').count() > 0
+            except Exception:
+                continue
+        stable = stable + 1 if len(visible) == len(names) and not busy else 0
+        if stable >= 2:
+            break
+        await page.wait_for_timeout(450)
+
+    libraries = []
+    for frame in page.frames[:8]:
+        control = frame.get_by_role("listbox", name=re.compile(r"^(lista de recursos|asset list|assets)$", re.I))
+        for i in range(min(await control.count(), 3)):
+            if await control.nth(i).is_visible():
+                libraries.append(control.nth(i))
+    if len(libraries) != 1:
+        raise RuntimeError("flow_reference_selection_unavailable")
+    library = libraries[0]
+    for index, name in enumerate(names):
+        # Never select an unrelated library asset by gallery position.
+        target = library.locator('[role="option"]').filter(has_text=name)
+        if await target.count() != 1:
+            target = library.locator('[role="option"]').filter(
+                has=library.locator('[title="' + name + '"], [alt="' + name + '"]'))
+        if await target.count() != 1:
+            raise RuntimeError("flow_reference_selection_unavailable")
+        item = target.first
+        await item.click(trial=True, timeout=2500)
+        if index == 0 and len(names) > 1:
+            await item.click(delay=950, timeout=4000)
+        elif index > 0:
+            await item.click(modifiers=["Control"], timeout=2500)
+        else:
+            await item.click(timeout=2500)
+
+    candidates = []
+    for frame in page.frames[:8]:
+        controls = frame.get_by_role("button", name=re.compile(
+            r"(?:incluir|adicionar|add|include).*?(?:comando|prompt)", re.I))
+        for i in range(min(await controls.count(), 12)):
+            control = controls.nth(i)
+            if not await control.is_visible() or not await control.is_enabled():
+                continue
+            label = ((await control.get_attribute("aria-label")) or
+                     (await control.inner_text(timeout=1000))).strip()
+            quantity = re.search(r"\\b(\\d+)\\s+(?:itens?|items?)\\b", label, re.I)
+            if quantity and int(quantity.group(1)) == len(names):
+                candidates.append(control)
+            elif len(names) == 1 and re.fullmatch(
+                r"\\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\\s*", label, re.I):
+                candidates.append(control)
+    if len(candidates) != 1:
+        raise RuntimeError("flow_reference_include_unavailable")
+    await candidates[0].click(trial=True, timeout=2500)
+    await candidates[0].click(timeout=3500)
+    return {"imagesSubmitted": len(names), "referencesIncluded": True,
+            "referencesVerified": False}
+
+
 @app.post("/session/stage")
 async def stage_flow(request: Request):
     """Attach locally to the running Chrome; stage draft without generating video."""
@@ -452,31 +583,21 @@ async def stage_flow(request: Request):
                 await prompt_control.fill(prompt.strip(), timeout=8000)
                 record_event("stage_prompt_filled")
                 uploaded = 0
+                references_included = False
                 if images:
-                    async def upload():
-                        control, kind = await resolve_flow_control(page, "upload")
-                        if control is None:
-                            return False
-                        if kind == "css":
-                            await control.set_input_files(images, timeout=12000)
-                            return True
-                        async with page.expect_file_chooser(timeout=8000) as chooser:
-                            await control.click(timeout=8000)
-                        await (await chooser.value).set_files(images, timeout=12000)
-                        return True
-                    if not await upload():
-                        record_event("stage_upload_failed")
-                        raise RuntimeError("flow_upload_action_not_found")
-                    uploaded = len(images)
+                    result = await flow_upload_references(page, images, prompt_control)
+                    uploaded = result["imagesSubmitted"]
+                    references_included = result["referencesIncluded"]
                 record_event("stage_completed")
-                return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded,
-                        "generationStarted": False}
+                return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded, "referencesIncluded": references_included,
+                        "referencesVerified": False, "generationStarted": False}
         except Exception as exc:
             record_event("stage_failed")
             # Only return fixed diagnostic codes, never browser content or credentials.
             allowed = {"no_context", "flow_page_not_active", "new_project_button_not_found",
                        "flow_project_not_active", "prompt_field_not_unique",
-                       "flow_upload_action_not_found"}
+                       "flow_upload_action_not_found", "flow_image_rights_unresolved",
+                       "flow_reference_selection_unavailable", "flow_reference_include_unavailable"}
             code = str(exc) if str(exc) in allowed else "flow_interaction_failed"
             raise HTTPException(409, code) from None
 
