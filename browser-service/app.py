@@ -375,7 +375,7 @@ async def flow_upload_references(page, images, prompt_control):
     async def click_upload():
         for frame in page.frames[:8]:
             for locator in (
-                frame.get_by_text(re.compile(r"^\\s*Fazer upload\\s*(?:\\.\\.\\.|…)?\\s*$", re.I)),
+                frame.get_by_text(re.compile(r"^\s*Fazer upload\s*(?:\.\.\.|…)?\s*$", re.I)),
                 frame.get_by_role("button", name=re.compile(r"fazer upload|upload", re.I)),
             ):
                 for index in range(min(await locator.count(), 12)):
@@ -419,7 +419,7 @@ async def flow_upload_references(page, images, prompt_control):
             for frame in page.frames[:8]:
                 dialog = frame.get_by_text("Direitos de uso desta imagem", exact=False)
                 if await dialog.count() and await dialog.first.is_visible():
-                    agree = frame.get_by_role("button", name=re.compile(r"^\\s*Concordo\\s*$", re.I))
+                    agree = frame.get_by_role("button", name=re.compile(r"^\s*Concordo\s*$", re.I))
                     if await agree.count() != 1 or not await agree.is_visible():
                         raise RuntimeError("flow_image_rights_unresolved")
                     await agree.click(timeout=5000)
@@ -487,11 +487,11 @@ async def flow_upload_references(page, images, prompt_control):
                 continue
             label = ((await control.get_attribute("aria-label")) or
                      (await control.inner_text(timeout=1000))).strip()
-            quantity = re.search(r"\\b(\\d+)\\s+(?:itens?|items?)\\b", label, re.I)
+            quantity = re.search(r"\b(\d+)\s+(?:itens?|items?)\b", label, re.I)
             if quantity and int(quantity.group(1)) == len(names):
                 candidates.append(control)
             elif len(names) == 1 and re.fullmatch(
-                r"\\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\\s*", label, re.I):
+                r"\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\s*", label, re.I):
                 candidates.append(control)
     if len(candidates) != 1:
         raise RuntimeError("flow_reference_include_unavailable")
