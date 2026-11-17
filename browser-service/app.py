@@ -33,6 +33,7 @@ DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrom
     "reference_click_confirmed", "reference_selection_finished", "include_button_ready",
     "service_started", "service_stopped"))
 diagnostic_events = []
+generate_diagnostic_events = []  # Bounded, sanitized; independent of legacy learning mode.
 
 def record_event(code):
     if code not in DIAGNOSTIC_CODES:
@@ -48,7 +49,8 @@ def record_event(code):
 def diagnostic_snapshot():
     return {"running": chrome_running(),
             "processExited": chrome_process is not None and chrome_process.poll() is not None,
-            "events": list(diagnostic_events[-20:])}
+            "events": list(diagnostic_events[-20:]),
+            "generateDiagnostics": list(generate_diagnostic_events[-60:])}
 
 def authorize(request: Request):
     if len(SECRET) < 32 or not hmac.compare_digest(
@@ -943,12 +945,15 @@ async def click_flow_generate(page, prompt_control, reference_count=0):
         safe = {k: v for k, v in details.items() if k in safe_fields
                 and isinstance(v, (str, int, bool, list))}
         record_event(code)
-        if learning_state["active"] and code in safe_codes:
-            learning_state["events"].append({
-                "kind": "generate-diagnostic", "code": code,
-                "at": int(time.time()), "details": safe,
-            })
-            del learning_state["events"][:-200]
+        if code in safe_codes:
+            event = {"kind": "generate-diagnostic", "code": code,
+                     "at": int(time.time()), "details": safe}
+            generate_diagnostic_events.append(event)
+            del generate_diagnostic_events[:-60]
+            # Preserve backwards compatibility with existing recording exports.
+            if learning_state["active"]:
+                learning_state["events"].append(event)
+                del learning_state["events"][:-200]
         print("mv_generate_diagnostic " + json.dumps(
             {"code": code, **safe}, ensure_ascii=False), flush=True)
 
