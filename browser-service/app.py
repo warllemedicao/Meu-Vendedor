@@ -761,10 +761,14 @@ async def flow_upload_references(page, images, prompt_control):
                     "referencesVerified": True}
         # Both selected in gallery: use the original Include control below,
         # then verify two chips before authorizing generation.
-        if not opened or chips != 0:
+        if not opened or chips not in (0, 1):
             selection_log("two_incomplete_before_include", library_open=opened,
                           chips_added=chips)
             raise RuntimeError("flow_two_reference_count_unverified")
+        # One reference may already be attached; Include must then add only
+        # the remaining selected reference, never duplicate the first.
+        two_include_remaining = 2 - chips
+        selection_log("two_include_remaining", remaining=two_include_remaining)
 
     for index, name in enumerate(names) if image_count != 2 else []:
         ordinal = index + 1
@@ -858,7 +862,8 @@ async def flow_upload_references(page, images, prompt_control):
                     label = ((await control.get_attribute("aria-label")) or
                              (await control.inner_text(timeout=1000))).strip()
                     quantity = re.search(r"\b(\d+)\s+(?:itens?|items?|arquivos?|files?)\b", label, re.I)
-                    if quantity and int(quantity.group(1)) == len(names):
+                    if quantity and int(quantity.group(1)) == (
+                            two_include_remaining if image_count == 2 else len(names)):
                         candidates.append(control)
                     elif len(names) == 1 and re.fullmatch(
                         r"\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\s*", label, re.I):
