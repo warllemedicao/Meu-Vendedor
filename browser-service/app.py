@@ -544,12 +544,12 @@ async def flow_upload_references(page, images, prompt_control):
         item = target.first
         await item.click(trial=True, timeout=2500)
         await show_red_click(page, item, "click_reference")
-        if index == 0 and len(names) > 1:
-            await item.click(delay=950, timeout=4000)
-        elif index > 0:
-            await item.click(modifiers=["Control"], timeout=2500)
+        # Every reference needs a deliberate press-and-hold, not only the first.
+        # Keep Ctrl on subsequent images to preserve the existing multi-select.
+        if index > 0:
+            await item.click(modifiers=["Control"], delay=1100, timeout=6000)
         else:
-            await item.click(timeout=2500)
+            await item.click(delay=1100, timeout=6000)
         record_event("reference_click_confirmed")
         await page.wait_for_timeout(900)
     record_event("reference_selection_finished")
