@@ -790,8 +790,8 @@ async def configure_flow_agent(page, prompt_control):
                     }
                 }
                 matches=[...new Set(matches)];
-                if(matches.length===0){
-                    // Some Flow panels use compact sections without accessible headings.
+                if(matches.length===0 && !values.includes("9:16")){
+                    // Never select a globally matched ratio: image/video 9:16 can coexist.
                     const all=Array.from(root.querySelectorAll(controls)).filter(visible);
                     const global=all.filter(el=>values.some(v=>norm(
                         el.getAttribute('aria-label')||el.getAttribute('data-value')||
@@ -799,9 +799,19 @@ async def configure_flow_agent(page, prompt_control):
                     if(global.length===1)matches=global;
                 }
                 if(matches.length!==1)return {count:matches.length};
+                // If 9:16 is the other option, click it; if already selected, do not toggle it off.
+                const target=matches[0];
+                const checked=target.getAttribute('aria-checked')==='true'||
+                    target.getAttribute('aria-pressed')==='true'||
+                    target.getAttribute('data-state')==='checked'||
+                    (target.matches('input')&&target.checked);
+                if(checked)return {count:1,alreadySelected:true};
                 matches[0].setAttribute('data-mv-setting-target','yes');
                 return {count:1};
             }""", [section_names,values], timeout=2000)
+            if result["count"] == 1 and result.get("alreadySelected"):
+                record_event("settings_already_selected_" + step)
+                return
             if result["count"] == 1:
                 target=panel.locator('[data-mv-setting-target="yes"]')
                 try:
@@ -818,8 +828,6 @@ async def configure_flow_agent(page, prompt_control):
         record_event("settings_missing_" + step)
         raise RuntimeError("flow_settings_missing_" + step)
 
-    await select_in_section(["Confirmar antes de gerar","Confirm before generating"],
-                            ["Nunca","Never"],"confirmation")
     await select_in_section(["Padrão da geração de imagens","Image generation defaults"],
                             ["9:16"],"image_ratio")
     await select_in_section(["Padrão da geração de imagens","Image generation defaults"],
