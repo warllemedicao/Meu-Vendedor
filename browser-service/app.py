@@ -795,7 +795,6 @@ async def stage_flow(request: Request):
                     raise RuntimeError("flow_page_not_active")
                 # Keep the observer active across project navigation and robot clicks.
                 if learning_state["active"]:
-                    await page.context.add_init_script(script=LEARNING_SCRIPT)
                     for frame in page.frames[:8]:
                         try:
                             await frame.evaluate(LEARNING_SCRIPT)
@@ -824,6 +823,13 @@ async def stage_flow(request: Request):
                             await asyncio.sleep(0.5)
                 if not page.url.startswith("https://flow.google.com/project/"):
                     raise RuntimeError("flow_project_not_active")
+                # Project navigation replaces the DOM; reattach before upload.
+                if learning_state["active"]:
+                    for frame in page.frames[:8]:
+                        try:
+                            await frame.evaluate(LEARNING_SCRIPT)
+                        except Exception:
+                            pass
                 # The URL can change before the composer has hydrated.
                 # Wait for its interactive field rather than a fixed sleep.
                 try:
