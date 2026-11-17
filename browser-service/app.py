@@ -116,6 +116,21 @@ async def start(request: Request):
                 "https://flow.google.com/"
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             await asyncio.sleep(2)
+            if chrome_running():
+                # Chrome's first Ctrl+Plus step changes 100% to 110%.
+                # Apply once to the initial Flow tab, not on every automation run.
+                try:
+                    async with async_playwright() as pw:
+                        browser = await pw.chromium.connect_over_cdp(
+                            "http://127.0.0.1:9222", timeout=10000)
+                        flow_pages = [p for ctx in browser.contexts for p in ctx.pages
+                                      if not p.is_closed() and p.url.startswith("https://flow.google.com/")]
+                        if flow_pages:
+                            await flow_pages[0].bring_to_front()
+                            await flow_pages[0].keyboard.press("Control+Equal")
+                            record_event("flow_zoom_110_requested")
+                except Exception:
+                    record_event("flow_zoom_110_unverified")
             if not chrome_running():
                 record_event("chrome_exited")
                 raise RuntimeError("chrome_exited")
