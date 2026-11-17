@@ -1,3 +1,15 @@
+
+
+## 17/11/2026 — Marco: o robô aprendeu a enviar imagens e ajustar configurações
+
+- **Marco registrado por solicitação do responsável:** “momento que o robô aprendeu a enviar imagens e ajustar configuração”.
+- **Validação informada pelo responsável:** duas execuções com duas imagens aprovadas e duas execuções com uma imagem aprovadas (4/4). Esses resultados são relatos de testes supervisionados, não uma nova execução automatizada nesta atualização.
+- **Regra operacional aprovada:** usar a quantidade efetivamente enviada (1, 2 ou 3) para delimitar seleção, inclusão e conferência das referências; não percorrer posições de imagens inexistentes. Cada quantidade deve ser tratada de forma independente e verificada antes de gerar.
+- **Autorização expressa em 17/11/2026:** o responsável liberou o robô para clicar na seta **Gerar** do Google Flow após preparar imagens, prompt e configurações. O clique pode consumir créditos da conta Google; não equivale a autorização para publicações em redes sociais.
+- **Implementação já presente na branch main, verificada nesta sessão:** a ação `click-flow-generate` está conectada à Edge Function, ao frontend e ao executor; o botão `Preparar e gerar vídeo` aciona o preparo e a geração condicionada à confirmação de referências/configurações. A rotina de diagnóstico já contém estados `flow_generate_clicked`, `flow_generation_click_uncertain` e `flow_generate_button_unavailable`. Não afirmar que houve geração real nesta atualização documental.
+- **Segurança de execução:** exigir confirmação das referências, formato vertical 9:16, saída x1 e identificação inequívoca de um único controle habilitado; na dúvida, interromper e reportar, sem cliques repetidos. Não enviar credenciais, cookies ou tokens aos logs.
+- **Publicação:** esta entrada registra a autorização no repositório. A versão efetivamente implantada em Modal/Supabase/Cloudflare ainda precisa ser verificada antes de afirmar que o clique está disponível em produção.
+
 ## 2026-11-16 — Telemetria passiva do navegador Hyperbrowser via CDP
 
 Adicionados listeners passivos do Playwright no executor Modal após a conexão CDP com o Hyperbrowser: `browser_disconnected`, `browser_page_closed`, `browser_page_crashed`, `browser_page_error`, `browser_request_failed`, `browser_http_error` e `browser_monitor_ready`. Eventos são encaminhados à mesma telemetria Supabase com fonte `playwright` ou `hyperbrowser`; a Edge Function `flow-telemetry` foi atualizada para **v8** e aceita métricas `httpStatus` e `isFlowRequest`. Limite de 12 eventos por tipo/tentativa, sem registrar URLs completas, cookies, tokens, textos da página ou respostas. Os listeners não interagem com a interface e preservam upload, seleção, prompt e configurações. Commit: `f891538`. **Necessário publicar o Modal e testar uma execução para confirmar recebimento de eventos**. São sinais observados via CDP, não logs internos administrativos do provedor Hyperbrowser.
