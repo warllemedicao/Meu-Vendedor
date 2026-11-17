@@ -71,6 +71,24 @@ export function PrivateBrowserConnection() {
     }
   }
 
+  async function closeChrome() {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await invoke("stop");
+      setViewUrl("");
+      setLearning(false);
+      setLearningResult("");
+      setGenerateAuthorized(false);
+      setMessage("Sessão encerrada: Chrome remoto fechado e automação interrompida. O login salvo no perfil foi preservado.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível encerrar o Chrome.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function toggleLearning() {
     if (busy) return;
     if (!learning && images.length && !rightsConfirmed) {
@@ -180,6 +198,10 @@ export function PrivateBrowserConnection() {
     <p className="text-sm text-muted">Abra seu Chrome no Modal usando a sessão persistente do Google Flow.</p>
     <button type="button" disabled={busy} onClick={() => void openChrome()} className="rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">
       {busy ? "Abrindo..." : "Chrome"}
+    </button>
+    <button type="button" disabled={busy || !viewUrl} onClick={() => void closeChrome()}
+      className="rounded-lg border border-red-600 px-4 py-2 text-sm text-red-600 disabled:opacity-50">
+      Encerrar Chrome e robô
     </button>
     <div className="space-y-3 rounded-lg border border-border p-3">
       <label htmlFor="flow-test-prompt" className="block text-sm font-medium">Prompt para treinamento do robô</label>
