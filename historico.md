@@ -2232,3 +2232,24 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Correção exclusiva em `browser-service/flow_references/three_images.py`: Ctrl + clique prolongado (1.100 ms) desde a primeira imagem; confirmação de `aria-selected=true` e biblioteca aberta após cada seleção; verificação das três opções específicas em três observações antes de permitir o botão Incluir. Falha explícita se a galeria fechar ou incluir antecipadamente, sem prosseguir para Gerar com quantidade errada.
 - Referência positiva histórica já registrada: cinco testes de três imagens entre 14h25 e 14h30, chegando ao botão Gerar. A correção nova ainda depende de deploy no Modal e testes reais; não declarar resolução comprovada nem MP4 produzido.
 - Fluxos de uma e duas imagens, configuração e acionamento de geração não foram alterados.
+
+
+## 2026-11-17 — Marco importante: seleção de 1, 2 e 3 imagens aprovada até Gerar vídeo
+
+> Marco importante conseguimos fazer com q o processo de envio das imagens chegassem ate gera video com suscesso, para evitar conflito o envio de imagem foi separado por arquivo onde um indetificador informar a quantidade de imagens sendo enviada e escolhe qual arquivo ira tratar de acordo com o q foi ajustado.
+
+**Relato integral dos testes do usuário:**
+
+1 - teste 3 imagens - aprovado - seguiu apos botao gerar ficou aguardando aprovar uso credito - Prompt inserido no Flow; 3 imagem(ns) enviada(s). Geração acionada; confira os créditos e a confirmação no Flow.
+2 - teste 3 imagens -  aprovado - seguiu apos botao gerar ficou aguardando aprovar uso credito - Prompt inserido no Flow; 3 imagem(ns) enviada(s). Geração acionada; confira os créditos e a confirmação no Flow.
+3 - teste 3 imagens  - encerrei o crhome fechei e abrir a aba -
+
+1 - teste 2 imagens  -aprovado - seguiu apos botao gerar ficou aguardando aprovar uso credito Prompt inserido no Flow; 2 imagem(ns) enviada(s). Geração acionada; confira os créditos e a confirmação no Flow.
+2 - teste 2 imagens - aprovado - seguiu apos botao gerar ficou aguardando aprovar uso credito Prompt inserido no Flow; 2 imagem(ns) enviada(s). Geração acionada; confira os créditos e a confirmação no Flow.
+
+1 - teste 1 imagens  -aprovado - seguiu apos botao gerar ficou aguardando aprovar uso credito Prompt inserido no Flow; 1 imagem(ns) enviada(s). Geração acionada; confira os créditos e a confirmação no Flow.
+2 - teste 1 imagens - aprovado - seguiu apos botao gerar ficou aguardando aprovar uso credito Prompt inserido no Flow; 1 imagem(ns) enviada(s). Geração acionada; confira os créditos e a confirmação no Flow.
+
+**Resultado:** 6 testes aprovados até o acionamento do botão Gerar (2 para cada quantidade de imagens); a terceira tentativa de 3 imagens foi interrompida pelo fechamento e reabertura do Chrome/aba e não deve ser contada como aprovação. Os testes alcançaram a etapa de aprovação de uso de créditos no Google Flow; **não comprovam aprovação de créditos nem geração/conclusão de MP4**.
+
+**Arquitetura preservada:** o identificador da quantidade de imagens direciona a seleção ao arquivo dedicado `browser-service/flow_references/single_image.py`, `two_images.py` ou `three_images.py`; as etapas comuns de inclusão, configuração e acionamento da geração permanecem no controlador. Registro documental somente; nenhuma mudança de código nesta atualização.
