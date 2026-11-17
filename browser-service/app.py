@@ -895,8 +895,15 @@ async def configure_flow_agent(page, prompt_control):
 
 
 async def click_flow_generate(page, prompt_control):
-    """Click only the unique Generate button immediately RIGHT of Flow settings."""
-    for frame in page.frames[:8]:
+    """Use the rightmost circular arrow in the prompt composer, never a nearby blank area."""
+    import json
+    def generate_log(code, **details):
+        # Never log prompts, page HTML, credentials or account content.
+        record_event(code)
+        print("mv_generate_diagnostic " + json.dumps(
+            {"code": code, **details}, ensure_ascii=False), flush=True)
+
+    for frame_index, frame in enumerate(page.frames[:8]):
         settings = frame.get_by_role("button", name=re.compile(
             r"configurações do agente|agent settings|configurações|settings", re.I))
         for index in range(min(await settings.count(), 12)):
@@ -906,34 +913,64 @@ async def click_flow_generate(page, prompt_control):
             anchor = await setting.bounding_box()
             if not anchor:
                 continue
+            # Screenshot reference: white circular arrow is the rightmost control
+            # of the composer, directly to the RIGHT of the settings sliders.
             controls = frame.locator("button, [role='button']")
-            adjacent = []
-            for i in range(min(await controls.count(), 100)):
+            candidates = []
+            for i in range(min(await controls.count(), 120)):
                 control = controls.nth(i)
                 if not await control.is_visible() or not await control.is_enabled():
                     continue
                 box = await control.bounding_box()
                 if not box:
                     continue
-                # The Generate arrow is immediately to the RIGHT, on the same row.
-                horizontal_gap = box["x"] - (anchor["x"] + anchor["width"])
-                vertical_gap = abs((box["y"] + box["height"]/2) -
-                                   (anchor["y"] + anchor["height"]/2))
-                if not (-3 <= horizontal_gap <= 75 and vertical_gap <= 24):
+                gap = box["x"] - (anchor["x"] + anchor["width"])
+                vertical = abs((box["y"] + box["height"]/2) -
+                               (anchor["y"] + anchor["height"]/2))
+                if not (0 <= gap <= 110 and vertical <= 18):
                     continue
-                label = await control.evaluate("""el => [
-                    el.getAttribute('aria-label'), el.getAttribute('title'),
-                    el.getAttribute('data-tooltip'), el.innerText
-                ].filter(Boolean).join(' ').trim()""")
-                # Reject any clearly labelled unrelated action; allow an icon-only arrow.
-                if label and not re.search(r"gerar|generate|criar|create", label, re.I):
-                    continue
-                adjacent.append(control)
-            if len(adjacent) == 1:
-                record_event("generate_right_of_settings_confirmed")
-                await show_red_click(page, adjacent[0], "click_generate")
-                await adjacent[0].click(timeout=4000)
-                return True
+                info = await control.evaluate("""el => {
+                    const svg=el.querySelector('svg');
+                    const r=el.getBoundingClientRect();
+                    const css=getComputedStyle(el);
+                    return {
+                        tag:el.tagName.toLowerCase(),
+                        aria:el.getAttribute('aria-label') || '',
+                        title:el.getAttribute('title') || '',
+                        text:(el.innerText || '').trim().slice(0,40),
+                        svg:!!svg,
+                        circle:Math.abs(r.width-r.height)<=8 &&
+                            (css.borderRadius==='50%' || parseFloat(css.borderRadius)>=r.height*.35)
+                    };
+                }""")
+                # Never click text controls or unrelated icons.
+                name = " ".join((info["aria"], info["title"], info["text"]))
+                explicit = bool(re.search(r"gerar|generate|criar|create", name, re.I))
+                unrelated = bool(name.strip()) and not explicit
+                eligible = not unrelated and info["svg"] and (
+                    explicit or info["circle"])
+                generate_log("generate_candidate_inspected", frame=frame_index,
+                             right_gap=round(gap), vertical_gap=round(vertical),
+                             tag=info["tag"], label=info["aria"][:50],
+                             title=info["title"][:50], svg=info["svg"],
+                             circular=info["circle"], eligible=eligible)
+                if eligible:
+                    candidates.append(control)
+            if len(candidates) != 1:
+                generate_log("generate_candidate_count", count=len(candidates),
+                             frame=frame_index)
+                continue
+            generate_log("generate_target_verified", frame=frame_index,
+                         position="right_of_settings")
+            await show_red_click(page, candidates[0], "click_generate")
+            try:
+                await candidates[0].click(timeout=4000)
+            except Exception:
+                generate_log("generate_click_failed", frame=frame_index)
+                raise
+            generate_log("generate_click_dispatched", frame=frame_index)
+            return True
+    generate_log("generate_target_not_verified")
     raise RuntimeError("flow_generate_button_unverified")
 
 
