@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     method: target.method,
     headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" || action === "learning_start" ? { "content-type": "application/json" } : {}) },
     ...(action === "stage" || action === "learning_start" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed, configureAndGenerate: input?.configureAndGenerate === true }) } : {}),
-    signal: AbortSignal.timeout(action === "start" || action === "stage" || action === "learning_start" ? 60000 : 12000),
+    signal: AbortSignal.timeout(action === "stage" ? 120000 : action === "start" || action === "learning_start" ? 60000 : 12000),
   }).catch(() => null);
   if (!response) {
     console.log(JSON.stringify({ source: "private_browser_bridge", action, outcome: "upstream_unreachable",
