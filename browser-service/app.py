@@ -680,95 +680,70 @@ async def flow_upload_references(page, images, prompt_control):
                       chips_added=chips, selected=selected)
         return opened, chips, selected
 
-    # Two-reference recovery is deliberately isolated from the 1/3-image paths.
-    async def two_image_recover_library(ordinal):
-        for attempt in range(2):
-            opened, chips, _ = await observe(ordinal)
-            if opened:
-                return True
-            if chips == 2:
-                selection_log("two_both_already_attached", ordinal=ordinal)
-                return False
-            if chips != 1:
-                selection_log("two_recovery_unsafe_chip_count", ordinal=ordinal,
-                              chips_added=chips)
-                raise RuntimeError("flow_two_reference_state_ambiguous")
-            selection_log("two_gallery_closed_after_first", ordinal=ordinal,
-                          attempt=attempt + 1)
-            await page.wait_for_timeout(2000)
-            if await library.is_visible():
-                return True
-            # Reuse the existing, geometry-verified composer control; never
-            # upload again, or click a guessed library thumbnail.
-            if attempt == 0:
-                if not await open_add_elements():
-                    raise RuntimeError("flow_two_reference_gallery_reopen_unavailable")
-                await page.wait_for_timeout(600)
-        opened, chips, _ = await observe(ordinal)
-        if opened:
-            return True
-        raise RuntimeError("flow_two_reference_gallery_reopen_unverified")
-
+    # Two images: complete multi-selection inside the library before Include.
+    # Never reopen the composer or try to attach images individually.
     if image_count == 2:
-        selection_log("two_mode_started", chips_added=0)
+        selection_log("two_library_only_started")
+        async def two_selected_count():
+            return await library.locator('[role="option"][aria-selected="true"]').count()
+
         for index, name in enumerate(names):
             ordinal = index + 1
-            opened, chips, _ = await observe(ordinal)
-            if chips == 2:
-                break
-            if not opened:
-                reopened = await two_image_recover_library(ordinal)
-                if not reopened:
-                    break
-            target = library.locator('[role="option"]').filter(has_text=name)
-            if await target.count() != 1:
-                target = library.locator('[role="option"]').filter(
-                    has=library.locator('[title="' + name + '"], [alt="' + name + '"]'))
-            if await target.count() != 1:
-                await page.wait_for_timeout(2000)
-                selection_log("two_target_wait", ordinal=ordinal,
-                              matches=await target.count())
+            selected_confirmed = False
+            for attempt in range(4):
+                opened, chips, _ = await observe(ordinal)
+                if not opened:
+                    selection_log("two_library_closed_during_selection",
+                                  ordinal=ordinal, attempt=attempt + 1,
+                                  chips_added=chips)
+                    raise RuntimeError("flow_two_library_closed_before_selection")
+                if chips != 0:
+                    selection_log("two_premature_auto_attach", ordinal=ordinal,
+                                  chips_added=chips)
+                    raise RuntimeError("flow_two_premature_auto_attach")
                 target = library.locator('[role="option"]').filter(has_text=name)
-            if await target.count() != 1:
-                raise RuntimeError("flow_two_reference_target_unavailable")
-            item = target.first
-            opened, chips, selected = await observe(ordinal, item)
-            if not opened:
-                raise RuntimeError("flow_two_reference_gallery_unavailable")
-            if selected != "true":
-                await item.click(trial=True, timeout=2500)
-                await show_red_click(page, item, "click_reference")
-                await item.click(modifiers=["Control"] if index else [],
-                                 delay=1100, timeout=6000)
-                record_event("reference_click_confirmed")
-            await page.wait_for_timeout(900)
-            opened, chips, selected = await observe(ordinal, item)
-            if not opened and chips == 1 and ordinal == 1:
-                selection_log("two_first_auto_attached")
-                continue
-            if selected != "true" and opened:
+                if await target.count() != 1:
+                    target = library.locator('[role="option"]').filter(
+                        has=library.locator('[title="' + name + '"], [alt="' + name + '"]'))
+                matches = await target.count()
+                selection_log("two_target_observed", ordinal=ordinal,
+                              attempt=attempt + 1, matches=matches,
+                              selected_count=await two_selected_count())
+                if matches == 1:
+                    item = target.first
+                    selected = await item.get_attribute("aria-selected", timeout=1000)
+                    if selected == "true":
+                        selected_confirmed = True
+                        break
+                    if selected == "false":
+                        await item.click(trial=True, timeout=2500)
+                        await show_red_click(page, item, "click_reference")
+                        # Ctrl on BOTH clicks keeps the gallery in multi-select mode.
+                        # Preserve the proven 1100ms press duration.
+                        await item.click(modifiers=["Control"], delay=1100,
+                                         timeout=6000)
+                        record_event("reference_click_confirmed")
+                        await page.wait_for_timeout(500)
+                        opened, chips, selected = await observe(ordinal, item)
+                        if opened and chips == 0 and selected == "true":
+                            selected_confirmed = True
+                            break
+                selection_log("two_selection_not_yet_confirmed",
+                              ordinal=ordinal, attempt=attempt + 1)
                 await page.wait_for_timeout(2000)
-                opened, chips, selected = await observe(ordinal, item)
-                selection_log("two_delayed_selection", ordinal=ordinal,
-                              selected=selected, chips_added=chips)
-                if selected == "false":
-                    raise RuntimeError("flow_two_reference_selection_not_confirmed")
-        opened, chips, _ = await observe(2)
-        if chips == 2:
-            selection_log("two_attached_verified", chips_added=chips)
-            record_event("reference_selection_finished")
-            return {"imagesSubmitted": 2, "referencesIncluded": True,
-                    "referencesVerified": True}
-        # Both selected in gallery: use the original Include control below,
-        # then verify two chips before authorizing generation.
-        if not opened or chips not in (0, 1):
-            selection_log("two_incomplete_before_include", library_open=opened,
-                          chips_added=chips)
-            raise RuntimeError("flow_two_reference_count_unverified")
-        # One reference may already be attached; Include must then add only
-        # the remaining selected reference, never duplicate the first.
-        two_include_remaining = 2 - chips
-        selection_log("two_include_remaining", remaining=two_include_remaining)
+            if not selected_confirmed:
+                raise RuntimeError("flow_two_selection_not_confirmed")
+            count = await two_selected_count()
+            selection_log("two_selected_verified", ordinal=ordinal,
+                          selected_count=count)
+            if count != ordinal:
+                raise RuntimeError("flow_two_selected_count_mismatch")
+        if not await library.is_visible() or await two_selected_count() != 2:
+            raise RuntimeError("flow_two_selected_count_unverified")
+        if await ingredient_count() != baseline_chips:
+            raise RuntimeError("flow_two_premature_auto_attach")
+        selection_log("two_both_selected_before_include", selected_count=2)
+        record_event("reference_selection_finished")
 
     for index, name in enumerate(names) if image_count != 2 else []:
         ordinal = index + 1
@@ -863,10 +838,12 @@ async def flow_upload_references(page, images, prompt_control):
                              (await control.inner_text(timeout=1000))).strip()
                     quantity = re.search(r"\b(\d+)\s+(?:itens?|items?|arquivos?|files?)\b", label, re.I)
                     if quantity and int(quantity.group(1)) == (
-                            two_include_remaining if image_count == 2 else len(names)):
+                            len(names)):
                         candidates.append(control)
-                    elif len(names) == 1 and re.fullmatch(
-                        r"\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\s*", label, re.I):
+                    elif (len(names) in (1, 2) and re.fullmatch(
+                        r"\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\s*", label, re.I)):
+                        # Two-image mode only reaches this point after confirming
+                        # both library options are selected.
                         candidates.append(control)
                 except Exception:
                     continue
