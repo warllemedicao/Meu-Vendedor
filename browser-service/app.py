@@ -881,39 +881,16 @@ async def configure_flow_agent(page, prompt_control):
     await choose_segmented_option("Padrão para geração de vídeo","quantity","x1","video_count")
     # The screenshot already shows Nano Banana 2.1; leave the model dropdown unchanged.
     record_event("settings_image_model_preserved")
-    # Prefer the prominent Save button physically below the Veo 3.1 model selector.
-    # Flow sometimes renders this footer outside the dialog container.
-    save_candidates = []
-    for frame in page.frames[:8]:
-        veo_labels = frame.get_by_text(re.compile(r"Veo\s*3\.1", re.I))
-        anchors = []
-        for i in range(min(await veo_labels.count(), 12)):
-            label = veo_labels.nth(i)
-            if await label.is_visible():
-                anchors.append(await label.bounding_box())
-        anchors = [box for box in anchors if box]
-        if not anchors:
-            continue
-        controls = frame.get_by_role("button", name=re.compile(r"^(Salvar|Save)$", re.I))
-        for i in range(min(await controls.count(), 12)):
-            button = controls.nth(i)
-            if not await button.is_visible() or not await button.is_enabled():
-                continue
-            box = await button.bounding_box()
-            if not box:
-                continue
-            # Same column and below the Veo model label, never a distant Save button.
-            if any(box["y"] > anchor["y"] + anchor["height"] and
-                   box["x"] < anchor["x"] + anchor["width"] + 180 and
-                   box["x"] + box["width"] > anchor["x"] - 180
-                   for anchor in anchors):
-                save_candidates.append(button)
-    if len(save_candidates) != 1:
-        record_event("settings_save_candidates_" + str(len(save_candidates)))
-        raise RuntimeError("flow_settings_save_not_found" if not save_candidates
+    # Use the Save control belonging to the verified settings panel, not a
+    # spatial guess relative to the Veo model label elsewhere on the page.
+    save = panel.get_by_role("button", name=re.compile(r"^(Salvar|Save)$", re.I))
+    if await save.count() != 1:
+        record_event("settings_save_candidates_" + str(await save.count()))
+        raise RuntimeError("flow_settings_save_not_found" if await save.count() == 0
                            else "flow_settings_save_ambiguous")
-    save = save_candidates[0]
-    record_event("settings_save_below_veo_confirmed")
+    if not await save.is_visible() or not await save.is_enabled():
+        raise RuntimeError("flow_settings_save_unverified")
+    record_event("settings_save_in_panel_confirmed")
     await show_red_click(page, save, "click_settings")
     await save.click(timeout=4000)
     for _ in range(16):
