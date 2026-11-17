@@ -1978,3 +1978,8 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Na branch `feat/navegador-proprio-chromium`, a rota `/session/stage` passou a tentar o fluxo legado: abrir biblioteca, clicar Fazer upload e interceptar seletor nativo de arquivos, tratar confirmação de direitos, aguardar itens e selecionar até três referências, seguido de Incluir no comando. Mantido o preenchimento do prompt existente; não clica Gerar.
 - Commits `49cd7eee` e `bdae80a7`. Retorno distingue `imagesSubmitted`, `referencesIncluded` e `referencesVerified: false`: ainda não há confirmação de chips de referências no editor.
 - **Não validado no Flow real**: dependência da estrutura dinâmica da biblioteca, seleção de imagens e confirmação do botão Incluir. Não houve deploy Modal, Cloudflare ou testes ponta a ponta nesta alteração. Publicar Modal antes de testar e conferir visualmente os anexos.
+
+## 2026-11-16 — Ordem corrigida: Adicionar elementos antes de Fazer upload
+- Ajustado `browser-service/app.py` na branch `feat/navegador-proprio-chromium`: após preencher o prompt, localizar explicitamente o botão `Adicionar elementos`/`Add elements` por nome acessível, `title` ou `data-tooltip`, priorizando o controle mais próximo da caixa do prompt; clicar para abrir o menu e então procurar `Fazer upload` e interceptar o seletor de arquivos.
+- Em caso de ausência ou ambiguidade do botão, retornar código específico sem clicar em controles genéricos. Não iniciar geração nem aprovar créditos.
+- Commit `5b89b2a`. **Código enviado ao GitHub; deploy Modal e teste real ainda pendentes.**
