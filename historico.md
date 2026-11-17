@@ -1,3 +1,10 @@
+
+## 2026-11-16 — Configuração pública do Supabase no build Cloudflare
+
+- Corrigido `next.config.ts` para fornecer a URL e a chave **publishable** do projeto Supabase existente quando ambas as variáveis públicas estiverem ausentes no ambiente de build. A chave publishable é destinada ao frontend; nenhuma credencial administrativa foi incorporada.
+- Se apenas uma variável estiver definida, a validação continua rejeitando o build; valores explicitamente definidos continuam prioritários. O objetivo é evitar o erro de compilação no Codespaces sem solicitar cópia manual da chave pública.
+- Commit da correção: `cac87f4d`. **Pendente:** `git pull --ff-only`, validação de build e `npm run deploy:cloudflare` no Codespaces; publicação em produção não confirmada.
+
 ## 2026-11-16 — Chrome oficial preparado para teste no Modal
 
 Atualizados `browser-service/modal_app.py` e `browser-service/app.py` para instalar o **Google Chrome oficial** com `playwright install --with-deps chrome` e iniciar o navegador via `playwright.chromium.launch_persistent_context(..., channel="chrome", headless=False)`. Perfil exclusivo `/data/browser/chrome-official`; mantidos Xvfb, noVNC, endpoints privados, ticket de visualização e volume persistente. Nenhuma técnica de ocultação de automação nem cópia de cookies. **Commitado na branch `feat/navegador-proprio-chromium`, sem deploy Modal executado nesta sessão.** Para testar, publicar `browser-service/modal_app.py` com `modal deploy` no ambiente com credenciais Modal, então abrir a sessão privada no Meu Vendedor e tentar login manual. Login não garantido.
