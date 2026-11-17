@@ -735,7 +735,7 @@ async def stage_flow(request: Request):
                     # a second click on the Meu Vendedor submit button.
                     try:
                         await page.wait_for_url(re.compile(
-                            r"^https://flow\\.google\\.com/project/"), timeout=25000)
+                            r"^https://flow\.google\.com/project/"), timeout=25000)
                     except Exception:
                         # Flow can open the new project in another tab.
                         for _ in range(20):
