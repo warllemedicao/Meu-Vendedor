@@ -355,8 +355,10 @@ async def learning_stop(request: Request):
     async with lock:
         if learning_state["active"] and chrome_running():
             async with async_playwright() as pw:
-                page = await learning_browser_page(pw)
-                for frame in page.frames[:8]:
+                browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+                pages = [p for ctx in browser.contexts for p in ctx.pages
+                         if not p.is_closed() and p.url.startswith("https://flow.google.com/")]
+                for frame in [f for page in pages for f in page.frames[:8]][:24]:
                     try:
                         events = await frame.evaluate("""() => {
                           if(window.__mvLearningCleanup) window.__mvLearningCleanup();
