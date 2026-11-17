@@ -2216,3 +2216,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - **Evidência dos relatórios estruturais dos dois primeiros testes:** `click_reference`, `reference_click_confirmed`, dois `click_settings`, `click_generate` e `stage_completed`, sem etapa `click_include`, compatível com a inclusão automática de uma imagem no prompt.
 - **Marco:** caminho exclusivo de **1 imagem** aprovado em três testes relatados, incluindo reinício do Chrome. Os testes comprovam acionamento da geração, não conclusão de MP4 nem cobrança de créditos.
 - **Preservação:** registro apenas documental, sem alteração de código. O usuário iniciou testes com **2 imagens**, cujos resultados ainda serão registrados separadamente; manter os fluxos de 2 e 3 imagens intactos.
+
+### 2026-11-17 — Separação física dos seletores de 1, 2 e 3 imagens
+- Testes informados: duas imagens aprovadas às 15h46, 15h47 e 15h48 (último com conteúdo visual igual e nomes distintos); três imagens falharam às 15h52 e 15h53 após a primeira seleção.
+- Arquitetura: `browser-service/flow_references/single_image.py`, `two_images.py` e `three_images.py`, com despacho pelo número de anexos no `browser-service/app.py`. Somente a seleção da biblioteca foi extraída; upload, botão Incluir no comando, configurações e Gerar permanecem compartilhados.
+- Uma imagem: comportamento validado de clique simples e inclusão automática, registrado nos testes 14h52–14h55.
+- Duas imagens: lógica atual aprovada nos três testes 15h46–15h48 foi copiada para módulo exclusivo.
+- Três imagens: sequência de cliques de 1.100 ms com Control nas seleções adicionais recuperada do commit histórico `c8ef2ff`, associado aos marcos anteriores; ainda requer validação após a separação.
+- Nenhuma alteração de interface. O Modal precisa de novo deploy; não há comprovação de testes integrados nem de MP4 concluído nesta etapa.
