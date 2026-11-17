@@ -716,6 +716,24 @@ async def flow_upload_references(page, images, prompt_control):
             continue
         await item.click(trial=True, timeout=2500)
         await show_red_click(page, item, "click_reference")
+        if image_count == 1:
+            # Flow automatically inserts a single selected reference into the
+            # composer. No click-and-hold or explicit Include action is needed.
+            await item.click(timeout=6000)
+            record_event("reference_click_confirmed")
+            # Confirm the composer chip was actually added before continuing.
+            for attempt in range(12):
+                opened, chips, selected = await observe(ordinal)
+                if chips == 1:
+                    record_event("reference_single_auto_included")
+                    selection_log("single_auto_included", ordinal=ordinal,
+                                  chips_added=chips)
+                    return {"imagesSubmitted": 1, "referencesIncluded": True,
+                            "referencesVerified": False}
+                await page.wait_for_timeout(500)
+            selection_log("single_auto_include_unverified", ordinal=ordinal,
+                          chips_added=chips)
+            raise RuntimeError("flow_reference_selection_unavailable")
         if index > 0:
             await item.click(modifiers=["Control"], delay=1100, timeout=6000)
         else:
@@ -723,12 +741,6 @@ async def flow_upload_references(page, images, prompt_control):
         record_event("reference_click_confirmed")
         await page.wait_for_timeout(900)
         opened, chips, selected = await observe(ordinal, item)
-        # Single-image mode must follow the same Include -> Settings -> Generate
-        # path as the five successful three-image runs. A chip alone does not
-        # prove that the reference was included in the prompt.
-        if image_count == 1 and chips > 0:
-            selection_log("single_chip_observed", ordinal=ordinal,
-                          chips_added=chips)
         # Wait for the interface to settle. Never retry a click when its
         # selection state is unknown: a second click could deselect it.
         if selected != "true":
