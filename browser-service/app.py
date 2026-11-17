@@ -395,22 +395,51 @@ async def flow_upload_references(page, images, prompt_control):
                                 return True
         return False
 
-    # The Flow library may need to be opened before its Upload action exists.
-    if not await click_upload():
+    # Flow exposes "Fazer upload" only after opening "Adicionar elementos"
+    # next to the composer. Resolve by accessible name, tooltip/title and
+    # spatial proximity to the prompt; never click an unrelated Add control.
+    async def open_add_elements():
+        candidates = []
         for frame in page.frames[:8]:
-            opened = False
-            for selector in ('button[aria-label*="Adicionar"]', 'button[aria-label*="Add"]',
-                             'button[title*="Adicionar"]', 'button[title*="Add"]'):
-                control = frame.locator(selector)
-                if await control.count() == 1 and await control.is_visible():
-                    await control.click(timeout=4000)
-                    opened = True
-                    break
-            if opened:
-                break
-        await page.wait_for_timeout(500)
-        if not await click_upload():
-            raise RuntimeError("flow_upload_action_not_found")
+            for locator in (
+                frame.get_by_role("button", name=re.compile(
+                    r"adicionar elementos|add elements", re.I)),
+                frame.locator('button[title],button[aria-label],[role="button"][title],[role="button"][aria-label]'),
+            ):
+                for index in range(min(await locator.count(), 50)):
+                    button = locator.nth(index)
+                    if not await button.is_visible() or not await button.is_enabled():
+                        continue
+                    try:
+                        evidence = await button.evaluate("""el => {
+                            const labels=[el.getAttribute('aria-label'),el.getAttribute('title'),
+                                el.getAttribute('data-tooltip'),el.textContent].filter(Boolean).join(' ');
+                            return {match:/adicionar elementos|add elements/i.test(labels)};
+                        }""", timeout=1200)
+                        if not evidence["match"]:
+                            continue
+                        distance = await button.evaluate("""(el,selector) => {
+                            const a=el.getBoundingClientRect(),b=selector.getBoundingClientRect();
+                            return Math.hypot((a.left+a.right)/2-(b.left+b.right)/2,
+                                              (a.top+a.bottom)/2-(b.top+b.bottom)/2);
+                        }""", await prompt_control.element_handle(), timeout=1200)
+                        candidates.append((distance, button))
+                    except Exception:
+                        continue
+        if not candidates:
+            return False
+        candidates.sort(key=lambda item: item[0])
+        if len(candidates)>1 and candidates[1][0]-candidates[0][0]<40:
+            raise RuntimeError("flow_add_elements_ambiguous")
+        await candidates[0][1].click(timeout=4000)
+        return True
+
+    # Open the composer menu first, as observed in the live Flow interface.
+    if not await open_add_elements():
+        raise RuntimeError("flow_add_elements_not_found")
+    await page.wait_for_timeout(500)
+    if not await click_upload():
+        raise RuntimeError("flow_upload_action_not_found")
 
     # Confirm user-authorized image rights prompts, without submitting a generation.
     for _ in images:
@@ -596,7 +625,8 @@ async def stage_flow(request: Request):
             # Only return fixed diagnostic codes, never browser content or credentials.
             allowed = {"no_context", "flow_page_not_active", "new_project_button_not_found",
                        "flow_project_not_active", "prompt_field_not_unique",
-                       "flow_upload_action_not_found", "flow_image_rights_unresolved",
+                       "flow_upload_action_not_found", "flow_add_elements_not_found",
+                       "flow_add_elements_ambiguous", "flow_image_rights_unresolved",
                        "flow_reference_selection_unavailable", "flow_reference_include_unavailable"}
             code = str(exc) if str(exc) in allowed else "flow_interaction_failed"
             raise HTTPException(409, code) from None
