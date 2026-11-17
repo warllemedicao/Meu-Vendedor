@@ -27,7 +27,9 @@ context = None
 DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrome_stopped",
     "chrome_exited", "chrome_start_failed", "chrome_not_running", "viewer_ticket_issued",
     "viewer_rejected", "viewer_connected", "viewer_disconnected", "viewer_proxy_failed",
-    "stage_started", "stage_completed", "stage_failed", "service_started", "service_stopped"))
+    "stage_started", "stage_completed", "stage_failed", "stage_prompt_filled", "stage_upload_failed",
+    "click_add_elements", "click_upload", "click_rights", "click_reference", "click_include",
+    "add_elements_not_found", "upload_not_found", "service_started", "service_stopped"))
 diagnostic_events = []
 
 def record_event(code):
@@ -370,6 +372,32 @@ async def diagnose_flow(request: Request):
         except Exception:
             raise HTTPException(409, "flow_interaction_failed") from None
 
+async def show_red_click(page, locator, code):
+    """Show a temporary red click target in the private browser viewer."""
+    record_event(code)
+    try:
+        # Overlay is fixed in the element's frame, with pointer-events disabled.
+        await locator.evaluate("""el => {
+            const rect=el.getBoundingClientRect();
+            const x=rect.left+rect.width/2, y=rect.top+rect.height/2;
+            const dot=document.createElement('div');
+            dot.setAttribute('data-mv-click-indicator','true');
+            dot.style.cssText='position:fixed;z-index:2147483647;pointer-events:none;'+
+                'left:'+x+'px;top:'+y+'px;transform:translate(-50%,-50%);'+
+                'width:42px;height:42px;border:4px solid #ff0000;border-radius:50%;'+
+                'background:rgba(255,0,0,.22);box-shadow:0 0 0 5px rgba(255,0,0,.15)';
+            const cross=document.createElement('div');
+            cross.style.cssText='position:absolute;left:50%;top:50%;width:12px;height:12px;'+
+                'transform:translate(-50%,-50%);background:#ff0000;border-radius:50%';
+            dot.appendChild(cross);
+            document.documentElement.appendChild(dot);
+            setTimeout(()=>dot.remove(),2500);
+        }""", timeout=1500)
+        await page.wait_for_timeout(450)
+    except Exception:
+        pass  # The click must still work if Flow rejects the visual overlay.
+
+
 async def flow_upload_references(page, images, prompt_control):
     """Adapt the proven Flow library workflow to the private local Chromium CDP."""
     async def click_upload():
@@ -384,6 +412,7 @@ async def flow_upload_references(page, images, prompt_control):
                         continue
                     try:
                         async with page.expect_file_chooser(timeout=3500) as event:
+                            await show_red_click(page, control, "click_upload")
                             await control.click(timeout=3500)
                         await (await event.value).set_files(images, timeout=12000)
                         return True
@@ -427,10 +456,12 @@ async def flow_upload_references(page, images, prompt_control):
                     except Exception:
                         continue
         if not candidates:
+            record_event("add_elements_not_found")
             return False
         candidates.sort(key=lambda item: item[0])
         if len(candidates)>1 and candidates[1][0]-candidates[0][0]<40:
             raise RuntimeError("flow_add_elements_ambiguous")
+        await show_red_click(page, candidates[0][1], "click_add_elements")
         await candidates[0][1].click(timeout=4000)
         return True
 
@@ -439,6 +470,7 @@ async def flow_upload_references(page, images, prompt_control):
         raise RuntimeError("flow_add_elements_not_found")
     await page.wait_for_timeout(500)
     if not await click_upload():
+        record_event("upload_not_found")
         raise RuntimeError("flow_upload_action_not_found")
 
     # Confirm user-authorized image rights prompts, without submitting a generation.
@@ -451,6 +483,7 @@ async def flow_upload_references(page, images, prompt_control):
                     agree = frame.get_by_role("button", name=re.compile(r"^\s*Concordo\s*$", re.I))
                     if await agree.count() != 1 or not await agree.is_visible():
                         raise RuntimeError("flow_image_rights_unresolved")
+                    await show_red_click(page, agree, "click_rights")
                     await agree.click(timeout=5000)
                     accepted = True
                     break
@@ -499,6 +532,7 @@ async def flow_upload_references(page, images, prompt_control):
             raise RuntimeError("flow_reference_selection_unavailable")
         item = target.first
         await item.click(trial=True, timeout=2500)
+        await show_red_click(page, item, "click_reference")
         if index == 0 and len(names) > 1:
             await item.click(delay=950, timeout=4000)
         elif index > 0:
@@ -525,6 +559,7 @@ async def flow_upload_references(page, images, prompt_control):
     if len(candidates) != 1:
         raise RuntimeError("flow_reference_include_unavailable")
     await candidates[0].click(trial=True, timeout=2500)
+    await show_red_click(page, candidates[0], "click_include")
     await candidates[0].click(timeout=3500)
     return {"imagesSubmitted": len(names), "referencesIncluded": True,
             "referencesVerified": False}
