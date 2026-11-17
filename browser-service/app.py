@@ -393,7 +393,7 @@ async def show_red_click(page, locator, code):
             document.documentElement.appendChild(dot);
             setTimeout(()=>dot.remove(),2500);
         }""", timeout=1500)
-        await page.wait_for_timeout(450)
+        await page.wait_for_timeout(120)
     except Exception:
         pass  # The click must still work if Flow rejects the visual overlay.
 
@@ -470,7 +470,6 @@ async def flow_upload_references(page, images, prompt_control):
     # Open the composer menu first, as observed in the live Flow interface.
     if not await open_add_elements():
         raise RuntimeError("flow_add_elements_not_found")
-    await page.wait_for_timeout(500)
     if not await click_upload():
         record_event("upload_not_found")
         raise RuntimeError("flow_upload_action_not_found")
