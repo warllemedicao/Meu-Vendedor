@@ -925,10 +925,32 @@ async def click_flow_generate(page, prompt_control, reference_count=0):
     import json
 
     def generate_log(code, **details):
-        # Never log page text, prompts, HTML, credentials or session URLs.
+        # Export only allowlisted structural metadata to the existing training report.
+        # Never export page text, prompts, HTML, URLs, account data or exception messages.
+        safe_codes = {
+            "generate_discovery", "generate_discovery_error", "generate_target_not_verified",
+            "generate_target_verified", "generate_click_dispatched", "generate_click_failed",
+            "credit_prompt_candidate", "credit_prompt_verified_no_click",
+            "credit_prompt_not_detected", "credit_prompt_frame_error",
+            "credit_prompt_observation_failed",
+        }
+        safe_fields = {
+            "frame", "poll", "polls", "approveCount", "alwaysCount", "rejectCount",
+            "dialogCount", "creditQuestionVisible", "candidateRoles", "error_type",
+            "arrow_candidates", "prompt_candidates", "settings_candidates",
+            "reason", "method",
+        }
+        safe = {k: v for k, v in details.items() if k in safe_fields
+                and isinstance(v, (str, int, bool, list))}
         record_event(code)
+        if learning_state["active"] and code in safe_codes:
+            learning_state["events"].append({
+                "kind": "generate-diagnostic", "code": code,
+                "at": int(time.time()), "details": safe,
+            })
+            del learning_state["events"][:-200]
         print("mv_generate_diagnostic " + json.dumps(
-            {"code": code, **details}, ensure_ascii=False), flush=True)
+            {"code": code, **safe}, ensure_ascii=False), flush=True)
 
     candidates = []
     for frame_index, frame in enumerate(page.frames[:8]):
