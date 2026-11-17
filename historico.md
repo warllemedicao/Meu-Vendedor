@@ -2159,3 +2159,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Zoom do Chrome privado redefinido para 100% na abertura (removido incremento 110%).
 - Seleção segmentada por cabeçalhos de imagens/vídeos e linhas de proporção/quantidade; modelo de imagem já correto é preservado, bem como confirmação e modelo de vídeo.
 - A correção foi commitada na branch, sem deploy nem teste real nesta sessão.
+
+### 2026-11-17 — Seleção de referências por quantidade
+- Diagnóstico de teste com 1 imagem: click_reference e reference_selection_finished, seguidos de 45 segundos sem include_button_ready; stage_failed. O problema está na detecção/inclusão, não em um clique na terceira imagem.
+- Adicionado modo explícito de 1, 2 e 3 imagens. Para 1, verifica inclusão automática pelo aparecimento de flow-ingredient-chip; para 2, não prossegue com a segunda seleção se a biblioteca fechou após a primeira; o caminho de 3 imagens mantém os cliques existentes.
+- Corrigida regex do rótulo simples de inclusão de uma imagem (antes tinha barras invertidas duplicadas).
+- Commit de código 689b414. Ainda sem testes reais e deploy Modal nesta sessão; referênciasVerified permanece false, sem alegar validação completa.
