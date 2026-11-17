@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 
-type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; events?: { role: string; type: string }[]; imageDirectory?: string; imagesAvailable?: number; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean };
+type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; events?: { role: string; type: string }[]; imageDirectory?: string; imagesAvailable?: number; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
@@ -14,6 +14,7 @@ export function PrivateBrowserConnection() {
   const [prompt, setPrompt] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const [generateAuthorized, setGenerateAuthorized] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   async function invoke(action: string, extra: Record<string, unknown> = {}) {
@@ -127,9 +128,10 @@ export function PrivateBrowserConnection() {
         }
         return { mime: file.type, data: btoa(binary) };
       }));
-      const result = await invoke("stage", { prompt: prompt.trim(), images: encoded, imageRightsConfirmed: rightsConfirmed });
+      const result = await invoke("stage", { prompt: prompt.trim(), images: encoded, imageRightsConfirmed: rightsConfirmed, configureAndGenerate: generateAuthorized });
+      setGenerateAuthorized(false);
       setMessage(result.promptStaged
-        ? `Prompt inserido no Flow; ${result.imagesSubmitted ?? 0} imagem(ns) enviada(s). Confira no Chrome antes de gerar.`
+        ? `Prompt inserido no Flow; ${result.imagesSubmitted ?? 0} imagem(ns) enviada(s). ${result.generationStarted ? "Geração acionada; confira os créditos e a confirmação no Flow." : "Confira no Chrome antes de gerar."}`
         : "O Flow não confirmou a preparação do rascunho.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao preparar o Flow.");
@@ -182,6 +184,7 @@ export function PrivateBrowserConnection() {
       <button type="button" disabled={busy || !viewUrl} onClick={() => void diagnose()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
         Diagnosticar Flow automaticamente
       </button>
+      <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={generateAuthorized} onChange={(event) => setGenerateAuthorized(event.target.checked)} /> Configurar o Flow (Nunca confirmar, imagens 9:16, x1, vídeo 9:16) e clicar em Gerar. Entendo que isso pode consumir créditos automaticamente.</label>
       <button type="button" disabled={busy || !prompt.trim() || (images.length > 0 && !rightsConfirmed)} onClick={() => void stageDraft()} className="rounded-lg bg-primary px-3 py-2 text-sm text-white disabled:opacity-50">{busy ? "Preparando..." : "Enviar prompt e imagens ao Flow"}</button>
       <button type="button" onClick={() => void navigator.clipboard.writeText(prompt).then(
         () => setMessage("Prompt copiado. Cole no Chrome para testar."),
