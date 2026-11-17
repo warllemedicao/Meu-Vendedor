@@ -2090,3 +2090,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - A instrumentação observa clique, duração de pressionamento, alterações de atributos de seleção e mudanças estruturais filtradas, sem texto de página ou conteúdo de formulário.
 - Não altera a estratégia de seleção das imagens, nem afirma confirmação de seleção sem evidência do DOM.
 - Commits na branch `feat/navegador-proprio-chromium`. Publicação em Modal, Supabase e Cloudflare e testes integrados permanecem pendentes.
+
+## 2026-11-17 — Publicação parcial verificada
+
+- Supabase Edge Function `private-browser` publicada diretamente pela integração Supabase: versão **15**, status **ACTIVE**, `verify_jwt=true`. O conteúdo publicado corresponde ao arquivo `supabase/functions/private-browser/index.ts` da branch.
+- O workflow `.github/workflows/deploy-private-browser-modal.yml` existe e exige disparo manual (`workflow_dispatch`). Não foi possível acioná-lo com as operações disponíveis nesta sessão; **deploy Modal não realizado**.
+- O código do frontend está commitado na branch, mas **Cloudflare não publicado**, conforme etapa reservada ao usuário.
+- Testes Python, lint, typecheck e build completos **não executados nesta sessão**: o repositório não está acessível no ambiente de execução local e não houve confirmação de CI para o commit.
+- A captura durante a automação permanece **não validada em ambiente real** até o Modal e frontend serem publicados.
