@@ -677,6 +677,7 @@ async def flow_upload_references(page, images, prompt_control):
             return {"imagesSubmitted": 1, "referencesIncluded": True,
                     "referencesVerified": False}
         if image_count == 2 and index == 0 and not await library.is_visible():
+            record_event("reference_library_closed_before_second")
             raise RuntimeError("flow_reference_library_closed_before_second")
     record_event("reference_selection_finished")
 
@@ -1056,6 +1057,7 @@ async def stage_flow(request: Request):
                        "flow_upload_action_not_found", "flow_upload_incomplete", "flow_add_elements_not_found",
                        "flow_add_elements_ambiguous", "flow_image_rights_unresolved",
                        "flow_reference_selection_unavailable", "flow_reference_include_unavailable",
+                       "flow_reference_library_closed_before_second", "flow_reference_count_unsupported",
                        "flow_settings_button_not_found", "flow_settings_button_ambiguous",
                        "flow_settings_panel_not_found", "flow_settings_option_not_found",
                        "flow_settings_model_unverified", "flow_settings_save_not_found",
