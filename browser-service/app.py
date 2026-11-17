@@ -243,19 +243,50 @@ def clear_learning_images():
                 file.unlink()
 
 LEARNING_SCRIPT = r"""(() => {
-  if (window.__mvLearningListener) return;
-  window.__mvLearningListener = e => {
-    const el = e.target?.closest?.('button,[role="button"],[role="menuitem"],[role="tab"],[role="option"],input[type="file"]');
-    if (!el || el.closest('input[type="password"]')) return;
-    const role = el.getAttribute('role') || el.tagName.toLowerCase();
-    const label = (el.getAttribute('aria-label') || '').slice(0,80);
-    const type = (el.getAttribute('type') || '').slice(0,30);
-    window.__mvLearningEvents ||= [];
-    if (window.__mvLearningEvents.length < 80) window.__mvLearningEvents.push({role,type,label});
+  if (window.__mvLearningCleanup) return;
+  const events = window.__mvLearningEvents = [];
+  const push = item => { if (events.length < 120) events.push(item); };
+  const describe = target => {
+    if (!(target instanceof Element)) return null;
+    const el = target.closest('button,[role],img,input,label,[tabindex],li,[data-state],[aria-selected]') || target;
+    if (el.closest('input[type="password"],textarea,[contenteditable="true"]')) return null;
+    const state = {};
+    for (const key of ['aria-selected','aria-pressed','aria-checked','data-state','aria-expanded']) {
+      const value = el.getAttribute(key);
+      if (value !== null) state[key] = value.slice(0,32);
+    }
+    return {role:(el.getAttribute('role') || el.tagName.toLowerCase()).slice(0,32),state};
   };
-  document.addEventListener('click',window.__mvLearningListener,true);
+  let down = null;
+  const handler = e => {
+    const element = describe(e.target);
+    if (!element) return;
+    if (e.type === 'pointerdown') down = performance.now();
+    if (e.type === 'pointerup') {
+      push({kind:'pointerup',element,holdMs:down === null ? null : Math.round(performance.now()-down)});
+      down = null;
+    }
+    if (e.type === 'click') {
+      push({kind:'click',element});
+      setTimeout(()=>push({kind:'after-click',element:describe(e.target)}),350);
+    }
+  };
+  ['pointerdown','pointerup','click'].forEach(t=>document.addEventListener(t,handler,true));
+  const observer = new MutationObserver(changes => {
+    for (const change of changes) {
+      if (events.length >= 120) break;
+      if (change.type !== 'attributes') continue;
+      const element = describe(change.target);
+      if (element) push({kind:'mutation',attribute:change.attributeName,element});
+    }
+  });
+  observer.observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['aria-selected','aria-pressed','aria-checked','data-state','aria-expanded','class']});
+  window.__mvLearningCleanup = () => {
+    ['pointerdown','pointerup','click'].forEach(t=>document.removeEventListener(t,handler,true));
+    observer.disconnect();
+    delete window.__mvLearningCleanup;
+  };
 })()"""
-
 async def learning_browser_page(pw):
     browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
     pages = [p for ctx in browser.contexts for p in ctx.pages
@@ -304,7 +335,7 @@ async def learning_start(request: Request):
             learning_state["active"] = True
             for frame in page.frames[:8]:
                 try:
-                    await frame.evaluate("delete window.__mvLearningEvents; if(window.__mvLearningListener) {document.removeEventListener('click',window.__mvLearningListener,true); delete window.__mvLearningListener}")
+                    await frame.evaluate("if(window.__mvLearningCleanup) window.__mvLearningCleanup(); delete window.__mvLearningEvents")
                     await frame.evaluate(LEARNING_SCRIPT)
                 except Exception:
                     continue
@@ -325,23 +356,30 @@ async def learning_stop(request: Request):
                 for frame in page.frames[:8]:
                     try:
                         events = await frame.evaluate("""() => {
-                          if(window.__mvLearningListener) document.removeEventListener('click',window.__mvLearningListener,true);
-                          delete window.__mvLearningListener;
+                          if(window.__mvLearningCleanup) window.__mvLearningCleanup();
                           const events = window.__mvLearningEvents || [];
                           delete window.__mvLearningEvents;
                           return events;
                         }""")
-                        for event in events[:80]:
-                            if len(learning_state["events"]) >= 80: break
-                            # Labels can contain private information; keep only role/type.
-                            learning_state["events"].append({"role": str(event.get("role",""))[:32],
-                                                             "type": str(event.get("type",""))[:24]})
+                        for event in events[:120]:
+                            if len(learning_state["events"]) >= 120:
+                                break
+                            element = event.get("element") or {}
+                            state = element.get("state") or {}
+                            learning_state["events"].append({
+                                "kind": str(event.get("kind", ""))[:24],
+                                "role": str(element.get("role", ""))[:32],
+                                "state": {key: str(value)[:32] for key, value in state.items()
+                                          if key in ("aria-selected", "aria-pressed", "aria-checked", "data-state", "aria-expanded")},
+                                "attribute": str(event.get("attribute", ""))[:24],
+                                "holdMs": event.get("holdMs") if isinstance(event.get("holdMs"), int) else None
+                            })
                     except Exception:
                         continue
         learning_state["active"] = False
         clear_learning_images()
     return {"active": False, "recorded": len(learning_state["events"]),
-            "events": learning_state["events"][-80:]}
+            "events": learning_state["events"][-120:]}
 
 
 @app.get("/session/diagnose")
