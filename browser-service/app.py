@@ -764,67 +764,94 @@ async def configure_flow_agent(page, prompt_control):
         raise RuntimeError("flow_settings_panel_not_found")
 
     async def select_in_section(section_names, values, step):
-        """Find one visible option in its own section, with a precise failure code."""
+        """Interact with section-scoped controls, including collapsed dropdowns."""
         record_event("settings_search_" + step)
-        for attempt in range(8):
-            result = await panel.evaluate("""(root,args) => {
+        # A dropdown may render its options in a portal outside the settings dialog.
+        # First inspect the current value and open only the control in the named section.
+        for attempt in range(3):
+            outcome = await panel.evaluate("""(root,args) => {
                 const [sections,values]=args;
-                const norm=s=>(s||'').trim().toLowerCase()
-                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
-                    .replace(/\\s+/g,' ');
-                const controls='button,[role="radio"],[role="button"],[role="option"],label,input[type="radio"]';
-                const visible=el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0};
-                const labels=Array.from(root.querySelectorAll('*')).filter(el=>
-                    el.children.length===0 && sections.some(s=>norm(el.textContent).includes(norm(s))));
-                let matches=[];
-                for(const label of labels){
-                    let node=label.parentElement;
-                    for(let depth=0;depth<7&&node;depth++,node=node.parentElement){
-                        const found=Array.from(node.querySelectorAll(controls)).filter(el=>{
-                            if(!visible(el))return false;
-                            const label=norm(el.getAttribute('aria-label')||
-                                el.getAttribute('data-value')||el.textContent||el.value);
-                            return values.some(v=>label===norm(v));
-                        });
+                const norm=s=>(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
+                    .trim().toLowerCase().replace(/\\s+/g,' ');
+                const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
+                const text=e=>norm(e.getAttribute('aria-label')||e.getAttribute('data-value')||
+                    e.getAttribute('title')||e.textContent||e.value);
+                const heading=[...root.querySelectorAll('*')].filter(e=>visible(e)&&
+                    e.children.length===0&&sections.some(s=>norm(e.textContent).includes(norm(s))));
+                const controlSelector='button,[role="radio"],[role="combobox"],[role="button"],select,input[type="radio"]';
+                let matches=[],openers=[];
+                for(const h of heading){
+                    let parent=h.parentElement;
+                    for(let depth=0;depth<5&&parent;depth++,parent=parent.parentElement){
+                        const controls=[...parent.querySelectorAll(controlSelector)]
+                            .filter(e=>visible(e)&&!e.disabled);
+                        const found=controls.filter(e=>values.some(v=>text(e)===norm(v)));
                         if(found.length){matches.push(...found);break;}
+                        if(controls.length && depth<=3){openers.push(...controls);}
                     }
                 }
                 matches=[...new Set(matches)];
-                if(matches.length===0 && !values.includes("9:16")){
-                    // Never select a globally matched ratio: image/video 9:16 can coexist.
-                    const all=Array.from(root.querySelectorAll(controls)).filter(visible);
-                    const global=all.filter(el=>values.some(v=>norm(
-                        el.getAttribute('aria-label')||el.getAttribute('data-value')||
-                        el.textContent||el.value)===norm(v)));
-                    if(global.length===1)matches=global;
+                if(matches.length===1){
+                    const el=matches[0];
+                    if(el.getAttribute('aria-checked')==='true'||
+                       el.getAttribute('aria-pressed')==='true'||
+                       el.getAttribute('data-state')==='checked'||
+                       (el.matches('input')&&el.checked))return {state:'selected'};
+                    el.setAttribute('data-mv-setting-target','yes');
+                    return {state:'click'};
                 }
-                if(matches.length!==1)return {count:matches.length};
-                // If 9:16 is the other option, click it; if already selected, do not toggle it off.
-                const target=matches[0];
-                const checked=target.getAttribute('aria-checked')==='true'||
-                    target.getAttribute('aria-pressed')==='true'||
-                    target.getAttribute('data-state')==='checked'||
-                    (target.matches('input')&&target.checked);
-                if(checked)return {count:1,alreadySelected:true};
-                matches[0].setAttribute('data-mv-setting-target','yes');
-                return {count:1};
-            }""", [section_names,values], timeout=2000)
-            if result["count"] == 1 and result.get("alreadySelected"):
+                openers=[...new Set(openers)].filter(e=>e.matches('select,[role="combobox"]')||
+                    e.getAttribute('aria-haspopup')||e.getAttribute('aria-expanded')!==null);
+                if(matches.length===0&&openers.length===1){
+                    openers[0].setAttribute('data-mv-setting-opener','yes');
+                    return {state:'open'};
+                }
+                return {state:'missing',candidates:matches.length,openers:openers.length};
+            }""",[section_names,values],timeout=2500)
+            state=outcome["state"]
+            if state=="selected":
                 record_event("settings_already_selected_" + step)
                 return
-            if result["count"] == 1:
+            if state=="click":
                 target=panel.locator('[data-mv-setting-target="yes"]')
                 try:
-                    if await target.count()==1:
-                        await show_red_click(page,target,"click_settings_" + step)
-                        await target.click(timeout=4000)
-                        record_event("settings_applied_" + step)
-                        return
+                    if await target.count()!=1:
+                        raise RuntimeError("flow_settings_ambiguous_" + step)
+                    await target.click(timeout=4000)
+                    record_event("settings_applied_" + step)
+                    return
                 finally:
                     if await target.count():
-                        await target.first.evaluate(
-                            "(el)=>el.removeAttribute('data-mv-setting-target')")
-            await page.wait_for_timeout(350)
+                        await target.first.evaluate("(el)=>el.removeAttribute('data-mv-setting-target')")
+            if state=="open":
+                opener=panel.locator('[data-mv-setting-opener="yes"]')
+                try:
+                    if await opener.count()!=1:
+                        raise RuntimeError("flow_settings_ambiguous_" + step)
+                    await opener.click(timeout=4000)
+                finally:
+                    if await opener.count():
+                        await opener.first.evaluate("(el)=>el.removeAttribute('data-mv-setting-opener')")
+                await page.wait_for_timeout(250)
+                # The dropdown options may be mounted in a document-level portal.
+                options=[]
+                for frame in page.frames[:8]:
+                    for value in values:
+                        candidate=frame.get_by_role("option",name=value,exact=True)
+                        for i in range(min(await candidate.count(),8)):
+                            item=candidate.nth(i)
+                            if await item.is_visible():
+                                options.append(item)
+                if len(options)==1:
+                    if await options[0].get_attribute("aria-selected")=="true":
+                        record_event("settings_already_selected_" + step)
+                        return
+                    await options[0].click(timeout=4000)
+                    record_event("settings_applied_" + step)
+                    return
+                if len(options)>1:
+                    raise RuntimeError("flow_settings_ambiguous_" + step)
+            await page.wait_for_timeout(300)
         record_event("settings_missing_" + step)
         raise RuntimeError("flow_settings_missing_" + step)
 
