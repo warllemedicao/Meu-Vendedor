@@ -83,7 +83,14 @@ Deno.serve(async (req) => {
     const allowed = new Set([
       "browser_not_running", "flow_page_not_active", "flow_project_not_active",
       "new_project_button_not_found", "prompt_field_not_unique",
-      "flow_upload_action_not_found", "flow_interaction_failed",
+      "flow_upload_action_not_found", "flow_upload_incomplete",
+      "flow_add_elements_not_found", "flow_add_elements_ambiguous",
+      "flow_image_rights_unresolved", "flow_reference_selection_unavailable",
+      "flow_reference_include_unavailable", "flow_settings_button_not_found",
+      "flow_settings_button_ambiguous", "flow_settings_panel_not_found",
+      "flow_settings_option_not_found", "flow_settings_model_unverified",
+      "flow_settings_save_not_found", "flow_generate_button_unverified",
+      "flow_interaction_failed",
       "invalid_draft", "payload_too_large",
     ]);
     const code = typeof result?.detail === "string" && allowed.has(result.detail)
@@ -96,7 +103,11 @@ Deno.serve(async (req) => {
     const allowedEvents = new Set(["chrome_started", "chrome_already_running", "chrome_stopped",
       "chrome_exited", "chrome_start_failed", "chrome_not_running", "viewer_ticket_issued",
       "viewer_rejected", "viewer_connected", "viewer_disconnected", "viewer_proxy_failed",
-      "stage_started", "stage_completed", "stage_failed", "service_started", "service_stopped"]);
+      "stage_started", "stage_completed", "stage_failed", "stage_prompt_filled",
+      "click_new_project", "click_prompt", "click_add_elements", "click_upload",
+      "click_settings", "click_generate", "click_rights", "click_reference",
+      "click_include", "add_elements_not_found", "upload_not_found",
+      "upload_incomplete", "service_started", "service_stopped"]);
     const events = result.diagnostics.events.slice(-20)
       .filter((event: unknown) => typeof event === "object" && event !== null)
       .map((event: Record<string, unknown>) => ({
