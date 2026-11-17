@@ -105,17 +105,20 @@ export function PrivateBrowserConnection() {
         setMessage("Diagnóstico ativo. Envie o prompt e as imagens normalmente; os rastros do robô serão incluídos ao finalizar.");
       } else {
         let robotTrace: unknown = [];
+        let stageFailure: unknown = null;
         let statusError = "";
         try {
           const status = await invoke("status");
-          const diagnostics = (status as BrowserResponse & { diagnostics?: { generateDiagnostics?: unknown } }).diagnostics;
+          const diagnostics = (status as BrowserResponse & { diagnostics?: { generateDiagnostics?: unknown; lastStageFailure?: { code?: string; errorType?: string; at?: number } | null } }).diagnostics;
           robotTrace = Array.isArray(diagnostics?.generateDiagnostics) ? diagnostics.generateDiagnostics : [];
+          stageFailure = diagnostics?.lastStageFailure ?? null;
         } catch {
           statusError = "Não foi possível consultar os diagnósticos do robô no Modal.";
         }
         setLearningResult(
           `Interações capturadas: ${result.recorded ?? 0}.\n` +
           `Eventos estruturais do navegador (sem conteúdo de campos):\n${JSON.stringify(result.events ?? [], null, 2)}\n\n` +
+          `Última falha da preparação (código técnico):\n${JSON.stringify(stageFailure, null, 2)}\n\n` +
           `Rastro automático do robô após Gerar (diagnósticos do Modal):\n${JSON.stringify(robotTrace, null, 2)}` +
           (statusError ? `\n${statusError}` : "")
         );
