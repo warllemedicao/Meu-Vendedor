@@ -1,4 +1,10 @@
 
+## 2026-11-16 — Espera pela ação de inclusão de imagens no Google Flow
+
+- Usuário reportou `flow_reference_include_unavailable` após o robô tentar selecionar imagens antes de a interface estabilizar.
+- `browser-service/app.py`: após selecionar as referências, aguarda por até 45 s o botão habilitado e clicável de inclusão com contagem correspondente (ou rótulo singular para uma imagem), sem clicar novamente em fotos às cegas. Commit `bd2ea6b8`.
+- **Pendente:** publicar Modal com `python -m modal deploy browser-service/modal_app.py` e validar no Google Flow real; o ajuste não comprova que o upload ou a seleção estejam completos em todos os casos.
+
 ## 2026-11-16 — Correção complementar do build estático
 
 - O Codespaces confirmou `git pull` e mostrou erro de configuração parcial (`Configure juntas a URL e a chave publicável do Supabase`).
