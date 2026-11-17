@@ -28,7 +28,7 @@ DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrom
     "chrome_exited", "chrome_start_failed", "chrome_not_running", "viewer_ticket_issued",
     "viewer_rejected", "viewer_connected", "viewer_disconnected", "viewer_proxy_failed",
     "stage_started", "stage_completed", "stage_failed", "stage_prompt_filled", "stage_upload_failed",
-    "click_prompt", "click_add_elements", "click_upload", "click_rights", "click_reference", "click_include",
+    "click_prompt", "click_add_elements", "click_upload", "click_settings", "click_generate", "click_rights", "click_reference", "click_include",
     "add_elements_not_found", "upload_not_found", "service_started", "service_stopped"))
 diagnostic_events = []
 
@@ -567,6 +567,109 @@ async def flow_upload_references(page, images, prompt_control):
             "referencesVerified": False}
 
 
+async def configure_flow_agent(page, prompt_control):
+    """Configure image and video defaults in the Flow agent panel."""
+    buttons = []
+    for frame in page.frames[:8]:
+        controls = frame.get_by_role("button", name=re.compile(
+            r"configurações do agente|agent settings|configurações|settings", re.I))
+        for i in range(min(await controls.count(), 10)):
+            control = controls.nth(i)
+            if await control.is_visible() and await control.is_enabled():
+                buttons.append(control)
+    if not buttons:
+        raise RuntimeError("flow_settings_button_not_found")
+    # The editor's settings control is closest to the prompt box.
+    prompt_handle = await prompt_control.element_handle()
+    ranked = []
+    for control in buttons:
+        try:
+            distance = await control.evaluate("""(el,prompt) => {
+                const a=el.getBoundingClientRect(),b=prompt.getBoundingClientRect();
+                return Math.hypot(a.right-b.right,a.bottom-b.bottom);
+            }""", prompt_handle, timeout=1200)
+            ranked.append((distance,control))
+        except Exception:
+            continue
+    if not ranked:
+        raise RuntimeError("flow_settings_button_not_found")
+    ranked.sort(key=lambda x:x[0])
+    if len(ranked)>1 and ranked[1][0]-ranked[0][0]<40:
+        raise RuntimeError("flow_settings_button_ambiguous")
+    await show_red_click(page,ranked[0][1],"click_settings")
+    await ranked[0][1].click(timeout=4000)
+    panel = None
+    for frame in page.frames[:8]:
+        heading = frame.get_by_text(re.compile(r"^Configurações do agente$|^Agent settings$",re.I))
+        if await heading.count():
+            candidate = heading.first.locator('xpath=ancestor::*[.//button[normalize-space()="Salvar" or normalize-space()="Save"]][1]')
+            if await candidate.count()==1 and await candidate.is_visible():
+                panel = candidate
+                break
+    if panel is None:
+        raise RuntimeError("flow_settings_panel_not_found")
+
+    # Choose controls by section, not by the first 9:16 on the page.
+    async def select_in_section(section, value, code):
+        selected = await panel.evaluate("""(root,args) => {
+            const [section,value]=args;
+            const text=Array.from(root.querySelectorAll('*')).find(el=>
+                el.children.length===0 && (el.textContent||'').trim().toLowerCase()===section.toLowerCase());
+            if(!text)return {found:false};
+            let container=text.parentElement;
+            for(let i=0;i<5 && container;i++,container=container.parentElement){
+                const controls=Array.from(container.querySelectorAll('button,[role="radio"],[role="button"]'))
+                    .filter(el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0});
+                const matches=controls.filter(el=>(el.getAttribute('aria-label')||el.textContent||'').trim()===value);
+                if(matches.length===1 && controls.length>=2){
+                    matches[0].setAttribute('data-mv-setting-target','yes');
+                    return {found:true};
+                }
+            }
+            return {found:false};
+        }""", [section,value], timeout=1500)
+        if not selected["found"]:
+            raise RuntimeError("flow_settings_option_not_found")
+        target = panel.locator('[data-mv-setting-target="yes"]')
+        if await target.count()!=1:
+            raise RuntimeError("flow_settings_option_not_found")
+        await show_red_click(page,target,code)
+        await target.click(timeout=3000)
+        await target.evaluate("(el)=>el.removeAttribute('data-mv-setting-target')")
+
+    await select_in_section("Confirmar antes de gerar","Nunca","click_settings")
+    await select_in_section("Padrão da geração de imagens","9:16","click_settings")
+    await select_in_section("Padrão da geração de imagens","x1","click_settings")
+    await select_in_section("Padrão para geração de vídeo","9:16","click_settings")
+    # Keep the selected Nano Banana model if already set; do not switch models blindly.
+    if not await panel.get_by_text("Nano Banana 2.1",exact=False).count():
+        raise RuntimeError("flow_settings_model_unverified")
+    save = panel.get_by_role("button",name=re.compile(r"^Salvar$|^Save$",re.I))
+    if await save.count()!=1:
+        raise RuntimeError("flow_settings_save_not_found")
+    await show_red_click(page,save,"click_settings")
+    await save.click(timeout=4000)
+    return True
+
+
+async def click_flow_generate(page, prompt_control):
+    """One user-authorized Generate click; never auto-approve a later dialog."""
+    frame = prompt_control.page.main_frame
+    candidates = []
+    for candidate_frame in page.frames[:8]:
+        controls = candidate_frame.get_by_role("button",name=re.compile(
+            r"^(gerar|generate|criar|create)(?: imagem| image)?$",re.I))
+        for i in range(min(await controls.count(),8)):
+            control=controls.nth(i)
+            if await control.is_visible() and await control.is_enabled():
+                candidates.append(control)
+    if len(candidates)!=1:
+        raise RuntimeError("flow_generate_button_unverified")
+    await show_red_click(page,candidates[0],"click_generate")
+    await candidates[0].click(timeout=4000)
+    return True
+
+
 @app.post("/session/stage")
 async def stage_flow(request: Request):
     """Attach locally to the running Chrome; stage draft without generating video."""
@@ -656,9 +759,15 @@ async def stage_flow(request: Request):
                     result = await flow_upload_references(page, images, prompt_control)
                     uploaded = result["imagesSubmitted"]
                     references_included = result["referencesIncluded"]
+                settings_applied = False
+                generation_clicked = False
+                if data.get("configureAndGenerate") is True:
+                    settings_applied = await configure_flow_agent(page, prompt_control)
+                    generation_clicked = await click_flow_generate(page, prompt_control)
                 record_event("stage_completed")
                 return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded, "referencesIncluded": references_included,
-                        "referencesVerified": False, "generationStarted": False}
+                        "referencesVerified": False, "settingsApplied": settings_applied,
+                        "generationStarted": generation_clicked}
         except Exception as exc:
             record_event("stage_failed")
             # Only return fixed diagnostic codes, never browser content or credentials.
@@ -666,7 +775,11 @@ async def stage_flow(request: Request):
                        "flow_project_not_active", "prompt_field_not_unique",
                        "flow_upload_action_not_found", "flow_add_elements_not_found",
                        "flow_add_elements_ambiguous", "flow_image_rights_unresolved",
-                       "flow_reference_selection_unavailable", "flow_reference_include_unavailable"}
+                       "flow_reference_selection_unavailable", "flow_reference_include_unavailable",
+                       "flow_settings_button_not_found", "flow_settings_button_ambiguous",
+                       "flow_settings_panel_not_found", "flow_settings_option_not_found",
+                       "flow_settings_model_unverified", "flow_settings_save_not_found",
+                       "flow_generate_button_unverified"}
             code = str(exc) if str(exc) in allowed else "flow_interaction_failed"
             raise HTTPException(409, code) from None
 
