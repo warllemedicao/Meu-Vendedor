@@ -2148,3 +2148,8 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Autorização do usuário para geração de imagem registrada; o acionamento de Gerar continua condicionado ao sinalizador configureAndGenerate do fluxo e às verificações de segurança.
 - Relatório do teste: click_settings seguido de stage_failed; ausência de confirmação de qual opção falhou.
 - Deploy e validação real pendentes.
+
+### 2026-11-17 — Revisão estrutural do painel de configurações
+- A rotina anterior procurava apenas opções visíveis no painel; menus suspensos podem ocultar as opções e renderizá-las em portal externo ao diálogo.
+- Novo algoritmo identifica controles da seção, abre somente um dropdown não ambíguo e busca opções visíveis por papel option em frames, sem clique por coordenada ou fallback global para 9:16.
+- Mantida remoção de 'Nunca'; parâmetros 9:16, x1 e Nano Banana 2.1 permanecem. O código não foi validado no Flow real nem implantado no Modal nesta sessão.
