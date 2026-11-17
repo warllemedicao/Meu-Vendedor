@@ -2006,3 +2006,10 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Correção no `browser-service/app.py`: aguarda URL do projeto até 25 s, considera aba nova e aguarda campo de prompt visível antes de preencher e continuar upload/configurações na mesma requisição. Marcador vermelho também em Novo projeto. Commits `a65e3552`, `dcd14e07`.
 - Supabase proxy: timeout da ação `stage` ampliado de 60 s para 120 s (commit `944d1972`). Ainda depende de limites da plataforma e da publicação da Edge Function.
 - **Sem validação ponta a ponta ou deploy nesta sessão.**
+
+## 2026-11-17 — Sincronização do upload lento de imagens no Flow
+- Relato do usuário: navegador remoto lento; o robô avançou após somente uma de três imagens carregar, falhando antes das configurações.
+- Identificado no `browser-service/app.py` que a espera anterior de renderização encerrava sem falha explícita e seguia para seleção mesmo com imagens ausentes.
+- Commit `6849758b`: aguardar até 75 s pela presença estável de todas as referências nomeadas na biblioteca, tratando diálogo de direitos durante o carregamento. Se incompleto, retornar `flow_upload_incomplete` e não selecionar/gerar parcialmente.
+- Commit `c67d0471`: reduzir espera do marcador vermelho de 450 para 120 ms; manter indicador por 2,5 s via DOM, sem bloquear cada clique. Removida espera fixa de 500 ms antes de procurar upload.
+- A lentidão do Chrome/noVNC pode ser causada por recursos, latência ou renderização remota; **não há medição de CPU/memória/latência nesta sessão**. Não alterar CPU Modal sem estimativa de custo. **Deploy e teste ponta a ponta pendentes.**
