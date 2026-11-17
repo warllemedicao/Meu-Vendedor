@@ -127,6 +127,7 @@ async def start(request: Request):
                                       if not p.is_closed() and p.url.startswith("https://flow.google.com/")]
                         if flow_pages:
                             await flow_pages[0].bring_to_front()
+                            await flow_pages[0].keyboard.press("Control+0")
                             await flow_pages[0].keyboard.press("Control+Equal")
                             record_event("flow_zoom_110_requested")
                 except Exception:
