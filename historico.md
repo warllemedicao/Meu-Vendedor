@@ -1972,3 +1972,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Nova rota autenticada de leitura `GET /session/diagnose` no Modal: verifica sessão Flow, abertura de projeto, quantidade de campos candidatos ao prompt, inputs de arquivo e botões de upload, sem enviar prompt, anexar imagens ou gerar vídeo. Não retorna URLs nem textos da página.
 - Nova ação `diagnose` no bridge Supabase (Edge Function `private-browser` v13 publicada) e botão `Diagnosticar Flow automaticamente` na aba Loja.
 - A rotina existente `stage` continua responsável por tentar preencher o prompt e anexar imagens; **o diagnóstico é somente estrutural e não prova que uploads funcionam**. Falta publicar Modal e Cloudflare, executar teste real e aprimorar verificação de anexos após upload.
+
+## 2026-11-16 — Recuperação parcial do fluxo de upload e inclusão de referências no Chrome próprio
+- Revisados os marcos funcionais das 12h16/12h17 e o executor antigo `executors/google-flow/modal_app.py` / `flow_diagnostics.py`.
+- Na branch `feat/navegador-proprio-chromium`, a rota `/session/stage` passou a tentar o fluxo legado: abrir biblioteca, clicar Fazer upload e interceptar seletor nativo de arquivos, tratar confirmação de direitos, aguardar itens e selecionar até três referências, seguido de Incluir no comando. Mantido o preenchimento do prompt existente; não clica Gerar.
+- Commits `49cd7eee` e `bdae80a7`. Retorno distingue `imagesSubmitted`, `referencesIncluded` e `referencesVerified: false`: ainda não há confirmação de chips de referências no editor.
+- **Não validado no Flow real**: dependência da estrutura dinâmica da biblioteca, seleção de imagens e confirmação do botão Incluir. Não houve deploy Modal, Cloudflare ou testes ponta a ponta nesta alteração. Publicar Modal antes de testar e conferir visualmente os anexos.
