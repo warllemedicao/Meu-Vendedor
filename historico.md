@@ -2000,3 +2000,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - `browser-service/app.py`: adicionada tentativa de abrir configurações pelo botão próximo ao prompt, selecionar valores nas respectivas seções, conferir modelo Nano Banana 2.1, salvar e clicar uma vez em Gerar. Marcador vermelho mantido. `configureAndGenerate` opt-in; sem aprovação posterior automatizada.
 - `supabase/functions/private-browser/index.ts`: encaminha flag explícita. Interface `PrivateBrowserConnection.tsx`: checkbox de autorização com alerta de possível consumo automático de créditos, desmarcado por padrão.
 - Commits `15bc5885`, `f65af2ea`, `1b8be0d4`. **Pendente validação no Flow, publicação da Edge Function, Cloudflare e Modal**. O comportamento do Flow pode mudar e a opção Nunca pode dispensar autorização posterior; não prometer etapa de aprovação.
+
+## 2026-11-17 — Novo projeto e prompt na mesma execução
+- Diagnóstico: `/session/stage` clicava em Novo projeto, aguardava 1800 ms e retornava `flow_project_not_active` caso a página ainda não estivesse pronta, exigindo segundo envio.
+- Correção no `browser-service/app.py`: aguarda URL do projeto até 25 s, considera aba nova e aguarda campo de prompt visível antes de preencher e continuar upload/configurações na mesma requisição. Marcador vermelho também em Novo projeto. Commits `a65e3552`, `dcd14e07`.
+- Supabase proxy: timeout da ação `stage` ampliado de 60 s para 120 s (commit `944d1972`). Ainda depende de limites da plataforma e da publicação da Edge Function.
+- **Sem validação ponta a ponta ou deploy nesta sessão.**
