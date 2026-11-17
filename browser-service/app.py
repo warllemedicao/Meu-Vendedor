@@ -1041,9 +1041,13 @@ async def stage_flow(request: Request):
                     references_included = result["referencesIncluded"]
                 settings_applied = False
                 generation_clicked = False
-                if data.get("configureSettings") is True or data.get("configureAndGenerate") is True:
+                # Explicitly authorize Generate only for the validated three-image path.
+                # Keep one-image and two-image paths unchanged and non-generating.
+                generate_three_images = uploaded == 3 and references_included
+                if data.get("configureSettings") is True or data.get("configureAndGenerate") is True or generate_three_images:
                     settings_applied = await configure_flow_agent(page, prompt_control)
-                if data.get("configureAndGenerate") is True:
+                if generate_three_images and settings_applied:
+                    record_event("generate_three_images_authorized")
                     generation_clicked = await click_flow_generate(page, prompt_control)
                 record_event("stage_completed")
                 return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded, "referencesIncluded": references_included,
