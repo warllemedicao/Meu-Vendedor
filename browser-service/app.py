@@ -40,6 +40,9 @@ def record_event(code):
     event = {"code": code, "at": int(time.time())}
     diagnostic_events.append(event)
     del diagnostic_events[:-40]
+    if learning_state["active"]:
+        learning_state["events"].append({"kind": "robot-action", "code": code, "at": event["at"]})
+        del learning_state["events"][:-200]
     print("mv_browser_event " + __import__("json").dumps(event), flush=True)
 
 def diagnostic_snapshot():
