@@ -656,87 +656,90 @@ async def flow_upload_references(page, images, prompt_control):
     import json
 
     def selection_log(event, **fields):
-        # Structural metadata only: never log asset names, prompts or page content.
+        # Structural metadata only; do not expose names, prompts or page contents.
         print("mv_reference_diagnostic " + json.dumps(
             {"event": event, "expected": image_count, **fields},
             ensure_ascii=False), flush=True)
 
-    async def inspect_reference(item, ordinal):
-        library_open = await library.is_visible()
-        chips = await ingredient_count()
+    async def observe(ordinal, item=None):
         try:
-            selected = await item.get_attribute("aria-selected", timeout=1200) if library_open else None
+            opened = await library.is_visible()
         except Exception:
-            selected = None
-        return {"ordinal": ordinal, "library_open": library_open,
-                "chips_added": chips - baseline_chips,
-                "selected": selected}
+            opened = False
+        try:
+            chips = await ingredient_count() - baseline_chips
+        except Exception:
+            chips = -1
+        selected = None
+        if item is not None and opened:
+            try:
+                selected = await item.get_attribute("aria-selected", timeout=1000)
+            except Exception:
+                pass
+        selection_log("observed", ordinal=ordinal, library_open=opened,
+                      chips_added=chips, selected=selected)
+        return opened, chips, selected
 
-    selection_log("selection_started", initial_chips=baseline_chips)
     for index, name in enumerate(names):
         ordinal = index + 1
-        if not await library.is_visible():
-            selection_log("library_closed_before_click", ordinal=ordinal,
-                          chips_added=await ingredient_count() - baseline_chips)
-            raise RuntimeError("flow_reference_library_closed_early")
-        # Identify only the named image; never use its position in the gallery.
+        # Retain the proven 1100ms click-and-hold and Ctrl multi-selection.
+        # Observe changing DOM without treating a missing aria-selected as failure.
         target = library.locator('[role="option"]').filter(has_text=name)
         if await target.count() != 1:
             target = library.locator('[role="option"]').filter(
                 has=library.locator('[title="' + name + '"], [alt="' + name + '"]'))
         if await target.count() != 1:
-            selection_log("target_not_unique", ordinal=ordinal,
+            selection_log("target_unavailable", ordinal=ordinal,
                           matches=await target.count())
-            raise RuntimeError("flow_reference_selection_unavailable")
+            # The gallery may still be rendering. Read twice before giving up.
+            for attempt in range(2):
+                await page.wait_for_timeout(1500)
+                await observe(ordinal)
+                target = library.locator('[role="option"]').filter(has_text=name)
+                if await target.count() == 1:
+                    break
+            if await target.count() != 1:
+                selection_log("target_still_unavailable", ordinal=ordinal)
+                raise RuntimeError("flow_reference_selection_unavailable")
         item = target.first
-        before = await inspect_reference(item, ordinal)
-        selection_log("before_click", **before)
-        if before["selected"] == "true":
+        opened, chips, selected = await observe(ordinal, item)
+        if not opened:
+            # Do not blindly click another image or a stale gallery locator.
+            await page.wait_for_timeout(1800)
+            opened, chips, selected = await observe(ordinal, item)
+            if not opened:
+                selection_log("gallery_not_available", ordinal=ordinal,
+                              chips_added=chips)
+                raise RuntimeError("flow_reference_library_closed_early")
+        if selected == "true":
             selection_log("already_selected", ordinal=ordinal)
             continue
         await item.click(trial=True, timeout=2500)
         await show_red_click(page, item, "click_reference")
-        modifiers = ["Control"] if index > 0 else []
-        await item.click(modifiers=modifiers, delay=1100, timeout=6000)
+        if index > 0:
+            await item.click(modifiers=["Control"], delay=1100, timeout=6000)
+        else:
+            await item.click(delay=1100, timeout=6000)
         record_event("reference_click_confirmed")
         await page.wait_for_timeout(900)
-        after = await inspect_reference(item, ordinal)
-        selection_log("after_click", **after)
-        if image_count == 1 and after["chips_added"] > 0:
-            selection_log("single_auto_included", ordinal=ordinal)
+        opened, chips, selected = await observe(ordinal, item)
+        if image_count == 1 and chips > 0:
             record_event("reference_single_auto_included")
+            selection_log("single_auto_included", ordinal=ordinal)
             return {"imagesSubmitted": 1, "referencesIncluded": True,
                     "referencesVerified": False}
-        if not after["library_open"]:
-            selection_log("library_closed_early", ordinal=ordinal,
-                          chips_added=after["chips_added"])
-            raise RuntimeError("flow_reference_library_closed_early")
-        # A delayed UI update is not a failed click. Observe again before acting.
-        if after["selected"] != "true":
+        # Wait for the interface to settle. Never retry a click when its
+        # selection state is unknown: a second click could deselect it.
+        if selected != "true":
             await page.wait_for_timeout(1800)
-            delayed = await inspect_reference(item, ordinal)
-            selection_log("delayed_recheck", **delayed)
-            if not delayed["library_open"]:
-                raise RuntimeError("flow_reference_library_closed_early")
-            if delayed["selected"] == "false" and before["selected"] == "false":
-                # One bounded retry, only when both observations explicitly
-                # establish that the item is not selected. Never toggle blindly.
-                selection_log("safe_retry", ordinal=ordinal)
-                await item.click(trial=True, timeout=2500)
-                await show_red_click(page, item, "click_reference")
-                await item.click(modifiers=modifiers, delay=1100, timeout=6000)
-                await page.wait_for_timeout(1800)
-                retry_state = await inspect_reference(item, ordinal)
-                selection_log("after_retry", **retry_state)
-                if not retry_state["library_open"]:
-                    raise RuntimeError("flow_reference_library_closed_early")
-                if retry_state["selected"] == "false":
-                    raise RuntimeError("flow_reference_selection_not_confirmed")
-            elif delayed["selected"] is None:
-                # Inconclusive: preserve the previous successful flow and
-                # let the include-button quantity provide final confirmation.
-                selection_log("selection_inconclusive_no_retry", ordinal=ordinal)
-    selection_log("selection_clicks_finished", chips_added=await ingredient_count()-baseline_chips)
+            opened, chips, selected = await observe(ordinal, item)
+            selection_log("delayed_observation", ordinal=ordinal,
+                          library_open=opened, chips_added=chips,
+                          selected=selected)
+        # Unlike the regressed version, do not stop after a click merely
+        # because the gallery changed; the next iteration rechecks it.
+    selection_log("selection_clicks_finished",
+                  chips_added=await ingredient_count() - baseline_chips)
     record_event("reference_selection_finished")
 
     # Flow may render the include action only after the gallery selection settles.
