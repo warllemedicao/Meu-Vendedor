@@ -3,11 +3,9 @@ import type { NextConfig } from "next";
 // Falha antes do bundle se uma chave administrativa for colocada por engano no frontend.
 // Valores publicáveis do projeto fixo. Não são credenciais administrativas.
 // Builds locais e do Codespaces funcionam sem repetir configuração manual.
-// Se um ambiente definir qualquer uma das variáveis, exigimos o par completo.
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
-  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://jzchlrvxdaffnrgbvabv.supabase.co";
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_s5nV5VkB5j5SFN4Qdv-C6Q_TZuqDYZI";
-}
+// Preenche somente os valores ausentes, preservando configurações explícitas.
+process.env.NEXT_PUBLIC_SUPABASE_URL ||= "https://jzchlrvxdaffnrgbvabv.supabase.co";
+process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||= "sb_publishable_s5nV5VkB5j5SFN4Qdv-C6Q_TZuqDYZI";
 const publicKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const publicUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 if (Boolean(publicKey) !== Boolean(publicUrl)) {
