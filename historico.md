@@ -2123,3 +2123,10 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - O backend agora retorna `delta`, `changes`, `observed` e `elapsedMs` em vez de eventos de clique individuais. Os códigos próprios do robô permanecem como contexto separado.
 - **Atenção:** `elapsedMs` representa janela de observação após o clique, não latência comprovada da resposta. Não há inspeção de rede nem comprovação de seleção de imagem nesta versão.
 - Commit na branch `feat/navegador-proprio-chromium`; deploy Modal e teste integrado ainda pendentes. Cloudflare/Supabase não exigem alteração nesta etapa.
+
+### 2026-11-17 — Ajuste de configurações do Google Flow
+- Rotina do navegador Modal agora procura painel de configurações por diálogo visível ou cabeçalho, aguarda abertura e relocaliza opções após cada clique.
+- Configura confirmação antes de gerar como Nunca; padrões de imagem e vídeo em 9:16 e x1; tenta selecionar explicitamente Nano Banana 2.1.
+- Clica Salvar e exige fechamento do painel; registra settings_saved ou erro flow_settings_save_unverified.
+- Novo sinalizador configureSettings permite configurar sem gerar; configureAndGenerate mantém o fluxo antigo.
+- Commit na branch feat/navegador-proprio-chromium; requer novo deploy Modal e validação visual antes de considerar funcional em produção.
