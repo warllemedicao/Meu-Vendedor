@@ -723,11 +723,12 @@ async def flow_upload_references(page, images, prompt_control):
         record_event("reference_click_confirmed")
         await page.wait_for_timeout(900)
         opened, chips, selected = await observe(ordinal, item)
+        # Single-image mode must follow the same Include -> Settings -> Generate
+        # path as the five successful three-image runs. A chip alone does not
+        # prove that the reference was included in the prompt.
         if image_count == 1 and chips > 0:
-            record_event("reference_single_auto_included")
-            selection_log("single_auto_included", ordinal=ordinal)
-            return {"imagesSubmitted": 1, "referencesIncluded": True,
-                    "referencesVerified": False}
+            selection_log("single_chip_observed", ordinal=ordinal,
+                          chips_added=chips)
         # Wait for the interface to settle. Never retry a click when its
         # selection state is unknown: a second click could deselect it.
         if selected != "true":
