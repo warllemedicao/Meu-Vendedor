@@ -691,18 +691,17 @@ async def flow_upload_references(page, images, prompt_control):
 
 
 async def configure_flow_agent(page, prompt_control):
-    """Configure image and video defaults in the Flow agent panel."""
+    """Set Flow agent defaults, explicitly save, and verify the dialog closed."""
     buttons = []
     for frame in page.frames[:8]:
         controls = frame.get_by_role("button", name=re.compile(
             r"configurações do agente|agent settings|configurações|settings", re.I))
-        for i in range(min(await controls.count(), 10)):
+        for i in range(min(await controls.count(), 12)):
             control = controls.nth(i)
             if await control.is_visible() and await control.is_enabled():
                 buttons.append(control)
     if not buttons:
         raise RuntimeError("flow_settings_button_not_found")
-    # The editor's settings control is closest to the prompt box.
     prompt_handle = await prompt_control.element_handle()
     ranked = []
     for control in buttons:
@@ -721,59 +720,92 @@ async def configure_flow_agent(page, prompt_control):
         raise RuntimeError("flow_settings_button_ambiguous")
     await show_red_click(page,ranked[0][1],"click_settings")
     await ranked[0][1].click(timeout=4000)
+
     panel = None
-    for frame in page.frames[:8]:
-        heading = frame.get_by_text(re.compile(r"^Configurações do agente$|^Agent settings$",re.I))
-        if await heading.count():
-            candidate = heading.first.locator('xpath=ancestor::*[.//button[normalize-space()="Salvar" or normalize-space()="Save"]][1]')
-            if await candidate.count()==1 and await candidate.is_visible():
-                panel = candidate
+    for _ in range(12):
+        for frame in page.frames[:8]:
+            dialogs = frame.get_by_role("dialog")
+            for i in range(min(await dialogs.count(), 6)):
+                candidate = dialogs.nth(i)
+                if await candidate.is_visible() and await candidate.get_by_role(
+                        "button",name=re.compile(r"^(Salvar|Save)$",re.I)).count()==1:
+                    panel = candidate
+                    break
+            if panel is not None:
                 break
+            heading = frame.get_by_text(re.compile(
+                r"^Configurações do agente$|^Agent settings$",re.I))
+            if await heading.count():
+                candidate = heading.first.locator(
+                    'xpath=ancestor::*[.//button[normalize-space()="Salvar" or normalize-space()="Save"]][1]')
+                if await candidate.count()==1 and await candidate.is_visible():
+                    panel = candidate
+                    break
+        if panel is not None:
+            break
+        await page.wait_for_timeout(250)
     if panel is None:
         raise RuntimeError("flow_settings_panel_not_found")
 
-    # Choose controls by section, not by the first 9:16 on the page.
-    async def select_in_section(section, value, code):
-        selected = await panel.evaluate("""(root,args) => {
-            const [section,value]=args;
-            const text=Array.from(root.querySelectorAll('*')).find(el=>
-                el.children.length===0 && (el.textContent||'').trim().toLowerCase()===section.toLowerCase());
-            if(!text)return {found:false};
-            let container=text.parentElement;
-            for(let i=0;i<5 && container;i++,container=container.parentElement){
-                const controls=Array.from(container.querySelectorAll('button,[role="radio"],[role="button"]'))
-                    .filter(el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0});
-                const matches=controls.filter(el=>(el.getAttribute('aria-label')||el.textContent||'').trim()===value);
-                if(matches.length===1 && controls.length>=2){
-                    matches[0].setAttribute('data-mv-setting-target','yes');
-                    return {found:true};
+    async def select_in_section(section_names, value):
+        # Resolve the option anew after every click: Flow re-renders the settings form.
+        found = await panel.evaluate("""(root,args) => {
+            const [sections,value]=args;
+            const norm=s=>(s||'').trim().toLowerCase().replace(/\\s+/g,' ');
+            const headings=Array.from(root.querySelectorAll('*')).filter(el=>
+                el.children.length===0 && sections.some(s=>norm(el.textContent)===norm(s)));
+            const candidates=[];
+            for(const heading of headings){
+                let container=heading.parentElement;
+                for(let depth=0;depth<6&&container;depth++,container=container.parentElement){
+                    const controls=Array.from(container.querySelectorAll(
+                        'button,[role="radio"],[role="button"],[role="option"],label'));
+                    const matches=controls.filter(el=>{
+                        const rect=el.getBoundingClientRect();
+                        return rect.width>0&&rect.height>0&&
+                          norm(el.getAttribute('aria-label')||el.textContent)===norm(value);
+                    });
+                    if(matches.length===1){
+                        candidates.push(matches[0]);
+                        break;
+                    }
                 }
             }
-            return {found:false};
-        }""", [section,value], timeout=1500)
-        if not selected["found"]:
+            const unique=[...new Set(candidates)];
+            if(unique.length!==1)return false;
+            unique[0].setAttribute('data-mv-setting-target','yes');
+            return true;
+        }""", [section_names,value], timeout=1800)
+        if not found:
             raise RuntimeError("flow_settings_option_not_found")
-        target = panel.locator('[data-mv-setting-target="yes"]')
+        target=panel.locator('[data-mv-setting-target="yes"]')
         if await target.count()!=1:
             raise RuntimeError("flow_settings_option_not_found")
-        await show_red_click(page,target,code)
-        await target.click(timeout=3000)
-        await target.evaluate("(el)=>el.removeAttribute('data-mv-setting-target')")
+        try:
+            await show_red_click(page,target,"click_settings")
+            await target.click(timeout=4000)
+        finally:
+            if await target.count():
+                await target.first.evaluate("(el)=>el.removeAttribute('data-mv-setting-target')")
 
-    await select_in_section("Confirmar antes de gerar","Nunca","click_settings")
-    await select_in_section("Padrão da geração de imagens","9:16","click_settings")
-    await select_in_section("Padrão da geração de imagens","x1","click_settings")
-    await select_in_section("Padrão para geração de vídeo","9:16","click_settings")
-    await select_in_section("Padrão para geração de vídeo","x1","click_settings")
-    # Keep the selected Nano Banana model if already set; do not switch models blindly.
-    if not await panel.get_by_text("Nano Banana 2.1",exact=False).count():
-        raise RuntimeError("flow_settings_model_unverified")
-    save = panel.get_by_role("button",name=re.compile(r"^Salvar$|^Save$",re.I))
-    if await save.count()!=1:
+    await select_in_section(["Confirmar antes de gerar","Confirm before generating"],"Nunca")
+    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],"9:16")
+    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],"x1")
+    await select_in_section(["Padrão para geração de vídeo","Video generation defaults"],"9:16")
+    await select_in_section(["Padrão para geração de vídeo","Video generation defaults"],"x1")
+    # Explicitly select the requested model rather than merely checking for its text.
+    await select_in_section(["Padrão da geração de imagens","Image generation defaults"],"Nano Banana 2.1")
+    save=panel.get_by_role("button",name=re.compile(r"^(Salvar|Save)$",re.I))
+    if await save.count()!=1 or not await save.is_enabled():
         raise RuntimeError("flow_settings_save_not_found")
     await show_red_click(page,save,"click_settings")
     await save.click(timeout=4000)
-    return True
+    for _ in range(16):
+        if not await panel.is_visible():
+            record_event("settings_saved")
+            return True
+        await page.wait_for_timeout(250)
+    raise RuntimeError("flow_settings_save_unverified")
 
 
 async def click_flow_generate(page, prompt_control):
@@ -923,8 +955,9 @@ async def stage_flow(request: Request):
                     references_included = result["referencesIncluded"]
                 settings_applied = False
                 generation_clicked = False
-                if data.get("configureAndGenerate") is True:
+                if data.get("configureSettings") is True or data.get("configureAndGenerate") is True:
                     settings_applied = await configure_flow_agent(page, prompt_control)
+                if data.get("configureAndGenerate") is True:
                     generation_clicked = await click_flow_generate(page, prompt_control)
                 record_event("stage_completed")
                 return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded, "referencesIncluded": references_included,
@@ -941,6 +974,7 @@ async def stage_flow(request: Request):
                        "flow_settings_button_not_found", "flow_settings_button_ambiguous",
                        "flow_settings_panel_not_found", "flow_settings_option_not_found",
                        "flow_settings_model_unverified", "flow_settings_save_not_found",
+                       "flow_settings_save_unverified",
                        "flow_generate_button_unverified"}
             code = str(exc) if str(exc) in allowed else "flow_interaction_failed"
             raise HTTPException(409, code) from None
