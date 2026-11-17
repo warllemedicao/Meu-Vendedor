@@ -34,7 +34,17 @@ export function PrivateBrowserConnection() {
         prompt_field_not_unique: "O robô não identificou com segurança o campo do prompt.",
         flow_upload_action_not_found: "O prompt foi preenchido, mas o robô não encontrou o envio de imagens. Confira a tela do Flow.",
         flow_interaction_failed: "O Flow não concluiu a preparação. O Chrome permanece aberto; confira o prompt e as imagens.",
-        browser_unavailable: "A comunicação com o Chrome falhou. Tente consultar o status novamente.",
+        browser_unavailable: "O serviço do Chrome não respondeu ou retornou uma falha não identificada. Consulte o status.",
+        flow_upload_incomplete: "As imagens ainda não terminaram de carregar no Flow. O robô parou sem gerar com referências incompletas.",
+        flow_add_elements_not_found: "O robô não encontrou Adicionar elementos junto ao prompt.",
+        flow_add_elements_ambiguous: "O robô encontrou mais de um botão Adicionar elementos e interrompeu para evitar um clique incorreto.",
+        flow_reference_selection_unavailable: "As imagens foram enviadas, mas a biblioteca não permitiu identificar todas para seleção.",
+        flow_reference_include_unavailable: "O robô não encontrou Incluir no comando para as imagens selecionadas.",
+        flow_image_rights_unresolved: "O Flow solicitou confirmação de direitos e o robô não conseguiu concluir essa etapa.",
+        flow_settings_button_not_found: "As referências foram preparadas, mas o robô não encontrou o botão Configurações.",
+        flow_settings_panel_not_found: "O botão Configurações foi clicado, mas o painel não abriu corretamente.",
+        flow_settings_option_not_found: "O painel abriu, mas uma opção de configuração não foi identificada.",
+        flow_generate_button_unverified: "As configurações foram concluídas, mas o botão Gerar não foi identificado com segurança.",
       };
       throw new Error(typeof code === "string" ? (labels[code] ?? code) : "Não foi possível acessar o Chrome.");
     }
