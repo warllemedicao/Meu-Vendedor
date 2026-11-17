@@ -895,21 +895,46 @@ async def configure_flow_agent(page, prompt_control):
 
 
 async def click_flow_generate(page, prompt_control):
-    """One user-authorized Generate click; never auto-approve a later dialog."""
-    frame = prompt_control.page.main_frame
-    candidates = []
-    for candidate_frame in page.frames[:8]:
-        controls = candidate_frame.get_by_role("button",name=re.compile(
-            r"^(gerar|generate|criar|create)(?: imagem| image)?$",re.I))
-        for i in range(min(await controls.count(),8)):
-            control=controls.nth(i)
-            if await control.is_visible() and await control.is_enabled():
-                candidates.append(control)
-    if len(candidates)!=1:
-        raise RuntimeError("flow_generate_button_unverified")
-    await show_red_click(page,candidates[0],"click_generate")
-    await candidates[0].click(timeout=4000)
-    return True
+    """Click only the unique Generate button immediately RIGHT of Flow settings."""
+    for frame in page.frames[:8]:
+        settings = frame.get_by_role("button", name=re.compile(
+            r"configurações do agente|agent settings|configurações|settings", re.I))
+        for index in range(min(await settings.count(), 12)):
+            setting = settings.nth(index)
+            if not await setting.is_visible():
+                continue
+            anchor = await setting.bounding_box()
+            if not anchor:
+                continue
+            controls = frame.locator("button, [role='button']")
+            adjacent = []
+            for i in range(min(await controls.count(), 100)):
+                control = controls.nth(i)
+                if not await control.is_visible() or not await control.is_enabled():
+                    continue
+                box = await control.bounding_box()
+                if not box:
+                    continue
+                # The Generate arrow is immediately to the RIGHT, on the same row.
+                horizontal_gap = box["x"] - (anchor["x"] + anchor["width"])
+                vertical_gap = abs((box["y"] + box["height"]/2) -
+                                   (anchor["y"] + anchor["height"]/2))
+                if not (-3 <= horizontal_gap <= 75 and vertical_gap <= 24):
+                    continue
+                label = await control.evaluate("""el => [
+                    el.getAttribute('aria-label'), el.getAttribute('title'),
+                    el.getAttribute('data-tooltip'), el.innerText
+                ].filter(Boolean).join(' ').trim()""")
+                # Reject any clearly labelled unrelated action; allow an icon-only arrow.
+                if label and not re.search(r"gerar|generate|criar|create", label, re.I):
+                    continue
+                adjacent.append(control)
+            if len(adjacent) == 1:
+                record_event("generate_right_of_settings_confirmed")
+                await show_red_click(page, adjacent[0], "click_generate")
+                await adjacent[0].click(timeout=4000)
+                return True
+    raise RuntimeError("flow_generate_button_unverified")
 
 
 @app.post("/session/stage")
