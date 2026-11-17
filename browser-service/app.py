@@ -643,6 +643,16 @@ async def flow_upload_references(page, images, prompt_control):
     library = libraries[0]
     record_event("reference_wait_started")
     await page.wait_for_timeout(10000)
+    image_count = len(names)
+    if image_count not in (1, 2, 3):
+        raise RuntimeError("flow_reference_count_unsupported")
+    record_event("reference_mode_" + str(image_count))
+    async def ingredient_count():
+        counts = []
+        for frame in page.frames[:8]:
+            counts.append(await frame.locator("flow-ingredient-chip").count())
+        return sum(counts)
+    baseline_chips = await ingredient_count()
     for index, name in enumerate(names):
         # Never select an unrelated library asset by gallery position.
         target = library.locator('[role="option"]').filter(has_text=name)
@@ -662,6 +672,12 @@ async def flow_upload_references(page, images, prompt_control):
             await item.click(delay=1100, timeout=6000)
         record_event("reference_click_confirmed")
         await page.wait_for_timeout(900)
+        if image_count == 1 and await ingredient_count() > baseline_chips:
+            record_event("reference_single_auto_included")
+            return {"imagesSubmitted": 1, "referencesIncluded": True,
+                    "referencesVerified": False}
+        if image_count == 2 and index == 0 and not await library.is_visible():
+            raise RuntimeError("flow_reference_library_closed_before_second")
     record_event("reference_selection_finished")
 
     # Flow may render the include action only after the gallery selection settles.
@@ -684,7 +700,7 @@ async def flow_upload_references(page, images, prompt_control):
                     if quantity and int(quantity.group(1)) == len(names):
                         candidates.append(control)
                     elif len(names) == 1 and re.fullmatch(
-                        r"\\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\\s*", label, re.I):
+                        r"\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\s*", label, re.I):
                         candidates.append(control)
                 except Exception:
                     continue
