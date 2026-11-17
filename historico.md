@@ -2073,3 +2073,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Adicionado à interface `PrivateBrowserConnection.tsx` o botão **Encerrar Chrome e robô**. Ele chama a ação `stop` existente na Edge Function e na rota `/session/stop` do Modal, que fecha o processo Chrome e invalida tickets de visualização. A interface limpa a URL do visualizador e o estado de aprendizado/autorização.
 - Perfil persistente é preservado para manter o login no Google Flow; fechar o Chrome não apaga projetos já salvos no Flow. A rota stop usa o mesmo lock da operação stage: se houver uma execução ativa, o encerramento espera o lock, não garante interrupção instantânea.
 - Commit `e6d6de8b`. **Frontend ainda precisa ser publicado no Cloudflare** para o botão aparecer; sem teste ponta a ponta nesta sessão.
+
+## 2026-11-17 — Diagnóstico de cliques no modo Ensinar o robô
+
+- Atualizado o modo de captura do Chromium para observar eventos `pointerup`, `click` e alterações estruturais do DOM (`aria-selected`, `aria-pressed`, `aria-checked`, `data-state`, `aria-expanded` e mudanças de classe, sem registrar o conteúdo das classes).
+- Captura a duração aproximada do pressionamento em milissegundos e o estado estrutural do elemento antes/depois do clique; limita a 120 eventos por captura.
+- O resultado é exibido na interface ao finalizar a captura, sem armazenar texto da página, URLs, senhas ou conteúdo de campos.
+- Ainda é necessário executar um teste manual no Google Flow para identificar quais sinais representam seleção real. Nenhuma lógica automática de envio foi alterada.
+- Código commitado na branch `feat/navegador-proprio-chromium`; implantação no Modal/Cloudflare/Supabase e teste de produção **não confirmados**.
