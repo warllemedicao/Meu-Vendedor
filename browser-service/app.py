@@ -29,7 +29,9 @@ DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrom
     "viewer_rejected", "viewer_connected", "viewer_disconnected", "viewer_proxy_failed",
     "stage_started", "stage_completed", "stage_failed", "stage_prompt_filled", "stage_upload_failed",
     "click_new_project", "click_prompt", "click_add_elements", "click_upload", "click_settings", "click_generate", "click_rights", "click_reference", "click_include",
-    "add_elements_not_found", "upload_not_found", "upload_incomplete", "service_started", "service_stopped"))
+    "add_elements_not_found", "upload_not_found", "upload_incomplete", "reference_wait_started",
+    "reference_click_confirmed", "reference_selection_finished", "include_button_ready",
+    "service_started", "service_stopped"))
 diagnostic_events = []
 
 def record_event(code):
@@ -529,6 +531,8 @@ async def flow_upload_references(page, images, prompt_control):
     if len(libraries) != 1:
         raise RuntimeError("flow_reference_selection_unavailable")
     library = libraries[0]
+    record_event("reference_wait_started")
+    await page.wait_for_timeout(10000)
     for index, name in enumerate(names):
         # Never select an unrelated library asset by gallery position.
         target = library.locator('[role="option"]').filter(has_text=name)
@@ -546,6 +550,9 @@ async def flow_upload_references(page, images, prompt_control):
             await item.click(modifiers=["Control"], timeout=2500)
         else:
             await item.click(timeout=2500)
+        record_event("reference_click_confirmed")
+        await page.wait_for_timeout(900)
+    record_event("reference_selection_finished")
 
     # Flow may render the include action only after the gallery selection settles.
     # Poll the actual enabled control instead of clicking while the UI is loading.
@@ -575,6 +582,7 @@ async def flow_upload_references(page, images, prompt_control):
             try:
                 await candidates[0].click(trial=True, timeout=1200)
                 include_button = candidates[0]
+                record_event("include_button_ready")
                 break
             except Exception:
                 pass
