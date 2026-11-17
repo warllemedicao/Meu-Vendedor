@@ -1988,3 +1988,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Implementado `show_red_click` no `browser-service/app.py`: antes dos cliques de Adicionar elementos, Fazer upload, Concordo, seleção de referências e Incluir no comando, desenha círculo vermelho com ponto central por 2,5 s, visível na tela privada do Chrome; marcador não intercepta cliques.
 - Eventos de diagnóstico com códigos fixos (`click_add_elements`, `click_upload`, `click_rights`, `click_reference`, `click_include`, `add_elements_not_found`, `upload_not_found`) são registrados sem capturar texto da página, imagens ou credenciais. Commit `7ab56fb`.
 - Consulta dos logs Supabase mostrou requisição `POST 409` em `private-browser` às 01:23:51 UTC de 17/11; esse log **não informa qual botão falhou**, pois a instrumentação detalhada fica no Modal. Marcador e novos eventos dependem de republicação Modal. Nenhum teste real de clique executado nesta alteração.
+
+## 2026-11-16 — Ordem dos cliques corrigida: prompt → Adicionar elementos
+- Revisão do código mostrou que a detecção anterior de Adicionar elementos usava dois locators sobrepostos (role e CSS), com risco de contar o mesmo botão duas vezes e gerar `flow_add_elements_ambiguous`.
+- Commit `671930c`: adiciona clique explícito e marcador vermelho na caixa do prompt antes de preenchê-la, depois faz uma varredura única dos botões para selecionar Adicionar elementos por rótulo e proximidade ao prompt. O fluxo de upload segue depois disso.
+- A captura manual `learning_stop` persiste somente `role` e `type` de até 80 cliques; não armazena o texto/posição do botão, portanto não permite recuperar precisamente a sequência de cliques anterior. Não há acesso direto aos logs internos do Modal nesta sessão; registros Supabase HTTP 409 não identificam o controle clicado.
+- **Não publicado no Modal nem validado no Google Flow real.**
