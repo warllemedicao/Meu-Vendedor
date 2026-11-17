@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 
-type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; events?: { role: string; type: string }[]; imageDirectory?: string; imagesAvailable?: number; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
+type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; events?: { role: string; type: string }[]; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
@@ -113,7 +113,7 @@ export function PrivateBrowserConnection() {
         setLearningResult("");
         setMessage(`Captura iniciada. ${result.imagesAvailable ?? 0} imagem(ns) disponível(is) na pasta ${result.imageDirectory ?? "/tmp/meu-vendedor/treinamento/"} do Chrome. Finalize para apagar os arquivos temporários.`);
       } else {
-        setLearningResult(`Interações capturadas: ${result.recorded ?? 0}. Registro estrutural temporário; ainda não reproduz os cliques automaticamente.`);
+        setLearningResult(`Interações capturadas: ${result.recorded ?? 0}. Diagnóstico estrutural (sem senhas ou conteúdo):\n${JSON.stringify(result.events ?? [], null, 2)}`);
         setMessage("Captura encerrada.");
       }
     } catch (error) {
