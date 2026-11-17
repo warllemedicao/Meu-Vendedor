@@ -712,6 +712,7 @@ async def configure_flow_agent(page, prompt_control):
     await select_in_section("Padrão da geração de imagens","9:16","click_settings")
     await select_in_section("Padrão da geração de imagens","x1","click_settings")
     await select_in_section("Padrão para geração de vídeo","9:16","click_settings")
+    await select_in_section("Padrão para geração de vídeo","x1","click_settings")
     # Keep the selected Nano Banana model if already set; do not switch models blindly.
     if not await panel.get_by_text("Nano Banana 2.1",exact=False).count():
         raise RuntimeError("flow_settings_model_unverified")
