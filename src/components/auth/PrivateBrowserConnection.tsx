@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 
-type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; events?: { role: string; type: string }[]; imageDirectory?: string; imagesAvailable?: number };
+type BrowserResponse = { status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; events?: { role: string; type: string }[]; imageDirectory?: string; imagesAvailable?: number; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
@@ -94,6 +94,22 @@ export function PrivateBrowserConnection() {
     }
   }
 
+  async function diagnose() {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await invoke("diagnose");
+      setMessage(result.status === "flow_not_open"
+        ? "Diagnóstico: abra o Google Flow no Chrome para verificar os controles."
+        : `Diagnóstico sem gerar vídeo: projeto ${result.projectOpen ? "aberto" : "não aberto"}; campos candidatos a prompt: ${result.promptCandidates ?? 0}; entradas de arquivo: ${result.fileInputs ?? 0}; controles de upload: ${result.uploadControls ?? 0}. Nenhum vídeo foi gerado.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha no diagnóstico.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function stageDraft() {
     if (busy || !prompt.trim()) return;
     if (images.length && !rightsConfirmed) {
@@ -163,6 +179,9 @@ export function PrivateBrowserConnection() {
         onChange={(event) => onFiles(event.target.files)} className="block w-full text-sm" />
       <p className="text-xs text-muted">{images.length} de 3 imagens selecionadas (máximo de 2,5 MB somadas). O envio prepara o rascunho, sem clicar em Gerar.</p>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={rightsConfirmed} onChange={(event) => setRightsConfirmed(event.target.checked)} /> Confirmo que tenho direito de usar as imagens selecionadas.</label>
+      <button type="button" disabled={busy || !viewUrl} onClick={() => void diagnose()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
+        Diagnosticar Flow automaticamente
+      </button>
       <button type="button" disabled={busy || !prompt.trim() || (images.length > 0 && !rightsConfirmed)} onClick={() => void stageDraft()} className="rounded-lg bg-primary px-3 py-2 text-sm text-white disabled:opacity-50">{busy ? "Preparando..." : "Enviar prompt e imagens ao Flow"}</button>
       <button type="button" onClick={() => void navigator.clipboard.writeText(prompt).then(
         () => setMessage("Prompt copiado. Cole no Chrome para testar."),
