@@ -33,8 +33,6 @@ DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrom
     "reference_click_confirmed", "reference_selection_finished", "include_button_ready",
     "service_started", "service_stopped"))
 diagnostic_events = []
-generate_diagnostic_events = []  # Bounded, sanitized; independent of legacy learning mode.
-last_stage_failure = None  # Fixed error code only; no browser content.
 
 def record_event(code):
     if code not in DIAGNOSTIC_CODES:
@@ -50,9 +48,7 @@ def record_event(code):
 def diagnostic_snapshot():
     return {"running": chrome_running(),
             "processExited": chrome_process is not None and chrome_process.poll() is not None,
-            "events": list(diagnostic_events[-20:]),
-            "generateDiagnostics": list(generate_diagnostic_events[-60:]),
-            "lastStageFailure": last_stage_failure}
+            "events": list(diagnostic_events[-20:])}
 
 def authorize(request: Request):
     if len(SECRET) < 32 or not hmac.compare_digest(
@@ -881,16 +877,39 @@ async def configure_flow_agent(page, prompt_control):
     await choose_segmented_option("Padrão para geração de vídeo","quantity","x1","video_count")
     # The screenshot already shows Nano Banana 2.1; leave the model dropdown unchanged.
     record_event("settings_image_model_preserved")
-    # Use the Save control belonging to the verified settings panel, not a
-    # spatial guess relative to the Veo model label elsewhere on the page.
-    save = panel.get_by_role("button", name=re.compile(r"^(Salvar|Save)$", re.I))
-    if await save.count() != 1:
-        record_event("settings_save_candidates_" + str(await save.count()))
-        raise RuntimeError("flow_settings_save_not_found" if await save.count() == 0
+    # Prefer the prominent Save button physically below the Veo 3.1 model selector.
+    # Flow sometimes renders this footer outside the dialog container.
+    save_candidates = []
+    for frame in page.frames[:8]:
+        veo_labels = frame.get_by_text(re.compile(r"Veo\s*3\.1", re.I))
+        anchors = []
+        for i in range(min(await veo_labels.count(), 12)):
+            label = veo_labels.nth(i)
+            if await label.is_visible():
+                anchors.append(await label.bounding_box())
+        anchors = [box for box in anchors if box]
+        if not anchors:
+            continue
+        controls = frame.get_by_role("button", name=re.compile(r"^(Salvar|Save)$", re.I))
+        for i in range(min(await controls.count(), 12)):
+            button = controls.nth(i)
+            if not await button.is_visible() or not await button.is_enabled():
+                continue
+            box = await button.bounding_box()
+            if not box:
+                continue
+            # Same column and below the Veo model label, never a distant Save button.
+            if any(box["y"] > anchor["y"] + anchor["height"] and
+                   box["x"] < anchor["x"] + anchor["width"] + 180 and
+                   box["x"] + box["width"] > anchor["x"] - 180
+                   for anchor in anchors):
+                save_candidates.append(button)
+    if len(save_candidates) != 1:
+        record_event("settings_save_candidates_" + str(len(save_candidates)))
+        raise RuntimeError("flow_settings_save_not_found" if not save_candidates
                            else "flow_settings_save_ambiguous")
-    if not await save.is_visible() or not await save.is_enabled():
-        raise RuntimeError("flow_settings_save_unverified")
-    record_event("settings_save_in_panel_confirmed")
+    save = save_candidates[0]
+    record_event("settings_save_below_veo_confirmed")
     await show_red_click(page, save, "click_settings")
     await save.click(timeout=4000)
     for _ in range(16):
@@ -906,35 +925,10 @@ async def click_flow_generate(page, prompt_control, reference_count=0):
     import json
 
     def generate_log(code, **details):
-        # Export only allowlisted structural metadata to the existing training report.
-        # Never export page text, prompts, HTML, URLs, account data or exception messages.
-        safe_codes = {
-            "generate_discovery", "generate_discovery_error", "generate_target_not_verified",
-            "generate_target_verified", "generate_click_dispatched", "generate_click_failed",
-            "credit_prompt_candidate", "credit_prompt_verified_no_click",
-            "credit_prompt_not_detected", "credit_prompt_frame_error",
-            "credit_prompt_observation_failed",
-        }
-        safe_fields = {
-            "frame", "poll", "polls", "approveCount", "alwaysCount", "rejectCount",
-            "dialogCount", "creditQuestionVisible", "candidateRoles", "error_type",
-            "arrow_candidates", "prompt_candidates", "settings_candidates",
-            "reason", "method",
-        }
-        safe = {k: v for k, v in details.items() if k in safe_fields
-                and isinstance(v, (str, int, bool, list))}
+        # Never log page text, prompts, HTML, credentials or session URLs.
         record_event(code)
-        if code in safe_codes:
-            event = {"kind": "generate-diagnostic", "code": code,
-                     "at": int(time.time()), "details": safe}
-            generate_diagnostic_events.append(event)
-            del generate_diagnostic_events[:-60]
-            # Preserve backwards compatibility with existing recording exports.
-            if learning_state["active"]:
-                learning_state["events"].append(event)
-                del learning_state["events"][:-200]
         print("mv_generate_diagnostic " + json.dumps(
-            {"code": code, **safe}, ensure_ascii=False), flush=True)
+            {"code": code, **details}, ensure_ascii=False), flush=True)
 
     candidates = []
     for frame_index, frame in enumerate(page.frames[:8]):
@@ -1021,24 +1015,21 @@ async def click_flow_generate(page, prompt_control, reference_count=0):
                         state = await frame.locator("body").evaluate(r"""body=>{
                             const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);
                                 return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'};
-                            const norm=s=>(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
-                                .replace(/\\s+/g,' ').trim().toLowerCase();
-                            const nodes=Array.from(body.querySelectorAll('button,[role="button"],[role="option"],[role="menuitem"],[role="radio"],label,div,span'));
-                            const matches=phrase=>nodes.filter(e=>visible(e)&&norm(e.innerText||e.textContent)===phrase
-                                && !Array.from(e.children).some(c=>visible(c)&&norm(c.innerText||c.textContent)===phrase));
-                            const approve=matches('aprovar'),always=matches('sempre aprovar no projeto'),
-                                reject=matches('rejeitar');
-                            const leaf=Array.from(body.querySelectorAll('p,div,span')).filter(e=>visible(e)&&
-                                !Array.from(e.children).some(c=>visible(c)&&norm(c.textContent).includes('credit')));
-                            const question=leaf.some(e=>/quer que eu inicie essa.*geracao de video.*creditos/.test(norm(e.textContent)));
+                            const norm=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+                            const controls=Array.from(body.querySelectorAll('button,[role="button"]')).filter(visible);
+                            const names=controls.map(e=>norm(e.innerText||e.getAttribute('aria-label')||''));
+                            const approve=names.filter(s=>s==='aprovar'||s==='approve');
+                            const always=names.filter(s=>s==='sempre aprovar no projeto'||s==='always approve in this project');
+                            const reject=names.filter(s=>s==='rejeitar'||s==='reject');
                             const dialogs=Array.from(body.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog')).filter(visible);
+                            const question=Array.from(body.querySelectorAll('p,div,span')).some(e=>visible(e)&&
+                                e.children.length===0&&/quer que eu inicie essa.*gerac.{0,3}o de v.deo.*cr.ditos/i.test(norm(e.textContent)));
                             return {approveCount:approve.length,alwaysCount:always.length,rejectCount:reject.length,
-                                dialogCount:dialogs.length,creditQuestionVisible:question,
-                                candidateRoles:[...new Set([...approve,...always,...reject].map(e=>e.getAttribute('role')||e.tagName.toLowerCase()))].slice(0,8)};
+                                dialogCount:dialogs.length,creditQuestionVisible:question};
                         }""", timeout=2500)
-                        if state["approveCount"] or state["alwaysCount"] or state["rejectCount"] or state["creditQuestionVisible"]:
+                        if state["approveCount"] or state["creditQuestionVisible"]:
                             generate_log("credit_prompt_candidate", frame=frame_index, poll=poll, **state)
-                        if state["approveCount"] >= 1 and state["alwaysCount"] >= 1 and state["rejectCount"] >= 1:
+                        if state["approveCount"] == 1 and state["alwaysCount"] == 1 and state["rejectCount"] == 1:
                             generate_log("credit_prompt_verified_no_click", frame=frame_index, poll=poll, **state)
                             found = True
                             break
@@ -1057,7 +1048,6 @@ async def click_flow_generate(page, prompt_control, reference_count=0):
 
 @app.post("/session/stage")
 async def stage_flow(request: Request):
-    global last_stage_failure
     """Attach locally to the running Chrome; stage draft without generating video."""
     authorize(request)
     raw = await request.body()
@@ -1096,7 +1086,6 @@ async def stage_flow(request: Request):
         raise HTTPException(400, "invalid_draft")
 
     async with lock:
-        last_stage_failure = None
         record_event("stage_started")
         if not chrome_running():
             record_event("chrome_not_running")
@@ -1216,7 +1205,6 @@ async def stage_flow(request: Request):
                        "flow_settings_missing_video_count", "flow_settings_missing_image_model",
                        "flow_generate_button_unverified"}
             code = str(exc) if str(exc) in allowed else "flow_interaction_failed"
-            last_stage_failure = {"code": code, "errorType": type(exc).__name__, "at": int(time.time())}
             raise HTTPException(409, code) from None
 
 
