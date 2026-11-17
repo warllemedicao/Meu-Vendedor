@@ -2114,3 +2114,12 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Adicionado botão `Copiar relatório para análise` no frontend após finalizar a captura.
 - Mudanças commitadas na branch `feat/navegador-proprio-chromium`; ainda exigem deploy do Modal (serviço Python) e do Cloudflare (frontend). Supabase `private-browser` v15 já expõe as rotas necessárias, sem necessidade de novo deploy nesta etapa.
 - Teste integrado do diagnóstico permanece pendente. Nenhuma publicação de Cloudflare ou Modal foi executada nesta continuação.
+
+## 2026-11-17 — Gravador de respostas do navegador
+
+- Substituída a captura ruidosa de `class`, `pointerup` e `after-click` por observação de respostas do DOM após cada clique.
+- Cada evento `browser-response` agrega o estado estrutural antes/depois, alterações relevantes de `aria-selected`, `aria-pressed`, `aria-checked`, `aria-expanded`, `data-state`, `disabled`, adição/remoção de nós e tempo de observação em milissegundos.
+- A coleta evita conteúdo de campos, texto, URLs, cookies e credenciais. Os contadores são agregados; ausência de mudança não prova falha nem sucesso.
+- O backend agora retorna `delta`, `changes`, `observed` e `elapsedMs` em vez de eventos de clique individuais. Os códigos próprios do robô permanecem como contexto separado.
+- **Atenção:** `elapsedMs` representa janela de observação após o clique, não latência comprovada da resposta. Não há inspeção de rede nem comprovação de seleção de imagem nesta versão.
+- Commit na branch `feat/navegador-proprio-chromium`; deploy Modal e teste integrado ainda pendentes. Cloudflare/Supabase não exigem alteração nesta etapa.
