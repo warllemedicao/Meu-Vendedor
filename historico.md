@@ -2130,3 +2130,8 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Clica Salvar e exige fechamento do painel; registra settings_saved ou erro flow_settings_save_unverified.
 - Novo sinalizador configureSettings permite configurar sem gerar; configureAndGenerate mantém o fluxo antigo.
 - Commit na branch feat/navegador-proprio-chromium; requer novo deploy Modal e validação visual antes de considerar funcional em produção.
+
+### 2026-11-17 — Zoom do navegador privado
+- Ao iniciar nova sessão do Chrome privado, o serviço redefine o zoom para 100% e solicita o primeiro incremento do Chrome (110%) na aba do Google Flow.
+- Diagnóstico de referência: 3 imagens foram incluídas, mas a tentativa click_settings terminou em stage_failed, sem settings_saved. Configurações ainda não verificadas.
+- Alteração na branch feat/navegador-proprio-chromium; precisa de deploy Modal e confirmação visual.
