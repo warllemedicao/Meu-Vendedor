@@ -547,27 +547,42 @@ async def flow_upload_references(page, images, prompt_control):
         else:
             await item.click(timeout=2500)
 
-    candidates = []
-    for frame in page.frames[:8]:
-        controls = frame.get_by_role("button", name=re.compile(
-            r"(?:incluir|adicionar|add|include).*?(?:comando|prompt)", re.I))
-        for i in range(min(await controls.count(), 12)):
-            control = controls.nth(i)
-            if not await control.is_visible() or not await control.is_enabled():
-                continue
-            label = ((await control.get_attribute("aria-label")) or
-                     (await control.inner_text(timeout=1000))).strip()
-            quantity = re.search(r"\b(\d+)\s+(?:itens?|items?)\b", label, re.I)
-            if quantity and int(quantity.group(1)) == len(names):
-                candidates.append(control)
-            elif len(names) == 1 and re.fullmatch(
-                r"\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\s*", label, re.I):
-                candidates.append(control)
-    if len(candidates) != 1:
+    # Flow may render the include action only after the gallery selection settles.
+    # Poll the actual enabled control instead of clicking while the UI is loading.
+    include_button = None
+    include_deadline = time.monotonic() + 45
+    while time.monotonic() < include_deadline:
+        candidates = []
+        for frame in page.frames[:8]:
+            controls = frame.get_by_role("button", name=re.compile(
+                r"(?:incluir|adicionar|add|include).*?(?:comando|prompt)", re.I))
+            for i in range(min(await controls.count(), 12)):
+                control = controls.nth(i)
+                try:
+                    if not await control.is_visible() or not await control.is_enabled():
+                        continue
+                    label = ((await control.get_attribute("aria-label")) or
+                             (await control.inner_text(timeout=1000))).strip()
+                    quantity = re.search(r"\\b(\\d+)\\s+(?:itens?|items?)\\b", label, re.I)
+                    if quantity and int(quantity.group(1)) == len(names):
+                        candidates.append(control)
+                    elif len(names) == 1 and re.fullmatch(
+                        r"\\s*(?:incluir no comando|adicionar ao comando|add to prompt|include in prompt)\\s*", label, re.I):
+                        candidates.append(control)
+                except Exception:
+                    continue
+        if len(candidates) == 1:
+            try:
+                await candidates[0].click(trial=True, timeout=1200)
+                include_button = candidates[0]
+                break
+            except Exception:
+                pass
+        await page.wait_for_timeout(750)
+    if include_button is None:
         raise RuntimeError("flow_reference_include_unavailable")
-    await candidates[0].click(trial=True, timeout=2500)
-    await show_red_click(page, candidates[0], "click_include")
-    await candidates[0].click(timeout=3500)
+    await show_red_click(page, include_button, "click_include")
+    await include_button.click(timeout=5000)
     return {"imagesSubmitted": len(names), "referencesIncluded": True,
             "referencesVerified": False}
 
