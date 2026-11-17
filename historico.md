@@ -1983,3 +1983,8 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Ajustado `browser-service/app.py` na branch `feat/navegador-proprio-chromium`: após preencher o prompt, localizar explicitamente o botão `Adicionar elementos`/`Add elements` por nome acessível, `title` ou `data-tooltip`, priorizando o controle mais próximo da caixa do prompt; clicar para abrir o menu e então procurar `Fazer upload` e interceptar o seletor de arquivos.
 - Em caso de ausência ou ambiguidade do botão, retornar código específico sem clicar em controles genéricos. Não iniciar geração nem aprovar créditos.
 - Commit `5b89b2a`. **Código enviado ao GitHub; deploy Modal e teste real ainda pendentes.**
+
+## 2026-11-16 — Marcador vermelho dos cliques do robô no Flow
+- Implementado `show_red_click` no `browser-service/app.py`: antes dos cliques de Adicionar elementos, Fazer upload, Concordo, seleção de referências e Incluir no comando, desenha círculo vermelho com ponto central por 2,5 s, visível na tela privada do Chrome; marcador não intercepta cliques.
+- Eventos de diagnóstico com códigos fixos (`click_add_elements`, `click_upload`, `click_rights`, `click_reference`, `click_include`, `add_elements_not_found`, `upload_not_found`) são registrados sem capturar texto da página, imagens ou credenciais. Commit `7ab56fb`.
+- Consulta dos logs Supabase mostrou requisição `POST 409` em `private-browser` às 01:23:51 UTC de 17/11; esse log **não informa qual botão falhou**, pois a instrumentação detalhada fica no Modal. Marcador e novos eventos dependem de republicação Modal. Nenhum teste real de clique executado nesta alteração.
