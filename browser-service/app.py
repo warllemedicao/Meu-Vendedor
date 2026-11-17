@@ -653,32 +653,90 @@ async def flow_upload_references(page, images, prompt_control):
             counts.append(await frame.locator("flow-ingredient-chip").count())
         return sum(counts)
     baseline_chips = await ingredient_count()
+    import json
+
+    def selection_log(event, **fields):
+        # Structural metadata only: never log asset names, prompts or page content.
+        print("mv_reference_diagnostic " + json.dumps(
+            {"event": event, "expected": image_count, **fields},
+            ensure_ascii=False), flush=True)
+
+    async def inspect_reference(item, ordinal):
+        library_open = await library.is_visible()
+        chips = await ingredient_count()
+        try:
+            selected = await item.get_attribute("aria-selected", timeout=1200) if library_open else None
+        except Exception:
+            selected = None
+        return {"ordinal": ordinal, "library_open": library_open,
+                "chips_added": chips - baseline_chips,
+                "selected": selected}
+
+    selection_log("selection_started", initial_chips=baseline_chips)
     for index, name in enumerate(names):
-        # Never select an unrelated library asset by gallery position.
+        ordinal = index + 1
+        if not await library.is_visible():
+            selection_log("library_closed_before_click", ordinal=ordinal,
+                          chips_added=await ingredient_count() - baseline_chips)
+            raise RuntimeError("flow_reference_library_closed_early")
+        # Identify only the named image; never use its position in the gallery.
         target = library.locator('[role="option"]').filter(has_text=name)
         if await target.count() != 1:
             target = library.locator('[role="option"]').filter(
                 has=library.locator('[title="' + name + '"], [alt="' + name + '"]'))
         if await target.count() != 1:
+            selection_log("target_not_unique", ordinal=ordinal,
+                          matches=await target.count())
             raise RuntimeError("flow_reference_selection_unavailable")
         item = target.first
+        before = await inspect_reference(item, ordinal)
+        selection_log("before_click", **before)
+        if before["selected"] == "true":
+            selection_log("already_selected", ordinal=ordinal)
+            continue
         await item.click(trial=True, timeout=2500)
         await show_red_click(page, item, "click_reference")
-        # Every reference needs a deliberate press-and-hold, not only the first.
-        # Keep Ctrl on subsequent images to preserve the existing multi-select.
-        if index > 0:
-            await item.click(modifiers=["Control"], delay=1100, timeout=6000)
-        else:
-            await item.click(delay=1100, timeout=6000)
+        modifiers = ["Control"] if index > 0 else []
+        await item.click(modifiers=modifiers, delay=1100, timeout=6000)
         record_event("reference_click_confirmed")
         await page.wait_for_timeout(900)
-        if image_count == 1 and await ingredient_count() > baseline_chips:
+        after = await inspect_reference(item, ordinal)
+        selection_log("after_click", **after)
+        if image_count == 1 and after["chips_added"] > 0:
+            selection_log("single_auto_included", ordinal=ordinal)
             record_event("reference_single_auto_included")
             return {"imagesSubmitted": 1, "referencesIncluded": True,
                     "referencesVerified": False}
-        if image_count == 2 and index == 0 and not await library.is_visible():
-            record_event("reference_library_closed_before_second")
-            raise RuntimeError("flow_reference_library_closed_before_second")
+        if not after["library_open"]:
+            selection_log("library_closed_early", ordinal=ordinal,
+                          chips_added=after["chips_added"])
+            raise RuntimeError("flow_reference_library_closed_early")
+        # A delayed UI update is not a failed click. Observe again before acting.
+        if after["selected"] != "true":
+            await page.wait_for_timeout(1800)
+            delayed = await inspect_reference(item, ordinal)
+            selection_log("delayed_recheck", **delayed)
+            if not delayed["library_open"]:
+                raise RuntimeError("flow_reference_library_closed_early")
+            if delayed["selected"] == "false" and before["selected"] == "false":
+                # One bounded retry, only when both observations explicitly
+                # establish that the item is not selected. Never toggle blindly.
+                selection_log("safe_retry", ordinal=ordinal)
+                await item.click(trial=True, timeout=2500)
+                await show_red_click(page, item, "click_reference")
+                await item.click(modifiers=modifiers, delay=1100, timeout=6000)
+                await page.wait_for_timeout(1800)
+                retry_state = await inspect_reference(item, ordinal)
+                selection_log("after_retry", **retry_state)
+                if not retry_state["library_open"]:
+                    raise RuntimeError("flow_reference_library_closed_early")
+                if retry_state["selected"] == "false":
+                    raise RuntimeError("flow_reference_selection_not_confirmed")
+            elif delayed["selected"] is None:
+                # Inconclusive: preserve the previous successful flow and
+                # let the include-button quantity provide final confirmation.
+                selection_log("selection_inconclusive_no_retry", ordinal=ordinal)
+    selection_log("selection_clicks_finished", chips_added=await ingredient_count()-baseline_chips)
     record_event("reference_selection_finished")
 
     # Flow may render the include action only after the gallery selection settles.
@@ -1126,13 +1184,13 @@ async def stage_flow(request: Request):
                     references_included = result["referencesIncluded"]
                 settings_applied = False
                 generation_clicked = False
-                # Explicitly authorize Generate only for the validated three-image path.
-                # Keep one-image and two-image paths unchanged and non-generating.
-                generate_three_images = uploaded == 3 and references_included
-                if data.get("configureSettings") is True or data.get("configureAndGenerate") is True or generate_three_images:
+                # All supported reference counts use the same verified composer
+                # Generate locator; never generate if references were not included.
+                generate_authorized = bool(images) and uploaded in (1, 2, 3) and references_included
+                if data.get("configureSettings") is True or data.get("configureAndGenerate") is True or generate_authorized:
                     settings_applied = await configure_flow_agent(page, prompt_control)
-                if generate_three_images and settings_applied:
-                    record_event("generate_three_images_authorized")
+                if generate_authorized and settings_applied:
+                    record_event("generate_authorized")
                     generation_clicked = await click_flow_generate(page, prompt_control)
                 record_event("stage_completed")
                 return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded, "referencesIncluded": references_included,
