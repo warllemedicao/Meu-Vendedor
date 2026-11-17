@@ -1,4 +1,11 @@
 
+## 2026-11-16 — Espera de 10 segundos antes de selecionar imagens
+
+- Após identificar as imagens na biblioteca do Google Flow, o robô aguarda 10 segundos antes do primeiro clique; adicionada pausa de 900 ms entre cliques.
+- Eventos diagnósticos sem conteúdo sensível: `reference_wait_started`, `reference_click_confirmed` (um por clique Playwright concluído), `reference_selection_finished` e `include_button_ready`.
+- Corrigida expressão regular da quantidade de itens no botão `Incluir no comando`. Commits `6f65c6cc`, `7f75b7a0`.
+- **Limite:** o log de execução real do Modal não está acessível por esta integração; ainda não foi comprovado que ocorreram três cliques no último teste. Publicação Modal e novo teste pendentes.
+
 ## 2026-11-16 — Espera pela ação de inclusão de imagens no Google Flow
 
 - Usuário reportou `flow_reference_include_unavailable` após o robô tentar selecionar imagens antes de a interface estabilizar.
