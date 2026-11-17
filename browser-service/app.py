@@ -895,83 +895,106 @@ async def configure_flow_agent(page, prompt_control):
 
 
 async def click_flow_generate(page, prompt_control):
-    """Use the rightmost circular arrow in the prompt composer, never a nearby blank area."""
+    """Find the Flow composer send arrow using prompt geometry and icon metadata."""
     import json
+
     def generate_log(code, **details):
-        # Never log prompts, page HTML, credentials or account content.
+        # Never log page text, prompts, HTML, credentials or session URLs.
         record_event(code)
         print("mv_generate_diagnostic " + json.dumps(
             {"code": code, **details}, ensure_ascii=False), flush=True)
 
+    candidates = []
     for frame_index, frame in enumerate(page.frames[:8]):
-        settings = frame.get_by_role("button", name=re.compile(
-            r"configurações do agente|agent settings|configurações|settings", re.I))
-        for index in range(min(await settings.count(), 12)):
-            setting = settings.nth(index)
-            if not await setting.is_visible():
-                continue
-            anchor = await setting.bounding_box()
-            if not anchor:
-                continue
-            # Screenshot reference: white circular arrow is the rightmost control
-            # of the composer, directly to the RIGHT of the settings sliders.
+        try:
             controls = frame.locator("button, [role='button']")
-            candidates = []
-            for i in range(min(await controls.count(), 120)):
-                control = controls.nth(i)
-                if not await control.is_visible() or not await control.is_enabled():
-                    continue
-                box = await control.bounding_box()
-                if not box:
-                    continue
-                gap = box["x"] - (anchor["x"] + anchor["width"])
-                vertical = abs((box["y"] + box["height"]/2) -
-                               (anchor["y"] + anchor["height"]/2))
-                if not (0 <= gap <= 110 and vertical <= 18):
-                    continue
-                info = await control.evaluate("""el => {
-                    const svg=el.querySelector('svg');
-                    const r=el.getBoundingClientRect();
-                    const css=getComputedStyle(el);
-                    return {
-                        tag:el.tagName.toLowerCase(),
-                        aria:el.getAttribute('aria-label') || '',
-                        title:el.getAttribute('title') || '',
-                        text:(el.innerText || '').trim().slice(0,40),
-                        svg:!!svg,
-                        circle:Math.abs(r.width-r.height)<=8 &&
-                            (css.borderRadius==='50%' || parseFloat(css.borderRadius)>=r.height*.35)
-                    };
-                }""")
-                # Never click text controls or unrelated icons.
-                name = " ".join((info["aria"], info["title"], info["text"]))
-                explicit = bool(re.search(r"gerar|generate|criar|create", name, re.I))
-                unrelated = bool(name.strip()) and not explicit
-                eligible = not unrelated and info["svg"] and (
-                    explicit or info["circle"])
-                generate_log("generate_candidate_inspected", frame=frame_index,
-                             right_gap=round(gap), vertical_gap=round(vertical),
-                             tag=info["tag"], label=info["aria"][:50],
-                             title=info["title"][:50], svg=info["svg"],
-                             circular=info["circle"], eligible=eligible)
-                if eligible:
-                    candidates.append(control)
-            if len(candidates) != 1:
-                generate_log("generate_candidate_count", count=len(candidates),
-                             frame=frame_index)
-                continue
-            generate_log("generate_target_verified", frame=frame_index,
-                         position="right_of_settings")
-            await show_red_click(page, candidates[0], "click_generate")
-            try:
-                await candidates[0].click(timeout=4000)
-            except Exception:
-                generate_log("generate_click_failed", frame=frame_index)
-                raise
-            generate_log("generate_click_dispatched", frame=frame_index)
-            return True
-    generate_log("generate_target_not_verified")
-    raise RuntimeError("flow_generate_button_unverified")
+            evidence = await frame.locator("body").evaluate(r"""body => {
+                const visible=e=>{
+                    const r=e.getBoundingClientRect(),s=getComputedStyle(e);
+                    return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';
+                };
+                const buttons=Array.from(body.querySelectorAll('button,[role="button"]'));
+                const prompts=Array.from(body.querySelectorAll('[role="textbox"],[contenteditable="true"]'))
+                    .filter(visible).filter(e=>/o que você quer criar|what do you want to create/i.test(
+                        [e.getAttribute('aria-label'),e.getAttribute('placeholder'),
+                         e.getAttribute('data-placeholder')].join(' ')));
+                if(prompts.length!==1)return {indices:[],prompts:prompts.length,gears:0,reason:'prompt_not_unique'};
+                const p=prompts[0].getBoundingClientRect();
+                const label=e=>[e.getAttribute('aria-label'),e.getAttribute('title'),e.textContent]
+                    .filter(Boolean).join(' ').trim();
+                const gears=buttons.filter(e=>visible(e)&&
+                    /^(configurações(?: do (?:agente|vídeo|video))?|(?:agent |video )?settings)$/i.test(label(e)));
+                const nearby=gears.map(e=>({e,d:Math.hypot(
+                    e.getBoundingClientRect().right-p.right,
+                    e.getBoundingClientRect().bottom-p.bottom)})).sort((a,b)=>a.d-b.d);
+                const gear=nearby[0]?.e, g=gear?.getBoundingClientRect();
+                const indices=buttons.map((e,i)=>({e,i})).filter(({e})=>{
+                    if(e===gear||!visible(e)||e.disabled||e.getAttribute('aria-disabled')==='true')return false;
+                    const r=e.getBoundingClientRect();
+                    const hint=[label(e),e.getAttribute('data-testid'),
+                        e.querySelector('mat-icon')?.textContent,
+                        e.querySelector('svg')?.getAttribute('data-testid'),
+                        e.querySelector('svg')?.getAttribute('class')].filter(Boolean).join(' ');
+                    const named=/send|submit|generate|gerar|enviar|arrow_forward|north|upward/i.test(hint);
+                    const nearPrompt=Math.abs(r.bottom-p.bottom)<180&&Math.abs(r.right-p.right)<280;
+                    const besideGear=!!g&&Math.abs((r.top+r.height/2)-(g.top+g.height/2))<=22
+                        &&r.left>=g.right-3&&r.left-g.right<=115;
+                    const compact=r.width>=20&&r.width<=76&&r.height>=20&&r.height<=76;
+                    // An unnamed control must be uniquely adjacent to the settings icon.
+                    return compact&&((named&&nearPrompt)||(besideGear&&(!label(e)||named)));
+                }).map(({i})=>i);
+                return {indices,prompts:prompts.length,gears:gears.length,reason:'ok'};
+            }""", timeout=4500)
+            generate_log("generate_discovery", frame=frame_index,
+                         prompt_candidates=evidence["prompts"],
+                         settings_candidates=evidence["gears"],
+                         arrow_candidates=len(evidence["indices"]),
+                         reason=evidence["reason"])
+            for index in evidence["indices"]:
+                candidates.append((frame_index, controls.nth(index)))
+        except Exception as exc:
+            generate_log("generate_discovery_error", frame=frame_index,
+                         error_type=type(exc).__name__)
+
+    if len(candidates) != 1:
+        generate_log("generate_target_not_verified", arrow_candidates=len(candidates))
+        raise RuntimeError("flow_generate_button_unverified")
+
+    frame_index, target = candidates[0]
+    try:
+        # Trial validates that the intended DOM control is clickable without activating it.
+        await target.click(trial=True, timeout=2500)
+        generate_log("generate_target_verified", frame=frame_index,
+                     method="prompt_geometry_and_icon_metadata")
+        await show_red_click(page, target, "click_generate")
+        await target.click(timeout=3500)
+        generate_log("generate_click_dispatched", frame=frame_index)
+    except Exception as exc:
+        generate_log("generate_click_failed", frame=frame_index,
+                     error_type=type(exc).__name__)
+        raise
+
+    # Read-only post-click observation; never click approval or retry controls.
+    try:
+        await page.wait_for_timeout(1200)
+        outcome = await page.locator("body").evaluate(r"""body=>{
+            const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
+            const text=e=>(e.innerText||'').trim();
+            const buttons=Array.from(body.querySelectorAll('button,[role="button"]')).filter(visible);
+            const dialogs=Array.from(body.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog')).filter(visible);
+            return {
+                approvalVisible:buttons.some(e=>/^(aprovar|approve|confirmar|confirm)$/i.test(text(e))),
+                retryVisible:buttons.some(e=>/^(tentar de novo|try again|retry)$/i.test(text(e))),
+                errorVisible:Array.from(body.querySelectorAll('[role="alert"],[role="alertdialog"]'))
+                    .filter(visible).some(e=>/algo deu errado|something went wrong|não foi possível gerar|generation failed/i.test(text(e))),
+                dialogVisible:dialogs.length>0,
+                processingVisible:Array.from(body.querySelectorAll('[role="progressbar"],[aria-busy="true"]')).some(visible)
+            };
+        }""", timeout=2500)
+        generate_log("generate_post_click_observed", **outcome)
+    except Exception as exc:
+        generate_log("generate_post_click_unverified", error_type=type(exc).__name__)
+    return True
 
 
 @app.post("/session/stage")
