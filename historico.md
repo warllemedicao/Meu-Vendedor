@@ -2141,3 +2141,10 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Identificadores exatos por etapa: confirmation, image_ratio, image_count, video_ratio, video_count e image_model.
 - Seletores agora normalizam acentos, toleram traduções e aguardam renderização; fallback global só atua com um único candidato visível para evitar cliques aleatórios.
 - Não foi possível recuperar nem comprovar nesta sessão o estado operacional de 16/11 às 15h; a correção exige validação real após deploy no Modal.
+
+### 2026-11-17 — Remoção de Nunca e seleção explícita de 9:16
+- Removida a tentativa de configurar 'Confirmar antes de gerar: Nunca', a pedido do usuário.
+- Seleção 9:16 deve ocorrer na seção de imagem/vídeo correspondente, sem fallback global ambíguo; quando já marcado, não clicar novamente.
+- Autorização do usuário para geração de imagem registrada; o acionamento de Gerar continua condicionado ao sinalizador configureAndGenerate do fluxo e às verificações de segurança.
+- Relatório do teste: click_settings seguido de stage_failed; ausência de confirmação de qual opção falhou.
+- Deploy e validação real pendentes.
