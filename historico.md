@@ -1,4 +1,10 @@
 
+## 2026-11-16 — Seleção prolongada das três fotos no Flow
+
+- Ajustado `browser-service/app.py`: todas as referências recebem clique com pressionamento de 1100 ms; as seguintes mantêm modificador Ctrl para multisseleção. A espera inicial de 10 segundos permanece.
+- Busca do botão de inclusão ampliada para reconhecer `Enviar para comando` e quantidade de `arquivos`/`files`, além de itens. Commits `b5959bff` e `a836a8cc`.
+- **Pendente:** deploy do Modal e teste real para confirmar que a seleção múltipla permanece e o botão aparece com `3 arquivos`. Não foi possível consultar logs remotos nesta conversa.
+
 ## 2026-11-16 — Espera de 10 segundos antes de selecionar imagens
 
 - Após identificar as imagens na biblioteca do Google Flow, o robô aguarda 10 segundos antes do primeiro clique; adicionada pausa de 900 ms entre cliques.
