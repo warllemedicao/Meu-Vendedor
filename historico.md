@@ -1994,3 +1994,9 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Commit `671930c`: adiciona clique explícito e marcador vermelho na caixa do prompt antes de preenchê-la, depois faz uma varredura única dos botões para selecionar Adicionar elementos por rótulo e proximidade ao prompt. O fluxo de upload segue depois disso.
 - A captura manual `learning_stop` persiste somente `role` e `type` de até 80 cliques; não armazena o texto/posição do botão, portanto não permite recuperar precisamente a sequência de cliques anterior. Não há acesso direto aos logs internos do Modal nesta sessão; registros Supabase HTTP 409 não identificam o controle clicado.
 - **Não publicado no Modal nem validado no Google Flow real.**
+
+## 2026-11-17 — Configurações do agente Flow e geração opcional
+- Usuário confirmou em capturas que upload/prompt funcionam na segunda tentativa e identificou o botão central de configurações e a seta branca de geração. Valores desejados: Confirmar antes de gerar=Nunca; imagens=9:16; x1; modelo Nano Banana 2.1; vídeo=9:16.
+- `browser-service/app.py`: adicionada tentativa de abrir configurações pelo botão próximo ao prompt, selecionar valores nas respectivas seções, conferir modelo Nano Banana 2.1, salvar e clicar uma vez em Gerar. Marcador vermelho mantido. `configureAndGenerate` opt-in; sem aprovação posterior automatizada.
+- `supabase/functions/private-browser/index.ts`: encaminha flag explícita. Interface `PrivateBrowserConnection.tsx`: checkbox de autorização com alerta de possível consumo automático de créditos, desmarcado por padrão.
+- Commits `15bc5885`, `f65af2ea`, `1b8be0d4`. **Pendente validação no Flow, publicação da Edge Function, Cloudflare e Modal**. O comportamento do Flow pode mudar e a opção Nunca pode dispensar autorização posterior; não prometer etapa de aprovação.
