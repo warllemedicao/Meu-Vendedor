@@ -680,7 +680,93 @@ async def flow_upload_references(page, images, prompt_control):
                       chips_added=chips, selected=selected)
         return opened, chips, selected
 
-    for index, name in enumerate(names):
+    # Two-reference recovery is deliberately isolated from the 1/3-image paths.
+    async def two_image_recover_library(ordinal):
+        for attempt in range(2):
+            opened, chips, _ = await observe(ordinal)
+            if opened:
+                return True
+            if chips == 2:
+                selection_log("two_both_already_attached", ordinal=ordinal)
+                return False
+            if chips != 1:
+                selection_log("two_recovery_unsafe_chip_count", ordinal=ordinal,
+                              chips_added=chips)
+                raise RuntimeError("flow_two_reference_state_ambiguous")
+            selection_log("two_gallery_closed_after_first", ordinal=ordinal,
+                          attempt=attempt + 1)
+            await page.wait_for_timeout(2000)
+            if await library.is_visible():
+                return True
+            # Reuse the existing, geometry-verified composer control; never
+            # upload again, or click a guessed library thumbnail.
+            if attempt == 0:
+                if not await open_add_elements():
+                    raise RuntimeError("flow_two_reference_gallery_reopen_unavailable")
+                await page.wait_for_timeout(600)
+        opened, chips, _ = await observe(ordinal)
+        if opened:
+            return True
+        raise RuntimeError("flow_two_reference_gallery_reopen_unverified")
+
+    if image_count == 2:
+        selection_log("two_mode_started", chips_added=0)
+        for index, name in enumerate(names):
+            ordinal = index + 1
+            opened, chips, _ = await observe(ordinal)
+            if chips == 2:
+                break
+            if not opened:
+                reopened = await two_image_recover_library(ordinal)
+                if not reopened:
+                    break
+            target = library.locator('[role="option"]').filter(has_text=name)
+            if await target.count() != 1:
+                target = library.locator('[role="option"]').filter(
+                    has=library.locator('[title="' + name + '"], [alt="' + name + '"]'))
+            if await target.count() != 1:
+                await page.wait_for_timeout(2000)
+                selection_log("two_target_wait", ordinal=ordinal,
+                              matches=await target.count())
+                target = library.locator('[role="option"]').filter(has_text=name)
+            if await target.count() != 1:
+                raise RuntimeError("flow_two_reference_target_unavailable")
+            item = target.first
+            opened, chips, selected = await observe(ordinal, item)
+            if not opened:
+                raise RuntimeError("flow_two_reference_gallery_unavailable")
+            if selected != "true":
+                await item.click(trial=True, timeout=2500)
+                await show_red_click(page, item, "click_reference")
+                await item.click(modifiers=["Control"] if index else [],
+                                 delay=1100, timeout=6000)
+                record_event("reference_click_confirmed")
+            await page.wait_for_timeout(900)
+            opened, chips, selected = await observe(ordinal, item)
+            if not opened and chips == 1 and ordinal == 1:
+                selection_log("two_first_auto_attached")
+                continue
+            if selected != "true" and opened:
+                await page.wait_for_timeout(2000)
+                opened, chips, selected = await observe(ordinal, item)
+                selection_log("two_delayed_selection", ordinal=ordinal,
+                              selected=selected, chips_added=chips)
+                if selected == "false":
+                    raise RuntimeError("flow_two_reference_selection_not_confirmed")
+        opened, chips, _ = await observe(2)
+        if chips == 2:
+            selection_log("two_attached_verified", chips_added=chips)
+            record_event("reference_selection_finished")
+            return {"imagesSubmitted": 2, "referencesIncluded": True,
+                    "referencesVerified": True}
+        # Both selected in gallery: use the original Include control below,
+        # then verify two chips before authorizing generation.
+        if not opened or chips != 0:
+            selection_log("two_incomplete_before_include", library_open=opened,
+                          chips_added=chips)
+            raise RuntimeError("flow_two_reference_count_unverified")
+
+    for index, name in enumerate(names) if image_count != 2 else []:
         ordinal = index + 1
         # Retain the proven 1100ms click-and-hold and Ctrl multi-selection.
         # Observe changing DOM without treating a missing aria-selected as failure.
@@ -792,6 +878,16 @@ async def flow_upload_references(page, images, prompt_control):
         raise RuntimeError("flow_reference_include_unavailable")
     await show_red_click(page, include_button, "click_include")
     await include_button.click(timeout=5000)
+    if image_count == 2:
+        for attempt in range(8):
+            chips = await ingredient_count() - baseline_chips
+            selection_log("two_post_include_check", attempt=attempt + 1,
+                          chips_added=chips)
+            if chips == 2:
+                return {"imagesSubmitted": 2, "referencesIncluded": True,
+                        "referencesVerified": True}
+            await page.wait_for_timeout(500)
+        raise RuntimeError("flow_two_reference_count_unverified")
     return {"imagesSubmitted": len(names), "referencesIncluded": True,
             "referencesVerified": False}
 
