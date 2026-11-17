@@ -2165,3 +2165,11 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 - Adicionado modo explícito de 1, 2 e 3 imagens. Para 1, verifica inclusão automática pelo aparecimento de flow-ingredient-chip; para 2, não prossegue com a segunda seleção se a biblioteca fechou após a primeira; o caminho de 3 imagens mantém os cliques existentes.
 - Corrigida regex do rótulo simples de inclusão de uma imagem (antes tinha barras invertidas duplicadas).
 - Commit de código 689b414. Ainda sem testes reais e deploy Modal nesta sessão; referênciasVerified permanece false, sem alegar validação completa.
+
+### 2026-11-17 — Momento que o robô aprendeu a enviar imagens e ajustar configuração
+
+**Marco validado visualmente pelo usuário:** quatro testes aprovados consecutivamente: dois testes com 2 imagens e dois testes com 1 imagem. O usuário confirmou que o robô enviou referências e ajustou configurações na interface Google Flow. Preservar os caminhos específicos por quantidade e evitar regressões.
+
+**Limite dos logs anexados:** duas capturas de 29 interações registram click_reference, reference_click_confirmed, reference_selection_finished, include_button_ready, click_include e interações em configurações; ambas ainda registram stage_failed após click_settings. Aprovação visual não equivale a stage_completed no backend.
+
+**Próxima etapa — seta Gerar:** existe click_flow_generate acionado somente quando configureAndGenerate é verdadeiro. A função procura exatamente um botão visível e habilitado com nome acessível Gerar/Generate/Criar/Create; os logs não identificam a seta por nome ou seletor. O usuário autorizou o clique, mas a execução deve depender da identificação inequívoca do controle correto e de configurações confirmadas, sem clicar em coordenadas ou botões ambíguos.
