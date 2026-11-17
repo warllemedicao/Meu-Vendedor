@@ -570,7 +570,7 @@ async def flow_upload_references(page, images, prompt_control):
                         continue
                     label = ((await control.get_attribute("aria-label")) or
                              (await control.inner_text(timeout=1000))).strip()
-                    quantity = re.search(r"\\b(\\d+)\\s+(?:itens?|items?)\\b", label, re.I)
+                    quantity = re.search(r"\b(\d+)\s+(?:itens?|items?)\b", label, re.I)
                     if quantity and int(quantity.group(1)) == len(names):
                         candidates.append(control)
                     elif len(names) == 1 and re.fullmatch(
