@@ -558,6 +558,41 @@ async def flow_retry_message_visible(page):
     return False
 
 
+@app.get("/session/video/generation-error")
+async def generation_error_status(request: Request):
+    """Read-only failure probe during the initial 110-second generation wait."""
+    authorize(request)
+    if generation_watch["failed"]:
+        return {"failed": True, "reason": "flow_try_again"}
+    if not generation_watch["active"]:
+        return {"failed": False, "reason": "generation_not_registered"}
+    if not chrome_running():
+        return {"failed": True, "reason": "browser_not_running"}
+    async with lock:
+        async with async_playwright() as pw:
+            browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+            try:
+                await restore_native_download_behavior(browser, stage="generation_error_probe")
+                project_url = generation_watch["projectUrl"]
+                pages = [p for ctx in browser.contexts for p in ctx.pages
+                         if not p.is_closed() and p.url.startswith(project_url)]
+                if len(pages) != 1:
+                    return {"failed": False, "reason": "project_not_visible"}
+                if await flow_retry_message_visible(pages[0]):
+                    generation_watch["failed"] = True
+                    generation_watch["active"] = False
+                    print("mv_generation_aborted " + __import__("json").dumps({
+                        "reason": "flow_try_again",
+                        "networkFailures": generation_watch["networkFailures"],
+                        "stage": "initial_wait"
+                    }), flush=True)
+                    return {"failed": True, "reason": "flow_try_again"}
+                return {"failed": False, "reason": "no_retry_message",
+                        "networkFailures": generation_watch["networkFailures"]}
+            finally:
+                await browser.close()
+
+
 @app.get("/session/video/generated-ready")
 async def generated_video_ready(request: Request):
     """Poll whether a new gallery thumbnail appeared after the authorized Generate."""
