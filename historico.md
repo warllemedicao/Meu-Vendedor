@@ -2512,3 +2512,12 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - `browser-service/app.py` registra `mv_video_download_failure` no Modal e insere evento `robot-diagnostic` no próprio relatório de cliques, inclusive quando 0 cliques aconteceram. Falhas de download retornam `detail: {code,diagnostic}`.
 - `supabase/functions/private-browser/index.ts` sanitiza a resposta e encaminha apenas códigos, etapas e contagens conhecidas. `PrivateBrowserConnection.tsx` mostra ao usuário, em português, etapa, causa e números diagnosticados.
 - Os módulos de imagens, configuração e geração não foram modificados. Sem teste real do Flow nesta alteração. Requer atualizar código no Codespaces, publicar Modal, Supabase e Cloudflare, e verificar falha de zero cliques.
+
+
+### 2026-11-18 — Zero vídeos encontrados: filtro incorreto para vídeos verticais
+- Diagnóstico real recebido: `flow_video_not_unique`, etapa `find_video_preview`, 0 candidatos nos frames 0–4; a sessão Flow estava presente (1 aba) e não houve cliques.
+- Causa provável encontrada no código: o seletor rejeitava vídeos 9:16 por exigir `width/height >= 1.3`, largura mínima 220px e altura mínima 120px. Isso tratava previews verticais como inválidos; o resultado zero não comprovava ausência de vídeos.
+- Correção isolada em `browser-service/flow_video_download.py`: aceitar previews verticais com dimensões mínimas 75x95 e posição na galeria, preservando escolha do primeiro visível na fileira superior da esquerda para a direita. O diagnóstico agora informa elementos encontrados, visíveis, rejeitados por tamanho/posição e elegíveis para cada frame; diferencia `no_video_dom_elements` de `video_filtered_out`.
+- Ponte Supabase sanitiza e transmite essas métricas; interface de Conta e conexões apresenta as contagens e motivos em português.
+- **Sem teste real após alteração e sem deploy Modal/Cloudflare confirmados nesta edição.** Se não houver elementos HTML5 video/role=video, precisamos examinar se os cartões são imagens de capa. Não inventar clique por coordenadas sem evidência.
+- Nenhuma alteração em `single_image.py`, `two_images.py`, `three_images.py` ou na geração de vídeos.
