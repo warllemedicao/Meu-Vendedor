@@ -14,6 +14,32 @@ const cors = {
 const reply = (value: unknown, status = 200) =>
   Response.json(value, { status, headers: { ...cors, "cache-control": "no-store" } });
 
+type InputPayload = {
+  action?: string;
+  prompt?: string;
+  images?: unknown[];
+  imageRightsConfirmed?: boolean;
+  configureAndGenerate?: boolean;
+  downloadId?: string;
+};
+type VideoPayload = { id?: string; name?: string; bytes?: number; modifiedAt?: number };
+type DiagnosticPayload = {
+  stage?: string; reason?: string; flowProjectTabs?: number;
+  videoCandidates?: number; toolbarCandidates?: number;
+  resolutionCandidates?: number; previewClicked?: boolean;
+  editorOpen?: boolean; downloadMenuClicked?: boolean;
+  resolutionClicked?: boolean;
+  frames?: Array<Record<string, unknown>>;
+};
+type BrowserResult = {
+  detail?: string | { code?: string; diagnostic?: DiagnosticPayload };
+  diagnostics?: { events?: Array<Record<string, unknown>>; processExited?: boolean };
+  running?: boolean; status?: string; video?: VideoPayload;
+  videos?: Array<Record<string, unknown>>;
+  ticket?: string; bytes?: number;
+};
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return reply({ error: "method_not_allowed" }, 405);
@@ -39,10 +65,10 @@ Deno.serve(async (req) => {
     signal: AbortSignal.timeout(8000),
   }).catch(() => null);
   if (!auth?.ok) return reply({ error: "unauthorized" }, 401);
-  const user = await auth.json().catch(() => null);
+  const user = await auth.json().catch(() => null) as { id?: string; email_confirmed_at?: string } | null;
   if (!user?.id || user.id !== owner || !user.email_confirmed_at)
     return reply({ error: "forbidden" }, 403);
-  const input = await req.json().catch(() => null);
+  const input = await req.json().catch(() => null) as InputPayload | null;
   const routes: Record<string, { path: string; method: string }> = {
     status: { path: "/session/status", method: "GET" },
     inspect: { path: "/session/inspect", method: "GET" },
@@ -80,7 +106,7 @@ Deno.serve(async (req) => {
       elapsedMs: Date.now() - startedAt }));
     return reply({ error: "browser_unavailable" }, 502);
   }
-  const result = await response.json().catch(() => null);
+  const result = await response.json().catch(() => null) as BrowserResult | null;
   if (!response.ok) {
     console.log(JSON.stringify({ source: "private_browser_bridge", action, outcome: "upstream_error",
       upstreamStatus: response.status, elapsedMs: Date.now() - startedAt }));
