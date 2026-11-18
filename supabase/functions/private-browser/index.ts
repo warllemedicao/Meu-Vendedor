@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" || action === "learning_start" || action === "video_download" ? { "content-type": "application/json" } : {}) },
     ...(action === "stage" || action === "learning_start" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed, configureAndGenerate: input?.configureAndGenerate === true }) }
       : action === "video_download" ? { body: JSON.stringify({ appOrigin: origin, downloadId: input?.downloadId }) } : {}),
-    signal: AbortSignal.timeout(action === "stage" ? 120000 : (action === "video_download" || action === "video_train") ? 45000 : action === "start" || action === "learning_start" ? 60000 : 12000),
+    signal: AbortSignal.timeout(action === "stage" ? 120000 : (action === "video_download" || action === "video_train") ? 45000 : action === "video_generated_ready" ? 30000 : action === "start" || action === "learning_start" ? 60000 : 12000),
   }).catch(() => null);
   if (!response) {
     console.log(JSON.stringify({ source: "private_browser_bridge", action, outcome: "upstream_unreachable",
@@ -99,6 +99,7 @@ Deno.serve(async (req) => {
       "invalid_draft", "payload_too_large",
       "flow_video_project_not_unique", "flow_video_not_unique", "flow_video_editor_not_open",
       "flow_video_download_control_not_unique", "flow_video_download_not_started",
+      "flow_generated_video_not_ready", "flow_native_download_behavior_unverified",
       "flow_download_file_not_found", "invalid_download_selection",
       "flow_video_download_failed", "flow_video_invalid_mp4", "browser_not_running",
     ]);
