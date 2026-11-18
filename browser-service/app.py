@@ -23,6 +23,9 @@ active_viewers = 0
 chrome_process = None
 context = None
 browser_monitor_task = None
+video_download_tickets = {}
+MAX_MANUAL_VIDEO_BYTES = 100 * 1024 * 1024
+
 
 # Browser diagnostics never collect URLs, messages, page contents, headers or payloads.
 def log_flow_browser_issue(kind, *, status=None, resource=None, category=None, host=None):
@@ -206,6 +209,12 @@ def chrome_running():
 async def stop_browser():
     global chrome_process, browser_monitor_task
     view_tickets.clear()
+    for ticket_info in video_download_tickets.values():
+        try:
+            os.unlink(ticket_info["path"])
+        except FileNotFoundError:
+            pass
+    video_download_tickets.clear()
     if browser_monitor_task is not None:
         browser_monitor_task.cancel()
         try:
@@ -284,6 +293,131 @@ async def stop(request: Request):
     async with lock:
         await stop_browser()
     return {"status": "stopped"}
+
+@app.post("/session/video/prepare")
+async def prepare_manual_flow_video(request: Request):
+    """Download one completed Flow video via its visible, official UI control."""
+    authorize(request)
+    try:
+        data = await request.json()
+        app_origin = data.get("appOrigin")
+        parsed = urlsplit(app_origin)
+        if (parsed.scheme != "https" or not parsed.hostname or parsed.username or
+                parsed.password or parsed.path not in ("", "/") or parsed.query or
+                parsed.fragment or parsed.port not in (None, 443)):
+            raise ValueError()
+        app_origin = f"https://{parsed.hostname}"
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(400, "invalid_download_origin")
+    if not chrome_running():
+        raise HTTPException(409, "browser_not_running")
+    async with lock:
+        import tempfile
+        from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+        path = None
+        try:
+            async with async_playwright() as pw:
+                browser = await pw.chromium.connect_over_cdp(
+                    "http://127.0.0.1:9222", timeout=10000)
+                pages = [p for ctx in browser.contexts for p in ctx.pages if
+                         not p.is_closed() and p.url.startswith("https://flow.google.com/project/")]
+                if len(pages) != 1:
+                    raise HTTPException(409, "flow_video_project_not_unique")
+                page = pages[0]
+                visible_videos = []
+                for frame in page.frames[:8]:
+                    for i in range(min(await frame.locator("video").count(), 20)):
+                        video = frame.locator("video").nth(i)
+                        if await video.is_visible():
+                            visible_videos.append(video)
+                if len(visible_videos) != 1:
+                    print("mv_manual_download " + __import__("json").dumps({
+                        "result": "video_not_unique", "visibleVideos": len(visible_videos)
+                    }), flush=True)
+                    raise HTTPException(409, "flow_video_not_unique")
+                # Never guess an unlabeled menu or scrape private video URLs.
+                # Only click one uniquely labeled, visible Flow download control.
+                candidates = []
+                pattern = re.compile(r"^(?:Baixar|Download|Fazer download|Download video|Baixar vídeo)(?:\\s*(?:vídeo|video|mp4))?$", re.I)
+                for frame in page.frames[:8]:
+                    for role in ("button", "menuitem"):
+                        options = frame.get_by_role(role, name=pattern)
+                        for i in range(min(await options.count(), 15)):
+                            candidate = options.nth(i)
+                            if await candidate.is_visible() and await candidate.is_enabled():
+                                candidates.append(candidate)
+                print("mv_manual_download " + __import__("json").dumps({
+                    "result": "discovered", "visibleVideos": 1,
+                    "downloadControls": len(candidates)
+                }), flush=True)
+                if len(candidates) != 1:
+                    raise HTTPException(409, "flow_video_download_control_not_unique")
+                async with page.expect_download(timeout=20000) as download_info:
+                    await candidates[0].click(timeout=5000)
+                download = await download_info.value
+                if download.failure is not None and await download.failure():
+                    raise HTTPException(409, "flow_video_download_failed")
+                with tempfile.NamedTemporaryFile(
+                    prefix="mv-flow-", suffix=".mp4", delete=False) as tmp:
+                    path = tmp.name
+                await download.save_as(path)
+                size = os.path.getsize(path)
+                with open(path, "rb") as fh:
+                    signature = fh.read(12)
+                if not 12 <= size <= MAX_MANUAL_VIDEO_BYTES or signature[4:8] != b"ftyp":
+                    raise HTTPException(409, "flow_video_invalid_mp4")
+                now = time.time()
+                for old_token, info in list(video_download_tickets.items()):
+                    if info["expires"] < now:
+                        video_download_tickets.pop(old_token, None)
+                        try:
+                            os.unlink(info["path"])
+                        except FileNotFoundError:
+                            pass
+                token = secrets.token_urlsafe(32)
+                video_download_tickets[token] = {
+                    "path": path, "origin": app_origin, "expires": now + 180,
+                }
+                path = None
+                print("mv_manual_download " + __import__("json").dumps({
+                    "result": "ready", "bytes": size
+                }), flush=True)
+                return {"ticket": token, "bytes": size}
+        except HTTPException:
+            raise
+        except PlaywrightTimeoutError:
+            raise HTTPException(409, "flow_video_download_not_started")
+        except Exception as exc:
+            print("mv_manual_download " + __import__("json").dumps({
+                "result": "failed", "errorType": type(exc).__name__
+            }), flush=True)
+            raise HTTPException(503, "flow_video_download_failed")
+        finally:
+            if path:
+                try:
+                    os.unlink(path)
+                except FileNotFoundError:
+                    pass
+
+
+@app.get("/session/video/file")
+async def retrieve_manual_flow_video(request: Request, ticket: str = ""):
+    """Single-use, origin-bound stream; no browser control bearer exposed."""
+    from fastapi.responses import FileResponse
+    from starlette.background import BackgroundTask
+    if not re.fullmatch(r"[A-Za-z0-9_-]{32,128}", ticket):
+        raise HTTPException(403, "invalid_video_ticket")
+    info = video_download_tickets.get(ticket)
+    if (info is None or info["expires"] < time.time() or
+            request.headers.get("origin") != info["origin"]):
+        raise HTTPException(403, "invalid_video_ticket")
+    info = video_download_tickets.pop(ticket)
+    return FileResponse(info["path"], media_type="video/mp4",
+        filename="google-flow-video.mp4",
+        headers={"Access-Control-Allow-Origin": info["origin"],
+                 "Cache-Control": "no-store", "Vary": "Origin"},
+        background=BackgroundTask(os.unlink, info["path"]))
+
 
 @app.get("/session/status")
 async def status(request: Request):
