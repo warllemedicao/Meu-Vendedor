@@ -25,7 +25,7 @@ context = None
 browser_monitor_task = None
 video_download_tickets = {}
 # Only the most recent explicitly authorized generation may trigger automatic download.
-generation_watch = {"active": False, "baseline": [], "projectUrl": "", "startedAt": 0.0}
+generation_watch = {"active": False, "baseline": [], "projectUrl": "", "startedAt": 0.0, "ready": False}
 MAX_MANUAL_VIDEO_BYTES = 100 * 1024 * 1024
 
 
@@ -466,9 +466,12 @@ async def train_flow_download(request: Request):
                                        "reason": "project_tab_count_not_one" if len(pages) != 1 else "verified"})
                     if len(pages) != 1:
                         raise RuntimeError("flow_video_project_not_unique")
-                    # A previous Generate may have produced old videos in the same
-                    # project. Automatic continuation is permitted only after a
-                    # newly observed first thumbnail; manual video_train is unchanged.
+                    # The training UI was retired: automatic download now needs
+                    # a confirmed newly generated editor, never an old video.
+                    if not generation_watch["active"] or not generation_watch["ready"]:
+                        raise RuntimeError("flow_generated_video_not_ready")
+                    if not pages[0].url.startswith(generation_watch["projectUrl"] + "/edit/"):
+                        raise RuntimeError("flow_generated_video_not_ready")
                     before = {item["id"] for item in finished_mp4_files()}
                     print("mv_download_file_types " + __import__("json").dumps({
                         "phase": "before_automated_clicks",
@@ -484,7 +487,8 @@ async def train_flow_download(request: Request):
         except Exception as exc:
             allowed = {"flow_video_project_not_unique", "flow_video_download_control_not_unique",
                        "flow_video_download_not_started", "flow_video_not_unique",
-                       "flow_video_editor_not_open", "flow_native_download_behavior_unverified"}
+                       "flow_video_editor_not_open", "flow_native_download_behavior_unverified",
+                       "flow_generated_video_not_ready"}
             code = str(exc) if str(exc) in allowed else "flow_video_download_failed"
             diagnostic.update({"errorCode": code, "exceptionType": type(exc).__name__})
             if diagnostic.get("stage") == "wait_for_mp4":
@@ -533,17 +537,35 @@ async def generated_video_ready(request: Request):
                 if len(pages) != 1:
                     return {"ready": False, "reason": "project_not_visible"}
                 page = pages[0]
-                # Cannot safely identify a new thumbnail while inside the editor.
+                if generation_watch["ready"] and "/edit/" in page.url:
+                    return {"ready": True, "reason": "editor_confirmed"}
                 if "/edit/" in page.url:
                     return {"ready": False, "reason": "gallery_not_visible"}
                 current = await gallery_thumbnail_fingerprints(page)
                 baseline = set(generation_watch["baseline"])
-                ready = bool(current and current[0] not in baseline)
+                new_first = bool(current and current[0] not in baseline)
+                if not new_first:
+                    return {"ready": False, "reason": "still_processing"}
+                # Opening the generated card must navigate to a real /edit/
+                # page with the known download toolbar. If Flow is still
+                # processing, it will fail safely and the UI retries in 10s.
+                from flow_video_download import _open_completed_video, _locate_editor_download
+                evidence = {}
+                try:
+                    await _open_completed_video(page, record_event, show_red_click, evidence)
+                    await _locate_editor_download(page, evidence)
+                except Exception as exc:
+                    print("mv_generation_ready " + __import__("json").dumps({
+                        "ready": False, "reason": "preview_not_openable",
+                        "errorType": type(exc).__name__
+                    }), flush=True)
+                    return {"ready": False, "reason": "preview_not_openable"}
+                generation_watch["ready"] = True
                 print("mv_generation_ready " + __import__("json").dumps({
-                    "ready": ready, "visible": len(current),
+                    "ready": True, "visible": len(current),
                     "elapsedSeconds": round(time.monotonic() - generation_watch["startedAt"])
                 }), flush=True)
-                return {"ready": ready, "reason": "new_first_thumbnail" if ready else "still_processing"}
+                return {"ready": True, "reason": "editor_confirmed"}
             finally:
                 await browser.close()
 
@@ -1817,7 +1839,7 @@ async def stage_flow(request: Request):
                         generation_watch.update({
                             "active": True, "baseline": before_generation,
                             "projectUrl": page.url.split("/edit/")[0],
-                            "startedAt": time.monotonic(),
+                            "startedAt": time.monotonic(), "ready": False,
                         })
                         print("mv_generation_watch " + __import__("json").dumps({
                             "started": True, "baselineCount": len(before_generation)
