@@ -665,7 +665,11 @@ LEARNING_SCRIPT = r"""(() => {
     if (!target) return;
     if (timer) clearTimeout(timer);
     if (active) flush();
-    active={target,before:snapshot(),at:performance.now()};
+    // Coordinates and element role only; no texts, values, URLs or credentials.
+    const pointer={...target,
+      x:Math.round(e.clientX),y:Math.round(e.clientY),
+      viewportWidth:Math.round(innerWidth),viewportHeight:Math.round(innerHeight)};
+    active={target:pointer,before:snapshot(),at:performance.now()};
     pending=[];
     timer=setTimeout(()=>{flush();active=null;},1200);
   };
@@ -779,6 +783,10 @@ async def learning_stop(request: Request):
                                 "kind": "browser-response",
                                 "target": {
                                     "role": str((event.get("target") or {}).get("role", ""))[:24],
+                                    "x": min(max((event.get("target") or {}).get("x", 0), 0), 10000) if isinstance((event.get("target") or {}).get("x"), int) else None,
+                                    "y": min(max((event.get("target") or {}).get("y", 0), 0), 10000) if isinstance((event.get("target") or {}).get("y"), int) else None,
+                                    "viewportWidth": min(max((event.get("target") or {}).get("viewportWidth", 0), 0), 10000) if isinstance((event.get("target") or {}).get("viewportWidth"), int) else None,
+                                    "viewportHeight": min(max((event.get("target") or {}).get("viewportHeight", 0), 0), 10000) if isinstance((event.get("target") or {}).get("viewportHeight"), int) else None,
                                     "state": {k: v for k, v in ((event.get("target") or {}).get("state") or {}).items()
                                               if k in ("aria-selected", "aria-pressed", "aria-checked", "aria-expanded", "data-state")
                                               and v in ("true", "false", "open", "closed", "checked", "unchecked", "on", "off", "active", "inactive")},
@@ -804,6 +812,18 @@ async def learning_stop(request: Request):
                             })
                     except Exception:
                         continue
+        # Log only click geometry/roles and event counts for user debugging.
+        manual_clicks = [
+            {"role": e.get("target", {}).get("role"),
+             "x": e.get("target", {}).get("x"),
+             "y": e.get("target", {}).get("y")}
+            for e in learning_state["events"]
+            if e.get("kind") == "browser-response"
+        ]
+        print("mv_manual_click_diagnostic " + __import__("json").dumps({
+            "eventCount": len(learning_state["events"]),
+            "clicks": manual_clicks[:25]
+        }), flush=True)
         learning_state["active"] = False
         clear_learning_images()
     return {"active": False, "recorded": len(learning_state["events"]),
