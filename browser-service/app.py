@@ -249,6 +249,7 @@ async def start(request: Request):
             await stop_browser()
         try:
             os.makedirs(PROFILE, mode=0o700, exist_ok=True)
+            os.makedirs(DOWNLOAD_DIR, mode=0o700, exist_ok=True)
             # Open a regular Chrome GUI independently of Playwright.
             # Never enable an unauthenticated remote-debugging port.
             chrome_process = subprocess.Popen([
@@ -256,6 +257,7 @@ async def start(request: Request):
                 "--user-data-dir=" + PROFILE,
                 "--no-first-run", "--no-default-browser-check",
                 "--window-size=1280,800",
+                "--download-default-directory=" + DOWNLOAD_DIR,
                 "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=9222",
                 "https://flow.google.com/"
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -294,108 +296,126 @@ async def stop(request: Request):
         await stop_browser()
     return {"status": "stopped"}
 
+# Keep downloaded files outside the Chrome profile. Modal mounts /data/browser as
+# a persistent Volume, so a stopped browser does not destroy finished MP4 files.
+DOWNLOAD_DIR = os.getenv("MV_BROWSER_DOWNLOAD_DIR", "/data/browser/downloads")
+DOWNLOAD_SEARCH_DIRS = [Path(DOWNLOAD_DIR), Path.home() / "Downloads"]
+
+
+def finished_mp4_files():
+    import stat as statlib
+    result = []
+    seen = set()
+    for folder in DOWNLOAD_SEARCH_DIRS:
+        if not folder.is_dir() or folder.is_symlink():
+            continue
+        for entry in folder.iterdir():
+            try:
+                info = entry.lstat()
+                # No symlinks, directories, partial files, renamed executables.
+                if (not statlib.S_ISREG(info.st_mode)
+                        or entry.suffix.lower() != ".mp4"
+                        or info.st_size < 12 or info.st_size > MAX_MANUAL_VIDEO_BYTES
+                        or time.time() - info.st_mtime < 3):
+                    continue
+                resolved = str(entry.resolve(strict=True))
+                if resolved in seen:
+                    continue
+                with entry.open("rb") as handle:
+                    if handle.read(12)[4:8] != b"ftyp":
+                        continue
+                seen.add(resolved)
+                identity = (resolved + ":" + str(info.st_size) + ":" +
+                            str(info.st_mtime_ns)).encode()
+                download_id = hmac.new(SECRET.encode(), identity, "sha256").hexdigest()
+                result.append({"id": download_id, "path": entry,
+                    "name": entry.name[:120], "bytes": info.st_size,
+                    "modifiedAt": int(info.st_mtime)})
+            except (OSError, ValueError):
+                continue
+    result.sort(key=lambda item: item["modifiedAt"], reverse=True)
+    return result[:20]
+
+
+@app.get("/session/video/downloads")
+async def list_manual_flow_downloads(request: Request):
+    """List finished MP4 downloads from the isolated Chromium, not any account data."""
+    authorize(request)
+    return {"videos": [{key: item[key] for key in
+             ("id", "name", "bytes", "modifiedAt")} for item in finished_mp4_files()]}
+
+
 @app.post("/session/video/prepare")
 async def prepare_manual_flow_video(request: Request):
-    """Download one completed Flow video via its visible, official UI control."""
+    """Prepare an explicitly selected finished MP4; never click the Flow UI."""
     authorize(request)
     try:
         data = await request.json()
         app_origin = data.get("appOrigin")
+        download_id = data.get("downloadId")
         parsed = urlsplit(app_origin)
         if (parsed.scheme != "https" or not parsed.hostname or parsed.username or
                 parsed.password or parsed.path not in ("", "/") or parsed.query or
-                parsed.fragment or parsed.port not in (None, 443)):
+                parsed.fragment or parsed.port not in (None, 443) or
+                not isinstance(download_id, str) or
+                not re.fullmatch(r"[0-9a-f]{64}", download_id)):
             raise ValueError()
         app_origin = f"https://{parsed.hostname}"
+        if app_origin != os.getenv("MV_APP_ORIGIN", app_origin):
+            # Explicit MV_APP_ORIGIN is optional: the authorized bridge already
+            # constructs appOrigin from its trusted environment.
+            raise ValueError()
     except (ValueError, TypeError, AttributeError):
-        raise HTTPException(400, "invalid_download_origin")
-    if not chrome_running():
-        raise HTTPException(409, "browser_not_running")
+        raise HTTPException(400, "invalid_download_selection")
+
     async with lock:
         import tempfile
-        from playwright.async_api import TimeoutError as PlaywrightTimeoutError
-        path = None
+        import shutil
+        import json
+        choices = [item for item in finished_mp4_files()
+                   if hmac.compare_digest(item["id"], download_id)]
+        if len(choices) != 1:
+            raise HTTPException(409, "flow_download_file_not_found")
+        selected = choices[0]
+        tmp_path = None
         try:
-            async with async_playwright() as pw:
-                browser = await pw.chromium.connect_over_cdp(
-                    "http://127.0.0.1:9222", timeout=10000)
-                pages = [p for ctx in browser.contexts for p in ctx.pages if
-                         not p.is_closed() and p.url.startswith("https://flow.google.com/project/")]
-                if len(pages) != 1:
-                    raise HTTPException(409, "flow_video_project_not_unique")
-                page = pages[0]
-                visible_videos = []
-                for frame in page.frames[:8]:
-                    for i in range(min(await frame.locator("video").count(), 20)):
-                        video = frame.locator("video").nth(i)
-                        if await video.is_visible():
-                            visible_videos.append(video)
-                if len(visible_videos) != 1:
-                    print("mv_manual_download " + __import__("json").dumps({
-                        "result": "video_not_unique", "visibleVideos": len(visible_videos)
-                    }), flush=True)
-                    raise HTTPException(409, "flow_video_not_unique")
-                # Never guess an unlabeled menu or scrape private video URLs.
-                # Only click one uniquely labeled, visible Flow download control.
-                candidates = []
-                pattern = re.compile(r"^(?:Baixar|Download|Fazer download|Download video|Baixar vídeo)(?:\s*(?:vídeo|video|mp4))?$", re.I)
-                for frame in page.frames[:8]:
-                    for role in ("button", "menuitem"):
-                        options = frame.get_by_role(role, name=pattern)
-                        for i in range(min(await options.count(), 15)):
-                            candidate = options.nth(i)
-                            if await candidate.is_visible() and await candidate.is_enabled():
-                                candidates.append(candidate)
-                print("mv_manual_download " + __import__("json").dumps({
-                    "result": "discovered", "visibleVideos": 1,
-                    "downloadControls": len(candidates)
-                }), flush=True)
-                if len(candidates) != 1:
-                    raise HTTPException(409, "flow_video_download_control_not_unique")
-                async with page.expect_download(timeout=20000) as download_info:
-                    await candidates[0].click(timeout=5000)
-                download = await download_info.value
-                if download.failure is not None and await download.failure():
-                    raise HTTPException(409, "flow_video_download_failed")
-                with tempfile.NamedTemporaryFile(
-                    prefix="mv-flow-", suffix=".mp4", delete=False) as tmp:
-                    path = tmp.name
-                await download.save_as(path)
-                size = os.path.getsize(path)
-                with open(path, "rb") as fh:
-                    signature = fh.read(12)
-                if not 12 <= size <= MAX_MANUAL_VIDEO_BYTES or signature[4:8] != b"ftyp":
-                    raise HTTPException(409, "flow_video_invalid_mp4")
-                now = time.time()
-                for old_token, info in list(video_download_tickets.items()):
-                    if info["expires"] < now:
-                        video_download_tickets.pop(old_token, None)
-                        try:
-                            os.unlink(info["path"])
-                        except FileNotFoundError:
-                            pass
-                token = secrets.token_urlsafe(32)
-                video_download_tickets[token] = {
-                    "path": path, "origin": app_origin, "expires": now + 180,
-                }
-                path = None
-                print("mv_manual_download " + __import__("json").dumps({
-                    "result": "ready", "bytes": size
-                }), flush=True)
-                return {"ticket": token, "bytes": size}
+            with tempfile.NamedTemporaryFile(
+                    prefix="mv-flow-", suffix=".mp4", delete=False) as handle:
+                tmp_path = handle.name
+                with selected["path"].open("rb") as original:
+                    shutil.copyfileobj(original, handle)
+            size = os.path.getsize(tmp_path)
+            with open(tmp_path, "rb") as handle:
+                signature = handle.read(12)
+            if (size != selected["bytes"] or size < 12 or
+                    size > MAX_MANUAL_VIDEO_BYTES or signature[4:8] != b"ftyp"):
+                raise HTTPException(409, "flow_video_invalid_mp4")
+            now = time.time()
+            for old_token, info in list(video_download_tickets.items()):
+                if info["expires"] < now:
+                    video_download_tickets.pop(old_token, None)
+                    try:
+                        os.unlink(info["path"])
+                    except FileNotFoundError:
+                        pass
+            token = secrets.token_urlsafe(32)
+            video_download_tickets[token] = {
+                "path": tmp_path, "origin": app_origin, "expires": now + 180}
+            tmp_path = None
+            print("mv_manual_download " + json.dumps({
+                "result": "ready_from_downloads", "bytes": size}), flush=True)
+            return {"ticket": token, "bytes": size}
         except HTTPException:
             raise
-        except PlaywrightTimeoutError:
-            raise HTTPException(409, "flow_video_download_not_started")
-        except Exception as exc:
-            print("mv_manual_download " + __import__("json").dumps({
-                "result": "failed", "errorType": type(exc).__name__
+        except (OSError, ValueError) as exc:
+            print("mv_manual_download " + json.dumps({
+                "result": "file_read_failed", "errorType": type(exc).__name__
             }), flush=True)
-            raise HTTPException(503, "flow_video_download_failed")
+            raise HTTPException(409, "flow_download_file_not_found")
         finally:
-            if path:
+            if tmp_path:
                 try:
-                    os.unlink(path)
+                    os.unlink(tmp_path)
                 except FileNotFoundError:
                     pass
 
