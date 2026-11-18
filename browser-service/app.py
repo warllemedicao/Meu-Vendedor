@@ -95,6 +95,8 @@ async def observe_chrome_errors():
                     if attempt == 5:
                         raise
                     await asyncio.sleep(1)
+            phase = "restore_native_downloads"
+            await restore_native_download_behavior(browser, stage="observer_attach")
             phase = "attach_existing_pages"
             seen_pages = set()
             def attach_page(page):
@@ -315,6 +317,34 @@ DOWNLOAD_DIR = os.getenv("MV_BROWSER_DOWNLOAD_DIR", "/data/browser/downloads")
 DOWNLOAD_SEARCH_DIRS = [Path(DOWNLOAD_DIR), Path.home() / "Downloads"]
 
 
+async def restore_native_download_behavior(browser, *, stage="unspecified"):
+    """Override Playwright's allowAndName and its temporary downloads directory.
+
+    Chromium CDP attachment may set Browser.setDownloadBehavior globally.
+    This browser is user-owned, and downloads must retain their native names
+    in the persistent Chrome Downloads folder.
+    """
+    session = None
+    try:
+        os.makedirs(DOWNLOAD_DIR, mode=0o700, exist_ok=True)
+        session = await browser.new_browser_cdp_session()
+        await session.send("Browser.setDownloadBehavior", {
+            "behavior": "allow", "downloadPath": DOWNLOAD_DIR, "eventsEnabled": True
+        })
+        print("mv_download_behavior " + __import__("json").dumps({
+            "stage": stage, "mode": "allow", "destination": "persistent_downloads",
+            "restored": True
+        }), flush=True)
+    except Exception as exc:
+        print("mv_download_behavior " + __import__("json").dumps({
+            "stage": stage, "restored": False, "errorType": type(exc).__name__
+        }), flush=True)
+        raise RuntimeError("flow_native_download_behavior_unverified") from None
+    finally:
+        if session is not None:
+            await session.detach()
+
+
 def finished_mp4_files():
     """Find completed MP4 payloads, even when Chrome saved a UUID without .mp4.
 
@@ -379,6 +409,7 @@ async def train_flow_download(request: Request):
             async with async_playwright() as pw:
                 browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
                 try:
+                    await restore_native_download_behavior(browser, stage="train_download")
                     pages = [p for ctx in browser.contexts for p in ctx.pages
                              if not p.is_closed() and p.url.startswith("https://flow.google.com/project/")]
                     diagnostic.update({"stage": "project_check", "flowProjectTabs": len(pages),
@@ -395,7 +426,7 @@ async def train_flow_download(request: Request):
         except Exception as exc:
             allowed = {"flow_video_project_not_unique", "flow_video_download_control_not_unique",
                        "flow_video_download_not_started", "flow_video_not_unique",
-                       "flow_video_editor_not_open"}
+                       "flow_video_editor_not_open", "flow_native_download_behavior_unverified"}
             code = str(exc) if str(exc) in allowed else "flow_video_download_failed"
             diagnostic.update({"errorCode": code, "exceptionType": type(exc).__name__})
             print("mv_video_download_failure " + __import__("json").dumps(diagnostic), flush=True)
@@ -534,6 +565,7 @@ async def inspect(request: Request):
         try:
             async with async_playwright() as pw:
                 browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+                await restore_native_download_behavior(browser, stage="learning_stop")
                 pages = [p for ctx in browser.contexts for p in ctx.pages
                          if not p.is_closed() and p.url.startswith("https://flow.google.com/")]
                 if not pages:
@@ -712,6 +744,7 @@ LEARNING_SCRIPT = r"""(() => {
 })()"""
 async def learning_browser_page(pw):
     browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+    await restore_native_download_behavior(browser, stage="learning_start")
     pages = [p for ctx in browser.contexts for p in ctx.pages
              if not p.is_closed() and p.url.startswith("https://flow.google.com/")]
     if not pages:
