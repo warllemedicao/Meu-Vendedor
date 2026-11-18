@@ -26,7 +26,7 @@ browser_monitor_task = None
 video_download_tickets = {}
 # Only the most recent explicitly authorized generation may trigger automatic download.
 generation_watch = {"active": False, "baseline": [], "projectUrl": "", "startedAt": 0.0, "ready": False, "newFirstObserved": False,
-                    "failed": False, "networkFailures": 0, "lastNetworkCategory": None}
+                    "failed": False, "networkFailures": 0, "lastNetworkCategory": None, "cacheCleared": False}
 MAX_MANUAL_VIDEO_BYTES = 100 * 1024 * 1024
 
 
@@ -558,6 +558,42 @@ async def flow_retry_message_visible(page):
     return False
 
 
+async def abort_failed_generation(page, stage):
+    """End this attempt and clear only HTTP cache, preserving Google login.
+
+    Never clear cookies, localStorage, IndexedDB, permissions, service workers,
+    or the persistent Chrome profile. No automatic retry or browser shutdown.
+    """
+    if generation_watch["failed"]:
+        return
+    generation_watch["failed"] = True
+    generation_watch["active"] = False
+    generation_watch["ready"] = False
+    cache_cleared = False
+    session = None
+    try:
+        session = await page.context.new_cdp_session(page)
+        await session.send("Network.enable")
+        await session.send("Network.clearBrowserCache")
+        cache_cleared = True
+    except Exception as exc:
+        print("mv_generation_cache_cleanup " + __import__("json").dumps({
+            "result": "failed", "errorType": type(exc).__name__
+        }), flush=True)
+    finally:
+        if session is not None:
+            try:
+                await session.detach()
+            except Exception:
+                pass
+    generation_watch["cacheCleared"] = cache_cleared
+    print("mv_generation_aborted " + __import__("json").dumps({
+        "reason": "flow_try_again", "stage": stage,
+        "networkFailures": generation_watch["networkFailures"],
+        "httpCacheCleared": cache_cleared, "loginPreserved": True
+    }), flush=True)
+
+
 @app.get("/session/video/generation-error")
 async def generation_error_status(request: Request):
     """Read-only failure probe during the initial 110-second generation wait."""
@@ -579,13 +615,7 @@ async def generation_error_status(request: Request):
                 if len(pages) != 1:
                     return {"failed": False, "reason": "project_not_visible"}
                 if await flow_retry_message_visible(pages[0]):
-                    generation_watch["failed"] = True
-                    generation_watch["active"] = False
-                    print("mv_generation_aborted " + __import__("json").dumps({
-                        "reason": "flow_try_again",
-                        "networkFailures": generation_watch["networkFailures"],
-                        "stage": "initial_wait"
-                    }), flush=True)
+                    await abort_failed_generation(pages[0], "initial_wait")
                     return {"failed": True, "reason": "flow_try_again"}
                 return {"failed": False, "reason": "no_retry_message",
                         "networkFailures": generation_watch["networkFailures"]}
@@ -619,13 +649,7 @@ async def generated_video_ready(request: Request):
                     return {"ready": False, "reason": "project_not_visible"}
                 page = pages[0]
                 if await flow_retry_message_visible(page):
-                    generation_watch["failed"] = True
-                    generation_watch["active"] = False
-                    print("mv_generation_aborted " + __import__("json").dumps({
-                        "reason": "flow_try_again",
-                        "networkFailures": generation_watch["networkFailures"],
-                        "stage": "monitoring"
-                    }), flush=True)
+                    await abort_failed_generation(page, "monitoring")
                     return {"ready": False, "failed": True, "reason": "flow_try_again"}
                 if "/edit/" in page.url:
                     if generation_watch["ready"]:
@@ -1941,14 +1965,10 @@ async def stage_flow(request: Request):
                             "startedAt": time.monotonic(), "ready": False,
                             "newFirstObserved": False, "failed": False,
                             "networkFailures": 0, "lastNetworkCategory": None,
+                            "cacheCleared": False,
                         })
                         if await flow_retry_message_visible(page):
-                            generation_watch["failed"] = True
-                            generation_watch["active"] = False
-                            print("mv_generation_aborted " + __import__("json").dumps({
-                                "reason": "flow_try_again", "stage": "after_generate_click",
-                                "networkFailures": generation_watch["networkFailures"]
-                            }), flush=True)
+                            await abort_failed_generation(page, "after_generate_click")
                         print("mv_generation_watch " + __import__("json").dumps({
                             "started": True, "baselineCount": len(before_generation),
                             "failed": generation_watch["failed"]
