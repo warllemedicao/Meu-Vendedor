@@ -101,8 +101,43 @@ Deno.serve(async (req) => {
       "flow_download_file_not_found", "invalid_download_selection",
       "flow_video_download_failed", "flow_video_invalid_mp4", "browser_not_running",
     ]);
-    const code = typeof result?.detail === "string" && allowed.has(result.detail)
-      ? result.detail : "browser_unavailable";
+    const detail = result?.detail;
+    const upstreamCode = typeof detail === "string" ? detail : detail?.code;
+    const code = typeof upstreamCode === "string" && allowed.has(upstreamCode)
+      ? upstreamCode : "browser_unavailable";
+    if (action === "video_train") {
+      const source = typeof detail === "object" && detail !== null ? detail?.diagnostic : null;
+      const safeStage = ["initializing", "browser_check", "project_check", "start",
+        "find_video_preview", "click_video_preview", "wait_for_editor", "editor_check",
+        "editor_open", "find_download_button", "find_720p", "wait_for_mp4", "completed"];
+      const safeReason = ["not_started", "chrome_not_running", "project_tab_count_not_one",
+        "started", "no_eligible_video", "verified", "click_not_dispatched",
+        "editor_navigation_pending", "editor_url_not_confirmed", "already_in_editor",
+        "toolbar_button_count_not_one", "resolution_not_verified", "mp4_not_confirmed",
+        "mp4_confirmed", "download_timeout"];
+      const count = (value: unknown) => typeof value === "number" && Number.isInteger(value)
+        && value >= 0 && value <= 1000 ? value : null;
+      const diagnostic = {
+        stage: safeStage.includes(source?.stage) ? source.stage : "initializing",
+        reason: safeReason.includes(source?.reason) ? source.reason : "not_started",
+        flowProjectTabs: count(source?.flowProjectTabs),
+        videoCandidates: count(source?.videoCandidates),
+        toolbarCandidates: count(source?.toolbarCandidates),
+        resolutionCandidates: count(source?.resolutionCandidates),
+        previewClicked: source?.previewClicked === true,
+        editorOpen: source?.editorOpen === true,
+        downloadMenuClicked: source?.downloadMenuClicked === true,
+        resolutionClicked: source?.resolutionClicked === true,
+        frames: Array.isArray(source?.frames) ? source.frames.slice(0, 8).map(
+          (frame: Record<string, unknown>) => ({
+            frame: count(frame?.frame),
+            eligible: typeof frame?.eligible === "number" &&
+              Number.isInteger(frame.eligible) && frame.eligible >= -1 &&
+              frame.eligible <= 1000 ? frame.eligible : null,
+          })) : [],
+      };
+      return reply({ error: code, diagnostic }, response.status === 409 ? 409 : 502);
+    }
     return reply({ error: code }, response.status === 409 ? 409 : 502);
   }
   // Status requests carry a bounded, fixed-code diagnostic ring from Modal.
