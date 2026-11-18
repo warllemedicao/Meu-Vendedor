@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
     stage: { path: "/session/stage", method: "POST" },
     video_download: { path: "/session/video/prepare", method: "POST" },
     video_list: { path: "/session/video/downloads", method: "GET" },
+    video_train: { path: "/session/video/train-download", method: "POST" },
     start: { path: "/session/start", method: "POST" },
     stop: { path: "/session/stop", method: "POST" },
     view: { path: "/session/view-ticket", method: "POST" },
@@ -123,6 +124,20 @@ Deno.serve(async (req) => {
       }));
     console.log(JSON.stringify({ source: "private_browser_diagnostics",
       running: result.running === true, processExited: result.diagnostics.processExited === true, events }));
+  }
+  if (action === "video_train") {
+    const video = result?.video;
+    if (result?.status !== "download_completed" || typeof video?.id !== "string" ||
+        !/^[a-f0-9]{64}$/.test(video.id) ||
+        typeof video?.bytes !== "number" || video.bytes <= 0 || video.bytes > 100 * 1024 * 1024) {
+      return reply({ error: "browser_unavailable" }, 502);
+    }
+    return reply({ status: "download_completed", video: {
+      id: video.id,
+      name: typeof video.name === "string" ? video.name.slice(0,120) : "google-flow-video.mp4",
+      bytes: video.bytes,
+      modifiedAt: typeof video.modifiedAt === "number" ? video.modifiedAt : 0,
+    } });
   }
   if (action === "video_list") {
     const videos = Array.isArray(result?.videos) ? result.videos.slice(0, 20)
