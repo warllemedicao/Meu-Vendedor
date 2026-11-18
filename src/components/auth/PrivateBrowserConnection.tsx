@@ -6,7 +6,7 @@ import { createVideoAssetUrl, uploadVideoResult, MAX_VIDEO_RESULT_BYTES } from "
 
 type DownloadedVideo = { id: string; name: string; bytes: number; modifiedAt: number };
 
-type DownloadDiagnostic = { stage?: string; reason?: string; flowProjectTabs?: number | null; videoCandidates?: number | null; toolbarCandidates?: number | null; resolutionCandidates?: number | null; previewClicked?: boolean; editorOpen?: boolean; downloadMenuClicked?: boolean; resolutionClicked?: boolean; frames?: { frame?: number | null; eligible?: number | null }[] };
+type DownloadDiagnostic = { stage?: string; reason?: string; flowProjectTabs?: number | null; videoCandidates?: number | null; toolbarCandidates?: number | null; resolutionCandidates?: number | null; previewClicked?: boolean; editorOpen?: boolean; downloadMenuClicked?: boolean; resolutionClicked?: boolean; frames?: { frame?: number | null; eligible?: number | null; raw?: number | null; visible?: number | null; rejectedSize?: number | null; rejectedPosition?: number | null }[] };
 type BrowserResponse = { diagnostic?: DownloadDiagnostic; video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
 
 export function PrivateBrowserConnection() {
@@ -42,6 +42,8 @@ export function PrivateBrowserConnection() {
       not_started: "O processo não iniciou.", chrome_not_running: "O Chrome está fechado.",
       project_tab_count_not_one: "Nenhuma aba do projeto Flow, ou mais de uma, foi identificada.",
       no_eligible_video: "Não encontrei miniatura de vídeo que passe nos filtros de visibilidade e tamanho.",
+      no_video_dom_elements: "O Flow não apresentou nenhum elemento de vídeo no DOM analisado; a biblioteca pode usar imagens de capa.",
+      video_filtered_out: "Foram encontrados elementos de vídeo, mas todos foram descartados pelos filtros; consulte as contagens abaixo.",
       verified: "Controles identificados; falha posterior.",
       click_not_dispatched: "A miniatura foi escolhida, mas o clique ainda não foi confirmado.",
       editor_navigation_pending: "O clique foi enviado, mas a navegação ao editor não terminou.",
@@ -58,7 +60,7 @@ export function PrivateBrowserConnection() {
       d.toolbarCandidates == null ? "" : `Botões de download candidatos: ${d.toolbarCandidates}`,
       d.resolutionCandidates == null ? "" : `Opções 720p: ${d.resolutionCandidates}`,
     ].filter(Boolean).join(" | ");
-    const frames = d.frames?.length ? ` | Quadros analisados: ${d.frames.map(f => `${f.frame ?? "?"}=${f.eligible ?? "erro"}`).join(", ")}` : "";
+    const frames = d.frames?.length ? ` | Quadros analisados: ${d.frames.map(f => `${f.frame ?? "?"}: encontrados=${f.raw ?? "?"}, visíveis=${f.visible ?? "?"}, aptos=${f.eligible ?? "erro"}, pequenos=${f.rejectedSize ?? "?"}, posição=${f.rejectedPosition ?? "?"}`).join(" | ")}` : "";
     return `Etapa: ${stages[d.stage ?? ""] ?? "Não identificada"}. Motivo: ${reasons[d.reason ?? ""] ?? "Falha não classificada"}. ${counts}${frames}`;
   }
 
