@@ -2497,3 +2497,10 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - Alteração isolada em `browser-service/flow_video_download.py`: agora considera `video` e `[role="video"]` visíveis dentro da tela, ignora mídias pequenas/retratos, remove duplicatas geométricas e exige exatamente um vídeo elegível. Publica diagnóstico sem textos privados (`mv_video_preview_diagnostic`: contagem por frame).
 - Caso haja mais de um vídeo elegível ou nenhum, **não clica aleatoriamente**. O usuário pode abrir manualmente o vídeo pretendido no editor (`/edit/`) e então acionar o botão do robô de download para testar os passos restantes sem nova geração.
 - Não alterados: fluxo de imagens (single_image, two_images, three_images), criação, configurações, Gerar, Cloudflare, Supabase. **Requer novo deploy Modal e teste real; não declarado aprovado.**
+
+
+### 2026-11-18 — Prioridade: primeiro vídeo da biblioteca, da esquerda para a direita
+- Usuário determinou que o robô deve selecionar o **primeiro cartão de vídeo da primeira fileira** da biblioteca, em ordem visual esquerda → direita, independentemente de haver outros vídeos visíveis. A captura de 0 interações indica parada antes do clique.
+- Ajustado apenas `browser-service/flow_video_download.py`: seleção por posição visual (fileira superior, esquerda primeiro), em vez de exigir exatamente um candidato. Mantidos os filtros de miniatura de vídeo visível na região da galeria, confirmação de navegação `/edit/`, círculos vermelhos e proibição de acessar menu global ou gerar vídeo.
+- O Modal passa a emitir `mv_video_preview_selection` com regra, número de candidatos e coordenadas aproximadas do alvo; se nenhum vídeo elegível for detectado continua abortando sem clicar. Sem captura de conteúdo privado.
+- **Pendente:** deploy Modal e teste real. Não declarar o primeiro clique validado após essa alteração. Nenhum arquivo de imagens, fluxo de geração, Supabase ou Cloudflare foi modificado.
