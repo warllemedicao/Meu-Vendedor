@@ -10,49 +10,64 @@ async def download_existing_video(page, before_ids, finished_mp4_files, event, s
     if not page.url.startswith("https://flow.google.com/project/"):
         raise RuntimeError("flow_video_project_not_unique")
 
-    # Find the *video thumbnail's* own three-dot control. Flow also has a
-    # global More menu in the top toolbar; its label is similar but it must
-    # NEVER be used. The button must sit on the upper-right of a sizable,
-    # visible media thumbnail (img/video), not just anywhere on the page.
-    targets = []
+    # First REVEAL the hidden three-dot control by moving the mouse over the
+    # top-right corner of the video thumbnail. Hover never opens the editor.
+    # Select one prominent thumbnail; avoid global toolbar menus entirely.
+    thumbs = []
     for frame in page.frames[:8]:
         try:
-            evidence = await frame.locator("body").evaluate(r"""body => {
-                const visible = el => {
-                    const r=el.getBoundingClientRect(),s=getComputedStyle(el);
-                    return r.width>0&&r.height>0&&s.display!=='none'&&
-                        s.visibility!=='hidden'&&s.opacity!=='0';
-                };
-                const controls=[...body.querySelectorAll('button,[role="button"]')];
-                const thumbs=[...body.querySelectorAll('video,img')].filter(visible)
-                    .map(el=>el.getBoundingClientRect())
-                    .filter(r=>r.width>=140&&r.height>=90&&r.top>=90);
-                const indices=[];
-                for (let i=0;i<controls.length;i++) {
-                    const e=controls[i],r=e.getBoundingClientRect();
-                    if(!visible(e)||e.disabled||e.getAttribute('aria-disabled')==='true')continue;
-                    const label=[e.getAttribute('aria-label'),e.getAttribute('title'),
-                        e.getAttribute('data-testid')].filter(Boolean).join(' ').trim();
-                    if(!/^(mais|more|more options|mais op(?:ç|c)ões|op(?:ç|c)ões)$/i.test(label))continue;
-                    const x=r.left+r.width/2,y=r.top+r.height/2;
-                    if(thumbs.some(t=>x>=t.left&&x<=t.right+8&&
-                        y>=t.top-8&&y<=t.top+t.height*0.40&&
-                        x>=t.left+t.width*0.60))indices.push(i);
-                }
-                return {indices,mediaCount:thumbs.length};
+            media = frame.locator("video, img")
+            info = await frame.locator("body").evaluate(r"""body => {
+                const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);
+                    return r.width>=220&&r.height>=120&&r.top>=100&&
+                        s.display!=='none'&&s.visibility!=='hidden'};
+                return [...body.querySelectorAll('video,img')].map((e,i)=>{
+                    const r=e.getBoundingClientRect();return {i,w:r.width,h:r.height,
+                        x:r.left,y:r.top,valid:visible(e)};
+                }).filter(x=>x.valid);
             }""", timeout=4000)
-            controls = frame.locator("button, [role='button']")
-            for idx in evidence["indices"]:
-                targets.append((frame, controls.nth(idx)))
+            for item in info:
+                thumbs.append((frame, media.nth(item["i"]), item))
         except Exception:
             continue
-    if len(targets) != 1:
+    if not thumbs:
         event("video_menu_not_unique")
         raise RuntimeError("flow_video_download_control_not_unique")
+    # Largest thumbnail is the active candidate only if unambiguous;
+    # multiple similar-size videos require the user to narrow the page.
+    thumbs.sort(key=lambda row: row[2]["w"] * row[2]["h"], reverse=True)
+    largest = thumbs[0][2]["w"] * thumbs[0][2]["h"]
+    if len(thumbs) > 1 and thumbs[1][2]["w"] * thumbs[1][2]["h"] >= largest * 0.85:
+        event("video_menu_not_unique")
+        raise RuntimeError("flow_video_download_control_not_unique")
+    frame, thumbnail, box = thumbs[0]
+    # Moving the cursor onto the thumbnail is safe; DO NOT click the image.
+    await thumbnail.hover(position={"x": max(1, box["w"] - 22),
+                                   "y": min(22, box["h"] / 5)}, timeout=3000)
+    await asyncio.sleep(0.35)
 
-    frame, menu_button = targets[0]
-    # Only hover/click the already-verified button. Never click the thumbnail,
-    # because that would open the video editor.
+    # Find the revealed button strictly within the chosen thumbnail's
+    # upper-right zone. A global More button cannot pass this geometry.
+    evidence = await frame.locator("body").evaluate(r"""(body, bounds) => {
+        const controls=[...body.querySelectorAll('button,[role="button"]')];
+        const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);
+            return r.width>0&&r.height>0&&s.display!=='none'&&
+                s.visibility!=='hidden'&&s.opacity!=='0'};
+        return controls.map((e,i)=>({e,i})).filter(({e})=>{
+            const r=e.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+            const name=[e.getAttribute('aria-label'),e.getAttribute('title'),
+                e.getAttribute('data-testid')].filter(Boolean).join(' ').trim();
+            return visible(e)&&!e.disabled&&e.getAttribute('aria-disabled')!=='true'&&
+                /^(mais|more|more options|mais op(?:ç|c)ões|op(?:ç|c)ões)$/i.test(name)&&
+                cx>=bounds.x+bounds.w*.60&&cx<=bounds.x+bounds.w+8&&
+                cy>=bounds.y-8&&cy<=bounds.y+bounds.h*.40;
+        }).map(({i})=>i);
+    }""", {"x": box["x"], "y": box["y"], "w": box["w"], "h": box["h"]},
+        timeout=4000)
+    if len(evidence) != 1:
+        event("video_menu_not_unique")
+        raise RuntimeError("flow_video_download_control_not_unique")
+    menu_button = frame.locator("button, [role='button']").nth(evidence[0])
     await menu_button.hover(timeout=3000)
     await menu_button.click(trial=True, timeout=3000)
     await show_click(page, menu_button, "click_video_menu")
