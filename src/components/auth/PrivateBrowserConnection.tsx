@@ -258,7 +258,7 @@ export function PrivateBrowserConnection() {
         // The old single 110s sleep hid a visible "Tentar de novo" failure.
         // Poll for failure only; do not download before the 110s checkpoint.
         for (let elapsed = 0; elapsed < 110; elapsed += 5) {
-          const check = await invoke("video_generated_ready");
+          const check = await invoke("video_generation_error");
           if (check.failed || check.reason === "flow_try_again") {
             setMessage("O Google Flow exibiu 'Tentar de novo'. A geração foi interrompida e o robô não aguardará nem fará download. Verifique sua conexão e o estado do Flow; depois clique novamente em Enviar prompt e imagens ao Flow para iniciar uma nova tentativa.");
             return;
