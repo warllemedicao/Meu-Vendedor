@@ -2530,3 +2530,12 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - `LEARNING_SCRIPT` em `browser-service/app.py`: passa a registrar somente o papel do controle e coordenadas do clique no viewport (sem textos, prompt, URLs ou valores). `learning_stop` emite `mv_manual_click_diagnostic` no Modal, com até 25 cliques manuais, para correlacionar ao relatório visual.
 - **Não foi efetuado deploy Modal ou teste real após essas alterações.** Para ativar, atualizar branch e fazer `python -m modal deploy browser-service/modal_app.py`. Não requer alteração em Supabase ou Cloudflare.
 - Arquivos `single_image.py`, `two_images.py`, `three_images.py`, configurações, prompt e geração permanecem intactos.
+
+
+### 2026-11-18 — Download 720p: cliques aprovados; Chrome salvou nome sem extensão
+- Evidência de teste real: eventos `click_video_preview`, `click_video_download_menu`, `click_video_720p`, 4 candidatos de imagens de capa, 1 botão de download e 1 opção 720p. O robô depois retornou `wait_for_mp4/download_timeout` porque nenhum **novo MP4 reconhecido** apareceu em `finished_mp4_files()`.
+- Captura do Chrome mostra downloads de ~3,1 MB marcados `Done`, alguns corretamente terminados em `.mp4` e o mais recente com nome semelhante a um UUID sem extensão. Isso indica hipótese forte de arquivo completo com nome sem extensão; a captura **não comprova o formato do arquivo por si só**.
+- Causa no código: `finished_mp4_files()` descartava qualquer arquivo cujo `suffix != ".mp4"` antes de examinar os bytes.
+- Correção isolada em `browser-service/app.py`: aceitar arquivos estáveis sem extensão **somente** se o nome for um identificador hexadecimal/hífen de 32–64 caracteres, o cabeçalho contiver `ftyp` e marcas compatíveis com vídeo MP4; exclui transferências incompletas, arquivos grandes, links simbólicos e outras extensões. O arquivo original do Chrome não é renomeado (preserva o histórico); a lista do Meu Vendedor apresenta o nome normalizado com `.mp4` e a importação segue com nome `google-flow-video.mp4`.
+- Não alterar `flow_video_download.py` nem os fluxos aprovados de clique, imagens e geração. Não houve acesso aos bytes originais do download nem teste de produção após a correção; manter status de MP4 automático **pendente de validação real**.
+- Requer `git pull` e `python -m modal deploy browser-service/modal_app.py`. Nenhum deploy adicional de Supabase ou Cloudflare necessário.
