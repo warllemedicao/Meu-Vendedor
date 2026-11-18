@@ -162,6 +162,7 @@ DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrom
     "click_new_project", "click_prompt", "click_add_elements", "click_upload", "click_settings", "click_generate", "click_rights", "click_reference", "click_include",
     "add_elements_not_found", "upload_not_found", "upload_incomplete", "reference_wait_started",
     "reference_click_confirmed", "reference_selection_finished", "include_button_ready",
+    "click_video_menu", "click_video_download_menu", "click_video_720p", "video_download_detected", "video_menu_not_unique",
     "service_started", "service_stopped"))
 diagnostic_events = []
 
@@ -347,6 +348,35 @@ def finished_mp4_files():
                 continue
     result.sort(key=lambda item: item["modifiedAt"], reverse=True)
     return result[:20]
+
+
+@app.post("/session/video/train-download")
+async def train_flow_download(request: Request):
+    """Download exactly one previously completed Flow video; never generate."""
+    authorize(request)
+    async with lock:
+        if not chrome_running():
+            raise HTTPException(409, "browser_not_running")
+        try:
+            from flow_video_download import download_existing_video
+            async with async_playwright() as pw:
+                browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+                try:
+                    pages = [p for ctx in browser.contexts for p in ctx.pages
+                             if not p.is_closed() and p.url.startswith("https://flow.google.com/project/")]
+                    if len(pages) != 1:
+                        raise RuntimeError("flow_video_project_not_unique")
+                    before = {item["id"] for item in finished_mp4_files()}
+                    video = await download_existing_video(pages[0], before, finished_mp4_files, record_event)
+                    return {"status": "download_completed", "video": video}
+                finally:
+                    # Disconnect only. Never close the user's Chromium process.
+                    await browser.close()
+        except Exception as exc:
+            allowed = {"flow_video_project_not_unique", "flow_video_download_control_not_unique",
+                       "flow_video_download_not_started"}
+            code = str(exc) if str(exc) in allowed else "flow_video_download_failed"
+            raise HTTPException(409, code) from None
 
 
 @app.get("/session/video/downloads")
