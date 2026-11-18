@@ -46,10 +46,9 @@ async def _open_completed_video(page, event, show_click):
     if not page.url.startswith("https://flow.google.com/project/"):
         raise RuntimeError("flow_video_project_not_unique")
 
-    # The Flow library can contain decorative <video> players as well as
-    # the actual video card. The clicked element in the user's recording was
-    # role=video. Restrict to substantial, landscape, on-screen video previews,
-    # and deduplicate nested/same-rectangle matches.
+    # The user explicitly prioritizes the first completed video card in the
+    # gallery, left-to-right in the top visible row. Decorative videos and
+    # duplicate/nested video elements are excluded before ranking.
     candidates = []
     diagnostics = []
     for frame_index, frame in enumerate(page.frames[:8]):
@@ -59,9 +58,9 @@ async def _open_completed_video(page, event, show_click):
                 const elements=[...body.querySelectorAll('video,[role="video"]')];
                 for (let i=0;i<elements.length;i++) {
                     const e=elements[i],r=e.getBoundingClientRect(),s=getComputedStyle(e);
-                    const inView=r.bottom>100&&r.top<innerHeight&&r.right>0&&r.left<innerWidth;
+                    const inView=r.bottom>100&&r.top<innerHeight&&r.right>110&&r.left<innerWidth;
                     if(s.display==='none'||s.visibility==='hidden'||!inView)continue;
-                    if(r.width<220||r.height<120||r.width/r.height<1.3)continue;
+                    if(r.width<220||r.height<120||r.width/r.height<1.3||r.left<110||r.top<85)continue;
                     const key=[Math.round(r.left/6),Math.round(r.top/6),
                         Math.round(r.width/6),Math.round(r.height/6)].join(':');
                     if(seen.has(key))continue;
@@ -81,12 +80,19 @@ async def _open_completed_video(page, event, show_click):
     print("mv_video_preview_diagnostic " + json.dumps({
         "candidates": len(candidates), "frames": diagnostics
     }), flush=True)
-    # Only select one clearly identifiable preview. If more than one is
-    # eligible, ask the user to open the intended video in the editor manually.
-    if len(candidates) != 1:
+    # Sort by visual grid position: top row first, then leftmost card.
+    # The first item stays the priority even when other videos exist.
+    if not candidates:
         raise RuntimeError("flow_video_not_unique")
-
-    video, _ = candidates[0]
+    candidates.sort(key=lambda item: (round(item[1]["top"] / 45),
+                                      item[1]["left"], item[1]["top"]))
+    video, chosen = candidates[0]
+    print("mv_video_preview_selection " + json.dumps({
+        "rule": "first_top_row_left_to_right",
+        "candidates": len(candidates),
+        "left": round(chosen["left"]),
+        "top": round(chosen["top"])
+    }), flush=True)
     await video.click(trial=True, timeout=3500)
     await show_click(page, video, "click_video_preview")
     await video.click(timeout=3500, position={"x": 25, "y": 25})
