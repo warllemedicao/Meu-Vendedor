@@ -162,7 +162,7 @@ DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrom
     "click_new_project", "click_prompt", "click_add_elements", "click_upload", "click_settings", "click_generate", "click_rights", "click_reference", "click_include",
     "add_elements_not_found", "upload_not_found", "upload_incomplete", "reference_wait_started",
     "reference_click_confirmed", "reference_selection_finished", "include_button_ready",
-    "click_video_menu", "click_video_download_menu", "click_video_720p", "video_download_detected", "video_menu_not_unique",
+    "click_video_menu", "click_video_download_menu", "click_video_720p", "video_download_detected", "video_menu_not_unique", "click_video_preview",
     "service_started", "service_stopped"))
 diagnostic_events = []
 
@@ -374,7 +374,8 @@ async def train_flow_download(request: Request):
                     await browser.close()
         except Exception as exc:
             allowed = {"flow_video_project_not_unique", "flow_video_download_control_not_unique",
-                       "flow_video_download_not_started"}
+                       "flow_video_download_not_started", "flow_video_not_unique",
+                       "flow_video_editor_not_open"}
             code = str(exc) if str(exc) in allowed else "flow_video_download_failed"
             raise HTTPException(409, code) from None
 
