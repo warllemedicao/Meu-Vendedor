@@ -179,7 +179,43 @@ async def download_existing_video(page, before_ids, finished_mp4_files, event, s
     if diagnostic["resolutionCandidates"] != 1 or not await options.first.is_visible() or not await options.first.is_enabled():
         raise RuntimeError("flow_video_download_control_not_unique")
 
+    # The manual trace places the correct 720p row directly below the
+    # editor toolbar download button (not over the preview/image thumbnails).
+    # Verify both the row subtitle and its actual screen position before a
+    # click. Accessible role/name alone is insufficient on this Flow page.
+    download_box = await button.bounding_box()
+    option_box = await options.first.bounding_box()
+    option_valid = await options.first.evaluate(r"""element => {
+        const text=(element.innerText||element.textContent||'').toLowerCase();
+        const r=element.getBoundingClientRect();
+        const atCenter=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+        return /720p/i.test(text) &&
+            /tamanho original|original size/i.test(text) &&
+            !!atCenter && (element===atCenter || element.contains(atCenter)) &&
+            r.width>30 && r.height>15 && r.top>=60 && r.bottom<innerHeight &&
+            r.left>=0 && r.right<=innerWidth;
+    }""", timeout=3500)
+    if not download_box or not option_box or not option_valid:
+        diagnostic["reason"] = "resolution_not_verified"
+        raise RuntimeError("flow_video_download_control_not_unique")
+    button_center = download_box["x"] + download_box["width"]/2
+    option_center = option_box["x"] + option_box["width"]/2
+    option_y = option_box["y"] + option_box["height"]/2
+    if (abs(option_center - button_center) > 230 or
+            option_y <= download_box["y"] + download_box["height"] or
+            option_y > 300):
+        diagnostic["reason"] = "resolution_not_verified"
+        raise RuntimeError("flow_video_download_control_not_unique")
+    import json
+    print("mv_video_resolution_target " + json.dumps({
+        "downloadButtonX": round(button_center),
+        "downloadButtonY": round(download_box["y"] + download_box["height"]/2),
+        "720pX": round(option_center), "720pY": round(option_y),
+        "validated": True
+    }), flush=True)
+    # Keep the marker visible long enough to inspect before the final click.
     await show_click(page, options.first, "click_video_720p")
+    await asyncio.sleep(1.6)
     await options.first.click(timeout=3500)
     # This is the last click. No follow-up click is issued to download.
     await asyncio.sleep(CLICK_OBSERVATION_SECONDS)
