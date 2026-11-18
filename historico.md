@@ -2425,3 +2425,22 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - Não automatizar novos cliques no Flow, alterar seletores aprovados, limpar cookies ou refazer geração até confirmar que o fluxo manual de importação está correto.
 
 **Ponto de retomada pretendido:** publicar Modal + frontend da branch registrada, executar teste manual de importação e enviar logs/resultados. Este checkpoint foi criado antes desses passos; toda falha futura deve ser comparada com este estado e com o marco anterior.
+
+
+## 2026-11-18 — Correção pontual de `upload_not_found` sem alterar IMAGEM1, IMAGEM2, IMAGEM3
+
+**Relato após nova publicação:** robô preenchia prompt, clicava em `Adicionar elementos` e encerrava com mensagem `O prompt foi preenchido, mas o robô não encontrou o envio de imagens`. Captura de 9 interações: `stage_started` 1795012570; `click_new_project` 1795012571; `click_prompt` e `stage_prompt_filled` 1795012572; `click_add_elements` e `upload_not_found` 1795012574; `stage_failed` 1795012574. Diagnóstico do navegador confirmou `flow-add-menu` criado e `aria-expanded: true`. Portanto, o menu foi aberto, mas a opção `Fazer upload` não foi localizada no instante da pesquisa.
+
+**Comparação com o backup:** o trecho compartilhado `flow_upload_references` que procura `Fazer upload` tinha a mesma implementação no backup `backup/marco-tudo-funcionando-2026-11-18`. O erro do teste não demonstra que uma das rotinas de imagens tenha sido alterada. Causa plausível é renderização assíncrona do submenu, verificada pela ocorrência de `click_add_elements` e `upload_not_found` no mesmo segundo; **causa raiz não comprovada por teste no navegador após correção**.
+
+**Correção de escopo mínimo:** em `browser-service/app.py`, no controlador compartilhado imediatamente após `open_add_elements()`, acrescentada espera limitada de até 8 segundos (intervalos de 400 ms) para localizar e acionar `Fazer upload` via a função `click_upload()` já existente. Se continuar ausente, mantém `upload_not_found` e falha segura. Não introduz clique por coordenadas ou em controles ambíguos, não muda seletores e não aciona Gerar se o upload falhar. Commit `435def07773bdd595ae0964b36ccdf626df7a00b`.
+
+**Preservação verificada por hash GitHub antes/depois, contra `backup/pre-download-chrome-2026-11-18`:**
+- `browser-service/flow_references/single_image.py` — SHA `0adce0790aedb70c614199d2f4a1de0b79c01166`, **inalterado**.
+- `browser-service/flow_references/two_images.py` — SHA `93ef05eac08eba09223fdbe6c5e05286554e0aa4`, **inalterado**.
+- `browser-service/flow_references/three_images.py` — SHA `0745ef6a5edce481bf706aafb42d4052b6d14162`, **inalterado**.
+- `git compare` com o checkpoint mostrou somente 12 linhas adicionadas e 1 removida em `browser-service/app.py` antes deste registro. A programação posterior (incluir imagens, salvar configurações, Gerar) foi preservada.
+
+**Status:** commit no GitHub realizado; requer `git pull --ff-only origin feat/navegador-proprio-chromium`, verificação `python -m compileall -q browser-service` e **novo deploy apenas do Modal** (`python -m modal deploy browser-service/modal_app.py`) porque a mudança é exclusivamente do navegador servidor. Não é necessário republicar Cloudflare ou Supabase para esta correção. Não afirmar teste de sucesso até receber log com `click_upload` seguido de `reference_wait_started` e execução subsequente. Caso a opção continue ausente mesmo após 8 segundos, diagnosticar o estado real do menu antes de mexer novamente no upload.
+
+**Rollback seguro:** `backup/pre-download-chrome-2026-11-18` permanece sem modificações. Manter este backup e `backup/marco-tudo-funcionando-2026-11-18` intactos. Evitar reverter commits ou implantações indiscriminadamente e não limpar perfil ou a pasta Downloads do Chromium.
