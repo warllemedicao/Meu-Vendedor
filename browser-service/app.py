@@ -874,14 +874,15 @@ async def diagnose_flow(request: Request):
         except Exception:
             raise HTTPException(409, "flow_interaction_failed") from None
 
-async def show_red_click(page, locator, code):
+async def show_red_click(page, locator, code, position=None):
     """Show a temporary red click target in the private browser viewer."""
     record_event(code)
     try:
         # Overlay is fixed in the element's frame, with pointer-events disabled.
-        await locator.evaluate("""el => {
+        await locator.evaluate("""(el, position) => {
             const rect=el.getBoundingClientRect();
-            const x=rect.left+rect.width/2, y=rect.top+rect.height/2;
+            const x=rect.left+(position ? position.x : rect.width/2);
+            const y=rect.top+(position ? position.y : rect.height/2);
             const dot=document.createElement('div');
             dot.setAttribute('data-mv-click-indicator','true');
             dot.style.cssText='position:fixed;z-index:2147483647;pointer-events:none;'+
@@ -894,7 +895,7 @@ async def show_red_click(page, locator, code):
             dot.appendChild(cross);
             document.documentElement.appendChild(dot);
             setTimeout(()=>dot.remove(),2500);
-        }""", timeout=1500)
+        }""", position, timeout=1500)
         await page.wait_for_timeout(120)
     except Exception:
         pass  # The click must still work if Flow rejects the visual overlay.
