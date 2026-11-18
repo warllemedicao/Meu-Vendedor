@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       "flow_settings_save_not_found", "flow_generate_button_unverified",
       "flow_interaction_failed",
       "invalid_draft", "payload_too_large",
-      "flow_video_project_not_unique", "flow_video_not_unique",
+      "flow_video_project_not_unique", "flow_video_not_unique", "flow_video_editor_not_open",
       "flow_video_download_control_not_unique", "flow_video_download_not_started",
       "flow_download_file_not_found", "invalid_download_selection",
       "flow_video_download_failed", "flow_video_invalid_mp4", "browser_not_running",
