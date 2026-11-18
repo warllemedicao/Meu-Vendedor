@@ -98,7 +98,7 @@ async def _open_completed_video(page, event, show_click, diagnostic):
             diagnostics.append(diagnostic_item)
             for item in snapshot["items"]:
                 # Resolve by the same DOM order as the evaluate scan.
-                element = frame.locator("body *").nth(item["index"] - 1) if item["index"] else None
+                element = frame.locator("body *").nth(item["index"])
                 if element is not None:
                     candidates.append((element, item))
         except Exception as exc:
