@@ -366,11 +366,11 @@ def diagnostic_download_files():
                     head = handle.read(64)
                 if len(head) >= 12 and head[4:8] == b"ftyp":
                     kind = "iso_bmff_ftyp"
-                elif head.startswith(b"\\x1aE\\xdf\\xa3"):
+                elif head.startswith(b"\x1aE\xdf\xa3"):
                     kind = "matroska_webm"
                 elif head.startswith(b"RIFF") and head[8:12] == b"AVI ":
                     kind = "avi"
-                elif head.startswith(b"PK\\x03\\x04"):
+                elif head.startswith(b"PK\x03\x04"):
                     kind = "zip"
                 elif head.lstrip().startswith((b"{", b"[")):
                     kind = "json_like"
