@@ -924,12 +924,29 @@ async def configure_flow_agent(page, prompt_control):
     print("mv_settings_save_diagnostic " + __import__("json").dumps({
         "frames": save_diagnostics, "candidateCount": len(save_candidates),
     }), flush=True)
+    save_method = "below_veo"
+    if not save_candidates:
+        # The Flow settings panel may scroll independently of its sticky Save footer.
+        # Only fall back to the unique Save belonging to the already verified panel.
+        panel_save = panel.get_by_role("button", name=re.compile(r"^(Salvar|Save)$", re.I))
+        if await panel_save.count() == 1:
+            candidate = panel_save.first
+            if await candidate.is_visible() and await candidate.is_enabled():
+                save_candidates = [candidate]
+                save_method = "verified_settings_panel"
+        print("mv_settings_save_fallback " + __import__("json").dumps({
+            "panelSaveCount": await panel_save.count(),
+            "accepted": save_method == "verified_settings_panel",
+        }), flush=True)
     if len(save_candidates) != 1:
         record_event("settings_save_candidates_" + str(len(save_candidates)))
         raise RuntimeError("flow_settings_save_not_found" if not save_candidates
                            else "flow_settings_save_ambiguous")
     save = save_candidates[0]
-    record_event("settings_save_below_veo_confirmed")
+    print("mv_settings_save_target " + __import__("json").dumps({
+        "method": save_method,
+    }), flush=True)
+    record_event("settings_save_below_veo_confirmed") if save_method == "below_veo" else None
     await show_red_click(page, save, "click_settings")
     await save.click(timeout=4000)
     for _ in range(16):
