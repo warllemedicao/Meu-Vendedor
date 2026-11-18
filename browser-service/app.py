@@ -946,7 +946,8 @@ async def configure_flow_agent(page, prompt_control):
     print("mv_settings_save_target " + __import__("json").dumps({
         "method": save_method,
     }), flush=True)
-    record_event("settings_save_below_veo_confirmed") if save_method == "below_veo" else None
+    if save_method == "below_veo":
+        record_event("settings_save_below_veo_confirmed")
     await show_red_click(page, save, "click_settings")
     await save.click(timeout=4000)
     for _ in range(16):
