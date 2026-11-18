@@ -2454,3 +2454,10 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - Depois da transferência do Flow para a pasta Downloads, a interface seleciona o MP4 encontrado para o usuário usar **Enviar MP4 escolhido ao Meu Vendedor**. O upload ao Supabase ainda requer essa ação separada; não declarar entrega automática.
 - Os três arquivos `browser-service/flow_references/single_image.py`, `two_images.py` e `three_images.py`, bem como a rotina de Gerar, não foram modificados.
 - **Estado:** alterações commitadas na branch `feat/navegador-proprio-chromium`; sem build, testes locais completos, deploy Modal, deploy Supabase ou deploy Cloudflare confirmados nesta execução. É necessário validar no Flow real os nomes acessíveis do menu (podem mudar) e o download com vídeo já pronto antes de declarar treinamento aprovado. A última publicação Cloudflare da interface foi revertida durante investigação de erro em /entrar; não republicar cegamente sem verificar a rota.
+
+
+### 2026-11-18 — Treinamento do download: primeiro clique automático confirmado
+- Teste real informado: `click_video_menu` registrado; `aria-expanded` mudou de false para true e o componente `flow-more-options-menu` apareceu. O robô não identificou com unicidade a opção Fazer o download/720p. **Não declarar download automático aprovado.**
+- O usuário confirmou que o botão de três pontos só fica visível após hover sobre o cartão do vídeo e que clicar no cartão errado abre o editor.
+- Correção isolada em `browser-service/flow_video_download.py`: hover no botão Mais previamente verificado antes do clique, e busca da opção Fazer o download restrita ao menu aberto. Nenhum clique automático foi autorizado na miniatura, nem os arquivos `flow_references/single_image.py`, `two_images.py`, `three_images.py` ou o gerador foram alterados.
+- **Pendente:** publicar novo Modal e repetir teste num vídeo já gerado. Se o botão Mais estiver oculto antes do hover, o usuário deve deixá-lo visível manualmente até validarmos a identificação segura do cartão; não arriscar clique para abrir editor. Supabase e Cloudflare não requerem redeploy para esta correção isolada.
