@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
     video_list: { path: "/session/video/downloads", method: "GET" },
     video_train: { path: "/session/video/train-download", method: "POST" },
     video_generated_ready: { path: "/session/video/generated-ready", method: "GET" },
+    video_generation_error: { path: "/session/video/generation-error", method: "GET" },
     start: { path: "/session/start", method: "POST" },
     stop: { path: "/session/stop", method: "POST" },
     view: { path: "/session/view-ticket", method: "POST" },
