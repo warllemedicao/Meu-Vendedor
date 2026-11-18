@@ -288,6 +288,17 @@ export function PrivateBrowserConnection() {
         className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
         {videoBusy ? "Consultando..." : "Procurar downloads do Chrome"}
       </button>
+      <div className="space-y-2 rounded-lg border border-border p-3">
+        <p className="text-sm font-medium">Treinamento do download — vídeo já gerado</p>
+        <p className="text-xs text-muted">Abra um vídeo concluído na biblioteca do Flow. Inicie a captura para registrar seus cliques no menu de download e na opção 720p, sem enviar imagens ou gerar outro vídeo. O robô automático de download ainda será treinado a partir desse relatório.</p>
+        <button type="button" disabled={busy || learningBusy || !viewUrl}
+          onClick={() => void toggleLearning()}
+          className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
+          {learningBusy ? "Aguarde..." : learning ? "Finalizar relatório de cliques do download" : "Iniciar treinamento e relatório de cliques"}
+        </button>
+        {learning && <p role="status" className="text-xs">Captura ativa. Clique manualmente no menu do vídeo já concluído, escolha Baixar e 720p, depois finalize o relatório aqui.</p>}
+        {learningResult && <p className="text-xs text-muted">O relatório está disponível na seção Diagnóstico do navegador, abaixo.</p>}
+      </div>
       {downloadedVideos.length > 0 && <div className="space-y-2">
         <label htmlFor="chrome-downloaded-video" className="block text-xs font-medium">Escolher MP4 concluído</label>
         <select id="chrome-downloaded-video" value={selectedDownloadId}
