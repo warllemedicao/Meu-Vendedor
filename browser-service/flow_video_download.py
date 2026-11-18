@@ -6,7 +6,7 @@ import asyncio
 import re
 
 
-async def download_existing_video(page, before_ids, finished_mp4_files, event):
+async def download_existing_video(page, before_ids, finished_mp4_files, event, show_click):
     if not page.url.startswith("https://flow.google.com/project/"):
         raise RuntimeError("flow_video_project_not_unique")
 
@@ -34,8 +34,8 @@ async def download_existing_video(page, before_ids, finished_mp4_files, event):
     # thumbnail would open the editor. The Flow renders this menu on hover.
     await menu_button.hover(timeout=3000)
     await menu_button.click(trial=True, timeout=3000)
+    await show_click(page, menu_button, "click_video_menu")
     await menu_button.click(timeout=3000)
-    event("click_video_menu")
 
     # Menus may be rendered as portals, outside the video card. Restrict discovery
     # to the opened flow-more-options-menu rather than matching global page text.
@@ -43,20 +43,20 @@ async def download_existing_video(page, before_ids, finished_mp4_files, event):
     if await opened.count() != 1:
         raise RuntimeError("flow_video_download_control_not_unique")
     download_items = opened.locator("[role='menuitem']").filter(
-        has_text=re.compile(r"^\\s*(?:Fazer o download|Download)\\s*$", re.I))
+        has_text=re.compile(r"^\s*(?:Fazer o download|Download)\s*$", re.I))
     if await download_items.count() != 1 or not await download_items.first.is_visible():
         raise RuntimeError("flow_video_download_control_not_unique")
     # A submenu may open by hover alone, but click is supported in the manual trace.
     await download_items.first.hover(timeout=3000)
+    await show_click(page, download_items.first, "click_video_download_menu")
     await download_items.first.click(timeout=3000)
-    event("click_video_download_menu")
 
     # Scope to the currently opened submenu. Only 720p original MP4 is accepted.
-    resolution = frame.get_by_role("menuitem", name=re.compile(r"^720p(?:\\s|$)", re.I))
+    resolution = frame.get_by_role("menuitem", name=re.compile(r"^720p(?:\s|$)", re.I))
     if await resolution.count() != 1 or not await resolution.is_visible() or not await resolution.is_enabled():
         raise RuntimeError("flow_video_download_control_not_unique")
+    await show_click(page, resolution, "click_video_720p")
     await resolution.click(timeout=3000)
-    event("click_video_720p")
 
     for _ in range(40):
         await asyncio.sleep(0.5)
