@@ -70,7 +70,7 @@ async def _open_completed_video(page, event, show_click):
     await show_click(page, video, "click_video_preview")
     await video.click(timeout=3500, position={"x": 25, "y": 25})
     try:
-        await page.wait_for_url(re.compile(r"^https://flow\\.google\\.com/project/[^/]+/edit/"),
+        await page.wait_for_url(re.compile(r"^https://flow\.google\.com/project/[^/]+/edit/"),
                                 timeout=12000)
     except Exception:
         raise RuntimeError("flow_video_editor_not_open") from None
@@ -78,7 +78,7 @@ async def _open_completed_video(page, event, show_click):
 
 async def download_existing_video(page, before_ids, finished_mp4_files, event, show_click):
     await _open_completed_video(page, event, show_click)
-    if not re.search(r"^https://flow\\.google\\.com/project/[^/]+/edit/", page.url):
+    if not re.search(r"^https://flow\.google\.com/project/[^/]+/edit/", page.url):
         raise RuntimeError("flow_video_editor_not_open")
 
     frame, button = await _locate_editor_download(page)
@@ -88,7 +88,7 @@ async def download_existing_video(page, before_ids, finished_mp4_files, event, s
 
     # The open menu contains a single enabled "720p - Tamanho original"
     # option. Never choose 270p GIF or paid 1080p/4K.
-    options = frame.get_by_role("menuitem", name=re.compile(r"^\\s*720p(?:\\s|$)", re.I))
+    options = frame.get_by_role("menuitem", name=re.compile(r"^\s*720p(?:\s|$)", re.I))
     for _ in range(8):
         if await options.count() == 1 and await options.first.is_visible():
             break
