@@ -354,9 +354,12 @@ def finished_mp4_files():
 async def train_flow_download(request: Request):
     """Download exactly one previously completed Flow video; never generate."""
     authorize(request)
+    diagnostic = {"stage": "initializing", "reason": "not_started"}
     async with lock:
         if not chrome_running():
-            raise HTTPException(409, "browser_not_running")
+            diagnostic.update({"stage": "browser_check", "reason": "chrome_not_running"})
+            print("mv_video_download_failure " + __import__("json").dumps(diagnostic), flush=True)
+            raise HTTPException(409, detail={"code": "browser_not_running", "diagnostic": diagnostic})
         try:
             from flow_video_download import download_existing_video
             async with async_playwright() as pw:
@@ -364,10 +367,13 @@ async def train_flow_download(request: Request):
                 try:
                     pages = [p for ctx in browser.contexts for p in ctx.pages
                              if not p.is_closed() and p.url.startswith("https://flow.google.com/project/")]
+                    diagnostic.update({"stage": "project_check", "flowProjectTabs": len(pages),
+                                       "reason": "project_tab_count_not_one" if len(pages) != 1 else "verified"})
                     if len(pages) != 1:
                         raise RuntimeError("flow_video_project_not_unique")
                     before = {item["id"] for item in finished_mp4_files()}
-                    video = await download_existing_video(pages[0], before, finished_mp4_files, record_event, show_red_click)
+                    video = await download_existing_video(
+                        pages[0], before, finished_mp4_files, record_event, show_red_click, diagnostic)
                     return {"status": "download_completed", "video": video}
                 finally:
                     # Disconnect only. Never close the user's Chromium process.
@@ -377,7 +383,10 @@ async def train_flow_download(request: Request):
                        "flow_video_download_not_started", "flow_video_not_unique",
                        "flow_video_editor_not_open"}
             code = str(exc) if str(exc) in allowed else "flow_video_download_failed"
-            raise HTTPException(409, code) from None
+            diagnostic.update({"errorCode": code, "exceptionType": type(exc).__name__})
+            print("mv_video_download_failure " + __import__("json").dumps(diagnostic), flush=True)
+            # Fixed fields only: no page text, prompts, URLs, cookies or secrets.
+            raise HTTPException(409, detail={"code": code, "diagnostic": diagnostic}) from None
 
 
 @app.get("/session/video/downloads")
