@@ -22,6 +22,105 @@ view_tickets = {}
 active_viewers = 0
 chrome_process = None
 context = None
+browser_monitor_task = None
+
+# Browser diagnostics never collect URLs, messages, page contents, headers or payloads.
+def log_flow_browser_issue(kind, *, status=None, resource=None, category=None, host=None):
+    import json
+    payload = {"kind": kind, "at": int(time.time())}
+    if status is not None:
+        payload["status"] = int(status)
+    if resource in {"document", "script", "xhr", "fetch", "image", "stylesheet", "other"}:
+        payload["resource"] = resource
+    if category:
+        payload["category"] = category
+    if host:
+        payload["host"] = host
+    print("mv_chrome_diagnostic " + json.dumps(payload), flush=True)
+
+
+def classify_browser_error(value):
+    # Match a small predefined vocabulary; never print the original error text.
+    raw = str(value or "").lower()
+    if any(word in raw for word in ("429", "rate limit", "too many requests", "quota", "resource exhausted")):
+        return "rate_or_quota"
+    if any(word in raw for word in ("403", "forbidden", "permission", "access denied", "blocked")):
+        return "access_denied"
+    if any(word in raw for word in ("401", "unauthorized", "authentication")):
+        return "authentication"
+    if any(word in raw for word in ("timeout", "timed out")):
+        return "timeout"
+    if any(word in raw for word in ("failed to fetch", "network", "net::", "connection", "dns", "cors")):
+        return "network"
+    if any(word in raw for word in ("500", "502", "503", "504", "internal server")):
+        return "server"
+    return "unclassified"
+
+
+def flow_host_group(raw_url):
+    host = (urlsplit(raw_url).hostname or "").lower()
+    if host == "flow.google.com":
+        return "flow"
+    if host == "google.com" or host.endswith(".google.com"):
+        return "google"
+    if host == "googleapis.com" or host.endswith(".googleapis.com"):
+        return "googleapis"
+    return None
+
+
+async def observe_chrome_errors():
+    # Independent CDP reader stays alive for manual attempts after a robot stage.
+    # It cannot click, mutate the DOM, or change browser/account state.
+    try:
+        async with async_playwright() as pw:
+            browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+            seen_pages = set()
+            def attach_page(page):
+                if page in seen_pages:
+                    return
+                seen_pages.add(page)
+
+                def on_console(message):
+                    if message.type == "error":
+                        log_flow_browser_issue("console_error", category=classify_browser_error(message.text))
+
+                def on_pageerror(error):
+                    log_flow_browser_issue("javascript_error", category=classify_browser_error(error))
+
+                def on_response(response):
+                    if response.status < 400:
+                        return
+                    host = flow_host_group(response.url)
+                    if host:
+                        log_flow_browser_issue("http_error", status=response.status,
+                            resource=response.request.resource_type, host=host)
+
+                def on_requestfailed(request):
+                    host = flow_host_group(request.url)
+                    if host:
+                        log_flow_browser_issue("request_failed",
+                            category=classify_browser_error(request.failure),
+                            resource=request.resource_type, host=host)
+
+                page.on("console", on_console)
+                page.on("pageerror", on_pageerror)
+                page.on("response", on_response)
+                page.on("requestfailed", on_requestfailed)
+
+            for ctx in browser.contexts:
+                ctx.on("page", attach_page)
+                for page in ctx.pages:
+                    attach_page(page)
+            log_flow_browser_issue("observer_attached")
+            while chrome_running():
+                await asyncio.sleep(1)
+            await browser.close()
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        log_flow_browser_issue("observer_failed", category=type(exc).__name__)
+
+
 
 # Fixed-code diagnostic ring. No prompts, URLs, cookies, secrets or exception text.
 DIAGNOSTIC_CODES = frozenset(("chrome_started", "chrome_already_running", "chrome_stopped",
@@ -76,8 +175,15 @@ def chrome_running():
     return chrome_process is not None and chrome_process.poll() is None
 
 async def stop_browser():
-    global chrome_process
+    global chrome_process, browser_monitor_task
     view_tickets.clear()
+    if browser_monitor_task is not None:
+        browser_monitor_task.cancel()
+        try:
+            await browser_monitor_task
+        except asyncio.CancelledError:
+            pass
+        browser_monitor_task = None
     if chrome_process is not None:
         if chrome_running():
             chrome_process.terminate()
@@ -95,7 +201,7 @@ async def health(request: Request):
 
 @app.post("/session/start")
 async def start(request: Request):
-    global chrome_process
+    global chrome_process, browser_monitor_task
     authorize(request)
     async with lock:
         if chrome_running():
@@ -138,6 +244,8 @@ async def start(request: Request):
             record_event("chrome_start_failed")
             await stop_browser()
             raise HTTPException(503, "browser_start_failed")
+        if browser_monitor_task is None or browser_monitor_task.done():
+            browser_monitor_task = asyncio.create_task(observe_chrome_errors())
         record_event("chrome_started")
         return {"status": "running"}
 
