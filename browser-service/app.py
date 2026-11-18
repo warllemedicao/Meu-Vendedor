@@ -69,11 +69,30 @@ def flow_host_group(raw_url):
 
 
 async def observe_chrome_errors():
-    # Independent CDP reader stays alive for manual attempts after a robot stage.
-    # It cannot click, mutate the DOM, or change browser/account state.
+    # Independent read-only CDP monitor for both robot and manual Flow actions.
+    # Only fixed diagnostic categories are emitted: no URLs, messages or payloads.
+    phase = "starting"
+    attempt = 0
     try:
         async with async_playwright() as pw:
-            browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+            browser = None
+            for attempt in range(1, 6):
+                if not chrome_running():
+                    return
+                phase = "cdp_connect"
+                try:
+                    browser = await pw.chromium.connect_over_cdp(
+                        "http://127.0.0.1:9222", timeout=5000)
+                    break
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    log_flow_browser_issue("observer_connect_retry",
+                        category=type(exc).__name__)
+                    if attempt == 5:
+                        raise
+                    await asyncio.sleep(1)
+            phase = "attach_existing_pages"
             seen_pages = set()
             def attach_page(page):
                 if page in seen_pages:
@@ -82,10 +101,12 @@ async def observe_chrome_errors():
 
                 def on_console(message):
                     if message.type == "error":
-                        log_flow_browser_issue("console_error", category=classify_browser_error(message.text))
+                        log_flow_browser_issue("console_error",
+                            category=classify_browser_error(message.text))
 
                 def on_pageerror(error):
-                    log_flow_browser_issue("javascript_error", category=classify_browser_error(error))
+                    log_flow_browser_issue("javascript_error",
+                        category=classify_browser_error(error))
 
                 def on_response(response):
                     if response.status < 400:
@@ -111,15 +132,23 @@ async def observe_chrome_errors():
                 ctx.on("page", attach_page)
                 for page in ctx.pages:
                     attach_page(page)
+            phase = "monitoring"
             log_flow_browser_issue("observer_attached")
             while chrome_running():
                 await asyncio.sleep(1)
+            # CDP client disconnect only; don't close the user's Chrome session.
+            phase = "disconnect"
             await browser.close()
     except asyncio.CancelledError:
         raise
     except Exception as exc:
+        import json
+        # Fixed phase and exception class only; never print exception messages.
+        print("mv_chrome_observer_failure " + json.dumps({
+            "phase": phase, "attempt": attempt,
+            "errorType": type(exc).__name__,
+        }), flush=True)
         log_flow_browser_issue("observer_failed", category=type(exc).__name__)
-
 
 
 # Fixed-code diagnostic ring. No prompts, URLs, cookies, secrets or exception text.
