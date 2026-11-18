@@ -217,6 +217,7 @@ async def download_existing_video(page, before_ids, finished_mp4_files, event, s
     await show_click(page, options.first, "click_video_720p")
     await asyncio.sleep(1.6)
     await options.first.click(timeout=3500)
+    print("mv_video_resolution_click_confirmed " + json.dumps({"x": round(option_center), "y": round(option_y)}), flush=True)
     # This is the last click. No follow-up click is issued to download.
     await asyncio.sleep(CLICK_OBSERVATION_SECONDS)
     diagnostic.update({"stage": "wait_for_mp4", "resolutionClicked": True,
