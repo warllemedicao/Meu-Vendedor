@@ -10,6 +10,50 @@ import re
 CLICK_OBSERVATION_SECONDS = 2.5
 
 
+async def gallery_thumbnail_fingerprints(page):
+    """Collect opaque fingerprints of visible gallery thumbnails, not page content.
+
+    Only visual media in the same gallery zone as the proven first-card locator.
+    Returned signatures never leave the private browser process.
+    """
+    fingerprints = []
+    for frame in page.frames[:8]:
+        try:
+            media = await frame.locator("body").evaluate(r"""body => {
+                const all=[...body.querySelectorAll('*')], result=[], seen=new Set();
+                for (const element of all.slice(0,4000)) {
+                    const tag=element.tagName.toLowerCase();
+                    const style=getComputedStyle(element);
+                    const isVideo=tag==='video'||element.getAttribute('role')==='video';
+                    const isImage=tag==='img';
+                    const isBg=!isVideo&&!isImage&&style.backgroundImage.includes('url(');
+                    if (!isVideo&&!isImage&&!isBg) continue;
+                    const r=element.getBoundingClientRect(),w=innerWidth,h=innerHeight;
+                    if (style.display==='none'||style.visibility==='hidden'||
+                        r.width<100||r.height<85||r.bottom<80||r.top>h||
+                        r.right<0||r.left>w||r.left<Math.max(75,w*.12)||
+                        r.left>w*.75||r.top<70||r.width>w*.65||r.height>h*.78) continue;
+                    const key=[Math.round(r.left/8),Math.round(r.top/8),
+                        Math.round(r.width/8),Math.round(r.height/8)].join(':');
+                    if(seen.has(key))continue;
+                    seen.add(key);
+                    const source=isVideo?(element.currentSrc||element.getAttribute('poster')||element.getAttribute('src')||''):
+                        isImage?(element.currentSrc||element.getAttribute('src')||''):style.backgroundImage;
+                    result.push({source,top:r.top,left:r.left,kind:isVideo?'video':isImage?'image':'background'});
+                }
+                return result.sort((a,b)=>Math.round(a.top/40)-Math.round(b.top/40)||a.left-b.left);
+            }""", timeout=3500)
+            for item in media:
+                # Do not store or log URLs: only an opaque stable digest.
+                import hashlib
+                source = str(item.get("source") or "")
+                if source:
+                    fingerprints.append(hashlib.sha256(source.encode()).hexdigest())
+        except Exception:
+            continue
+    return fingerprints
+
+
 async def _locate_editor_download(page, diagnostic):
     """Return one verified download toolbar button, or fail without clicking."""
     candidates = []
