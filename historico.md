@@ -2467,3 +2467,10 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - Reutilizado `show_red_click` no módulo separado `flow_video_download.py`, antes de cada clique real em: menu de três pontos (`click_video_menu`), opção Fazer o download (`click_video_download_menu`) e 720p (`click_video_720p`). O indicador vermelho visual é temporário, não intercepta eventos do mouse e não altera o alvo do clique.
 - Corrigida também a expressão regular de espaços em nomes das opções, sem alterar seletores de imagens ou geração.
 - Código na branch `feat/navegador-proprio-chromium`. Não houve deploy Modal ou teste real nesta alteração; requer atualização do serviço Modal para ficar visível.
+
+
+### 2026-11-18 — Correção: não confundir Mais global com três pontos do vídeo
+- Evidência visual do usuário: o robô acionou o menu global na barra superior (que contém "Baixar projeto") em vez dos três pontos do cartão de vídeo. O log tinha `click_video_menu` e `flow-more-options-menu`, mas esses sinais isolados não distinguiam os dois menus.
+- Corrigida exclusivamente a descoberta do botão em `browser-service/flow_video_download.py`: exige que o botão Mais visível e habilitado esteja sobre o canto superior direito da miniatura de vídeo/imagem de dimensões mínimas. Exige um único candidato; em caso de ambiguidade para antes de clicar. Não clica a miniatura para provocar hover, pois isso abriria o editor. O círculo vermelho existente permanece.
+- Limitação consciente: thumbnails implementados como fundos CSS podem não ser detectados; nesse caso a rotina falha em segurança e exigirá novo diagnóstico do DOM. O usuário pode revelar o botão por hover manual enquanto validamos. **Nenhum teste real ou deploy Modal foi feito nesta edição.**
+- Fluxos de upload de 1/2/3 imagens, configuração, geração, Edge Function Supabase e interface Cloudflare inalterados.
