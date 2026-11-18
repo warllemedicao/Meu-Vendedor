@@ -50,70 +50,90 @@ async def _open_completed_video(page, event, show_click, diagnostic):
         diagnostic.update({"stage": "project_check", "reason": "not_flow_project"})
         raise RuntimeError("flow_video_project_not_unique")
 
-    # The user explicitly prioritizes the first completed video card in the
-    # gallery, left-to-right in the top visible row. Decorative videos and
-    # duplicate/nested video elements are excluded before ranking.
+    # Flow thumbnails may be <img> covers or CSS background images instead
+    # of <video>. Look for visible media in the central library region,
+    # excluding the left navigation and right-hand detail panel.
     candidates = []
     diagnostics = []
     for frame_index, frame in enumerate(page.frames[:8]):
         try:
             snapshot = await frame.locator("body").evaluate(r"""body => {
-                const seen=new Set(), result=[];
-                const elements=[...body.querySelectorAll('video,[role="video"]')];
-                let visible=0, rejectedSize=0, rejectedPosition=0;
-                for (let i=0;i<elements.length;i++) {
-                    const e=elements[i],r=e.getBoundingClientRect(),s=getComputedStyle(e);
-                    const inView=r.bottom>80&&r.top<innerHeight&&r.right>0&&r.left<innerWidth;
-                    if(s.display==='none'||s.visibility==='hidden'||!inView)continue;
-                    visible++;
-                    // Flow products are commonly 9:16 portrait. Do NOT demand
-                    // a landscape aspect or a 220px wide thumbnail.
-                    if(r.width<75||r.height<95){rejectedSize++;continue;}
-                    if(r.top<70||r.left<65){rejectedPosition++;continue;}
-                    const key=[Math.round(r.left/6),Math.round(r.top/6),
-                        Math.round(r.width/6),Math.round(r.height/6)].join(':');
+                const items=[], seen=new Set(), all=[...body.querySelectorAll('*')];
+                let rawVideo=0,rawImage=0,rawBackground=0,visibleMedia=0;
+                const vpW=innerWidth,vpH=innerHeight;
+                for(let i=0;i<all.length && i<4000;i++){
+                    const e=all[i],tag=e.tagName.toLowerCase();
+                    const isVideo=tag==='video'||e.getAttribute('role')==='video';
+                    const isImg=tag==='img';
+                    const style=getComputedStyle(e);
+                    const isBg=!isVideo&&!isImg&&style.backgroundImage!=='none'&&
+                        /url\\(/i.test(style.backgroundImage);
+                    if(!isVideo&&!isImg&&!isBg)continue;
+                    if(isVideo)rawVideo++;else if(isImg)rawImage++;else rawBackground++;
+                    const r=e.getBoundingClientRect();
+                    if(style.display==='none'||style.visibility==='hidden'||
+                        r.width<100||r.height<85||r.bottom<80||r.top>vpH||
+                        r.right<0||r.left>vpW)continue;
+                    visibleMedia++;
+                    // Screenshot layout: left nav | gallery | right detail rail.
+                    // Use ratios so the rule adapts to viewer size.
+                    if(r.left<Math.max(75,vpW*.12)||r.left>vpW*.75||
+                        r.top<70||r.width>vpW*.65||r.height>vpH*.78)continue;
+                    const key=[Math.round(r.left/8),Math.round(r.top/8),
+                        Math.round(r.width/8),Math.round(r.height/8)].join(':');
                     if(seen.has(key))continue;
                     seen.add(key);
-                    result.push({index:i,width:r.width,height:r.height,
-                        area:r.width*r.height, top:r.top,left:r.left});
+                    items.push({index:i,kind:isVideo?'video':isImg?'image':'background',
+                        left:r.left,top:r.top,width:r.width,height:r.height});
                 }
-                return {matches:result,raw:elements.length,visible,rejectedSize,rejectedPosition};
-            }""", timeout=3500)
-            matches = snapshot["matches"]
-            controls = frame.locator('video,[role="video"]')
-            diagnostics.append({"frame": frame_index, "eligible": len(matches),
-                                "raw": snapshot["raw"], "visible": snapshot["visible"],
-                                "rejectedSize": snapshot["rejectedSize"],
-                                "rejectedPosition": snapshot["rejectedPosition"]})
-            for item in matches:
-                candidates.append((controls.nth(item["index"]), item))
-        except Exception:
-            diagnostics.append({"frame": frame_index, "eligible": -1})
+                return {items,rawVideo,rawImage,rawBackground,visibleMedia};
+            }""", timeout=5000)
+            diagnostic_item = {"frame": frame_index,
+                               "eligible": len(snapshot["items"]),
+                               "raw": snapshot["rawVideo"] + snapshot["rawImage"] + snapshot["rawBackground"],
+                               "visible": snapshot["visibleMedia"],
+                               "rawVideo": snapshot["rawVideo"],
+                               "rawImage": snapshot["rawImage"],
+                               "rawBackground": snapshot["rawBackground"]}
+            diagnostics.append(diagnostic_item)
+            for item in snapshot["items"]:
+                # Resolve by the same DOM order as the evaluate scan.
+                element = frame.locator("body *").nth(item["index"] - 1) if item["index"] else None
+                if element is not None:
+                    candidates.append((element, item))
+        except Exception as exc:
+            diagnostics.append({"frame": frame_index, "eligible": -1,
+                                "errorType": type(exc).__name__})
+
     import json
     print("mv_video_preview_diagnostic " + json.dumps({
         "candidates": len(candidates), "frames": diagnostics
     }), flush=True)
-    # Report *why* no click occurred, rather than showing zero captured clicks.
     diagnostic.update({"stage": "find_video_preview", "videoCandidates": len(candidates),
                        "frames": diagnostics, "reason": "no_eligible_video" if not candidates else "verified"})
     if not candidates:
         diagnostic["reason"] = ("no_video_dom_elements" if all(d.get("raw", 0) == 0 for d in diagnostics)
                                 else "video_filtered_out")
         raise RuntimeError("flow_video_not_unique")
-    candidates.sort(key=lambda item: (round(item[1]["top"] / 45),
-                                      item[1]["left"], item[1]["top"]))
+
+    # First row from left to right, per user instruction. Do not select the
+    # similarly sized screenshot in the right-side prompt/details panel.
+    candidates.sort(key=lambda pair: (round(pair[1]["top"] / 40),
+                                      pair[1]["left"], pair[1]["top"]))
     video, chosen = candidates[0]
-    print("mv_video_preview_selection " + json.dumps({
-        "rule": "first_top_row_left_to_right",
-        "candidates": len(candidates),
-        "left": round(chosen["left"]),
-        "top": round(chosen["top"])
-    }), flush=True)
     diagnostic.update({"stage": "click_video_preview", "reason": "click_not_dispatched",
                        "selectedLeft": round(chosen["left"]), "selectedTop": round(chosen["top"])})
-    await video.click(trial=True, timeout=3500)
+    print("mv_video_preview_selection " + json.dumps({
+        "kind": chosen["kind"], "left": round(chosen["left"]),
+        "top": round(chosen["top"]), "candidates": len(candidates)
+    }), flush=True)
+    # Click the surface of the selected thumbnail, not any overlay control.
+    # The reference screenshot's card actions are at its upper-right.
+    await video.click(trial=True, timeout=3500,
+                      position={"x": chosen["width"]*.45, "y": chosen["height"]*.55})
     await show_click(page, video, "click_video_preview")
-    await video.click(timeout=3500, position={"x": 25, "y": 25})
+    await video.click(timeout=3500,
+                      position={"x": chosen["width"]*.45, "y": chosen["height"]*.55})
     diagnostic.update({"stage": "wait_for_editor", "previewClicked": True,
                        "reason": "editor_navigation_pending"})
     try:
