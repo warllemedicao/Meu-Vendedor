@@ -269,6 +269,18 @@ async def start(request: Request):
                     async with async_playwright() as pw:
                         browser = await pw.chromium.connect_over_cdp(
                             "http://127.0.0.1:9222", timeout=10000)
+                        # Configure Chrome's own Downloads destination. No profile
+                        # cookies, auth storage, or automation selectors are touched.
+                        try:
+                            cdp = await browser.new_browser_cdp_session()
+                            await cdp.send("Browser.setDownloadBehavior", {
+                                "behavior": "allow", "downloadPath": DOWNLOAD_DIR,
+                                "eventsEnabled": True,
+                            })
+                            await cdp.detach()
+                            record_event("chrome_download_directory_ready")
+                        except Exception:
+                            record_event("chrome_download_directory_unverified")
                         flow_pages = [p for ctx in browser.contexts for p in ctx.pages
                                       if not p.is_closed() and p.url.startswith("https://flow.google.com/")]
                         if flow_pages:
