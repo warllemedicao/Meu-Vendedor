@@ -24,6 +24,8 @@ chrome_process = None
 context = None
 browser_monitor_task = None
 video_download_tickets = {}
+# Only the most recent explicitly authorized generation may trigger automatic download.
+generation_watch = {"active": False, "baseline": [], "projectUrl": "", "startedAt": 0.0}
 MAX_MANUAL_VIDEO_BYTES = 100 * 1024 * 1024
 
 
@@ -464,6 +466,9 @@ async def train_flow_download(request: Request):
                                        "reason": "project_tab_count_not_one" if len(pages) != 1 else "verified"})
                     if len(pages) != 1:
                         raise RuntimeError("flow_video_project_not_unique")
+                    # A previous Generate may have produced old videos in the same
+                    # project. Automatic continuation is permitted only after a
+                    # newly observed first thumbnail; manual video_train is unchanged.
                     before = {item["id"] for item in finished_mp4_files()}
                     print("mv_download_file_types " + __import__("json").dumps({
                         "phase": "before_automated_clicks",
@@ -471,6 +476,7 @@ async def train_flow_download(request: Request):
                     }), flush=True)
                     video = await download_existing_video(
                         pages[0], before, finished_mp4_files, record_event, show_red_click, diagnostic)
+                    generation_watch["active"] = False
                     return {"status": "download_completed", "video": video}
                 finally:
                     # Disconnect only. Never close the user's Chromium process.
@@ -502,6 +508,44 @@ async def train_flow_download(request: Request):
                 del learning_state["events"][:-200]
             # Fixed fields only: no page text, prompts, URLs, cookies or secrets.
             raise HTTPException(409, detail={"code": code, "diagnostic": diagnostic}) from None
+
+
+@app.get("/session/video/generated-ready")
+async def generated_video_ready(request: Request):
+    """Poll whether a new gallery thumbnail appeared after the authorized Generate."""
+    authorize(request)
+    if not chrome_running():
+        raise HTTPException(409, "browser_not_running")
+    if not generation_watch["active"]:
+        return {"ready": False, "reason": "generation_not_registered"}
+    if time.monotonic() - generation_watch["startedAt"] > 600:
+        generation_watch["active"] = False
+        return {"ready": False, "reason": "generation_expired"}
+    async with lock:
+        from flow_video_download import gallery_thumbnail_fingerprints
+        async with async_playwright() as pw:
+            browser = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222", timeout=10000)
+            try:
+                await restore_native_download_behavior(browser, stage="generated_ready")
+                project_url = generation_watch["projectUrl"]
+                pages = [p for ctx in browser.contexts for p in ctx.pages
+                         if not p.is_closed() and p.url.startswith(project_url)]
+                if len(pages) != 1:
+                    return {"ready": False, "reason": "project_not_visible"}
+                page = pages[0]
+                # Cannot safely identify a new thumbnail while inside the editor.
+                if "/edit/" in page.url:
+                    return {"ready": False, "reason": "gallery_not_visible"}
+                current = await gallery_thumbnail_fingerprints(page)
+                baseline = set(generation_watch["baseline"])
+                ready = bool(current and current[0] not in baseline)
+                print("mv_generation_ready " + __import__("json").dumps({
+                    "ready": ready, "visible": len(current),
+                    "elapsedSeconds": round(time.monotonic() - generation_watch["startedAt"])
+                }), flush=True)
+                return {"ready": ready, "reason": "new_first_thumbnail" if ready else "still_processing"}
+            finally:
+                await browser.close()
 
 
 @app.get("/session/video/downloads")
@@ -1765,8 +1809,19 @@ async def stage_flow(request: Request):
                 if data.get("configureSettings") is True or data.get("configureAndGenerate") is True or generate_authorized:
                     settings_applied = await configure_flow_agent(page, prompt_control)
                 if generate_authorized and settings_applied:
+                    from flow_video_download import gallery_thumbnail_fingerprints
+                    before_generation = await gallery_thumbnail_fingerprints(page)
                     record_event("generate_authorized")
                     generation_clicked = await click_flow_generate(page, prompt_control, uploaded)
+                    if generation_clicked:
+                        generation_watch.update({
+                            "active": True, "baseline": before_generation,
+                            "projectUrl": page.url.split("/edit/")[0],
+                            "startedAt": time.monotonic(),
+                        })
+                        print("mv_generation_watch " + __import__("json").dumps({
+                            "started": True, "baselineCount": len(before_generation)
+                        }), flush=True)
                 record_event("stage_completed")
                 return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded, "referencesIncluded": references_included,
                         "referencesVerified": False, "settingsApplied": settings_applied,
