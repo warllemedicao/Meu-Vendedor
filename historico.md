@@ -2474,3 +2474,10 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - Corrigida exclusivamente a descoberta do botão em `browser-service/flow_video_download.py`: exige que o botão Mais visível e habilitado esteja sobre o canto superior direito da miniatura de vídeo/imagem de dimensões mínimas. Exige um único candidato; em caso de ambiguidade para antes de clicar. Não clica a miniatura para provocar hover, pois isso abriria o editor. O círculo vermelho existente permanece.
 - Limitação consciente: thumbnails implementados como fundos CSS podem não ser detectados; nesse caso a rotina falha em segurança e exigirá novo diagnóstico do DOM. O usuário pode revelar o botão por hover manual enquanto validamos. **Nenhum teste real ou deploy Modal foi feito nesta edição.**
 - Fluxos de upload de 1/2/3 imagens, configuração, geração, Edge Function Supabase e interface Cloudflare inalterados.
+
+
+### 2026-11-18 — Revelar os três pontos ocultos por hover antes de clicar
+- Usuário reportou `flow_video_download_control_not_unique` após a correção de posicionamento: o botão dos três pontos do vídeo não aparece até que o cursor passe sobre a miniatura.
+- Correção isolada no `browser-service/flow_video_download.py`: localizar a miniatura de vídeo de maior área com tamanho mínimo, exigir que não haja outra miniatura de tamanho semelhante, passar o cursor pelo canto superior direito **sem clicar na imagem**, aguardar o botão aparecer e somente então localizar/confirmar o botão Mais dentro da região superior direita da mesma miniatura. Se o botão não aparecer ou houver ambiguidade, encerrar sem clique.
+- O menu global de três pontos no cabeçalho fica fora do retângulo da miniatura e não é aceito. O indicador vermelho permanece nos cliques aprovados.
+- **Ainda não testado no Flow real nem publicado no Modal**; o seletor de mídia pode depender da estrutura real do cartão. Arquivos de imagens, configuração, geração, Cloudflare e Supabase não modificados.
