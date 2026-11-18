@@ -869,6 +869,60 @@ async def configure_flow_agent(page, prompt_control):
         record_event("settings_missing_"+step)
         raise RuntimeError("flow_settings_missing_"+step)
 
+    # Explicit user-selected Flow policy: Never ask before generating.
+    # Restrict selection to the verified agent-settings panel; fail closed on ambiguity.
+    never_radio = panel.get_by_role("radio", name=re.compile(r"^Nunca\\b", re.I))
+    if await never_radio.count() != 1:
+        # Some Flow layouts put the radio label beside (not inside) the radio.
+        # Resolve by the exact visible label, within a row containing one radio.
+        resolved = await panel.evaluate(r"""root => {
+            const visible = el => {
+                const b = el.getBoundingClientRect();
+                return b.width > 0 && b.height > 0;
+            };
+            const labels = [...root.querySelectorAll('*')].filter(el =>
+                el.children.length === 0 && visible(el) &&
+                (el.textContent || '').trim().toLowerCase() === 'nunca');
+            const matches = [];
+            for (const label of labels) {
+                let row = label;
+                for (let depth = 0; depth < 5 && row && row !== root; depth++, row = row.parentElement) {
+                    const radios = [...row.querySelectorAll('[role="radio"],input[type="radio"]')];
+                    if (radios.length === 1 && visible(radios[0])) {
+                        matches.push(radios[0]);
+                        break;
+                    }
+                }
+            }
+            const unique = [...new Set(matches)];
+            if (unique.length !== 1) return unique.length;
+            unique[0].setAttribute('data-mv-never-radio', 'yes');
+            return 1;
+        }""")
+        if resolved != 1:
+            raise RuntimeError("flow_settings_never_not_found")
+        never_radio = panel.locator('[data-mv-never-radio="yes"]')
+    if await never_radio.count() != 1 or not await never_radio.first.is_visible() or not await never_radio.first.is_enabled():
+        raise RuntimeError("flow_settings_never_not_found")
+    try:
+        radio = never_radio.first
+        async def never_is_checked():
+            return await radio.evaluate("""el =>
+                el.getAttribute('aria-checked') === 'true' ||
+                el.checked === true ||
+                el.getAttribute('data-state') === 'checked'
+            """)
+        if not await never_is_checked():
+            await radio.click(timeout=4000)
+        if not await never_is_checked():
+            raise RuntimeError("flow_settings_never_unverified")
+        print("mv_settings_confirmation_diagnostic " +
+              __import__("json").dumps({"choice": "never", "verified": True}), flush=True)
+    finally:
+        marked = panel.locator('[data-mv-never-radio="yes"]')
+        if await marked.count() == 1:
+            await marked.evaluate("(el) => el.removeAttribute('data-mv-never-radio')")
+
     # The screenshot shows two independent groups: image defaults and video defaults.
     # Never infer a 9:16 control from the whole panel.
     await choose_segmented_option("Padrão da geração de imagens","ratio","9:16","image_ratio")
