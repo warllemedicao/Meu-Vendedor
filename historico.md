@@ -2461,3 +2461,9 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - O usuário confirmou que o botão de três pontos só fica visível após hover sobre o cartão do vídeo e que clicar no cartão errado abre o editor.
 - Correção isolada em `browser-service/flow_video_download.py`: hover no botão Mais previamente verificado antes do clique, e busca da opção Fazer o download restrita ao menu aberto. Nenhum clique automático foi autorizado na miniatura, nem os arquivos `flow_references/single_image.py`, `two_images.py`, `three_images.py` ou o gerador foram alterados.
 - **Pendente:** publicar novo Modal e repetir teste num vídeo já gerado. Se o botão Mais estiver oculto antes do hover, o usuário deve deixá-lo visível manualmente até validarmos a identificação segura do cartão; não arriscar clique para abrir editor. Supabase e Cloudflare não requerem redeploy para esta correção isolada.
+
+
+### 2026-11-18 — Círculo vermelho nos cliques automáticos do download
+- Reutilizado `show_red_click` no módulo separado `flow_video_download.py`, antes de cada clique real em: menu de três pontos (`click_video_menu`), opção Fazer o download (`click_video_download_menu`) e 720p (`click_video_720p`). O indicador vermelho visual é temporário, não intercepta eventos do mouse e não altera o alvo do clique.
+- Corrigida também a expressão regular de espaços em nomes das opções, sem alterar seletores de imagens ou geração.
+- Código na branch `feat/navegador-proprio-chromium`. Não houve deploy Modal ou teste real nesta alteração; requer atualização do serviço Modal para ficar visível.
