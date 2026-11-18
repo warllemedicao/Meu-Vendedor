@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
         "find_video_preview", "click_video_preview", "wait_for_editor", "editor_check",
         "editor_open", "find_download_button", "find_720p", "wait_for_mp4", "completed"];
       const safeReason = ["not_started", "chrome_not_running", "project_tab_count_not_one",
-        "started", "no_eligible_video", "verified", "click_not_dispatched",
+        "started", "no_eligible_video", "no_video_dom_elements", "video_filtered_out", "verified", "click_not_dispatched",
         "editor_navigation_pending", "editor_url_not_confirmed", "already_in_editor",
         "toolbar_button_count_not_one", "resolution_not_verified", "mp4_not_confirmed",
         "mp4_confirmed", "download_timeout"];
@@ -134,6 +134,10 @@ Deno.serve(async (req) => {
             eligible: typeof frame?.eligible === "number" &&
               Number.isInteger(frame.eligible) && frame.eligible >= -1 &&
               frame.eligible <= 1000 ? frame.eligible : null,
+            raw: count(frame?.raw),
+            visible: count(frame?.visible),
+            rejectedSize: count(frame?.rejectedSize),
+            rejectedPosition: count(frame?.rejectedPosition),
           })) : [],
       };
       return reply({ error: code, diagnostic }, response.status === 409 ? 409 : 502);
