@@ -57,14 +57,19 @@ async def _open_completed_video(page, event, show_click, diagnostic):
     diagnostics = []
     for frame_index, frame in enumerate(page.frames[:8]):
         try:
-            matches = await frame.locator("body").evaluate(r"""body => {
+            snapshot = await frame.locator("body").evaluate(r"""body => {
                 const seen=new Set(), result=[];
                 const elements=[...body.querySelectorAll('video,[role="video"]')];
+                let visible=0, rejectedSize=0, rejectedPosition=0;
                 for (let i=0;i<elements.length;i++) {
                     const e=elements[i],r=e.getBoundingClientRect(),s=getComputedStyle(e);
-                    const inView=r.bottom>100&&r.top<innerHeight&&r.right>110&&r.left<innerWidth;
+                    const inView=r.bottom>80&&r.top<innerHeight&&r.right>0&&r.left<innerWidth;
                     if(s.display==='none'||s.visibility==='hidden'||!inView)continue;
-                    if(r.width<220||r.height<120||r.width/r.height<1.3||r.left<110||r.top<85)continue;
+                    visible++;
+                    // Flow products are commonly 9:16 portrait. Do NOT demand
+                    // a landscape aspect or a 220px wide thumbnail.
+                    if(r.width<75||r.height<95){rejectedSize++;continue;}
+                    if(r.top<70||r.left<65){rejectedPosition++;continue;}
                     const key=[Math.round(r.left/6),Math.round(r.top/6),
                         Math.round(r.width/6),Math.round(r.height/6)].join(':');
                     if(seen.has(key))continue;
@@ -72,10 +77,14 @@ async def _open_completed_video(page, event, show_click, diagnostic):
                     result.push({index:i,width:r.width,height:r.height,
                         area:r.width*r.height, top:r.top,left:r.left});
                 }
-                return result;
+                return {matches:result,raw:elements.length,visible,rejectedSize,rejectedPosition};
             }""", timeout=3500)
+            matches = snapshot["matches"]
             controls = frame.locator('video,[role="video"]')
-            diagnostics.append({"frame": frame_index, "eligible": len(matches)})
+            diagnostics.append({"frame": frame_index, "eligible": len(matches),
+                                "raw": snapshot["raw"], "visible": snapshot["visible"],
+                                "rejectedSize": snapshot["rejectedSize"],
+                                "rejectedPosition": snapshot["rejectedPosition"]})
             for item in matches:
                 candidates.append((controls.nth(item["index"]), item))
         except Exception:
@@ -88,6 +97,8 @@ async def _open_completed_video(page, event, show_click, diagnostic):
     diagnostic.update({"stage": "find_video_preview", "videoCandidates": len(candidates),
                        "frames": diagnostics, "reason": "no_eligible_video" if not candidates else "verified"})
     if not candidates:
+        diagnostic["reason"] = ("no_video_dom_elements" if all(d.get("raw", 0) == 0 for d in diagnostics)
+                                else "video_filtered_out")
         raise RuntimeError("flow_video_not_unique")
     candidates.sort(key=lambda item: (round(item[1]["top"] / 45),
                                       item[1]["left"], item[1]["top"]))
