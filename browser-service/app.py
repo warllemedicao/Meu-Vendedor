@@ -1942,8 +1942,16 @@ async def stage_flow(request: Request):
                             "newFirstObserved": False, "failed": False,
                             "networkFailures": 0, "lastNetworkCategory": None,
                         })
+                        if await flow_retry_message_visible(page):
+                            generation_watch["failed"] = True
+                            generation_watch["active"] = False
+                            print("mv_generation_aborted " + __import__("json").dumps({
+                                "reason": "flow_try_again", "stage": "after_generate_click",
+                                "networkFailures": generation_watch["networkFailures"]
+                            }), flush=True)
                         print("mv_generation_watch " + __import__("json").dumps({
-                            "started": True, "baselineCount": len(before_generation)
+                            "started": True, "baselineCount": len(before_generation),
+                            "failed": generation_watch["failed"]
                         }), flush=True)
                 record_event("stage_completed")
                 return {"status": "draft_staged", "promptStaged": True, "imagesSubmitted": uploaded, "referencesIncluded": references_included,
