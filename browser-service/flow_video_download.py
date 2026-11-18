@@ -33,14 +33,14 @@ async def download_existing_video(page, before_ids, finished_mp4_files, event):
     await menu_button.click(trial=True, timeout=3000)
     await menu_button.click(timeout=3000)
     event("click_video_menu")
-    menu = frame.get_by_role("menuitem", name=re.compile(r"^Fazer o download(?:\\s.*)?$|^Download(?:\\s.*)?$", re.I))
+    menu = frame.get_by_role("menuitem", name=re.compile(r"^Fazer o download(?:\s.*)?$|^Download(?:\s.*)?$", re.I))
     if await menu.count() != 1 or not await menu.is_visible():
         raise RuntimeError("flow_video_download_control_not_unique")
     await menu.click(timeout=3000)
     event("click_video_download_menu")
 
     # Never select GIF 270p, paid 1080p or 4K.
-    resolution = frame.get_by_role("menuitem", name=re.compile(r"^720p(?:\\s|$)", re.I))
+    resolution = frame.get_by_role("menuitem", name=re.compile(r"^720p(?:\s|$)", re.I))
     if await resolution.count() != 1 or not await resolution.is_visible() or not await resolution.is_enabled():
         raise RuntimeError("flow_video_download_control_not_unique")
     await resolution.click(timeout=3000)
