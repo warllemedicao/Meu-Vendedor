@@ -2306,3 +2306,12 @@ Antes de qualquer deploy, revisar diferenças, testes e configurações do servi
 **Escopo e proteção:** sem modificação dos seletores, cliques, referências, regras de configuração `Nunca`, botão Salvar, botão Gerar ou estado do perfil. **Nenhuma limpeza de cache foi implementada nesta etapa** para não destruir possíveis evidências antes do diagnóstico. Backup `backup/marco-tudo-funcionando-2026-11-18` deve permanecer intocado.
 
 **Status:** código com commit `5282756a28895491c9fb4eb7f5b84b9d9f1da334`; publicação do Modal e teste real **não executados pelo assistente**. Atualizar o Codespaces e publicar usando `python -m modal deploy browser-service/modal_app.py`. Consultar `modal app logs meu-vendedor-private-browser` e filtrar `mv_chrome_diagnostic`; primeiro verificar `observer_attached`. Investigar o erro sem tentar contornar restrições do Google.
+
+
+## 2026-11-18 — Correção do observador de Console/Network antes de novos testes
+
+**Evidência recebida:** teste com duas imagens confirma `click_generate` e `stage_completed`; nos logs do Modal apareceu `mv_chrome_diagnostic {"kind":"observer_failed","category":"Error"}` imediatamente após `chrome_started`, sem `observer_attached`. Portanto, o monitor de inspeção não estava funcionando; ainda não há diagnóstico sobre a causa de `Tente de novo` no Flow.
+
+**Correção exclusivamente diagnóstica:** `observe_chrome_errors()` tenta abrir a conexão CDP local até cinco vezes, com pausa entre tentativas de falha. Registra `observer_connect_retry` e, se falhar definitivamente, `mv_chrome_observer_failure` contendo apenas fase fixa (`starting`, `cdp_connect`, `attach_existing_pages`, `monitoring`, `disconnect`), número de tentativa e nome da classe de exceção. Não registra texto bruto da exceção, endereço, cookies, tokens, conteúdo da página ou prompt. Commit `87f8d24380888b3d9b637ae26de23f946fecaefc`.
+
+**Critério de validação:** após publicar no Modal, abrir o navegador e confirmar `mv_chrome_diagnostic {"kind":"observer_attached"...}` antes de uma nova tentativa de geração. Se ainda aparecer `observer_failed`, coletar `mv_chrome_observer_failure` e parar os testes de vídeo até corrigir a conexão. Backup `backup/marco-tudo-funcionando-2026-11-18` intocado. Sem limpeza de cache e sem alterações no robô.
