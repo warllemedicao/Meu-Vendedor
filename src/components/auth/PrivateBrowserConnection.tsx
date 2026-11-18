@@ -6,7 +6,8 @@ import { createVideoAssetUrl, uploadVideoResult, MAX_VIDEO_RESULT_BYTES } from "
 
 type DownloadedVideo = { id: string; name: string; bytes: number; modifiedAt: number };
 
-type BrowserResponse = { video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
+type DownloadDiagnostic = { stage?: string; reason?: string; flowProjectTabs?: number | null; videoCandidates?: number | null; toolbarCandidates?: number | null; resolutionCandidates?: number | null; previewClicked?: boolean; editorOpen?: boolean; downloadMenuClicked?: boolean; resolutionClicked?: boolean; frames?: { frame?: number | null; eligible?: number | null }[] };
+type BrowserResponse = { diagnostic?: DownloadDiagnostic; video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
@@ -26,6 +27,40 @@ export function PrivateBrowserConnection() {
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [generateAuthorized, setGenerateAuthorized] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  function explainVideoDiagnostic(d: DownloadDiagnostic | undefined) {
+    if (!d) return "O serviço não retornou os detalhes da falha. Verifique a versão do Modal e do Supabase.";
+    const stages: Record<string, string> = {
+      initializing: "Início", browser_check: "Verificar Chrome", project_check: "Encontrar projeto Flow",
+      start: "Iniciar robô", find_video_preview: "Encontrar primeiro vídeo",
+      click_video_preview: "Clicar na miniatura", wait_for_editor: "Aguardar editor",
+      editor_check: "Confirmar editor", editor_open: "Editor aberto",
+      find_download_button: "Identificar botão de download", find_720p: "Identificar 720p",
+      wait_for_mp4: "Aguardar arquivo MP4", completed: "Concluído",
+    };
+    const reasons: Record<string, string> = {
+      not_started: "O processo não iniciou.", chrome_not_running: "O Chrome está fechado.",
+      project_tab_count_not_one: "Nenhuma aba do projeto Flow, ou mais de uma, foi identificada.",
+      no_eligible_video: "Não encontrei miniatura de vídeo que passe nos filtros de visibilidade e tamanho.",
+      verified: "Controles identificados; falha posterior.",
+      click_not_dispatched: "A miniatura foi escolhida, mas o clique ainda não foi confirmado.",
+      editor_navigation_pending: "O clique foi enviado, mas a navegação ao editor não terminou.",
+      editor_url_not_confirmed: "O endereço do editor não foi confirmado.",
+      already_in_editor: "O editor já estava aberto.", toolbar_button_count_not_one: "O botão de download não foi encontrado de forma única.",
+      resolution_not_verified: "A opção 720p não foi encontrada ou não estava habilitada.",
+      mp4_not_confirmed: "O arquivo MP4 ainda não foi confirmado.",
+      download_timeout: "Nenhum MP4 novo ficou pronto dentro do prazo.",
+      mp4_confirmed: "MP4 confirmado.",
+    };
+    const counts = [
+      d.flowProjectTabs == null ? "" : `Abas do Flow: ${d.flowProjectTabs}`,
+      d.videoCandidates == null ? "" : `Vídeos candidatos: ${d.videoCandidates}`,
+      d.toolbarCandidates == null ? "" : `Botões de download candidatos: ${d.toolbarCandidates}`,
+      d.resolutionCandidates == null ? "" : `Opções 720p: ${d.resolutionCandidates}`,
+    ].filter(Boolean).join(" | ");
+    const frames = d.frames?.length ? ` | Quadros analisados: ${d.frames.map(f => `${f.frame ?? "?"}=${f.eligible ?? "erro"}`).join(", ")}` : "";
+    return `Etapa: ${stages[d.stage ?? ""] ?? "Não identificada"}. Motivo: ${reasons[d.reason ?? ""] ?? "Falha não classificada"}. ${counts}${frames}`;
+  }
 
   async function invoke(action: string, extra: Record<string, unknown> = {}) {
     const supabase = getSupabase();
@@ -56,7 +91,12 @@ export function PrivateBrowserConnection() {
         flow_settings_option_not_found: "O painel abriu, mas uma opção de configuração não foi identificada.",
         flow_generate_button_unverified: "As configurações foram concluídas, mas o botão Gerar não foi identificado com segurança.",
       };
-      throw new Error(typeof code === "string" ? (labels[code] ?? code) : "Não foi possível acessar o Chrome.");
+      const baseMessage = typeof code === "string" ? (labels[code] ?? code) : "Não foi possível acessar o Chrome.";
+      const diagnostic = data?.diagnostic ?? (error && "context" in error && error.context instanceof Response
+        ? (await error.context.clone().json().catch(() => null))?.diagnostic : undefined);
+      throw new Error(action === "video_train"
+        ? `${baseMessage}\n${explainVideoDiagnostic(diagnostic)}`
+        : baseMessage);
     }
     return data;
   }
@@ -84,7 +124,7 @@ export function PrivateBrowserConnection() {
   async function trainVideoDownload() {
     if (busy || videoBusy || !viewUrl) return;
     setVideoBusy(true);
-    setMessage("Localizando o menu e a resolução 720p do vídeo concluído...");
+    setMessage("Robô de download iniciado: verificando primeiro vídeo, editor e botão de download...");
     try {
       const result = await invoke("video_train");
       const video = result.video;
