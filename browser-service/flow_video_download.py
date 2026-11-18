@@ -6,6 +6,9 @@ ambiguous global or thumbnail three-dot menus.
 import asyncio
 import re
 
+# Training pace: leave each click visible in the private Chrome viewer.
+CLICK_OBSERVATION_SECONDS = 2.5
+
 
 async def _locate_editor_download(page, diagnostic):
     """Return one verified download toolbar button, or fail without clicking."""
@@ -153,11 +156,15 @@ async def download_existing_video(page, before_ids, finished_mp4_files, event, s
         diagnostic.update({"stage": "editor_check", "reason": "editor_url_not_confirmed"})
         raise RuntimeError("flow_video_editor_not_open")
     diagnostic.update({"stage": "editor_open", "editorOpen": True, "reason": "verified"})
+    # No extra click: pause after editor opens so the user sees the target.
+    await asyncio.sleep(CLICK_OBSERVATION_SECONDS)
 
     frame, button = await _locate_editor_download(page, diagnostic)
     await button.click(trial=True, timeout=3500)
     await show_click(page, button, "click_video_download_menu")
     await button.click(timeout=3500)
+    # Let the opened resolution menu remain visible before selecting 720p.
+    await asyncio.sleep(CLICK_OBSERVATION_SECONDS)
     diagnostic.update({"stage": "find_720p", "downloadMenuClicked": True,
                        "reason": "resolution_not_verified"})
 
@@ -174,6 +181,8 @@ async def download_existing_video(page, before_ids, finished_mp4_files, event, s
 
     await show_click(page, options.first, "click_video_720p")
     await options.first.click(timeout=3500)
+    # This is the last click. No follow-up click is issued to download.
+    await asyncio.sleep(CLICK_OBSERVATION_SECONDS)
     diagnostic.update({"stage": "wait_for_mp4", "resolutionClicked": True,
                        "reason": "mp4_not_confirmed"})
 
