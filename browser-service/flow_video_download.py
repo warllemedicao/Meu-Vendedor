@@ -67,7 +67,7 @@ async def _open_completed_video(page, event, show_click, diagnostic):
                     const isImg=tag==='img';
                     const style=getComputedStyle(e);
                     const isBg=!isVideo&&!isImg&&style.backgroundImage!=='none'&&
-                        /url\\(/i.test(style.backgroundImage);
+                        style.backgroundImage.includes("url(");
                     if(!isVideo&&!isImg&&!isBg)continue;
                     if(isVideo)rawVideo++;else if(isImg)rawImage++;else rawBackground++;
                     const r=e.getBoundingClientRect();
