@@ -2295,3 +2295,14 @@ git fetch origin
 git switch -c recuperacao-marco-tudo-funcionando origin/backup/marco-tudo-funcionando-2026-11-18
 ```
 Antes de qualquer deploy, revisar diferenças, testes e configurações do serviço. Esse backup abrange **apenas arquivos versionados no GitHub**; não inclui tokens, cookies, sessão Google, Volume do Modal, estado externo do Flow ou configuração publicada no Supabase/Cloudflare. Não desenvolver diretamente na branch de backup.
+
+
+## 2026-11-18 — Diagnóstico do Chromium no Modal (somente leitura; teste pendente)
+
+**Motivo:** o usuário relatou que o robô conclui `stage_completed` após `click_generate`, mas o Google Flow mostra `Tente de novo`; a tentativa manual dentro do mesmo Chromium falha, enquanto o Flow no navegador habitual funciona. Isso **não comprova bloqueio**; pode ser falha do serviço, conta/sessão ou ambiente de execução.
+
+**Modificação:** em `browser-service/app.py`, foi acrescentado `observe_chrome_errors()`, observador Playwright/CDP local iniciado junto com o Chrome e desligado ao encerrar a sessão. Ele monitora erros de Console, erros JavaScript, respostas HTTP 4xx/5xx e falhas de requisição, incluindo interações manuais após o estágio do robô. Logs são emitidos como `mv_chrome_diagnostic` com **somente** horário, classe do evento, código HTTP, tipo de recurso, classe categorizada do erro e grupo conhecido de host (Flow, Google, Google APIs). Nunca armazenar mensagens brutas, URLs, parâmetros de requisição, headers, cookies, tokens, conteúdo de página, imagens ou prompt. Se a captura falhar, emitir `observer_failed` com o nome da classe de exceção sem falhar a operação do robô.
+
+**Escopo e proteção:** sem modificação dos seletores, cliques, referências, regras de configuração `Nunca`, botão Salvar, botão Gerar ou estado do perfil. **Nenhuma limpeza de cache foi implementada nesta etapa** para não destruir possíveis evidências antes do diagnóstico. Backup `backup/marco-tudo-funcionando-2026-11-18` deve permanecer intocado.
+
+**Status:** código com commit `5282756a28895491c9fb4eb7f5b84b9d9f1da334`; publicação do Modal e teste real **não executados pelo assistente**. Atualizar o Codespaces e publicar usando `python -m modal deploy browser-service/modal_app.py`. Consultar `modal app logs meu-vendedor-private-browser` e filtrar `mv_chrome_diagnostic`; primeiro verificar `observer_attached`. Investigar o erro sem tentar contornar restrições do Google.
