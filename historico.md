@@ -2490,3 +2490,10 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - O `browser-service/app.py` agora registra `click_video_preview` e sinaliza `flow_video_editor_not_open`. O bridge Supabase foi preparado para repassar o novo código de erro.
 - **Nenhum teste real de download automático foi executado após esta alteração; não declarar treino aprovado.** O botão do editor pode não ter rótulo acessível de download; nessa situação, a rotina para com erro e um diagnóstico específico da barra será necessário. Não emitir clique em botão não verificado.
 - Não modificados: `single_image.py`, `two_images.py`, `three_images.py`, configurações, prompt, botão Gerar, Cloudflare.
+
+
+### 2026-11-18 — Diagnóstico flow_video_not_unique (nenhum clique)
+- O botão de treinamento retornou `flow_video_not_unique` e o gravador capturou 0 eventos. A falha ocorre antes de abrir o vídeo, na busca do preview dentro da biblioteca; não significa falha no botão 720p.
+- Alteração isolada em `browser-service/flow_video_download.py`: agora considera `video` e `[role="video"]` visíveis dentro da tela, ignora mídias pequenas/retratos, remove duplicatas geométricas e exige exatamente um vídeo elegível. Publica diagnóstico sem textos privados (`mv_video_preview_diagnostic`: contagem por frame).
+- Caso haja mais de um vídeo elegível ou nenhum, **não clica aleatoriamente**. O usuário pode abrir manualmente o vídeo pretendido no editor (`/edit/`) e então acionar o botão do robô de download para testar os passos restantes sem nova geração.
+- Não alterados: fluxo de imagens (single_image, two_images, three_images), criação, configurações, Gerar, Cloudflare, Supabase. **Requer novo deploy Modal e teste real; não declarado aprovado.**
