@@ -2554,3 +2554,11 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - Adicionados logs sem conteúdos sensíveis `mv_video_resolution_target` (coordenadas previstas) e `mv_video_resolution_click_confirmed` (somente após a execução do clique). Nenhum clique adicional criado.
 - **Pendente** deploy Modal e validação real, inclusive do formato do arquivo baixado. Não declarar o terceiro clique aprovado apenas por `robot-action`; essa marcação ocorre antes do clique.
 - Não alterados `IMAGEM1`, `IMAGEM2`, `IMAGEM3`, rotinas de criação/configuração/geração, Supabase, Cloudflare.
+
+
+### 2026-11-18 — Primeiro clique no canto esquerdo do cartão e indicador preciso
+- O usuário identificou que o primeiro clique manual bem-sucedido foi próximo ao canto esquerdo da miniatura, e pediu que o robô passe a priorizar essa região mesmo se o cartão mudar de tamanho.
+- Alterado exclusivamente o clique inicial em `browser-service/flow_video_download.py`: deslocamento interno relativo ao primeiro cartão da biblioteca (`x` ~11% da largura, limitado a 16–34 px; `y` ~34% da altura), evitando botões sobrepostos no lado direito. Registrado `mv_video_preview_target` com a posição escolhida.
+- `show_red_click`, em `browser-service/app.py`, recebeu parâmetro opcional `position` para desenhar o círculo **na coordenada real** do clique. As demais chamadas existentes continuam usando o centro, preservando os demais módulos e fluxos.
+- **Não alterados:** segundo e terceiro cliques do download no editor, validação de MP4, `single_image.py`, `two_images.py`, `three_images.py`, criação, configuração e geração. Sem deploy Modal/teste real nesta mudança.
+- Os relatórios anteriores mostram tentativas automáticas e cliques manuais durante a captura; ainda não se comprovou que o modo de treinamento interfere no formato baixado. O próximo experimento deverá distinguir capturar cliques sem executar o robô de acionar a automação enquanto a captura está ativa.
