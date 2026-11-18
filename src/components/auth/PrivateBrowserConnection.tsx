@@ -6,7 +6,7 @@ import { createVideoAssetUrl, uploadVideoResult, MAX_VIDEO_RESULT_BYTES } from "
 
 type DownloadedVideo = { id: string; name: string; bytes: number; modifiedAt: number };
 
-type BrowserResponse = { videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
+type BrowserResponse = { video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
@@ -76,6 +76,31 @@ export function PrivateBrowserConnection() {
         : "Nenhum MP4 concluído encontrado. Baixe 720p no Chromium e atualize a lista.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao consultar os downloads.");
+    } finally {
+      setVideoBusy(false);
+    }
+  }
+
+  async function trainVideoDownload() {
+    if (busy || videoBusy || !viewUrl) return;
+    setVideoBusy(true);
+    setMessage("Localizando o menu e a resolução 720p do vídeo concluído...");
+    try {
+      const result = await invoke("video_train");
+      const video = result.video;
+      if (!video?.id) throw new Error("O robô não conseguiu confirmar o novo MP4.");
+      setDownloadedVideos((current) => [video, ...current.filter((item) => item.id !== video.id)]);
+      setSelectedDownloadId(video.id);
+      setMessage("Robô baixou o MP4. Agora clique em Enviar MP4 escolhido ao Meu Vendedor, abaixo.");
+    } catch (error) {
+      const labels: Record<string, string> = {
+        flow_video_project_not_unique: "Abra exatamente um projeto do Flow com um vídeo pronto.",
+        flow_video_download_control_not_unique: "O robô não identificou unicamente o menu do vídeo ou a opção 720p. Consulte o relatório.",
+        flow_video_download_not_started: "O clique foi tentado, mas nenhum novo MP4 foi confirmado em Downloads.",
+        flow_video_download_failed: "Não foi possível concluir o treinamento do download. Confira o vídeo aberto.",
+      };
+      const code = error instanceof Error ? error.message : "";
+      setMessage(labels[code] ?? (code || "Falha no treinamento do download."));
     } finally {
       setVideoBusy(false);
     }
@@ -290,12 +315,19 @@ export function PrivateBrowserConnection() {
       </button>
       <div className="space-y-2 rounded-lg border border-border p-3">
         <p className="text-sm font-medium">Treinamento do download — vídeo já gerado</p>
-        <p className="text-xs text-muted">Abra um vídeo concluído na biblioteca do Flow. Inicie a captura para registrar seus cliques no menu de download e na opção 720p, sem enviar imagens ou gerar outro vídeo. O robô automático de download ainda será treinado a partir desse relatório.</p>
-        <button type="button" disabled={busy || learningBusy || !viewUrl}
-          onClick={() => void toggleLearning()}
-          className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
-          {learningBusy ? "Aguarde..." : learning ? "Finalizar relatório de cliques do download" : "Iniciar treinamento e relatório de cliques"}
-        </button>
+        <p className="text-xs text-muted">Abra um vídeo concluído na biblioteca do Flow. Inicie a captura para registrar seus cliques no menu de download e na opção 720p, sem enviar imagens ou gerar outro vídeo. O botão ao lado testa a identificação do menu e a seleção de 720p em um vídeo já pronto, sem acionar Gerar. Para registrar o teste, inicie a captura antes.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" disabled={busy || learningBusy || videoBusy || !viewUrl}
+            onClick={() => void toggleLearning()}
+            className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
+            {learningBusy ? "Aguarde..." : learning ? "Finalizar relatório de cliques do download" : "Iniciar treinamento e relatório de cliques"}
+          </button>
+          <button type="button" disabled={busy || videoBusy || learningBusy || !viewUrl}
+            onClick={() => void trainVideoDownload()}
+            className="rounded-lg bg-primary px-3 py-2 text-sm text-white disabled:opacity-50">
+            {videoBusy ? "Treinando download..." : "Treinar robô de download"}
+          </button>
+        </div>
         {learning && <p role="status" className="text-xs">Captura ativa. Clique manualmente no menu do vídeo já concluído, escolha Baixar e 720p, depois finalize o relatório aqui.</p>}
         {learningResult && <p className="text-xs text-muted">O relatório está disponível na seção Diagnóstico do navegador, abaixo.</p>}
       </div>
