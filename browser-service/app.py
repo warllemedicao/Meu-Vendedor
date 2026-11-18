@@ -885,7 +885,18 @@ async def flow_upload_references(page, images, prompt_control):
     # Open the composer menu first, as observed in the live Flow interface.
     if not await open_add_elements():
         raise RuntimeError("flow_add_elements_not_found")
-    if not await click_upload():
+    # Flow renders the add-elements popup asynchronously. The preceding click
+    # can succeed while the nested "Fazer upload" action is still hydrating.
+    # Wait for the existing, approved upload control; do NOT alter the image
+    # 1/2/3 selection modules or any later settings/generation logic.
+    upload_found = False
+    upload_deadline = time.monotonic() + 8
+    while time.monotonic() < upload_deadline:
+        if await click_upload():
+            upload_found = True
+            break
+        await page.wait_for_timeout(400)
+    if not upload_found:
         record_event("upload_not_found")
         raise RuntimeError("flow_upload_action_not_found")
 
