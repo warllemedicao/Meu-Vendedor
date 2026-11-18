@@ -2539,3 +2539,10 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - Correção isolada em `browser-service/app.py`: aceitar arquivos estáveis sem extensão **somente** se o nome for um identificador hexadecimal/hífen de 32–64 caracteres, o cabeçalho contiver `ftyp` e marcas compatíveis com vídeo MP4; exclui transferências incompletas, arquivos grandes, links simbólicos e outras extensões. O arquivo original do Chrome não é renomeado (preserva o histórico); a lista do Meu Vendedor apresenta o nome normalizado com `.mp4` e a importação segue com nome `google-flow-video.mp4`.
 - Não alterar `flow_video_download.py` nem os fluxos aprovados de clique, imagens e geração. Não houve acesso aos bytes originais do download nem teste de produção após a correção; manter status de MP4 automático **pendente de validação real**.
 - Requer `git pull` e `python -m modal deploy browser-service/modal_app.py`. Nenhum deploy adicional de Supabase ou Cloudflare necessário.
+
+
+### 2026-11-18 — Pausas visuais nos três cliques do download
+- Usuário mostrou captura do Flow com a notificação "O download do vídeo foi concluído" e relatório registrando `click_video_preview`, `click_video_download_menu`, `click_video_720p` seguidos de `wait_for_mp4/download_timeout`.
+- No módulo isolado `browser-service/flow_video_download.py`, adicionada pausa observável de 2,5 segundos após abrir o editor, após abrir o menu de download e após clicar em 720p. Mantidos círculo vermelho, seleção 720p, e verificação de MP4. **Nenhum quarto clique foi adicionado**.
+- O aviso de conclusão do Flow prova que a interface informou download concluído, mas não comprova o contêiner/assinatura MP4 do arquivo. A detecção segura por bytes em `finished_mp4_files()` permanece; não renomear cegamente arquivos desconhecidos nem afirmar sucesso antes de validar. Pendente repetir teste real.
+- Arquivos `single_image.py`, `two_images.py`, `three_images.py`, prompt, configuração e geração preservados. A atualização isolada requer novo deploy Modal; sem alterações em Cloudflare ou Supabase.
