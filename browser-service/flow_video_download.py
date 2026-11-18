@@ -130,13 +130,21 @@ async def _open_completed_video(page, event, show_click, diagnostic):
         "kind": chosen["kind"], "left": round(chosen["left"]),
         "top": round(chosen["top"]), "candidates": len(candidates)
     }), flush=True)
-    # Click the surface of the selected thumbnail, not any overlay control.
-    # The reference screenshot's card actions are at its upper-right.
-    await video.click(trial=True, timeout=3500,
-                      position={"x": chosen["width"]*.45, "y": chosen["height"]*.55})
-    await show_click(page, video, "click_video_preview")
-    await video.click(timeout=3500,
-                      position={"x": chosen["width"]*.45, "y": chosen["height"]*.55})
+    # Use the left-hand interior of the FIRST gallery thumbnail, following the
+    # user's successful manual click. A relative offset stays inside the card
+    # when Flow changes its size. Never click the overlay at the right edge.
+    preview_position = {
+        "x": max(16, min(34, chosen["width"] * 0.11)),
+        "y": max(18, min(chosen["height"] - 18, chosen["height"] * 0.34)),
+    }
+    print("mv_video_preview_target " + json.dumps({
+        "x": round(chosen["left"] + preview_position["x"]),
+        "y": round(chosen["top"] + preview_position["y"]),
+        "region": "left_inside_card"
+    }), flush=True)
+    await video.click(trial=True, timeout=3500, position=preview_position)
+    await show_click(page, video, "click_video_preview", position=preview_position)
+    await video.click(timeout=3500, position=preview_position)
     diagnostic.update({"stage": "wait_for_editor", "previewClicked": True,
                        "reason": "editor_navigation_pending"})
     try:
