@@ -880,30 +880,50 @@ async def configure_flow_agent(page, prompt_control):
     # Prefer the prominent Save button physically below the Veo 3.1 model selector.
     # Flow sometimes renders this footer outside the dialog container.
     save_candidates = []
-    for frame in page.frames[:8]:
+    # Read-only diagnostics; keep the approved Save-by-Veo selection unchanged.
+    # No page text, prompts, URLs, HTML, cookies, or coordinates are logged.
+    save_diagnostics = []
+    for frame_index, frame in enumerate(page.frames[:8]):
         veo_labels = frame.get_by_text(re.compile(r"Veo\s*3\.1", re.I))
         anchors = []
-        for i in range(min(await veo_labels.count(), 12)):
+        veo_total = await veo_labels.count()
+        for i in range(min(veo_total, 12)):
             label = veo_labels.nth(i)
             if await label.is_visible():
                 anchors.append(await label.bounding_box())
         anchors = [box for box in anchors if box]
-        if not anchors:
-            continue
         controls = frame.get_by_role("button", name=re.compile(r"^(Salvar|Save)$", re.I))
-        for i in range(min(await controls.count(), 12)):
+        save_total = await controls.count()
+        save_visible = 0
+        save_enabled = 0
+        save_below_veo = 0
+        for i in range(min(save_total, 12)):
             button = controls.nth(i)
-            if not await button.is_visible() or not await button.is_enabled():
+            if not await button.is_visible():
                 continue
+            save_visible += 1
+            if not await button.is_enabled():
+                continue
+            save_enabled += 1
             box = await button.bounding_box()
             if not box:
                 continue
-            # Same column and below the Veo model label, never a distant Save button.
+            # Same geometry and column check as the approved milestone.
             if any(box["y"] > anchor["y"] + anchor["height"] and
                    box["x"] < anchor["x"] + anchor["width"] + 180 and
                    box["x"] + box["width"] > anchor["x"] - 180
                    for anchor in anchors):
+                save_below_veo += 1
                 save_candidates.append(button)
+        save_diagnostics.append({
+            "frame": frame_index, "veoTotal": veo_total,
+            "veoVisible": len(anchors), "saveTotal": save_total,
+            "saveVisible": save_visible, "saveEnabled": save_enabled,
+            "saveBelowVeo": save_below_veo,
+        })
+    print("mv_settings_save_diagnostic " + __import__("json").dumps({
+        "frames": save_diagnostics, "candidateCount": len(save_candidates),
+    }), flush=True)
     if len(save_candidates) != 1:
         record_event("settings_save_candidates_" + str(len(save_candidates)))
         raise RuntimeError("flow_settings_save_not_found" if not save_candidates
