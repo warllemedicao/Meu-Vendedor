@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     method: target.method,
     headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" || action === "learning_start" || action === "video_download" ? { "content-type": "application/json" } : {}) },
     ...(action === "stage" || action === "learning_start" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed, configureAndGenerate: input?.configureAndGenerate === true }) }
-      : action === "video_download" ? { body: JSON.stringify({ appOrigin: origin }) } : {}),,
+      : action === "video_download" ? { body: JSON.stringify({ appOrigin: origin }) } : {}),
     signal: AbortSignal.timeout(action === "stage" ? 120000 : action === "video_download" ? 45000 : action === "start" || action === "learning_start" ? 60000 : 12000),
   }).catch(() => null);
   if (!response) {
