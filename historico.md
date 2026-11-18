@@ -2606,3 +2606,11 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - `supabase/functions/private-browser/index.ts`: ponte autenticada `video_generation_error` para a rota de sondagem. Publicada como Edge `private-browser` **v24 ACTIVE**, JWT obrigatório.
 - Preservados os scripts de imagens `single_image.py`, `two_images.py`, `three_images.py`, configurações, três cliques de download 720p e transferência MP4 já aprovados.
 - **Pendente** Git pull, redeploy Modal e Cloudflare e teste real com banner "Tentar de novo". Ainda não há confirmação da causa raiz das falhas XHR no Google nem de que toda ocorrência visual é detectada. Sem nova geração automática por causa de falha de rede.
+
+
+### 2026-11-18 — Encerrar totalmente a tentativa com "Tentar de novo", preservar login e limpar cache HTTP
+- Requisito confirmado: quando o Flow mostrar `Tentar de novo`, encerrar **a execução do robô**, avisar que o usuário deve repetir manualmente o processo e jamais continuar aguardando 110s ou tentar Gerar/download de forma automática.
+- Adicionada função isolada `abort_failed_generation(page, stage)` em `browser-service/app.py`, acionada após Gerar, durante os 110s e nas verificações adicionais. Marca a tentativa como falha/inativa e impede download de vídeo anterior.
+- Limpeza conservadora executada via sessão CDP vinculada à aba: `Network.clearBrowserCache`, apenas cache HTTP de rede. **Nunca** chama `Network.clearBrowserCookies`, `Storage.clearDataForOrigin` ou exclusão de perfil, IndexedDB, localStorage, service workers ou cookies; Chrome e login Google permanecem abertos. Falha na limpeza não impede a notificação de erro nem cancela a sessão.
+- Log `mv_generation_aborted` inclui `httpCacheCleared` verdadeiro/falso e `loginPreserved:true`; em falha na limpeza há `mv_generation_cache_cleanup` sem expor informações privadas. O frontend avisa que o processo foi encerrado, cache de rede foi solicitado e a repetição depende de novo clique em `Enviar prompt e imagens ao Flow`.
+- Preservados os arquivos de referência `single_image.py`, `two_images.py`, `three_images.py`, configurações, cliques de gerar/download e importação MP4. O bloqueio não resolve por si só a causa das falhas XHR do Flow. **Pendente** publicar Modal e Cloudflare e validar com ocorrência real.
