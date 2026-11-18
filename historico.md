@@ -2521,3 +2521,12 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - Ponte Supabase sanitiza e transmite essas métricas; interface de Conta e conexões apresenta as contagens e motivos em português.
 - **Sem teste real após alteração e sem deploy Modal/Cloudflare confirmados nesta edição.** Se não houver elementos HTML5 video/role=video, precisamos examinar se os cartões são imagens de capa. Não inventar clique por coordenadas sem evidência.
 - Nenhuma alteração em `single_image.py`, `two_images.py`, `three_images.py` ou na geração de vídeos.
+
+
+### 2026-11-18 — Causa do zero candidatos e captura dos cliques manuais no Modal
+- Logs reais enviados: `mv_video_preview_diagnostic {"candidates":0,"frames":[{"frame":0,"eligible":0},...]}`, `POST /session/video/train-download -> 409`. `learning/start` e `learning/stop` retornaram 200, mas **os logs do Modal não traziam as interações manuais**: antes elas eram enviadas apenas à resposta do relatório da interface.
+- Evidência de versão: o log ainda apresenta `eligible` sem os campos `raw`, `visible`, `rejectedSize` e `rejectedPosition`, sugerindo código Modal desatualizado em relação à correção anterior; confirmar deploy ativo antes de inferir que os filtros atualizados falharam.
+- Seleção do primeiro cartão corrigida apenas no módulo independente `browser-service/flow_video_download.py`: procura mídias `img`, `video`, `role=video` e planos de fundo CSS em região de galeria, classifica por fileira de cima e posição esquerda, exclui painel lateral, mostra círculo no alvo e confirma entrada em `/edit/`. Não executa cliques caso nenhum cartão qualificado apareça. Não utiliza os 3 pontos do menu.
+- `LEARNING_SCRIPT` em `browser-service/app.py`: passa a registrar somente o papel do controle e coordenadas do clique no viewport (sem textos, prompt, URLs ou valores). `learning_stop` emite `mv_manual_click_diagnostic` no Modal, com até 25 cliques manuais, para correlacionar ao relatório visual.
+- **Não foi efetuado deploy Modal ou teste real após essas alterações.** Para ativar, atualizar branch e fazer `python -m modal deploy browser-service/modal_app.py`. Não requer alteração em Supabase ou Cloudflare.
+- Arquivos `single_image.py`, `two_images.py`, `three_images.py`, configurações, prompt e geração permanecem intactos.
