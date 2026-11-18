@@ -4,7 +4,9 @@ import { useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 import { createVideoAssetUrl, uploadVideoResult, MAX_VIDEO_RESULT_BYTES } from "@/lib/video-assets";
 
-type BrowserResponse = { downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
+type DownloadedVideo = { id: string; name: string; bytes: number; modifiedAt: number };
+
+type BrowserResponse = { videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
@@ -16,6 +18,8 @@ export function PrivateBrowserConnection() {
   const [videoBusy, setVideoBusy] = useState(false);
   const [savedVideoPath, setSavedVideoPath] = useState("");
   const [savedVideoUrl, setSavedVideoUrl] = useState("");
+  const [downloadedVideos, setDownloadedVideos] = useState<DownloadedVideo[]>([]);
+  const [selectedDownloadId, setSelectedDownloadId] = useState("");
 
   const [prompt, setPrompt] = useState("");
   const [images, setImages] = useState<File[]>([]);
@@ -57,17 +61,37 @@ export function PrivateBrowserConnection() {
     return data;
   }
 
-  async function downloadReadyFlowVideo() {
-    if (busy || videoBusy || !viewUrl) return;
+  async function refreshChromeDownloads() {
+    if (busy || videoBusy) return;
     setVideoBusy(true);
-    setMessage("Procurando o vídeo concluído no Google Flow...");
+    setMessage("Consultando MP4s concluídos no Chromium...");
+    try {
+      const data = await invoke("video_list");
+      const videos = Array.isArray(data.videos) ? data.videos : [];
+      setDownloadedVideos(videos);
+      setSelectedDownloadId((selected) => videos.some((item) => item.id === selected)
+        ? selected : videos[0]?.id ?? "");
+      setMessage(videos.length
+        ? `Encontrados ${videos.length} MP4(s). Escolha o vídeo para importar.`
+        : "Nenhum MP4 concluído encontrado. Baixe 720p no Chromium e atualize a lista.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha ao consultar os downloads.");
+    } finally {
+      setVideoBusy(false);
+    }
+  }
+
+  async function downloadReadyFlowVideo() {
+    if (busy || videoBusy || !selectedDownloadId) return;
+    setVideoBusy(true);
+    setMessage("Preparando o MP4 escolhido na pasta de downloads...");
     try {
       const supabase = getSupabase();
       if (!supabase) throw new Error("Entre na sua conta do Meu Vendedor.");
       const { data: authData, error: authError } = await supabase.auth.getUser();
       const userId = authData.user?.id;
       if (authError || !userId) throw new Error("Sua sessão expirou. Entre novamente.");
-      const data = await invoke("video_download");
+      const data = await invoke("video_download", { downloadId: selectedDownloadId });
       const downloadUrl = new URL(data.downloadUrl ?? "");
       const viewerOrigin = new URL(viewUrl).origin;
       if (downloadUrl.protocol !== "https:" || downloadUrl.origin !== viewerOrigin
@@ -101,10 +125,8 @@ export function PrivateBrowserConnection() {
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       const labels: Record<string, string> = {
-        flow_video_project_not_unique: "Deixe aberto somente o projeto do Google Flow com o vídeo pronto.",
-        flow_video_not_unique: "Deixe somente um vídeo visível no projeto do Flow antes de baixar.",
-        flow_video_download_control_not_unique: "Não foi possível identificar com segurança o botão Baixar do Flow. Abra o menu do vídeo pronto e tente novamente.",
-        flow_video_download_not_started: "O Flow não iniciou o download pelo botão identificado. Confira os controles do vídeo na tela.",
+        flow_download_file_not_found: "O arquivo não está mais disponível ou ainda está sendo gravado. Atualize a lista.",
+        invalid_download_selection: "Seleção inválida. Atualize a lista de downloads.",
         flow_video_invalid_mp4: "O Flow não entregou um arquivo MP4 válido.",
         flow_video_download_failed: "O download do Flow falhou; confira o vídeo na tela.",
       };
@@ -141,6 +163,8 @@ export function PrivateBrowserConnection() {
     try {
       await invoke("stop");
       setViewUrl("");
+      setDownloadedVideos([]);
+      setSelectedDownloadId("");
       setLearning(false);
       setLearningResult("");
       setGenerateAuthorized(false);
@@ -257,20 +281,35 @@ export function PrivateBrowserConnection() {
       Encerrar Chrome e robô
     </button>
     <div className="space-y-3 rounded-lg border border-border p-3">
-      <p className="text-sm font-medium">Download manual do vídeo pronto</p>
-      <p className="text-xs text-muted">Deixe aberto no Chromium o projeto do Google Flow com um único vídeo concluído. Este botão não executa o robô nem inicia outra geração. Ele tenta usar o botão oficial Baixar e guarda o MP4 no armazenamento privado do Meu Vendedor.</p>
-      <button type="button" disabled={busy || videoBusy || !viewUrl}
-        onClick={() => void downloadReadyFlowVideo()}
-        className="rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">
-        {videoBusy ? "Transferindo vídeo..." : "Baixar vídeo pronto do Chrome"}
+      <p className="text-sm font-medium">Importar MP4 baixado no Chromium</p>
+      <p className="text-xs text-muted">No Google Flow, abra o menu do vídeo pronto, selecione Baixar e escolha 720p. Quando o download terminar, clique em Procurar downloads. Este processo não executa o robô.</p>
+      <button type="button" disabled={busy || videoBusy}
+        onClick={() => void refreshChromeDownloads()}
+        className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
+        {videoBusy ? "Consultando..." : "Procurar downloads do Chrome"}
       </button>
+      {downloadedVideos.length > 0 && <div className="space-y-2">
+        <label htmlFor="chrome-downloaded-video" className="block text-xs font-medium">Escolher MP4 concluído</label>
+        <select id="chrome-downloaded-video" value={selectedDownloadId}
+          onChange={(event) => setSelectedDownloadId(event.target.value)}
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm">
+          {downloadedVideos.map((item) => <option value={item.id} key={item.id}>
+            {item.name} ({(item.bytes / 1024 / 1024).toFixed(1)} MB)
+          </option>)}
+        </select>
+        <button type="button" disabled={busy || videoBusy || !selectedDownloadId}
+          onClick={() => void downloadReadyFlowVideo()}
+          className="rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">
+          {videoBusy ? "Importando vídeo..." : "Enviar MP4 escolhido ao Meu Vendedor"}
+        </button>
+      </div>}
       {savedVideoUrl && <div className="space-y-2">
-        <p className="text-xs">Vídeo salvo no Meu Vendedor: <code className="break-all">{savedVideoPath}</code></p>
+        <p className="text-xs">MP4 salvo: <code className="break-all">{savedVideoPath}</code></p>
         <video controls playsInline preload="metadata" src={savedVideoUrl}
           className="max-h-[360px] w-full max-w-[250px] rounded-lg" />
         <a href={savedVideoUrl} target="_blank" rel="noopener noreferrer"
-          className="inline-block text-sm underline">Abrir vídeo salvo</a>
-        <p className="text-xs text-muted">Link temporário de 5 minutos; o MP4 permanece no armazenamento privado.</p>
+          className="inline-block text-sm underline">Visualizar ou baixar MP4 salvo</a>
+        <p className="text-xs text-muted">O link expira em 5 minutos, mas o MP4 permanece privado no Supabase.</p>
       </div>}
     </div>
     <div className="space-y-3 rounded-lg border border-border p-3">
