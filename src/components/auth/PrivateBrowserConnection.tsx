@@ -7,7 +7,7 @@ import { createVideoAssetUrl, uploadVideoResult, MAX_VIDEO_RESULT_BYTES } from "
 type DownloadedVideo = { id: string; name: string; bytes: number; modifiedAt: number };
 
 type DownloadDiagnostic = { stage?: string; reason?: string; flowProjectTabs?: number | null; videoCandidates?: number | null; toolbarCandidates?: number | null; resolutionCandidates?: number | null; previewClicked?: boolean; editorOpen?: boolean; downloadMenuClicked?: boolean; resolutionClicked?: boolean; frames?: { frame?: number | null; eligible?: number | null; raw?: number | null; visible?: number | null; rejectedSize?: number | null; rejectedPosition?: number | null }[] };
-type BrowserResponse = { diagnostic?: DownloadDiagnostic; video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; ready?: boolean; reason?: string; settingsApplied?: boolean };
+type BrowserResponse = { diagnostic?: DownloadDiagnostic; video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; ready?: boolean; failed?: boolean; reason?: string; settingsApplied?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
@@ -254,8 +254,17 @@ export function PrivateBrowserConnection() {
       if (result.generationStarted) {
         // No new Generate clicks here. Poll the exact project created by the
         // successful stage, and never download an old existing thumbnail.
-        setMessage("Geração acionada. Aguardando 110 segundos antes de verificar o vídeo...");
-        await new Promise<void>((resolve) => setTimeout(resolve, 110_000));
+        setMessage("Geração acionada. Monitorando o Flow durante os 110 segundos...");
+        // The old single 110s sleep hid a visible "Tentar de novo" failure.
+        // Poll for failure only; do not download before the 110s checkpoint.
+        for (let elapsed = 0; elapsed < 110; elapsed += 5) {
+          const check = await invoke("video_generated_ready");
+          if (check.failed || check.reason === "flow_try_again") {
+            setMessage("O Google Flow exibiu 'Tentar de novo'. A geração foi interrompida e o robô não aguardará nem fará download. Verifique sua conexão e o estado do Flow; depois clique novamente em Enviar prompt e imagens ao Flow para iniciar uma nova tentativa.");
+            return;
+          }
+          await new Promise<void>((resolve) => setTimeout(resolve, 5_000));
+        }
         let ready = false;
         for (let attempt = 0; attempt <= 7; attempt += 1) {
           if (attempt > 0) {
@@ -263,6 +272,10 @@ export function PrivateBrowserConnection() {
             await new Promise<void>((resolve) => setTimeout(resolve, 10_000));
           }
           const check = await invoke("video_generated_ready");
+          if (check.failed || check.reason === "flow_try_again") {
+            setMessage("O Flow exibiu 'Tentar de novo'. Processo interrompido sem download. Confira sua conexão e tente gerar novamente pelo botão do Meu Vendedor.");
+            return;
+          }
           if (check.ready === true) {
             ready = true;
             break;
