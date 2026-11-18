@@ -25,7 +25,7 @@ context = None
 browser_monitor_task = None
 video_download_tickets = {}
 # Only the most recent explicitly authorized generation may trigger automatic download.
-generation_watch = {"active": False, "baseline": [], "projectUrl": "", "startedAt": 0.0, "ready": False}
+generation_watch = {"active": False, "baseline": [], "projectUrl": "", "startedAt": 0.0, "ready": False, "newFirstObserved": False}
 MAX_MANUAL_VIDEO_BYTES = 100 * 1024 * 1024
 
 
@@ -537,15 +537,24 @@ async def generated_video_ready(request: Request):
                 if len(pages) != 1:
                     return {"ready": False, "reason": "project_not_visible"}
                 page = pages[0]
-                if generation_watch["ready"] and "/edit/" in page.url:
-                    return {"ready": True, "reason": "editor_confirmed"}
                 if "/edit/" in page.url:
+                    if generation_watch["ready"]:
+                        return {"ready": True, "reason": "editor_confirmed"}
+                    if generation_watch["newFirstObserved"]:
+                        from flow_video_download import _locate_editor_download
+                        try:
+                            await _locate_editor_download(page, {})
+                            generation_watch["ready"] = True
+                            return {"ready": True, "reason": "editor_confirmed"}
+                        except Exception:
+                            return {"ready": False, "reason": "editor_not_ready"}
                     return {"ready": False, "reason": "gallery_not_visible"}
                 current = await gallery_thumbnail_fingerprints(page)
                 baseline = set(generation_watch["baseline"])
                 new_first = bool(current and current[0] not in baseline)
                 if not new_first:
                     return {"ready": False, "reason": "still_processing"}
+                generation_watch["newFirstObserved"] = True
                 # Opening the generated card must navigate to a real /edit/
                 # page with the known download toolbar. If Flow is still
                 # processing, it will fail safely and the UI retries in 10s.
@@ -1840,6 +1849,7 @@ async def stage_flow(request: Request):
                             "active": True, "baseline": before_generation,
                             "projectUrl": page.url.split("/edit/")[0],
                             "startedAt": time.monotonic(), "ready": False,
+                            "newFirstObserved": False,
                         })
                         print("mv_generation_watch " + __import__("json").dumps({
                             "started": True, "baselineCount": len(before_generation)
