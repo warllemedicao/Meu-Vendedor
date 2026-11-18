@@ -367,7 +367,7 @@ async def train_flow_download(request: Request):
                     if len(pages) != 1:
                         raise RuntimeError("flow_video_project_not_unique")
                     before = {item["id"] for item in finished_mp4_files()}
-                    video = await download_existing_video(pages[0], before, finished_mp4_files, record_event)
+                    video = await download_existing_video(pages[0], before, finished_mp4_files, record_event, show_red_click)
                     return {"status": "download_completed", "video": video}
                 finally:
                     # Disconnect only. Never close the user's Chromium process.
