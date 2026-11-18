@@ -51,6 +51,7 @@ Deno.serve(async (req) => {
     learning_stop: { path: "/session/learning/stop", method: "POST" },
     learning_status: { path: "/session/learning/status", method: "GET" },
     stage: { path: "/session/stage", method: "POST" },
+    video_download: { path: "/session/video/prepare", method: "POST" },
     start: { path: "/session/start", method: "POST" },
     stop: { path: "/session/stop", method: "POST" },
     view: { path: "/session/view-ticket", method: "POST" },
@@ -66,9 +67,10 @@ Deno.serve(async (req) => {
   const startedAt = Date.now();
   const response = await fetch(new URL(target.path, base), {
     method: target.method,
-    headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" || action === "learning_start" ? { "content-type": "application/json" } : {}) },
-    ...(action === "stage" || action === "learning_start" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed, configureAndGenerate: input?.configureAndGenerate === true }) } : {}),
-    signal: AbortSignal.timeout(action === "stage" ? 120000 : action === "start" || action === "learning_start" ? 60000 : 12000),
+    headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" || action === "learning_start" || action === "video_download" ? { "content-type": "application/json" } : {}) },
+    ...(action === "stage" || action === "learning_start" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed, configureAndGenerate: input?.configureAndGenerate === true }) }
+      : action === "video_download" ? { body: JSON.stringify({ appOrigin: origin }) } : {}),,
+    signal: AbortSignal.timeout(action === "stage" ? 120000 : action === "video_download" ? 45000 : action === "start" || action === "learning_start" ? 60000 : 12000),
   }).catch(() => null);
   if (!response) {
     console.log(JSON.stringify({ source: "private_browser_bridge", action, outcome: "upstream_unreachable",
@@ -92,6 +94,9 @@ Deno.serve(async (req) => {
       "flow_settings_save_not_found", "flow_generate_button_unverified",
       "flow_interaction_failed",
       "invalid_draft", "payload_too_large",
+      "flow_video_project_not_unique", "flow_video_not_unique",
+      "flow_video_download_control_not_unique", "flow_video_download_not_started",
+      "flow_video_download_failed", "flow_video_invalid_mp4", "browser_not_running",
     ]);
     const code = typeof result?.detail === "string" && allowed.has(result.detail)
       ? result.detail : "browser_unavailable";
@@ -116,6 +121,16 @@ Deno.serve(async (req) => {
       }));
     console.log(JSON.stringify({ source: "private_browser_diagnostics",
       running: result.running === true, processExited: result.diagnostics.processExited === true, events }));
+  }
+  if (action === "video_download") {
+    if (typeof result?.ticket !== "string" || !/^[A-Za-z0-9_-]{32,128}$/.test(result.ticket)
+        || typeof result?.bytes !== "number" || result.bytes <= 0 || result.bytes > 100 * 1024 * 1024) {
+      return reply({ error: "browser_unavailable" }, 502);
+    }
+    return reply({
+      downloadUrl: new URL("/session/video/file?ticket=" + encodeURIComponent(result.ticket), base).toString(),
+      bytes: result.bytes,
+    });
   }
   if (action === "view") {
     if (typeof result?.ticket !== "string" || !/^[A-Za-z0-9_-]{32,128}$/.test(result.ticket))
