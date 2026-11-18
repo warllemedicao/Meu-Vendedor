@@ -338,7 +338,7 @@ async def prepare_manual_flow_video(request: Request):
                 # Never guess an unlabeled menu or scrape private video URLs.
                 # Only click one uniquely labeled, visible Flow download control.
                 candidates = []
-                pattern = re.compile(r"^(?:Baixar|Download|Fazer download|Download video|Baixar vídeo)(?:\\s*(?:vídeo|video|mp4))?$", re.I)
+                pattern = re.compile(r"^(?:Baixar|Download|Fazer download|Download video|Baixar vídeo)(?:\s*(?:vídeo|video|mp4))?$", re.I)
                 for frame in page.frames[:8]:
                     for role in ("button", "menuitem"):
                         options = frame.get_by_role(role, name=pattern)
