@@ -1228,7 +1228,6 @@ async def stage_flow(request: Request):
             # Sanitized failure code and exception class only; never log browser text.
             print("mv_stage_failure_diagnostic " + __import__("json").dumps({
                 "code": code, "errorType": type(exc).__name__,
-                "settingsSaveProbeReached": False,
             }), flush=True)
             raise HTTPException(409, code) from None
 
