@@ -2504,3 +2504,11 @@ git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2
 - Ajustado apenas `browser-service/flow_video_download.py`: seleção por posição visual (fileira superior, esquerda primeiro), em vez de exigir exatamente um candidato. Mantidos os filtros de miniatura de vídeo visível na região da galeria, confirmação de navegação `/edit/`, círculos vermelhos e proibição de acessar menu global ou gerar vídeo.
 - O Modal passa a emitir `mv_video_preview_selection` com regra, número de candidatos e coordenadas aproximadas do alvo; se nenhum vídeo elegível for detectado continua abortando sem clicar. Sem captura de conteúdo privado.
 - **Pendente:** deploy Modal e teste real. Não declarar o primeiro clique validado após essa alteração. Nenhum arquivo de imagens, fluxo de geração, Supabase ou Cloudflare foi modificado.
+
+
+### 2026-11-18 — Relatórios de diagnóstico explícito para robô de download
+- Problema relatado: o teste terminava com `Interações capturadas: 0` sem explicar por que nenhum clique foi feito.
+- Implementado `diagnostic` por etapas somente no módulo `browser-service/flow_video_download.py`: projeto Flow, vídeos elegíveis na biblioteca, clique na miniatura, confirmação do editor, botão de download, opção 720p e validação do MP4. A causa é categorizada e os candidatos são contados; sem coletar prompts, textos de página, credenciais ou URLs.
+- `browser-service/app.py` registra `mv_video_download_failure` no Modal e insere evento `robot-diagnostic` no próprio relatório de cliques, inclusive quando 0 cliques aconteceram. Falhas de download retornam `detail: {code,diagnostic}`.
+- `supabase/functions/private-browser/index.ts` sanitiza a resposta e encaminha apenas códigos, etapas e contagens conhecidas. `PrivateBrowserConnection.tsx` mostra ao usuário, em português, etapa, causa e números diagnosticados.
+- Os módulos de imagens, configuração e geração não foram modificados. Sem teste real do Flow nesta alteração. Requer atualizar código no Codespaces, publicar Modal, Supabase e Cloudflare, e verificar falha de zero cliques.
