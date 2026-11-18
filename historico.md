@@ -2279,3 +2279,19 @@ A auditoria confirmou que faltava um destino TikTok no frontend, tipo da Edge Fu
 **Implementação somente na função `configure_flow_agent()`:** após localizar o painel de configurações, identifica `Nunca` como rádio pelo nome acessível; se o texto for externo ao elemento de rádio, utiliza como alternativa um texto **exato** `Nunca` e exige um único rádio visível associado ao seu contêiner. Clica apenas se a opção ainda não estiver selecionada e exige a confirmação de estado selecionado (`aria-checked`, `checked` ou `data-state`) antes de seguir. Emite `mv_settings_confirmation_diagnostic` com a escolha verificada; falhas específicas `flow_settings_never_not_found` e `flow_settings_never_unverified`. Não faz cliques arbitrários em caso de ambiguidade.
 
 **Proteções:** nenhum ajuste de upload, seleção de 1/2/3 imagens, proporções 9:16/x1, busca e salvamento do botão Salvar ou clique em Gerar vídeo. **O backup `backup/flow-salvar-gerar-aprovado-2026-11-18` permanece intocado**, com o comportamento anterior de pedir confirmação. O novo comportamento **ainda não foi publicado no Modal nem comprovado em teste real** no momento deste registro. Para publicar no ambiente configurado: atualizar a branch no Codespaces, validar sintaxe e executar `python -m modal deploy browser-service/modal_app.py`. Verificar os logs e evitar gerar vídeos de teste desnecessários, pois a confirmação de créditos estará desativada no projeto.
+
+
+## 2026-11-18 — MARCO TUDO FUNCIONANDO — backup de recuperação
+
+**Confirmação do usuário:** após a publicação e teste, a nova configuração `Confirmar antes de gerar → Nunca` funcionou corretamente. Este resultado complementa o teste anterior que confirmou a sequência `click_settings` (abertura e salvamento), `click_generate` e `stage_completed` com uma imagem.
+
+**Referência preservada:** criar branch imutável para desenvolvimento `backup/marco-tudo-funcionando-2026-11-18` com o código desta confirmação. O marco inclui a correção do botão Salvar (fallback para um único botão visível e habilitado no painel validado) e a seleção/validação da opção Nunca. O backup mais antigo `backup/flow-salvar-gerar-aprovado-2026-11-18` continua disponível e não foi alterado.
+
+**Limites da comprovação:** confirmado pelo usuário o funcionamento da configuração Nunca. O último relatório documental de sucesso de Gerar foi o teste anterior com uma imagem. Não afirmar, sem novos logs, que a versão com Nunca já concluiu MP4 ou que houve novos testes completos com duas e três imagens.
+
+**Recuperação não destrutiva:**
+```bash
+git fetch origin
+git switch -c recuperacao-marco-tudo-funcionando origin/backup/marco-tudo-funcionando-2026-11-18
+```
+Antes de qualquer deploy, revisar diferenças, testes e configurações do serviço. Esse backup abrange **apenas arquivos versionados no GitHub**; não inclui tokens, cookies, sessão Google, Volume do Modal, estado externo do Flow ou configuração publicada no Supabase/Cloudflare. Não desenvolver diretamente na branch de backup.
