@@ -385,6 +385,19 @@ async def train_flow_download(request: Request):
             code = str(exc) if str(exc) in allowed else "flow_video_download_failed"
             diagnostic.update({"errorCode": code, "exceptionType": type(exc).__name__})
             print("mv_video_download_failure " + __import__("json").dumps(diagnostic), flush=True)
+            if learning_state["active"]:
+                learning_state["events"].append({
+                    "kind": "robot-diagnostic",
+                    "stage": diagnostic.get("stage", "initializing"),
+                    "reason": diagnostic.get("reason", "not_started"),
+                    "code": code,
+                    "videoCandidates": diagnostic.get("videoCandidates", 0),
+                    "toolbarCandidates": diagnostic.get("toolbarCandidates", 0),
+                    "resolutionCandidates": diagnostic.get("resolutionCandidates", 0),
+                    "frames": diagnostic.get("frames", []),
+                    "at": int(time.time())
+                })
+                del learning_state["events"][:-200]
             # Fixed fields only: no page text, prompts, URLs, cookies or secrets.
             raise HTTPException(409, detail={"code": code, "diagnostic": diagnostic}) from None
 
