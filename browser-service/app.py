@@ -345,6 +345,54 @@ async def restore_native_download_behavior(browser, *, stage="unspecified"):
             await session.detach()
 
 
+def diagnostic_download_files():
+    """Safe file-type inventory: no filenames, content, URLs or credentials."""
+    import stat as statlib
+    rows = []
+    now = time.time()
+    for folder in DOWNLOAD_SEARCH_DIRS:
+        if not folder.is_dir() or folder.is_symlink():
+            continue
+        try:
+            entries = list(folder.iterdir())[-120:]
+        except OSError:
+            continue
+        for entry in entries:
+            try:
+                info = entry.lstat()
+                if not statlib.S_ISREG(info.st_mode) or now - info.st_mtime > 240:
+                    continue
+                with entry.open("rb") as handle:
+                    head = handle.read(64)
+                if len(head) >= 12 and head[4:8] == b"ftyp":
+                    kind = "iso_bmff_ftyp"
+                elif head.startswith(b"\\x1aE\\xdf\\xa3"):
+                    kind = "matroska_webm"
+                elif head.startswith(b"RIFF") and head[8:12] == b"AVI ":
+                    kind = "avi"
+                elif head.startswith(b"PK\\x03\\x04"):
+                    kind = "zip"
+                elif head.lstrip().startswith((b"{", b"[")):
+                    kind = "json_like"
+                elif head.lstrip().startswith((b"<", b"<!")):
+                    kind = "html_xml_like"
+                elif not head:
+                    kind = "empty"
+                else:
+                    kind = "unknown_binary"
+                suffix = entry.suffix.lower()
+                ext_class = ("mp4" if suffix == ".mp4" else
+                             "partial" if suffix in (".crdownload", ".tmp") else
+                             "none" if not suffix else "other")
+                rows.append({"type": kind, "extension": ext_class,
+                             "bytes": info.st_size,
+                             "ageSeconds": round(max(0, now - info.st_mtime))})
+            except OSError:
+                continue
+    rows.sort(key=lambda row: row["ageSeconds"])
+    return rows[:25]
+
+
 def finished_mp4_files():
     """Find completed MP4 payloads, even when Chrome saved a UUID without .mp4.
 
@@ -417,6 +465,10 @@ async def train_flow_download(request: Request):
                     if len(pages) != 1:
                         raise RuntimeError("flow_video_project_not_unique")
                     before = {item["id"] for item in finished_mp4_files()}
+                    print("mv_download_file_types " + __import__("json").dumps({
+                        "phase": "before_automated_clicks",
+                        "files": diagnostic_download_files()
+                    }), flush=True)
                     video = await download_existing_video(
                         pages[0], before, finished_mp4_files, record_event, show_red_click, diagnostic)
                     return {"status": "download_completed", "video": video}
@@ -429,6 +481,11 @@ async def train_flow_download(request: Request):
                        "flow_video_editor_not_open", "flow_native_download_behavior_unverified"}
             code = str(exc) if str(exc) in allowed else "flow_video_download_failed"
             diagnostic.update({"errorCode": code, "exceptionType": type(exc).__name__})
+            if diagnostic.get("stage") == "wait_for_mp4":
+                print("mv_download_file_types " + __import__("json").dumps({
+                    "phase": "failed_after_720p",
+                    "files": diagnostic_download_files()
+                }), flush=True)
             print("mv_video_download_failure " + __import__("json").dumps(diagnostic), flush=True)
             if learning_state["active"]:
                 learning_state["events"].append({
