@@ -2346,3 +2346,82 @@ Antes de qualquer deploy, revisar diferenças, testes e configurações do servi
 **Teste de ponta a ponta:** PENDENTE; só a Edge Function foi publicada. Necessário publicar `browser-service/modal_app.py` no Modal e o frontend Cloudflare da branch `feat/navegador-proprio-chromium`, checar `python -m compileall -q browser-service` e `npm run typecheck`, depois abrir Chromium, baixar manualmente via Flow → 720p, clicar Procurar downloads, escolher o MP4 e enviar. Se nada aparecer, conferir o evento `chrome_download_directory_ready` ou `chrome_download_directory_unverified` no Modal e `~/Downloads`.
 
 **Próxima fase SOMENTE após teste aprovado:** treinar o robô para detectar vídeo concluído, abrir o menu correto, escolher Baixar → 720p e reaproveitar esta infraestrutura de recuperação, garantindo armazenamento do MP4 no Supabase antes de encerrar sessão. Manter intactos os seletores aprovados de upload, configuração e Gerar e o backup `backup/marco-tudo-funcionando-2026-11-18`.
+
+
+## 2026-11-18 — CHECKPOINT PRÉ-PUBLICAÇÃO — Chrome → Downloads → Meu Vendedor
+
+**Origem:** decisão expressa antes de executar `git pull`, validações e publicações no Codespaces. Este registro consolida os testes, o estado do código e o plano de recuperação. Não equivale a teste concluído ou publicação confirmada.
+
+### 1. Objetivo e divisão por etapas
+
+- A primeira automação, que já foi exercitada, prepara projeto no Google Flow, insere prompt e 1/2/3 imagens, seleciona referências, inclui, configura `Confirmar antes de gerar: Nunca`, salva as configurações e aciona `Gerar`. O evento `stage_completed` registra somente a conclusão dessa sequência de cliques, **não** a geração do MP4.
+- Após gerar, o usuário realizou manualmente: aguardar vídeo pronto → acessar os controles do vídeo → abrir menu → `Baixar` → escolher `720p`. O Chromium hospedado salvou MP4 em sua pasta interna Downloads. O usuário não tem acesso simples ao caminho físico no Modal.
+- **Etapa atual:** permitir que o Meu Vendedor liste os MP4 da pasta Downloads remota, selecione um arquivo, receba o vídeo, faça upload ao Supabase Storage privado, visualize e disponibilize download pelo aplicativo, **sem** reexecutar o robô e **sem** automatizar o menu do Flow por enquanto.
+- **Etapa futura:** somente após aprovar a importação manual, treinar o robô para aguardar conclusão, identificar menu do vídeo, selecionar Baixar → 720p, confirmar arquivo e usar o fluxo já aprovado de importação. Ainda não implementada.
+
+### 2. Evidências dos testes recentes
+
+- Houve teste bem-sucedido de geração e de download manual 720p confirmado pelo usuário. Os relatórios de captura registram botões, menus, `menuitem`, `aria-expanded` e mudanças estruturais, **mas não os rótulos textuais**; não deduzir nomes de seletores exatos só pelos relatórios.
+- Em outras tentativas, o Flow mostrou `Tentar de novo` e o monitor registrou `request_failed` de XHR para grupo `google` logo após `click_generate`. A relação causal e o código de resposta **não foram determinados**. O usuário tentou `Tentar de novo` duas vezes e, em outra sessão com prompt alterado, gerou com sucesso: isso não prova que o prompt causou as falhas.
+- Houve execução com `flow_interaction_failed` quando duas referências não apareceram na biblioteca (repetidas leituras `matches: 0`), e execução posterior com ambas selecionadas, dois chips incluídos, `Nunca` verificado e `click_generate`. Preservar o comportamento de segurança de parar em vez de clicar em referências incertas.
+- O observador CDP apresentou alternância entre `observer_attached` e `observer_failed` na fase `cdp_connect` após cinco tentativas. É problema independente a investigar; não confundir falha do observador com falha de geração.
+- Aviso Modal `AsyncUsageWarning` em `profile_volume.commit()` síncrono dentro de contexto async foi observado. Não há evidência, só pelo aviso, de corrupção do perfil ou do MP4.
+- Não foram confirmados por teste de ponta a ponta nesta conversa: localização exata da pasta dos downloads anteriores; que arquivo anterior continuará disponível após reciclagem do container; transferir MP4 para o Supabase; prévia reprodutível no Meu Vendedor. Estas são **hipóteses/validações pendentes**.
+
+### 3. Implementação atual (branch de desenvolvimento)
+
+`browser-service/app.py`:
+- Configura pasta de download esperada `/data/browser/downloads`, sob volume persistente já usado no Modal, tenta `Browser.setDownloadBehavior` pelo CDP local e mantém busca alternativa em `~/Downloads`.
+- Endpoint autenticado `GET /session/video/downloads`: lista até 20 arquivos regulares MP4 finalizados, com tamanho de 12 bytes a 100 MB, assinatura `ftyp`, identificador HMAC, nome, tamanho e horário. Não procura arquivos aleatórios fora desses diretórios nem lista dados do perfil.
+- Endpoint autenticado `POST /session/video/prepare`: recebe ID explicitamente escolhido, verifica correspondência, copia MP4 para temporário e devolve ticket aleatório restrito à origem solicitada com expiração de 180 s. `GET /session/video/file` permite usar ticket único e apagar cópia temporária depois da resposta. Original na pasta Downloads não é apagado.
+- O restante do robô não foi modificado para o fluxo 720p.
+
+`supabase/functions/private-browser/index.ts`:
+- `video_list` encaminha listagem autenticada do Modal; `video_download` envia o ID selecionado e devolve URL temporária de transferência sem passar bytes de mídia pela Edge Function.
+- A Edge Function `private-browser` foi **publicada na versão 17 (ACTIVE, verify_jwt=true)** nesta conversa, com as ações acima. A autenticação de usuário proprietário e as verificações de origem permanecem.
+
+`src/components/auth/PrivateBrowserConnection.tsx`:
+- Na própria seção `Google Flow · Chrome próprio` (Lojas e redes), há o botão `Procurar downloads do Chrome`, seletor de MP4 pelo nome/tamanho e `Enviar MP4 escolhido ao Meu Vendedor`.
+- O arquivo é entregue do Modal ao navegador do Meu Vendedor via URL de ticket de uso único, enviado por `uploadVideoResult` ao bucket privado `mv-video-assets` no padrão `<userId>/outputs/<uuid>.mp4`, com player e link temporário assinado de 5 minutos por `createVideoAssetUrl`. A URL temporária expira, mas o armazenamento do MP4 é persistente.
+- **Limite:** o piloto transfere MP4 pelo navegador do usuário antes do upload ao Supabase; otimização direta Modal → Supabase é melhoria futura, não entregue.
+
+`historico.md`: documenta marcos anteriores, hipóteses, limitações e operações de recuperação. `src/lib/video-assets.ts` foi reutilizado sem mudança.
+
+### 4. Estado de publicação e validação ANTES de executar o próximo comando
+
+- **GitHub:** implementação commitada na branch `feat/navegador-proprio-chromium`, em quatro arquivos alterados comparados ao marco anterior: `browser-service/app.py`, `src/components/auth/PrivateBrowserConnection.tsx`, `supabase/functions/private-browser/index.ts`, `historico.md`.
+- **Supabase:** Edge Function `private-browser` v17 publicada e ativa; bucket `mv-video-assets` confirmado privado com limite de 100 MB.
+- **Modal:** a nova leitura da pasta Downloads **não foi publicada nem testada** a partir daqui pelo assistente.
+- **Cloudflare:** a interface atualizada **não foi publicada nem testada** a partir daqui pelo assistente.
+- **Validações pendentes no Codespaces:** `python -m compileall -q browser-service`, `npm run typecheck`, build e deploy. **Não declarar êxito antes da saída efetiva desses comandos.**
+
+### 5. Publicação e teste guiados (apenas depois de revisar este checkpoint)
+
+```bash
+git fetch origin
+git status --short
+git pull --ff-only origin feat/navegador-proprio-chromium
+python -m compileall -q browser-service
+npm run typecheck
+python -m modal deploy browser-service/modal_app.py
+npm run deploy:cloudflare
+```
+
+Se `git status --short` mostrar modificações locais, não forçar `pull` ou sobrescrever trabalho. Verificar se versões de serviço estão alinhadas antes do teste.
+
+**Teste:** abrir navegador no Meu Vendedor, fazer download manual de vídeo concluído via Flow → Baixar → 720p; na interface clicar `Procurar downloads do Chrome`; selecionar MP4 esperado pelo nome e tamanho; clicar `Enviar MP4 escolhido ao Meu Vendedor`; confirmar que prévia reproduz, URL assinada funciona e objeto realmente existe no `mv-video-assets`. Usar `modal app logs meu-vendedor-private-browser` para investigar falha de diretório, conexão CDP e importação. Evitar geração repetida quando já houver um vídeo adequado.
+
+### 6. Recuperação, backups e limites
+
+- **Marco estável anterior:** branch `backup/marco-tudo-funcionando-2026-11-18`; referência de teste de configurações, referências, Salvar e Gerar. Segundo marco `backup/flow-salvar-gerar-aprovado-2026-11-18`. Não alterar esses backups.
+- **Restaurar código em nova branch de inspeção, sem sobrescrever a branch de trabalho:**
+```bash
+git fetch origin
+git switch -c recuperacao-chrome-aprovado origin/backup/marco-tudo-funcionando-2026-11-18
+```
+- Para comparar antes de aplicar qualquer rollback: `git diff backup/marco-tudo-funcionando-2026-11-18..feat/navegador-proprio-chromium -- browser-service/app.py src/components/auth/PrivateBrowserConnection.tsx supabase/functions/private-browser/index.ts historico.md`.
+- **Atenção:** voltar uma branch Git não reverte automaticamente Modal, Cloudflare ou a Edge Function Supabase já publicada; requer restaurar/publicar versões correspondentes por serviço. Branch Git não contém cookies, login Google, tokens, o Modal Volume, arquivos Downloads ou MP4 do Supabase. Nunca apagar perfil ou Volume para tentar recuperar código.
+- Se o download não aparecer, investigar primeiro a confirmação de diretório do Chrome e se o MP4 ficou em outra pasta; não presumir perda de arquivo nem apagar vídeos já gerados.
+- Não automatizar novos cliques no Flow, alterar seletores aprovados, limpar cookies ou refazer geração até confirmar que o fluxo manual de importação está correto.
+
+**Ponto de retomada pretendido:** publicar Modal + frontend da branch registrada, executar teste manual de importação e enviar logs/resultados. Este checkpoint foi criado antes desses passos; toda falha futura deve ser comparada com este estado e com o marco anterior.
