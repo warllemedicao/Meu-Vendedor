@@ -1225,6 +1225,11 @@ async def stage_flow(request: Request):
                        "flow_settings_missing_video_count", "flow_settings_missing_image_model",
                        "flow_generate_button_unverified"}
             code = str(exc) if str(exc) in allowed else "flow_interaction_failed"
+            # Sanitized failure code and exception class only; never log browser text.
+            print("mv_stage_failure_diagnostic " + __import__("json").dumps({
+                "code": code, "errorType": type(exc).__name__,
+                "settingsSaveProbeReached": False,
+            }), flush=True)
             raise HTTPException(409, code) from None
 
 
