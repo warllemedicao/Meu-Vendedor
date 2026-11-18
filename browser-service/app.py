@@ -316,39 +316,53 @@ DOWNLOAD_SEARCH_DIRS = [Path(DOWNLOAD_DIR), Path.home() / "Downloads"]
 
 
 def finished_mp4_files():
+    """Find completed MP4 payloads, even when Chrome saved a UUID without .mp4.
+
+    Google Flow can return a video with an extensionless Content-Disposition
+    filename. Never trust the filename alone: verify ISO BMFF ftyp and a known
+    video brand. Do not rename Chrome's download (its history tracks that path).
+    """
     import stat as statlib
     result = []
     seen = set()
+    video_brands = {b"isom", b"iso2", b"iso5", b"iso6", b"mp41", b"mp42",
+                    b"avc1", b"dash", b"cmfc", b"cmfs", b"M4V ", b"MSNV"}
     for folder in DOWNLOAD_SEARCH_DIRS:
         if not folder.is_dir() or folder.is_symlink():
             continue
         for entry in folder.iterdir():
             try:
                 info = entry.lstat()
-                # No symlinks, directories, partial files, renamed executables.
+                extensionless = (not entry.suffix and bool(re.fullmatch(
+                    r"[0-9a-fA-F-]{32,64}", entry.name)))
                 if (not statlib.S_ISREG(info.st_mode)
-                        or entry.suffix.lower() != ".mp4"
-                        or info.st_size < 12 or info.st_size > MAX_MANUAL_VIDEO_BYTES
+                        or (entry.suffix.lower() != ".mp4" and not extensionless)
+                        or info.st_size < 16 or info.st_size > MAX_MANUAL_VIDEO_BYTES
                         or time.time() - info.st_mtime < 3):
                     continue
                 resolved = str(entry.resolve(strict=True))
                 if resolved in seen:
                     continue
                 with entry.open("rb") as handle:
-                    if handle.read(12)[4:8] != b"ftyp":
-                        continue
+                    header = handle.read(64)
+                if (len(header) < 16 or header[4:8] != b"ftyp"
+                        or int.from_bytes(header[:4], "big") < 16
+                        or header[8:12] not in video_brands
+                        and not any(header[pos:pos + 4] in video_brands
+                                    for pos in range(16, min(len(header) - 3, 64), 4))):
+                    continue
                 seen.add(resolved)
                 identity = (resolved + ":" + str(info.st_size) + ":" +
                             str(info.st_mtime_ns)).encode()
                 download_id = hmac.new(SECRET.encode(), identity, "sha256").hexdigest()
+                name = entry.name + ".mp4" if extensionless else entry.name
                 result.append({"id": download_id, "path": entry,
-                    "name": entry.name[:120], "bytes": info.st_size,
+                    "name": name[:120], "bytes": info.st_size,
                     "modifiedAt": int(info.st_mtime)})
             except (OSError, ValueError):
                 continue
     result.sort(key=lambda item: item["modifiedAt"], reverse=True)
     return result[:20]
-
 
 @app.post("/session/video/train-download")
 async def train_flow_download(request: Request):
