@@ -46,26 +46,47 @@ async def _open_completed_video(page, event, show_click):
     if not page.url.startswith("https://flow.google.com/project/"):
         raise RuntimeError("flow_video_project_not_unique")
 
-    # Prefer one prominent HTML5 video. A click on its visual surface opens
-    # the editor in the user's recorded workflow; never click any three-dot menu.
+    # The Flow library can contain decorative <video> players as well as
+    # the actual video card. The clicked element in the user's recording was
+    # role=video. Restrict to substantial, landscape, on-screen video previews,
+    # and deduplicate nested/same-rectangle matches.
     candidates = []
-    for frame in page.frames[:8]:
+    diagnostics = []
+    for frame_index, frame in enumerate(page.frames[:8]):
         try:
-            videos = frame.locator("video")
-            for i in range(min(await videos.count(), 40)):
-                video = videos.nth(i)
-                if not await video.is_visible():
-                    continue
-                rect = await video.bounding_box()
-                if rect and rect["width"] >= 220 and rect["height"] >= 120 and rect["y"] >= 80:
-                    candidates.append((video, rect["width"] * rect["height"]))
+            matches = await frame.locator("body").evaluate(r"""body => {
+                const seen=new Set(), result=[];
+                const elements=[...body.querySelectorAll('video,[role="video"]')];
+                for (let i=0;i<elements.length;i++) {
+                    const e=elements[i],r=e.getBoundingClientRect(),s=getComputedStyle(e);
+                    const inView=r.bottom>100&&r.top<innerHeight&&r.right>0&&r.left<innerWidth;
+                    if(s.display==='none'||s.visibility==='hidden'||!inView)continue;
+                    if(r.width<220||r.height<120||r.width/r.height<1.3)continue;
+                    const key=[Math.round(r.left/6),Math.round(r.top/6),
+                        Math.round(r.width/6),Math.round(r.height/6)].join(':');
+                    if(seen.has(key))continue;
+                    seen.add(key);
+                    result.push({index:i,width:r.width,height:r.height,
+                        area:r.width*r.height, top:r.top,left:r.left});
+                }
+                return result;
+            }""", timeout=3500)
+            controls = frame.locator('video,[role="video"]')
+            diagnostics.append({"frame": frame_index, "eligible": len(matches)})
+            for item in matches:
+                candidates.append((controls.nth(item["index"]), item))
         except Exception:
-            continue
-    candidates.sort(key=lambda item: item[1], reverse=True)
-    if not candidates or (len(candidates) > 1 and candidates[1][1] >= candidates[0][1] * 0.85):
+            diagnostics.append({"frame": frame_index, "eligible": -1})
+    import json
+    print("mv_video_preview_diagnostic " + json.dumps({
+        "candidates": len(candidates), "frames": diagnostics
+    }), flush=True)
+    # Only select one clearly identifiable preview. If more than one is
+    # eligible, ask the user to open the intended video in the editor manually.
+    if len(candidates) != 1:
         raise RuntimeError("flow_video_not_unique")
 
-    video = candidates[0][0]
+    video, _ = candidates[0]
     await video.click(trial=True, timeout=3500)
     await show_click(page, video, "click_video_preview")
     await video.click(timeout=3500, position={"x": 25, "y": 25})
