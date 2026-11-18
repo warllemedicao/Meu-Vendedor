@@ -260,7 +260,7 @@ export function PrivateBrowserConnection() {
         for (let elapsed = 0; elapsed < 110; elapsed += 5) {
           const check = await invoke("video_generation_error");
           if (check.failed || check.reason === "flow_try_again") {
-            setMessage("O Google Flow exibiu 'Tentar de novo'. A geração foi interrompida e o robô não aguardará nem fará download. Verifique sua conexão e o estado do Flow; depois clique novamente em Enviar prompt e imagens ao Flow para iniciar uma nova tentativa.");
+            setMessage("O Google Flow exibiu 'Tentar de novo'. Esta execução foi encerrada: sem nova tentativa automática e sem download. O navegador continua conectado à conta Google. O sistema tentou limpar apenas o cache de rede, preservando seu login. Confira o Flow e clique novamente em Enviar prompt e imagens ao Flow para repetir o processo.");
             return;
           }
           await new Promise<void>((resolve) => setTimeout(resolve, 5_000));
@@ -273,7 +273,7 @@ export function PrivateBrowserConnection() {
           }
           const check = await invoke("video_generated_ready");
           if (check.failed || check.reason === "flow_try_again") {
-            setMessage("O Flow exibiu 'Tentar de novo'. Processo interrompido sem download. Confira sua conexão e tente gerar novamente pelo botão do Meu Vendedor.");
+            setMessage("O Google Flow exibiu 'Tentar de novo'. Esta execução foi encerrada sem download. Foi solicitada limpeza apenas do cache de rede, sem apagar seu login. Verifique o Flow e repita o processo pelo botão Enviar prompt e imagens ao Flow.");
             return;
           }
           if (check.ready === true) {
