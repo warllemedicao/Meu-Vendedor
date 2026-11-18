@@ -7,13 +7,10 @@ import { createVideoAssetUrl, uploadVideoResult, MAX_VIDEO_RESULT_BYTES } from "
 type DownloadedVideo = { id: string; name: string; bytes: number; modifiedAt: number };
 
 type DownloadDiagnostic = { stage?: string; reason?: string; flowProjectTabs?: number | null; videoCandidates?: number | null; toolbarCandidates?: number | null; resolutionCandidates?: number | null; previewClicked?: boolean; editorOpen?: boolean; downloadMenuClicked?: boolean; resolutionClicked?: boolean; frames?: { frame?: number | null; eligible?: number | null; raw?: number | null; visible?: number | null; rejectedSize?: number | null; rejectedPosition?: number | null }[] };
-type BrowserResponse = { diagnostic?: DownloadDiagnostic; video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; settingsApplied?: boolean };
+type BrowserResponse = { diagnostic?: DownloadDiagnostic; video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; ready?: boolean; reason?: string; settingsApplied?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
-  const [learning, setLearning] = useState(false);
-  const [learningBusy, setLearningBusy] = useState(false);
-  const [learningResult, setLearningResult] = useState("");
   const [message, setMessage] = useState("");
   const [viewUrl, setViewUrl] = useState("");
   const [videoBusy, setVideoBusy] = useState(false);
@@ -123,33 +120,9 @@ export function PrivateBrowserConnection() {
     }
   }
 
-  async function trainVideoDownload() {
-    if (busy || videoBusy || !viewUrl) return;
-    setVideoBusy(true);
-    setMessage("Robô de download iniciado: verificando primeiro vídeo, editor e botão de download...");
-    try {
-      const result = await invoke("video_train");
-      const video = result.video;
-      if (!video?.id) throw new Error("O robô não conseguiu confirmar o novo MP4.");
-      setDownloadedVideos((current) => [video, ...current.filter((item) => item.id !== video.id)]);
-      setSelectedDownloadId(video.id);
-      setMessage("Robô baixou o MP4. Agora clique em Enviar MP4 escolhido ao Meu Vendedor, abaixo.");
-    } catch (error) {
-      const labels: Record<string, string> = {
-        flow_video_project_not_unique: "Abra exatamente um projeto do Flow com um vídeo pronto.",
-        flow_video_download_control_not_unique: "O robô não identificou unicamente o menu do vídeo ou a opção 720p. Consulte o relatório.",
-        flow_video_download_not_started: "O clique foi tentado, mas nenhum novo MP4 foi confirmado em Downloads.",
-        flow_video_download_failed: "Não foi possível concluir o treinamento do download. Confira o vídeo aberto.",
-      };
-      const code = error instanceof Error ? error.message : "";
-      setMessage(labels[code] ?? (code || "Falha no treinamento do download."));
-    } finally {
-      setVideoBusy(false);
-    }
-  }
-
-  async function downloadReadyFlowVideo() {
-    if (busy || videoBusy || !selectedDownloadId) return;
+  async function downloadReadyFlowVideo(downloadIdOverride?: string, automatic = false): Promise<boolean> {
+    const downloadId = downloadIdOverride || selectedDownloadId;
+    if ((busy && !automatic) || videoBusy || !downloadId) return false;
     setVideoBusy(true);
     setMessage("Preparando o MP4 escolhido na pasta de downloads...");
     try {
@@ -158,7 +131,7 @@ export function PrivateBrowserConnection() {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       const userId = authData.user?.id;
       if (authError || !userId) throw new Error("Sua sessão expirou. Entre novamente.");
-      const data = await invoke("video_download", { downloadId: selectedDownloadId });
+      const data = await invoke("video_download", { downloadId });
       const downloadUrl = new URL(data.downloadUrl ?? "");
       const viewerOrigin = new URL(viewUrl).origin;
       if (downloadUrl.protocol !== "https:" || downloadUrl.origin !== viewerOrigin
@@ -189,6 +162,7 @@ export function PrivateBrowserConnection() {
       setSavedVideoPath(savedPath);
       setSavedVideoUrl(videoUrl);
       setMessage("MP4 salvo no armazenamento privado do Meu Vendedor. Confira a prévia abaixo.");
+      return true;
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       const labels: Record<string, string> = {
@@ -198,6 +172,7 @@ export function PrivateBrowserConnection() {
         flow_video_download_failed: "O download do Flow falhou; confira o vídeo na tela.",
       };
       setMessage(labels[code] ?? (code || "Não foi possível salvar o vídeo."));
+      return false;
     } finally {
       setVideoBusy(false);
     }
@@ -232,38 +207,12 @@ export function PrivateBrowserConnection() {
       setViewUrl("");
       setDownloadedVideos([]);
       setSelectedDownloadId("");
-      setLearning(false);
-      setLearningResult("");
       setGenerateAuthorized(false);
       setMessage("Sessão encerrada: Chrome remoto fechado e automação interrompida. O login salvo no perfil foi preservado.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível encerrar o Chrome.");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function toggleLearning() {
-    if (learningBusy || busy) return;
-    setLearningBusy(true);
-    setMessage("");
-    try {
-      // Diagnostics do not need image uploads. Images are submitted by the
-      // existing stage action or manually inside the private Chrome.
-      const result = await invoke(learning ? "learning_stop" : "learning_start",
-        learning ? {} : { images: [], imageRightsConfirmed: false });
-      setLearning(result.active === true);
-      if (result.active) {
-        setLearningResult("");
-        setMessage("Diagnóstico ativo. Envie o prompt normalmente ou clique manualmente no Chrome. Finalize a captura depois da operação.");
-      } else {
-        setLearningResult(`Interações capturadas: ${result.recorded ?? 0}. Eventos estruturais (sem conteúdo de campos):\n${JSON.stringify(result.events ?? [], null, 2)}`);
-        setMessage("Captura encerrada. Confira os eventos abaixo.");
-      }
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Falha na captura.");
-    } finally {
-      setLearningBusy(false);
     }
   }
 
@@ -302,9 +251,40 @@ export function PrivateBrowserConnection() {
       }));
       const result = await invoke("stage", { prompt: prompt.trim(), images: encoded, imageRightsConfirmed: rightsConfirmed, configureAndGenerate: generateAuthorized });
       setGenerateAuthorized(false);
-      setMessage(result.promptStaged
-        ? `Prompt inserido no Flow; ${result.imagesSubmitted ?? 0} imagem(ns) enviada(s). ${result.generationStarted ? "Geração acionada; confira os créditos e a confirmação no Flow." : "Confira no Chrome antes de gerar."}`
-        : "O Flow não confirmou a preparação do rascunho.");
+      if (result.generationStarted) {
+        // No new Generate clicks here. Poll the exact project created by the
+        // successful stage, and never download an old existing thumbnail.
+        setMessage("Geração acionada. Aguardando 110 segundos antes de verificar o vídeo...");
+        await new Promise<void>((resolve) => setTimeout(resolve, 110_000));
+        let ready = false;
+        for (let attempt = 0; attempt <= 7; attempt += 1) {
+          if (attempt > 0) {
+            setMessage(`Vídeo ainda não confirmado. Nova verificação ${attempt}/7 em 10 segundos...`);
+            await new Promise<void>((resolve) => setTimeout(resolve, 10_000));
+          }
+          const check = await invoke("video_generated_ready");
+          if (check.ready === true) {
+            ready = true;
+            break;
+          }
+        }
+        if (!ready) {
+          setMessage("O vídeo ainda não foi identificado após 110 segundos e 7 verificações adicionais. Nenhum vídeo antigo foi baixado.");
+          return;
+        }
+        setMessage("Novo vídeo identificado. Baixando MP4 720p do Google Flow...");
+        const downloaded = await invoke("video_train");
+        if (!downloaded.video?.id) throw new Error("O download não retornou um MP4 validado.");
+        setDownloadedVideos((current) => [downloaded.video!, ...current.filter((item) => item.id !== downloaded.video!.id)]);
+        setSelectedDownloadId(downloaded.video.id);
+        setMessage("MP4 baixado. Enviando automaticamente ao armazenamento privado do Meu Vendedor...");
+        const imported = await downloadReadyFlowVideo(downloaded.video.id, true);
+        if (!imported) throw new Error("O MP4 foi baixado, mas a importação não foi concluída.");
+      } else {
+        setMessage(result.promptStaged
+          ? `Prompt inserido no Flow; ${result.imagesSubmitted ?? 0} imagem(ns) enviada(s). Nenhuma nova geração foi confirmada.`
+          : "O Flow não confirmou a preparação do rascunho.");
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao preparar o Flow.");
     } finally {
@@ -349,30 +329,12 @@ export function PrivateBrowserConnection() {
     </button>
     <div className="space-y-3 rounded-lg border border-border p-3">
       <p className="text-sm font-medium">Importar MP4 baixado no Chromium</p>
-      <p className="text-xs text-muted">No Google Flow, abra o menu do vídeo pronto, selecione Baixar e escolha 720p. Quando o download terminar, clique em Procurar downloads. Este processo não executa o robô.</p>
+      <p className="text-xs text-muted">Esta seção permite recuperar manualmente um MP4 já baixado. Depois de Gerar pelo formulário abaixo, o download e o envio são automáticos.</p>
       <button type="button" disabled={busy || videoBusy}
         onClick={() => void refreshChromeDownloads()}
         className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
         {videoBusy ? "Consultando..." : "Procurar downloads do Chrome"}
       </button>
-      <div className="space-y-2 rounded-lg border border-border p-3">
-        <p className="text-sm font-medium">Treinamento do download — vídeo já gerado</p>
-        <p className="text-xs text-muted">Abra um vídeo concluído na biblioteca do Flow. Inicie a captura para registrar seus cliques no menu de download e na opção 720p, sem enviar imagens ou gerar outro vídeo. O botão ao lado testa a identificação do menu e a seleção de 720p em um vídeo já pronto, sem acionar Gerar. Para registrar o teste, inicie a captura antes.</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" disabled={busy || learningBusy || videoBusy || !viewUrl}
-            onClick={() => void toggleLearning()}
-            className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
-            {learningBusy ? "Aguarde..." : learning ? "Finalizar relatório de cliques do download" : "Iniciar treinamento e relatório de cliques"}
-          </button>
-          <button type="button" disabled={busy || videoBusy || learningBusy || !viewUrl}
-            onClick={() => void trainVideoDownload()}
-            className="rounded-lg bg-primary px-3 py-2 text-sm text-white disabled:opacity-50">
-            {videoBusy ? "Treinando download..." : "Treinar robô de download"}
-          </button>
-        </div>
-        {learning && <p role="status" className="text-xs">Captura ativa. Clique manualmente no menu do vídeo já concluído, escolha Baixar e 720p, depois finalize o relatório aqui.</p>}
-        {learningResult && <p className="text-xs text-muted">O relatório está disponível na seção Diagnóstico do navegador, abaixo.</p>}
-      </div>
       {downloadedVideos.length > 0 && <div className="space-y-2">
         <label htmlFor="chrome-downloaded-video" className="block text-xs font-medium">Escolher MP4 concluído</label>
         <select id="chrome-downloaded-video" value={selectedDownloadId}
@@ -398,33 +360,26 @@ export function PrivateBrowserConnection() {
       </div>}
     </div>
     <div className="space-y-3 rounded-lg border border-border p-3">
-      <label htmlFor="flow-test-prompt" className="block text-sm font-medium">Prompt para treinamento do robô</label>
+      <label htmlFor="flow-test-prompt" className="block text-sm font-medium">Prompt para gerar vídeo no Flow</label>
       <textarea id="flow-test-prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)}
-        maxLength={4000} rows={5} placeholder="Descreva o vídeo que deseja testar no Flow..."
+        maxLength={4000} rows={5} placeholder="Descreva o vídeo que deseja gerar no Flow..."
         className="w-full rounded-lg border border-border bg-surface p-3 text-sm" />
       <label htmlFor="flow-test-images" className="block text-sm font-medium">Imagens de referência (até 3)</label>
       <input ref={fileInput} id="flow-test-images" type="file" multiple accept="image/png,image/jpeg,image/webp"
         onChange={(event) => onFiles(event.target.files)} className="block w-full text-sm" />
-      <p className="text-xs text-muted">{images.length} de 3 imagens selecionadas (máximo de 2,5 MB somadas). O envio prepara o rascunho, sem clicar em Gerar.</p>
+      <p className="text-xs text-muted">{images.length} de 3 imagens selecionadas (máximo de 2,5 MB somadas). Após Gerar, o robô verifica o novo vídeo em 110 segundos e depois a cada 10 segundos (até 7 vezes), baixa o MP4 720p e envia ao Meu Vendedor.</p>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={rightsConfirmed} onChange={(event) => setRightsConfirmed(event.target.checked)} /> Confirmo que tenho direito de usar as imagens selecionadas.</label>
       <button type="button" disabled={busy || !viewUrl} onClick={() => void diagnose()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
         Diagnosticar Flow automaticamente
       </button>
       <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={generateAuthorized} onChange={(event) => setGenerateAuthorized(event.target.checked)} /> Configurar o Flow (Nunca confirmar, imagens 9:16, x1, vídeo 9:16) e clicar em Gerar. Entendo que isso pode consumir créditos automaticamente.</label>
-      <button type="button" disabled={busy || !prompt.trim() || (images.length > 0 && !rightsConfirmed)} onClick={() => void stageDraft()} className="rounded-lg bg-primary px-3 py-2 text-sm text-white disabled:opacity-50">{busy ? "Preparando..." : "Enviar prompt e imagens ao Flow"}</button>
+      <button type="button" disabled={busy || !viewUrl || !prompt.trim() || (images.length > 0 && !rightsConfirmed)} onClick={() => void stageDraft()} className="rounded-lg bg-primary px-3 py-2 text-sm text-white disabled:opacity-50">{busy ? "Preparando..." : "Enviar prompt e imagens ao Flow"}</button>
       <button type="button" onClick={() => void navigator.clipboard.writeText(prompt).then(
         () => setMessage("Prompt copiado. Cole no Chrome para testar."),
         () => setMessage("Não foi possível copiar o prompt.")
       )} disabled={!prompt.trim()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
         Copiar prompt
       </button>
-    </div>
-    <div className="space-y-2 rounded-lg border border-border p-3">
-      <p className="text-sm font-medium">Diagnóstico do navegador — manual ou acompanhando o robô</p>
-      <p className="text-xs text-muted">Ative a captura, depois envie o prompt normalmente ou faça os cliques manualmente no Chrome. Ao terminar, finalize para consultar duração dos cliques e alterações estruturais do navegador. Não grava senhas, textos ou imagens.</p>
-      <button type="button" disabled={busy || learningBusy || !viewUrl} onClick={() => void toggleLearning()} className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">{learningBusy ? "Aguarde..." : learning ? "Finalizar captura e ver logs" : "Iniciar diagnóstico de cliques"}</button>
-      {learning && <p className="text-xs" role="status">Diagnóstico ativo: você pode enviar o prompt e as imagens com o botão acima.</p>}
-      {learningResult && <div className="space-y-2"><button type="button" onClick={() => void navigator.clipboard.writeText(learningResult).then(() => setMessage("Relatório copiado.")).catch(() => setMessage("Não foi possível copiar automaticamente. Selecione o texto abaixo."))} className="rounded-lg border border-border px-3 py-2 text-sm">Copiar relatório para análise</button><pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded border border-border p-3 text-xs" role="status">{learningResult}</pre></div>}
     </div>
     {message && <p role="status" className="text-sm">{message}</p>}
     {viewUrl && <div className="space-y-2">
