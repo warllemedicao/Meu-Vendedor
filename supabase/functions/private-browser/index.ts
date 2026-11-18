@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
     learning_status: { path: "/session/learning/status", method: "GET" },
     stage: { path: "/session/stage", method: "POST" },
     video_download: { path: "/session/video/prepare", method: "POST" },
+    video_list: { path: "/session/video/downloads", method: "GET" },
     start: { path: "/session/start", method: "POST" },
     stop: { path: "/session/stop", method: "POST" },
     view: { path: "/session/view-ticket", method: "POST" },
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
     method: target.method,
     headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" || action === "learning_start" || action === "video_download" ? { "content-type": "application/json" } : {}) },
     ...(action === "stage" || action === "learning_start" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed, configureAndGenerate: input?.configureAndGenerate === true }) }
-      : action === "video_download" ? { body: JSON.stringify({ appOrigin: origin }) } : {}),
+      : action === "video_download" ? { body: JSON.stringify({ appOrigin: origin, downloadId: input?.downloadId }) } : {}),
     signal: AbortSignal.timeout(action === "stage" ? 120000 : action === "video_download" ? 45000 : action === "start" || action === "learning_start" ? 60000 : 12000),
   }).catch(() => null);
   if (!response) {
@@ -96,6 +97,7 @@ Deno.serve(async (req) => {
       "invalid_draft", "payload_too_large",
       "flow_video_project_not_unique", "flow_video_not_unique",
       "flow_video_download_control_not_unique", "flow_video_download_not_started",
+      "flow_download_file_not_found", "invalid_download_selection",
       "flow_video_download_failed", "flow_video_invalid_mp4", "browser_not_running",
     ]);
     const code = typeof result?.detail === "string" && allowed.has(result.detail)
@@ -121,6 +123,17 @@ Deno.serve(async (req) => {
       }));
     console.log(JSON.stringify({ source: "private_browser_diagnostics",
       running: result.running === true, processExited: result.diagnostics.processExited === true, events }));
+  }
+  if (action === "video_list") {
+    const videos = Array.isArray(result?.videos) ? result.videos.slice(0, 20)
+      .filter((video: unknown) => typeof video === "object" && video !== null)
+      .map((video: Record<string, unknown>) => ({
+        id: typeof video.id === "string" && /^[a-f0-9]{64}$/.test(video.id) ? video.id : "",
+        name: typeof video.name === "string" ? video.name.slice(0, 120) : "",
+        bytes: typeof video.bytes === "number" && video.bytes > 0 && video.bytes <= 100 * 1024 * 1024 ? video.bytes : 0,
+        modifiedAt: typeof video.modifiedAt === "number" ? video.modifiedAt : 0,
+      })).filter((video: { id: string; bytes: number }) => video.id && video.bytes) : [];
+    return reply({ videos });
   }
   if (action === "video_download") {
     if (typeof result?.ticket !== "string" || !/^[A-Za-z0-9_-]{32,128}$/.test(result.ticket)
