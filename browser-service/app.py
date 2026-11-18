@@ -25,7 +25,8 @@ context = None
 browser_monitor_task = None
 video_download_tickets = {}
 # Only the most recent explicitly authorized generation may trigger automatic download.
-generation_watch = {"active": False, "baseline": [], "projectUrl": "", "startedAt": 0.0, "ready": False, "newFirstObserved": False}
+generation_watch = {"active": False, "baseline": [], "projectUrl": "", "startedAt": 0.0, "ready": False, "newFirstObserved": False,
+                    "failed": False, "networkFailures": 0, "lastNetworkCategory": None}
 MAX_MANUAL_VIDEO_BYTES = 100 * 1024 * 1024
 
 
@@ -41,6 +42,19 @@ def log_flow_browser_issue(kind, *, status=None, resource=None, category=None, h
         payload["category"] = category
     if host:
         payload["host"] = host
+    # Link the independent browser diagnostics to the generation currently
+    # being observed. Network failures are clues, not proof of a failed job.
+    watch = globals().get("generation_watch")
+    if isinstance(watch, dict) and watch.get("active") and kind in ("request_failed", "http_error"):
+        if resource in ("xhr", "fetch") and host == "google":
+            watch["networkFailures"] = min(99, watch.get("networkFailures", 0) + 1)
+            watch["lastNetworkCategory"] = category if category in (
+                "network", "rate_or_quota", "timeout", "auth", "server", "unknown") else "network"
+            print("mv_generation_signal " + json.dumps({
+                "source": "chrome_network", "type": kind,
+                "count": watch["networkFailures"],
+                "status": status if status in (401,403,408,409,429,500,502,503,504) else None
+            }), flush=True)
     print("mv_chrome_diagnostic " + json.dumps(payload), flush=True)
 
 
@@ -514,12 +528,44 @@ async def train_flow_download(request: Request):
             raise HTTPException(409, detail={"code": code, "diagnostic": diagnostic}) from None
 
 
+async def flow_retry_message_visible(page):
+    """Detect an actual visible Flow retry action, not arbitrary network noise.
+
+    Read only accessible labels of small on-screen controls. Never log page
+    content, prompt, images or URLs. Retrying requires a fresh user action.
+    """
+    for frame in page.frames[:8]:
+        try:
+            found = await frame.locator("body").evaluate(r"""root => {
+                const candidates = root.querySelectorAll(
+                    'button,[role="button"],[role="alert"],[role="status"]');
+                for (const e of Array.from(candidates).slice(0,350)) {
+                    const r=e.getBoundingClientRect(), style=getComputedStyle(e);
+                    if (r.width<8||r.height<8||r.top>=innerHeight||r.bottom<=0||
+                        style.display==='none'||style.visibility==='hidden') continue;
+                    const label=[e.getAttribute('aria-label'),e.getAttribute('title'),
+                        e.innerText||''].filter(Boolean).join(' ').trim();
+                    // Do not match the application's own UI: this runs in Flow.
+                    const retry= /^(tentar de novo|tente novamente|try again|retry)[.!\\s]*$/i;
+                    if (retry.test(label)) return true;
+                }
+                return false;
+            }""", timeout=2500)
+            if found:
+                return True
+        except Exception:
+            continue
+    return False
+
+
 @app.get("/session/video/generated-ready")
 async def generated_video_ready(request: Request):
     """Poll whether a new gallery thumbnail appeared after the authorized Generate."""
     authorize(request)
     if not chrome_running():
         raise HTTPException(409, "browser_not_running")
+    if generation_watch["failed"]:
+        return {"ready": False, "failed": True, "reason": "flow_try_again"}
     if not generation_watch["active"]:
         return {"ready": False, "reason": "generation_not_registered"}
     if time.monotonic() - generation_watch["startedAt"] > 600:
@@ -537,6 +583,15 @@ async def generated_video_ready(request: Request):
                 if len(pages) != 1:
                     return {"ready": False, "reason": "project_not_visible"}
                 page = pages[0]
+                if await flow_retry_message_visible(page):
+                    generation_watch["failed"] = True
+                    generation_watch["active"] = False
+                    print("mv_generation_aborted " + __import__("json").dumps({
+                        "reason": "flow_try_again",
+                        "networkFailures": generation_watch["networkFailures"],
+                        "stage": "monitoring"
+                    }), flush=True)
+                    return {"ready": False, "failed": True, "reason": "flow_try_again"}
                 if "/edit/" in page.url:
                     if generation_watch["ready"]:
                         return {"ready": True, "reason": "editor_confirmed"}
@@ -1849,7 +1904,8 @@ async def stage_flow(request: Request):
                             "active": True, "baseline": before_generation,
                             "projectUrl": page.url.split("/edit/")[0],
                             "startedAt": time.monotonic(), "ready": False,
-                            "newFirstObserved": False,
+                            "newFirstObserved": False, "failed": False,
+                            "networkFailures": 0, "lastNetworkCategory": None,
                         })
                         print("mv_generation_watch " + __import__("json").dumps({
                             "started": True, "baselineCount": len(before_generation)
