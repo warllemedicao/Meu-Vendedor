@@ -546,7 +546,7 @@ async def flow_retry_message_visible(page):
                     const label=[e.getAttribute('aria-label'),e.getAttribute('title'),
                         e.innerText||''].filter(Boolean).join(' ').trim();
                     // Do not match the application's own UI: this runs in Flow.
-                    const retry= /^(tentar de novo|tente novamente|try again|retry)[.!\\s]*$/i;
+                    const retry= /^(tentar de novo|tente novamente|try again|retry)[.!\s]*$/i;
                     if (retry.test(label)) return true;
                 }
                 return false;
