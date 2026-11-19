@@ -275,7 +275,7 @@ export function StoriesStudio() {
         .eq("project_id", project.id).eq("user_id", user.id)
         .eq("scene_number", sceneNumber).eq("platform", provider).maybeSingle();
       if (readError) throw new Error("Falha ao consultar prompt anterior. Nenhum crédito Gemini foi utilizado.");
-      if (existing?.prompt) {
+      if (existing?.prompt && useGemini) {
         setScenePromptDrafts(old => ({ ...old, [key]: existing.prompt }));
         setMessage("Prompt salvo carregado. Revise ou baixe antes de gerar outro.");
         return;
@@ -767,6 +767,8 @@ export function StoriesStudio() {
           <p className="text-sm text-muted">Do primeiro tema à preparação da publicação, em sete etapas.</p></div>
         <div className="text-sm font-semibold">2 min · 12 cenas · 9:16</div>
       </div>
+      <details className="rounded-xl border border-border bg-surface p-2" open={stage !== "roteiro"}>
+        <summary className="cursor-pointer px-2 py-1 text-xs font-semibold">Navegação geral do projeto (abrir outras etapas)</summary>
       <nav aria-label="Etapas do gerador de histórias" className={stage === "roteiro" ? "flex flex-wrap gap-2" : "grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7"}>
         {STORY_STAGES.map((item, i) => <button type="button" key={item.key} aria-current={stage === item.key ? "step" : undefined}
           onClick={() => { setStage(item.key); setError(""); }}
@@ -777,6 +779,7 @@ export function StoriesStudio() {
           {stage !== "roteiro" && <span className="block text-xs text-muted">{item.description}</span>}
         </button>)}
       </nav>
+      </details>
       {project && <p className="rounded-xl border border-border p-3 text-sm">
         <strong>História em edição:</strong> {project.title} · {project.status === "draft" ? "Roteiro em revisão" : "Roteiro aprovado"} · {approvedCount}/12 clipes aprovados
       </p>}
@@ -947,7 +950,15 @@ export function StoriesStudio() {
       </div>
       {sceneWorkbenchStep === "personagens" &&       <div className="rounded-xl border border-border p-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Bíblia de personagens — identidade e continuidade</h3><button className={button} disabled={busy} onClick={() => void loadCharacterLibrary()}>Atualizar imagens</button></div>
-        {project.characters.map((char, ci) => <div key={ci} className="rounded-xl border border-border p-3 space-y-2 text-sm">
+        {project.characters.map((char, ci) => <details key={ci} className="rounded-xl border border-border p-3 text-sm">
+          <summary className="cursor-pointer flex items-center gap-3 font-semibold">
+            {char.referenceImagePath && (characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]) &&
+              <img src={characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]}
+                alt={char.name} className="h-12 w-12 rounded-lg object-cover"/>}
+            <span className="flex-1">{char.name} <span className="text-xs font-normal text-muted">· {char.referenceImagePath ? "Imagem pronta" : "Escolher imagem"}</span></span>
+            <span className="text-xs font-normal text-muted">Abrir ficha</span>
+          </summary>
+          <div className="space-y-2 pt-3">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label>Nome do personagem<input className={field + " mt-1"} maxLength={100} disabled={project.status !== "draft"}
               value={char.name} onChange={e => updateCharacter(ci, { name: e.target.value })}/></label>
@@ -1014,7 +1025,8 @@ export function StoriesStudio() {
             </button>
             {!imageConfigured && <p className="text-xs text-muted">Para ativar a geração, configure o segredo exclusivo HIST_IMAGEM_GEMINI_API_KEY no Supabase. Envio e biblioteca funcionam sem essa API. A geração de imagem pode consumir cota.</p>}
           </div>}
-        </div>)}
+          </div>
+        </details>)}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
           <p className="text-xs text-muted">As imagens escolhidas serão usadas como referência visual no prompt. Você as baixará para anexar na plataforma.</p>
           <button className={button + " !bg-primary !text-primary-foreground !border-primary"}
