@@ -1,3 +1,11 @@
+## 19/11/2026 — Correção dos 3 testes vermelhos da validação Histórias
+
+- Log do usuário do GitHub Actions `Validate Histórias (no deployment)`: **371 testes, 368 aprovados e 3 falhas**, todas no arquivo `tests/story-studio.test.mjs`. A execução parou em `npm test`, antes de TypeScript, lint e build.
+- Teste de segredo confundia a **menção textual** ao nome `HIST_IMAGEM_GEMINI_API_KEY` na instrução da interface com leitura de uma credencial privada. A verificação foi substituída por proibições explícitas de `Deno.env.get`, variáveis privadas no frontend e acesso direto ao Google, preservando a exigência do endpoint autenticado Supabase.
+- Teste de logs esperava a antiga ordem dos atributos `purpose, model, ...diagnostic`, enquanto a implementação registra `status, reason, purpose, model, elapsedMs, ...diagnostic`. Atualizado o contrato para o formato atual sem liberar registro de mensagens sensíveis.
+- Teste de modelo exigia `encodeURIComponent(TOPICS_MODEL)` direto; a implementação seleciona `model` conforme `purpose` e então usa `encodeURIComponent(model)`. Atualizado contrato para validar o roteamento de ambos os modelos.
+- Commit corretivo da suíte: `ea4e562bb755da46a1911e764f4bf467c25a4846`. Oito verificações diretas contra os arquivos GitHub passaram após ajuste; **a suíte integral ainda precisa ser novamente executada no workflow**. Nenhum Supabase/Cloudflare deploy novo e nenhuma chamada Gemini ocorreram nessa correção.
+
 ## 19/11/2026 — Complemento da produção cena a cena: rascunhos parciais e verificações
 
 - Corrigido `saveScript(false)`: agora permite **salvar projetos com apenas 1 a 11 cenas completas**, respeitando a numeração, personagens e falas das cenas preenchidas. Somente `saveScript(true)` exige as 12 cenas completas para a aprovação final. Antes, a validação de todas as cenas bloqueava a edição incremental.
