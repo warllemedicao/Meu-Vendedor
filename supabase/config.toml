@@ -61,3 +61,7 @@ verify_jwt = false
 [functions.publication-schedule]
 # Todas as operações validam explicitamente a sessão do usuário.
 verify_jwt = false
+
+[functions.story-studio]
+# A função valida a sessão do usuário antes de chamar Gemini Text.
+verify_jwt = true
