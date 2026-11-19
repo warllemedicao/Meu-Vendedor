@@ -566,15 +566,49 @@ export function StoriesStudio() {
       </div> : <p className="font-semibold text-sm">Roteiro aprovado e congelado para manter os prompts consistentes.</p>}
     </section>}
 
+    {stage === "gerador" && <section className={panel}>
+      <h2 className="text-lg font-semibold">3. Escolha a ferramenta geradora de vídeo</h2>
+      <p className="text-sm text-muted">Cada ferramenta tem um agente próprio para adaptar os prompts ao roteiro e à Bíblia de Personagens. Os agentes organizam textos; não executam o navegador ou geram MP4.</p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {platformOptions.map(option => { const guide = PLATFORM_GUIDES[option.value]; return <button key={option.value}
+          type="button" aria-pressed={platform === option.value}
+          className={"rounded-xl border p-4 text-left space-y-2 " + (platform === option.value ? "border-primary bg-primary/10" : "border-border bg-surface")}
+          onClick={() => { setPlatform(option.value); setPrompts([]); if (project?.status !== "draft") void loadPlatformPrompts(option.value); }}>
+          <span className="block font-bold">{guide.name}</span>
+          <span className="block text-xs text-muted">{guide.duration}</span>
+          <span className="block text-xs">{guide.reminder}</span>
+          <span className="block text-xs font-semibold">{platform === option.value ? "Selecionado ✓" : "Escolher ferramenta"}</span>
+        </button>; })}
+      </div>
+      <div className="rounded-xl border border-border p-3 space-y-2">
+        <h3 className="font-semibold">Agente {PLATFORM_GUIDES[platform].name}</h3>
+        <p className="text-sm">{PLATFORM_GUIDES[platform].workflow}</p>
+        <p className="text-xs text-muted">Meta: {PLATFORM_GUIDES[platform].targetChars} caracteres. Teto de validação: {PLATFORM_GUIDES[platform].absoluteChars}.</p>
+      </div>
+      {project?.status === "draft" ? <p className="text-sm text-muted">Aprove o roteiro na etapa anterior para liberar os prompts.</p> :
+        !project ? <p className="text-sm text-muted">Crie um roteiro antes de continuar.</p> :
+        <button className={button} onClick={() => setStage("prompts")}>Continuar para prompts</button>}
+    </section>}
+    {stage === "prompts" && (!project || project.status === "draft") && <section className={panel}>
+      <h2 className="font-semibold">4. Prompts por cena</h2>
+      <p className="text-sm text-muted">Para gerar os 12 prompts, crie um roteiro, revise os personagens e clique em Aprovar roteiro.</p>
+      <button className={button} onClick={() => setStage(project ? "roteiro" : "temas")}>Ir para o roteiro</button>
+    </section>}
     {stage === "prompts" && project && user && project.user_id === user.id && project.status !== "draft" && <section className={panel}>
-      <h2 className="text-lg font-semibold">5. Agentes de prompt</h2>
+      <h2 className="text-lg font-semibold">4. Agente de prompts — {PLATFORM_GUIDES[platform].name}</h2>
       <label className="block text-sm font-semibold">Plataforma de geração
         <select className={field + " mt-1"} value={platform} onChange={e => { const next = e.target.value as Platform; setPlatform(next); setPrompts([]); void loadPlatformPrompts(next); }}>
           {platformOptions.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
       </label>
-      <p className="text-sm text-muted">O agente respeita a Bíblia de Personagens e o roteiro aprovado. YouTube Create: máximo de 900 caracteres.</p>
-      <button className={button} disabled={busy} onClick={() => void generatePrompts()}>Gerar e salvar 12 prompts com Gemini</button>
+      <p className="text-sm text-muted">{PLATFORM_GUIDES[platform].workflow} {PLATFORM_GUIDES[platform].reminder}</p>
+      <p className="text-xs text-muted">Os prompts gerados via Gemini ficam no banco; os rascunhos locais são prévias editoriais até você salvar cada cena.</p>
+      <div className="flex flex-wrap gap-2">
+        <button className={button} disabled={busy} onClick={() => void generatePrompts()}>Gerar 12 prompts com Gemini</button>
+        <button className={button} disabled={busy} onClick={previewLocalPrompts}>Montar rascunhos locais sem IA</button>
+        <button className={button} disabled={busy} onClick={() => void loadPlatformPrompts(platform)}>Reabrir prompts salvos</button>
+      </div>
+      {!prompts.length && <p className="rounded-xl border border-border p-3 text-sm text-muted">Nenhum prompt desta ferramenta foi carregado. Use o Gemini ou o gerador local de rascunhos para preencher as 12 cenas.</p>}
       {prompts.map(p => <div className="rounded-xl border border-border p-3 space-y-2" key={p.scene}>
         <h3 className="font-semibold">Prompt da cena {p.scene}</h3>
         <textarea aria-label={"Prompt da cena " + p.scene} className={field} rows={5} value={p.text}
@@ -587,14 +621,19 @@ export function StoriesStudio() {
           <div className="flex gap-2">
             <button className={button} disabled={busy || !p.text.trim() || !!(maxPrompt && Array.from(p.text).length > maxPrompt)}
               onClick={() => void saveEditedPrompt(p.scene)}>Salvar edição</button>
-            <button className={button} onClick={() => void navigator.clipboard.writeText(p.text)}>Copiar prompt</button>
+            <button className={button} disabled={!publishTitle.trim() && !publishDescription.trim()} onClick={() => void navigator.clipboard.writeText(p.text)}>Copiar prompt</button>
           </div>
         </div>
       </div>)}
     </section>}
 
+    {stage === "cenas" && !project && <section className={panel}>
+      <h2 className="font-semibold">5. Biblioteca de cenas</h2>
+      <p className="text-sm text-muted">Os 12 espaços de vídeo serão associados à história criada na etapa Roteiro.</p>
+      <button className={button} onClick={() => setStage("roteiro")}>Ir para o roteiro</button>
+    </section>}
     {stage === "cenas" && project && user && project.user_id === user.id && <section className={panel}>
-      <h2 className="text-lg font-semibold">6. Biblioteca de clipes e aprovação</h2>
+      <h2 className="text-lg font-semibold">5. Biblioteca de clipes e aprovação</h2>
       <p className="text-sm text-muted">Importe um MP4 de cada cena. Os arquivos ficam em Storage privado. Montagem em 2 minutos e publicação serão habilitadas em uma etapa própria de integração.</p>
       <p className="text-sm font-semibold">{clips.filter(c => c.approved).length}/12 clipes aprovados</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -616,8 +655,37 @@ export function StoriesStudio() {
       </div>
     </section>}
 
+    {stage === "montagem" && <section className={panel}>
+      <h2 className="text-lg font-semibold">6. Montagem — linha do tempo de 2 minutos</h2>
+      <p className="text-sm text-muted">Ordem fixa de 12 cenas para preservar a história. Nesta fase, o Meu Vendedor organiza e verifica os clipes; o renderizador MP4 final será conectado posteriormente.</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {(project?.scenes || makeEmptyStoryScenes()).map(scene => {
+          const clip = clips.find(item => item.scene_number === scene.number);
+          return <div key={scene.number} className="rounded-xl border border-border bg-surface p-3 space-y-2 text-sm">
+            <p className="font-bold">Cena {String(scene.number).padStart(2, "0")}</p>
+            <p className="text-xs text-muted">{(scene.number - 1) * 10}s – {scene.number * 10}s</p>
+            <p className="text-xs">{clip ? clip.approved ? "Aprovada" : "Aguardando aprovação" : "Sem MP4"}</p>
+            {clip && <button className={button} onClick={() => void previewClip(scene.number)}>Ver MP4</button>}
+          </div>;
+        })}
+      </div>
+      <div className="rounded-xl border border-border p-3 space-y-2">
+        <div className="flex flex-wrap justify-between gap-2 text-sm">
+          <span>{approvedCount} de 12 cenas aprovadas</span><strong>{approvedCount === 12 ? "Clipes prontos para montagem futura" : "Montagem pendente"}</strong>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-surface-secondary" aria-label="Progresso dos clipes aprovados">
+          <div className="h-full bg-primary" style={{ width: (approvedCount / 12 * 100) + "%" }}/>
+        </div>
+        <p className="text-xs text-muted">Exportação planejada: MP4, H.264/AAC, 1080 × 1920, 9:16, alvo de 120 segundos. Não há renderização em segundo plano.</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button className={button} disabled={!project} onClick={downloadProductionPlan}>Baixar plano de produção (JSON)</button>
+        <button className={button} onClick={() => setStage("cenas")}>Revisar clipes</button>
+        <button className={button} onClick={() => setStage("publicacao")}>Preparar publicação</button>
+      </div>
+    </section>}
     <section className={panel} hidden={stage !== "publicacao"}>
-      <h2 className="text-lg font-semibold">7. Preparar montagem e publicação</h2>
+      <h2 className="text-lg font-semibold">7. Preparação para YouTube, TikTok e Kwai</h2>
       <p className="text-sm text-muted">Vídeo final planejado: 12 cenas de 10s, 2 minutos, MP4 9:16 (1080 × 1920). A montagem automática e o envio direto às plataformas ainda não estão habilitados.</p>
       <label className="block text-sm">Rede de destino
         <select className={field + " mt-1"} value={destination} onChange={e => setDestination(e.target.value as "youtube" | "tiktok" | "kwai")}>
@@ -638,9 +706,16 @@ export function StoriesStudio() {
         <p>{destination === "youtube" ? "O upload por YouTube Data API depende de autorização e integração específicas." :
           destination === "tiktok" ? "Publicação direta exige aprovação e permissões da Content Posting API; sem elas, conclua no aplicativo." :
           "Publicação automatizada no Kwai Brasil ainda não foi confirmada; prepare e compartilhe manualmente."}</p>
-        <p className="text-muted">O botão de copiar não publica nada na rede social.</p>
+        <p className="text-muted">O botão de copiar não publica nada na rede social. A publicação automática depende de integrações e permissões futuras.</p>
       </div>
     </section>
+    <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+      <button className={button} disabled={currentStage === 0}
+        onClick={() => setStage(STORY_STAGES[Math.max(0, currentStage - 1)].key)}>Etapa anterior</button>
+      <span className="text-sm text-muted">Etapa {currentStage + 1} de 7 — {STORY_STAGES[currentStage].title}</span>
+      <button className={button} disabled={currentStage === STORY_STAGES.length - 1}
+        onClick={() => setStage(STORY_STAGES[Math.min(STORY_STAGES.length - 1, currentStage + 1)].key)}>Próxima etapa</button>
+    </footer>
     {error && <p role="alert" className="rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
     {message && <p role="status" className="rounded-xl border border-border p-3 text-sm">{message}</p>}
   </div>;
