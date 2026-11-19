@@ -200,7 +200,7 @@ test("one scene per script inference with owner-scoped persistence and manual re
   assert.match(studio, /await generateOneScene\(working\)/);
   assert.match(studio, /\.update\(\{ characters, scenes, updated_at:/);
   assert.match(studio, /\.eq\("id", working\.id\)\.eq\("user_id", user\.id\)/);
-  assert.match(studio, /Gerar todas as pendentes em sequência/);
+  assert.match(studio, /Gerar cenas restantes/);
   assert.match(studio, /16_000/);
   assert.match(studio, /stopSceneQueue\.current/);
   assert.doesNotMatch(studio, /invokeStory\("script", \{ title: topic\.title/);
