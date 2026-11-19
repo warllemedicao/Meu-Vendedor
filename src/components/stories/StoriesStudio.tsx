@@ -260,9 +260,10 @@ export function StoriesStudio() {
     setBusy(true); setError(""); setSceneProgress(useGemini ? "Gerando prompt da cena " + sceneNumber : "");
     try {
       const key = promptKey(sceneNumber, provider);
-      const { data: existing } = await client.from("mv_story_prompts").select("prompt")
+      const { data: existing, error: readError } = await client.from("mv_story_prompts").select("prompt")
         .eq("project_id", project.id).eq("user_id", user.id)
         .eq("scene_number", sceneNumber).eq("platform", provider).maybeSingle();
+      if (readError) throw new Error("Falha ao consultar prompt anterior. Nenhum crédito Gemini foi utilizado.");
       if (existing?.prompt) {
         setScenePromptDrafts(old => ({ ...old, [key]: existing.prompt }));
         setMessage("Prompt salvo carregado. Revise ou baixe antes de gerar outro.");
@@ -857,6 +858,10 @@ export function StoriesStudio() {
                   <img src={libraryImageUrls[entry.storage_path]} className="h-20 w-full object-cover rounded"
                     alt={entry.name}/>}
                 <p className="text-xs font-semibold truncate" title={entry.name}>{entry.name}</p>
+                <details className="text-xs">
+                  <summary className="cursor-pointer">Prompt original</summary>
+                  <p className="break-words mt-1">{entry.image_prompt || entry.description || "Sem prompt cadastrado"}</p>
+                </details>
                 <button className={button + " w-full !text-xs !px-1 !py-1"} disabled={busy}
                   onClick={() => void chooseLibraryImage(ci, entry)}>Usar imagem</button>
                 <button className={button + " w-full !text-xs !px-1 !py-1"}
