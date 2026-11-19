@@ -19,7 +19,7 @@ test("manual storyline enables editorial review without impersonating Gemini", (
   assert.match(studio, /async function createManualScript/);
   assert.match(studio, /makeEmptyStoryScenes\(\)/);
   assert.match(studio, /Roteiro manual/);
-  assert.match(studio, /Crie um roteiro manual real/);
+  assert.doesNotMatch(studio, /Quer testar a interface|Crie um roteiro manual real/);
   assert.match(workflow, /Array\.from\(\{ length: 12 \}/);
 });
 
