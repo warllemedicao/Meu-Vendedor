@@ -125,11 +125,11 @@ test("Gemini metadata diagnostic never generates content or exposes credentials"
   assert.match(check, /"x-goog-api-key": key/);
   assert.doesNotMatch(check, /:generateContent|\?key=/);
   assert.match(edge, /body\.action === "diagnose_topics"/);
-  assert.match(studio, /Verificar Gemini sem gerar temas/);
-  assert.match(studio, /purpose === "topics" \? "diagnose_topics" : "diagnose_script"/);
+  assert.doesNotMatch(studio, /Verificar Gemini sem gerar temas/);
+  assert.doesNotMatch(studio, /checkGeminiConnection/);
   assert.match(edge, /body\.action === "diagnose_script"/);
   assert.match(check, /HIST_ROTEIRO_GEMINI_API_KEY/);
-  assert.match(studio, /Verificar API de roteiros sem gerar/);
+  assert.doesNotMatch(studio, /Verificar API de roteiros sem gerar/);
 });
 
 
