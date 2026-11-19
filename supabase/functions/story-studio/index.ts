@@ -355,7 +355,9 @@ Deno.serve(async (request) => {
         const name = clean(item.name, 100), role = clean(item.role, 180);
         const visual = clean(item.visual, 1100), voice = clean(item.voice, 450);
         if (!name || !role || !visual || !voice) throw new Error("character_incomplete");
-        return { name, role, visual, voice };
+        return { name, role, visual, voice,
+          referenceImageAttached: Boolean(item.referenceImagePath),
+          imageReferencePrompt: clean(item.referenceImagePrompt, 1200) };
       });
       const scene = normalizeScene(body.scene, sceneNumber - 1);
       const names = new Set(roster.map(ch => ch.name.toLowerCase()));
@@ -367,7 +369,7 @@ Deno.serve(async (request) => {
         "Transforme APENAS esta cena aprovada em um prompt de vídeo. Responda JSON {text:\"...\"}, sem comentários. Mantenha os personagens, roupas, referências, ações e falas em português brasileiro. Duração: " +
         rule.duration + ". Plataforma: " + rule.name + ". Meta de caracteres: " + rule.target +
         "; máximo absoluto: " + rule.maximum + ". " + rule.notes +
-        " Gere somente o prompt desta cena, sem incluir as outras cenas.",
+        " Para cada personagem com referenceImageAttached=true, mencione que a imagem correspondente deve ser anexada manualmente na plataforma e seguida como referência visual. Nunca exponha endereços privados do Supabase. Gere somente o prompt desta cena, sem incluir as outras cenas.",
         { platform, sceneNumber, scene, characters: roster.filter(ch => scene.characters.includes(ch.name)) },
         platform === "youtube-create" ? 1200 : 1750, "script");
       if (!record(result) || !string(result.text, rule.maximum)) throw new Error("prompt_limit_or_sequence_invalid");
