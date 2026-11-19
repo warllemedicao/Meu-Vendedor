@@ -249,3 +249,9 @@ test("optional Flash-Lite scene route uses the script key and does not borrow to
   assert.match(studio, /Tentar cena pendente com Flash-Lite/);
   assert.doesNotMatch(studio, /HIST_TEMA_GEMINI_API_KEY/);
 });
+
+test("individual prompt budget reserves tokens for Gemini reasoning", () => {
+  assert.match(edge, /platform === "youtube-create" \? 2800 : 3200, "script"/);
+  assert.match(edge, /first\.finishReason === "MAX_TOKENS"/);
+  assert.match(edge, /gemini_output_truncated/);
+});
