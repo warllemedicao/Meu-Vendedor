@@ -7,6 +7,7 @@ import hmac
 import os
 from pathlib import Path
 import secrets
+import shutil
 import time
 from urllib.parse import urlsplit
 from contextlib import asynccontextmanager
@@ -47,7 +48,7 @@ def read_flow_accounts():
         valid = [item for item in accounts
                  if isinstance(item, dict) and isinstance(item.get("id"), str)
                  and (item["id"] == "primary" or re.fullmatch(r"account-[a-f0-9]{16}", item["id"]))
-                 and isinstance(item.get("label"), str) and 1 <= len(item["label"]) <= 48]
+                 and isinstance(item.get("label"), str) and 1 <= len(item["label"]) <= 80]
         if len(valid) != len(accounts) or valid[0]["id"] != "primary":
             return default
         selected = data.get("selected")
@@ -78,7 +79,7 @@ def selected_chrome_profile():
 
 
 # Read-only enrollment monitor. No credentials, cookies, emails or tokens read.
-account_login_state = {"active": False, "profile": None, "confirmations": 0}
+account_login_state = {"active": False, "profile": None, "confirmations": 0, "flowOpened": False}
 MAX_MANUAL_VIDEO_BYTES = 100 * 1024 * 1024
 
 
@@ -355,7 +356,7 @@ async def create_flow_account(request: Request):
 
 @app.get("/session/accounts/login-status")
 async def flow_account_login_status(request: Request):
-    """Confirm a real Google Account landing page, never a login form."""
+    """Read-only enrollment: login -> Flow -> user accepts Flow terms -> ready."""
     authorize(request)
     if not account_login_state["active"]:
         return {"confirmed": False, "reason": "not_enrolling"}
@@ -371,31 +372,110 @@ async def flow_account_login_status(request: Request):
                     "http://127.0.0.1:9222", timeout=8000)
                 try:
                     pages = [p for context in browser.contexts for p in context.pages if not p.is_closed()]
-                    # The ServiceLogin continue URL points to myaccount.google.com.
-                    # Reaching the protected account site indicates Google accepted
-                    # the login; Google itself handles passwords and 2FA.
-                    authenticated = any(
+                    google_authenticated = any(
                         urlsplit(p.url).hostname == "myaccount.google.com"
                         and urlsplit(p.url).path not in ("/signin", "/ServiceLogin")
-                        for p in pages
-                    )
+                        for p in pages)
+                    flow_pages = [p for p in pages if urlsplit(p.url).hostname == "flow.google.com"]
+                    if google_authenticated and not account_login_state.get("flowOpened"):
+                        # Navigation only after the official Google login finishes.
+                        # User must manually accept any Flow terms shown.
+                        await pages[0].goto("https://flow.google.com/", wait_until="domcontentloaded", timeout=20000)
+                        account_login_state["flowOpened"] = True
+                        flow_pages = [pages[0]]
+                    ready = False
+                    identity = None
+                    for page in flow_pages:
+                        data = await page.locator("body").evaluate(r"""body => {
+                            const isVisible=e=>{
+                              const r=e.getBoundingClientRect(),s=getComputedStyle(e);
+                              return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'
+                                &&r.top<innerHeight&&r.bottom>0;
+                            };
+                            const boxes=[...body.querySelectorAll('[role="textbox"],[contenteditable="true"]')];
+                            const prompt=boxes.some(e=>isVisible(e)&&/o que você quer criar|what do you want to create/i.test(
+                              [e.getAttribute('aria-label'),e.getAttribute('placeholder'),
+                               e.getAttribute('data-placeholder')].join(' ')));
+                            const newProject=[...body.querySelectorAll('button,[role="button"],a')].some(e=>
+                              isVisible(e)&&/^(novo projeto|new project)$/i.test(
+                               [e.getAttribute('aria-label'),e.getAttribute('title'),e.innerText].filter(Boolean).join(' ').trim()));
+                            // Only an account-control label may identify the active account.
+                            // Do not scrape arbitrary page emails, text, inputs or history.
+                            const controls=[...body.querySelectorAll('button,[role="button"]')].filter(isVisible);
+                            const emails=[];
+                            for(const e of controls){
+                              const label=[e.getAttribute('aria-label'),e.getAttribute('title')].filter(Boolean).join(' ');
+                              if(!/google account|conta do google|google konto/i.test(label))continue;
+                              const match=label.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/ig);
+                              if(match)emails.push(...match);
+                            }
+                            return {ready:prompt||newProject,emails:[...new Set(emails)].slice(0,2)};
+                        }""", timeout=3500)
+                        ready = ready or bool(data.get("ready"))
+                        found = data.get("emails", [])
+                        if len(found) == 1 and re.fullmatch(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}", found[0]):
+                            identity = found[0][:80]
+                    # Browser UI access alone is not a reliable terms acceptance proof.
+                    # Require two consecutive ready checks, after reaching Flow.
+                    if ready:
+                        account_login_state["confirmations"] += 1
+                    else:
+                        account_login_state["confirmations"] = 0
+                    if identity and ready:
+                        config = read_flow_accounts()
+                        for account in config["accounts"]:
+                            if account["id"] == config["selected"]:
+                                account["label"] = identity
+                        save_flow_accounts(config)
+                    confirmed = ready and account_login_state["confirmations"] >= 2
+                    if confirmed:
+                        print("mv_account_login_verified " + __import__("json").dumps({
+                            "flowReady": True, "profile": "isolated", "emailVerified": bool(identity)
+                        }), flush=True)
+                    return {"confirmed": bool(confirmed),
+                            "reason": "flow_ready" if confirmed else (
+                                "accept_flow_terms" if flow_pages else "awaiting_google_login")}
                 finally:
                     await browser.close()
-        except Exception:
+        except Exception as exc:
             account_login_state["confirmations"] = 0
-            return {"confirmed": False, "reason": "checking"}
-        if authenticated:
-            account_login_state["confirmations"] += 1
-        else:
-            account_login_state["confirmations"] = 0
-        confirmed = account_login_state["confirmations"] >= 2
-        if confirmed:
-            print("mv_account_login_verified " + __import__("json").dumps({
-                "verified": True, "mode": "google_account_landing",
-                "profile": "isolated" if account_login_state["profile"] != "primary" else "primary"
+            print("mv_account_login_check " + __import__("json").dumps({
+                "status": "retry", "errorType": type(exc).__name__
             }), flush=True)
-        return {"confirmed": confirmed, "reason": "authenticated" if confirmed
-                else "awaiting_google_login"}
+            return {"confirmed": False, "reason": "checking"}
+
+
+@app.post("/session/accounts/delete")
+async def delete_flow_account(request: Request):
+    """Delete only a non-primary account's isolated profile while Chrome is off."""
+    authorize(request)
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(400, "invalid_account")
+    identifier = data.get("accountId") if isinstance(data, dict) else None
+    async with lock:
+        if chrome_running():
+            raise HTTPException(409, "browser_must_be_stopped")
+        config = read_flow_accounts()
+        if not isinstance(identifier, str) or not re.fullmatch(r"account-[a-f0-9]{16}", identifier):
+            raise HTTPException(400, "invalid_account")
+        if identifier not in {a["id"] for a in config["accounts"]}:
+            raise HTTPException(400, "invalid_account")
+        directory = PROFILE_ROOT / "flow-accounts" / identifier
+        # Directory is built from a strictly validated ID, never from user input paths.
+        if directory.is_symlink():
+            raise HTTPException(409, "profile_path_invalid")
+        if directory.exists():
+            try:
+                await asyncio.to_thread(shutil.rmtree, directory)
+            except OSError:
+                raise HTTPException(503, "profile_delete_failed")
+        config["accounts"] = [a for a in config["accounts"] if a["id"] != identifier]
+        if config["selected"] == identifier:
+            config["selected"] = "primary"
+        save_flow_accounts(config)
+        return {**config, "browserRunning": False}
 
 
 @app.post("/session/accounts/select")
@@ -426,7 +506,7 @@ def chrome_running():
 
 async def stop_browser():
     global chrome_process, browser_monitor_task
-    account_login_state.update({"active": False, "profile": None, "confirmations": 0})
+    account_login_state.update({"active": False, "profile": None, "confirmations": 0, "flowOpened": False})
     view_tickets.clear()
     for ticket_info in video_download_tickets.values():
         try:
@@ -479,7 +559,7 @@ async def start(request: Request):
             account_login_state.update({
                 "active": login_only,
                 "profile": read_flow_accounts()["selected"] if login_only else None,
-                "confirmations": 0
+                "confirmations": 0, "flowOpened": False
             })
             os.makedirs(selected_chrome_profile(), mode=0o700, exist_ok=True)
             os.makedirs(DOWNLOAD_DIR, mode=0o700, exist_ok=True)
