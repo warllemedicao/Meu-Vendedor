@@ -15,6 +15,7 @@ type Scene = { number: number; durationSeconds: 10; title: string; setting: stri
 type Project = { id: string; user_id: string; title: string; status: string; genre?: string; topic_id?: string | null; characters: Character[]; scenes: Scene[] };
 type Prompt = { scene: number; text: string; platform: Platform };
 type Clip = { id: string; scene_number: number; storage_path: string; approved: boolean };
+type LibraryCharacter = { id: string; user_id: string; name: string; description: string; voice: string; image_prompt: string; storage_path: string };
 
 const genres: { value: Genre; label: string }[] = [
   { value: "geral", label: "Todos os gêneros" }, { value: "comedia", label: "Comédia" },
@@ -104,6 +105,14 @@ export function StoriesStudio() {
   const [checkingGemini, setCheckingGemini] = useState(false);
   const [progress, setProgress] = useState(0);
   const [sceneProgress, setSceneProgress] = useState("");
+  const [characterLibrary, setCharacterLibrary] = useState<LibraryCharacter[]>([]);
+  const [libraryImageUrls, setLibraryImageUrls] = useState<Record<string,string>>({});
+  const [characterImageUrls, setCharacterImageUrls] = useState<Record<string,string>>({});
+  const [imageName, setImageName] = useState("");
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [imageConfigured, setImageConfigured] = useState(false);
+  const [selectedPlatformByScene, setSelectedPlatformByScene] = useState<Record<number,Platform>>({});
+  const [scenePromptDrafts, setScenePromptDrafts] = useState<Record<string,string>>({});
   const [expandedScene, setExpandedScene] = useState(1);
   const stopSceneQueue = useRef(false);
   const [error, setError] = useState("");
@@ -124,7 +133,152 @@ export function StoriesStudio() {
       .eq("user_id", user.id).order("updated_at", { ascending: false }).limit(100);
     setProjects((data || []) as Project[]);
   }, [user]);
-  useEffect(() => { void Promise.resolve().then(() => Promise.all([loadTopics(), loadProjects()])); }, [loadTopics, loadProjects]);
+  useEffect(() => { void Promise.resolve().then(() => Promise.all([loadTopics(), loadProjects(), loadCharacterLibrary()])); }, [loadTopics, loadProjects(), loadCharacterLibrary]);
+  const loadCharacterLibrary = useCallback(async () => {
+    if (!user) { setCharacterLibrary([]); setLibraryImageUrls({}); return; }
+    const client = getSupabase(); if (!client) return;
+    const { data, error: dbError } = await client.from("mv_story_characters").select("*")
+      .eq("user_id", user.id).order("updated_at", { ascending: false }).limit(100);
+    if (dbError) { setError("Não foi possível carregar a biblioteca de personagens."); return; }
+    const entries = (data || []) as LibraryCharacter[];
+    setCharacterLibrary(entries);
+    const signed = await Promise.all(entries.map(async entry => {
+      const { data: signedImage } = await client.storage.from("mv-story-images")
+        .createSignedUrl(entry.storage_path, 600);
+      return [entry.storage_path, signedImage?.signedUrl || ""] as const;
+    }));
+    setLibraryImageUrls(Object.fromEntries(signed.filter(([,url])=>url)));
+  }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    void invokeStory("image_config", {}).then(result => {
+      const config = result as { configured?: boolean };
+      setImageConfigured(Boolean(config.configured));
+    }).catch(() => setImageConfigured(false));
+  }, [user]);
+  const promptKey = (sceneNumber: number, provider: Platform) => provider + ":" + sceneNumber;
+  function downloadTextFile(filename: string, contents: string) {
+    const url = URL.createObjectURL(new Blob([contents], { type: "text/plain;charset=utf-8" }));
+    const anchor = document.createElement("a"); anchor.href = url; anchor.download = filename;
+    anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }
+  async function downloadReference(storagePath: string, name: string) {
+    const client = getSupabase(); if (!client) return;
+    const { data, error: fetchError } = await client.storage.from("mv-story-images").download(storagePath);
+    if (fetchError || !data) return setError("Não foi possível baixar a referência privada.");
+    const extension = storagePath.split(".").at(-1)?.toLowerCase() || "png";
+    const safeName = name.replace(/[^a-z0-9_-]/gi, "_").slice(0,70);
+    const url = URL.createObjectURL(data);
+    const anchor = document.createElement("a"); anchor.href = url; anchor.download = safeName + "." + extension;
+    anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }
+  async function persistCharacterImage(characterIndex: number, storagePath: string, prompt: string, libraryName?: string) {
+    if (!project || !user) throw new Error("Selecione um projeto antes de associar a imagem.");
+    const client = getSupabase(); if (!client) throw new Error("Supabase indisponível.");
+    const character = project.characters[characterIndex];
+    if (!character) throw new Error("Personagem não encontrado.");
+    const characters = project.characters.map((entry, i) =>
+      i === characterIndex ? { ...entry, referenceImagePath: storagePath } : entry);
+    const { error: saveError } = await client.from("mv_story_projects")
+      .update({ characters, updated_at: new Date().toISOString() })
+      .eq("id", project.id).eq("user_id", user.id);
+    if (saveError) throw new Error("Imagem enviada, mas não foi possível vinculá-la ao roteiro.");
+    const name = (libraryName || character.name).trim();
+    const { error: libraryError } = await client.from("mv_story_characters").upsert({
+      user_id: user.id, name, description: character.visual, voice: character.voice,
+      image_prompt: prompt.trim().slice(0,1600), storage_path: storagePath,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,name" });
+    setProject({ ...project, characters });
+    await loadCharacterLibrary();
+    if (libraryError) setMessage("Imagem associada ao roteiro; não foi possível atualizar a biblioteca.");
+    else setMessage("Imagem associada e salva na biblioteca: " + name);
+  }
+  async function chooseLibraryImage(characterIndex: number, entry: LibraryCharacter) {
+    if (!project || project.status !== "draft") return;
+    setBusy(true); setError("");
+    try { await persistCharacterImage(characterIndex, entry.storage_path, entry.image_prompt); }
+    catch(e) { setError(plainError(e)); } finally { setBusy(false); }
+  }
+  async function renameLibraryCharacter(entry: LibraryCharacter, name: string) {
+    if (!user || !name.trim() || name.length > 100) return;
+    const client = getSupabase(); if (!client) return;
+    const { error: dbError } = await client.from("mv_story_characters")
+      .update({ name: name.trim(), updated_at: new Date().toISOString() })
+      .eq("id", entry.id).eq("user_id", user.id);
+    if (dbError) return setError("Não foi possível renomear o personagem. Confira se o nome já existe.");
+    await loadCharacterLibrary();
+  }
+  async function generateCharacterReference(characterIndex: number) {
+    if (!project || !user || busy) return;
+    const character = project.characters[characterIndex];
+    if (!character || !imageConfigured) return setError("Configure HIST_IMAGEM_GEMINI_API_KEY antes de gerar imagens. O envio manual já está disponível.");
+    const name = imageName.trim() || character.name;
+    const prompt = imagePrompt.trim() || character.visual;
+    if (prompt.length < 15) return setError("Descreva o personagem com pelo menos 15 caracteres.");
+    setBusy(true); setError(""); setSceneProgress("Solicitando uma imagem ao Nano Banana...");
+    try {
+      const result = await invokeStory("image_character", { name, prompt }) as { data: string; mimeType: string };
+      if (!result.data || !["image/png","image/jpeg","image/webp"].includes(result.mimeType))
+        throw new Error("O gerador não retornou uma imagem válida.");
+      const raw = atob(result.data);
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      const extension = result.mimeType === "image/png" ? "png" : result.mimeType === "image/webp" ? "webp" : "jpg";
+      const file = new File([bytes], name + "." + extension, { type: result.mimeType });
+      if (file.size > 10 * 1024 * 1024) throw new Error("A imagem excedeu 10 MB.");
+      const client = getSupabase(); if (!client) throw new Error("Supabase indisponível.");
+      const path = user.id + "/library/" + crypto.randomUUID() + "." + extension;
+      const { error: uploadError } = await client.storage.from("mv-story-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw new Error("A imagem foi gerada, mas falhou o armazenamento privado.");
+      await persistCharacterImage(characterIndex, path, prompt, name);
+    } catch(e) { setError(plainError(e)); }
+    finally { setBusy(false); setSceneProgress(""); }
+  }
+  async function prepareScenePrompt(sceneNumber: number, useGemini: boolean) {
+    if (!project || !user || busy) return;
+    const scene = project.scenes.find(s => s.number === sceneNumber);
+    if (!scene?.setting.trim() || !scene.action.trim())
+      return setError("Gere ou preencha esta cena antes de preparar o prompt.");
+    const provider = selectedPlatformByScene[sceneNumber] || platform;
+    const client = getSupabase(); if (!client) return;
+    setBusy(true); setError(""); setSceneProgress(useGemini ? "Gerando prompt da cena " + sceneNumber : "");
+    try {
+      const key = promptKey(sceneNumber, provider);
+      const { data: existing } = await client.from("mv_story_prompts").select("prompt")
+        .eq("project_id", project.id).eq("user_id", user.id)
+        .eq("scene_number", sceneNumber).eq("platform", provider).maybeSingle();
+      if (existing?.prompt) {
+        setScenePromptDrafts(old => ({ ...old, [key]: existing.prompt }));
+        setMessage("Prompt salvo carregado. Revise ou baixe antes de gerar outro.");
+        return;
+      }
+      const draft = useGemini
+        ? (await invokeStory("prompt_scene", {
+          platform: provider, sceneNumber, scene, characters: project.characters,
+        }) as { prompt: Prompt }).prompt?.text
+        : makeLocalPromptDrafts(provider, project.characters, [scene])[0]?.text;
+      if (!draft) throw new Error("O prompt não foi preparado.");
+      setScenePromptDrafts(old => ({ ...old, [key]: draft }));
+      setMessage(useGemini ? "Prompt gerado; revise e salve antes de baixar." : "Rascunho criado sem usar API. Revise e salve.");
+    } catch(e) { setError(plainError(e)); }
+    finally { setBusy(false); setSceneProgress(""); }
+  }
+  async function saveScenePrompt(sceneNumber: number) {
+    if (!project || !user) return;
+    const provider = selectedPlatformByScene[sceneNumber] || platform;
+    const text = scenePromptDrafts[promptKey(sceneNumber, provider)]?.trim() || "";
+    const maximum = platformOptions.find(p => p.value === provider)?.maximum || 900;
+    if (!text || Array.from(text).length > maximum) return setError("Revise o limite de caracteres do prompt.");
+    const client = getSupabase(); if (!client) return;
+    const { error: dbError } = await client.from("mv_story_prompts").upsert({
+      user_id: user.id, project_id: project.id, scene_number: sceneNumber,
+      platform: provider, prompt: text,
+    }, { onConflict: "project_id,scene_number,platform" });
+    if (dbError) return setError("Não foi possível salvar o prompt.");
+    setMessage("Prompt da cena " + sceneNumber + " salvo para " + provider + ".");
+  }
   async function openProject(selected: Project) {
     if (!user) return;
     setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setPublishDescription(""); setExpandedScene(Math.max(1, selected.scenes.findIndex(s => !s.action?.trim() || !s.setting?.trim()) + 1)); setStage("roteiro");
@@ -139,6 +293,19 @@ export function StoriesStudio() {
         .eq("id", selected.topic_id).eq("user_id", user.id).maybeSingle();
       if (sourceTopic) { setActiveTopic(sourceTopic as Topic); setPublishDescription(sourceTopic.synopsis); }
     }
+    if (selected.characters?.length) {
+      const client2 = getSupabase();
+      if (client2) {
+        const signed = await Promise.all(selected.characters.filter(ch => ch.referenceImagePath).map(async ch => {
+          const { data: image } = await client2.storage.from("mv-story-images").createSignedUrl(ch.referenceImagePath!, 600);
+          return [ch.referenceImagePath!, image?.signedUrl || ""] as const;
+        }));
+        setCharacterImageUrls(Object.fromEntries(signed.filter(([,url])=>url)));
+      }
+    }
+    const { data: allPrompts } = await client.from("mv_story_prompts").select("scene_number,platform,prompt")
+      .eq("project_id", selected.id).eq("user_id", user.id);
+    setScenePromptDrafts(Object.fromEntries((allPrompts || []).map(p => [promptKey(p.scene_number,p.platform as Platform),p.prompt])));
     setClips((clipsResult.data || []) as Clip[]);
     setPrompts((promptResult.data || []).map(p => ({ scene: p.scene_number as number, text: p.prompt as string, platform: p.platform as Platform })));
   }
