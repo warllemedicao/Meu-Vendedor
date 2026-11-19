@@ -244,10 +244,11 @@ export function StoriesStudio() {
       if (!result.data || !["image/png","image/jpeg","image/webp"].includes(result.mimeType))
         throw new Error("O gerador não retornou uma imagem válida.");
       const raw = atob(result.data);
-      const bytes = new Uint8Array(raw.length);
+      const imageBuffer = new ArrayBuffer(raw.length);
+      const bytes = new Uint8Array(imageBuffer);
       for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
       const extension = result.mimeType === "image/png" ? "png" : result.mimeType === "image/webp" ? "webp" : "jpg";
-      const file = new File([bytes], name + "." + extension, { type: result.mimeType });
+      const file = new File([imageBuffer], name + "." + extension, { type: result.mimeType });
       if (file.size > 10 * 1024 * 1024) throw new Error("A imagem excedeu 10 MB.");
       const client = getSupabase(); if (!client) throw new Error("Supabase indisponível.");
       const path = user.id + "/library/" + crypto.randomUUID() + "." + extension;
