@@ -92,7 +92,7 @@ export function StoriesStudio() {
   const [manualTitle, setManualTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [genre, setGenre] = useState<Genre>("geral");
-  const [characterStyle, setCharacterStyle] = useState<Exclude<StoryCharacterStyle, "nao_definido">>("frutinhas");
+  const [characterStyle, setCharacterStyle] = useState<Exclude<StoryCharacterStyle, "nao_definido"> | null>(null);
   const [requested, setRequested] = useState(5);
   const [query, setQuery] = useState("");
   const [onlySaved, setOnlySaved] = useState(false);
@@ -479,6 +479,7 @@ export function StoriesStudio() {
   }
   async function generateTopics() {
     if (!user || subject.trim().length < 2) return;
+    if (!characterStyle) return setError("Escolha o tipo de personagem antes de gerar os temas.");
     setBusy(true); setError(""); setMessage(""); setProgress(0);
     const normalizedSubject = subject.trim();
     const known = new Set([...topics.filter(t => t.subject === normalizedSubject && t.character_style === characterStyle).map(t => t.title.toLowerCase()),
@@ -622,6 +623,7 @@ export function StoriesStudio() {
   }
   async function createManualScript(title: string, topic?: Topic) {
     if (!user || title.trim().length < 3) return setError("Digite um título com pelo menos 3 caracteres.");
+    if (!topic && !characterStyle) return setError("Escolha o tipo de personagem antes de criar a história.");
     const client = getSupabase(); if (!client) return;
     setBusy(true); setError("");
     try {
@@ -731,7 +733,7 @@ export function StoriesStudio() {
       if (!scene) { setMessage("Os 12 prompts desta plataforma já estão salvos."); return; }
       setSceneProgress("Gerando prompt " + scene.number + " de 12");
       const result = await invokeStory("prompt_scene", {
-        platform, sceneNumber: scene.number, scene, characters: project.characters,
+        platform, sceneNumber: scene.number, scene, characterStyle: project.character_style || "nao_definido", characters: project.characters,
       }) as { prompt: Prompt };
       if (!result.prompt || result.prompt.scene !== scene.number ||
         result.prompt.platform !== platform || !result.prompt.text?.trim())
@@ -843,7 +845,7 @@ export function StoriesStudio() {
       <h2 className="text-lg font-semibold">1. Assuntos e temas</h2>
       <p className="text-sm text-muted">Selecione de 5 a 20 temas por geração. O padrão é 5 temas. Revise os resultados antes de salvar.</p>
       <fieldset className="space-y-2">
-        <legend className="text-sm font-semibold">Tipo de personagem</legend>
+        <legend className="text-sm font-semibold">Tipo de personagem — escolha antes de gerar</legend>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {STORY_CHARACTER_STYLES.map(option => <button key={option.value} type="button"
             aria-pressed={characterStyle === option.value}
@@ -854,6 +856,7 @@ export function StoriesStudio() {
             <span className="block text-xs text-muted mt-1">{option.description}</span>
           </button>)}
         </div>
+        {!characterStyle && <p className="text-xs text-muted">Selecione um dos três estilos para liberar a geração de temas.</p>}
       </fieldset>
       <label className="block text-sm font-medium">Assunto principal
         <input className={field + " mt-1"} value={subject} maxLength={160} onChange={e => setSubject(e.target.value)}
@@ -872,7 +875,7 @@ export function StoriesStudio() {
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button className={button} disabled={busy || checkingGemini || !user || subject.trim().length < 2} onClick={() => void generateTopics()}>
+        <button className={button} disabled={busy || checkingGemini || !user || !characterStyle || subject.trim().length < 2} onClick={() => void generateTopics()}>
           {busy ? "Gerando..." : "Gerar temas com Gemini"}
         </button>
         <button className={button} disabled={busy || checkingGemini || !user} onClick={() => void checkGeminiConnection()}>{checkingGemini ? "Verificando conexão..." : "Verificar Gemini sem gerar temas"}</button>
@@ -888,7 +891,7 @@ export function StoriesStudio() {
         <div className="flex flex-wrap gap-2">
           <input className={field + " flex-1 min-w-44"} value={manualTitle} maxLength={220} onChange={e => setManualTitle(e.target.value)}
             placeholder="Título da sua história" aria-label="Título para roteiro manual"/>
-          <button className={button} disabled={busy || !user || manualTitle.trim().length < 3}
+          <button className={button} disabled={busy || !user || !characterStyle || manualTitle.trim().length < 3}
             onClick={() => void createManualScript(manualTitle)}>Criar roteiro manual</button>
         </div>
       </div>
