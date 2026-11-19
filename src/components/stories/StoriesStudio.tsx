@@ -108,8 +108,8 @@ export function StoriesStudio() {
   const [characterLibrary, setCharacterLibrary] = useState<LibraryCharacter[]>([]);
   const [libraryImageUrls, setLibraryImageUrls] = useState<Record<string,string>>({});
   const [characterImageUrls, setCharacterImageUrls] = useState<Record<string,string>>({});
-  const [imageName, setImageName] = useState("");
-  const [imagePrompt, setImagePrompt] = useState("");
+  const [imageNames, setImageNames] = useState<Record<number,string>>({});
+  const [imagePrompts, setImagePrompts] = useState<Record<number,string>>({});
   const [imageConfigured, setImageConfigured] = useState(false);
   const [selectedPlatformByScene, setSelectedPlatformByScene] = useState<Record<number,Platform>>({});
   const [scenePromptDrafts, setScenePromptDrafts] = useState<Record<string,string>>({});
@@ -227,8 +227,8 @@ export function StoriesStudio() {
     if (!project || !user || busy) return;
     const character = project.characters[characterIndex];
     if (!character || !imageConfigured) return setError("Configure HIST_IMAGEM_GEMINI_API_KEY antes de gerar imagens. O envio manual já está disponível.");
-    const name = imageName.trim() || character.name;
-    const prompt = imagePrompt.trim() || character.visual;
+    const name = imageNames[characterIndex]?.trim() || character.name;
+    const prompt = imagePrompts[characterIndex]?.trim() || character.visual;
     if (prompt.length < 15) return setError("Descreva o personagem com pelo menos 15 caracteres.");
     setBusy(true); setError(""); setSceneProgress("Solicitando uma imagem ao Nano Banana...");
     try {
@@ -335,8 +335,8 @@ export function StoriesStudio() {
       const { error: uploadError } = await client.storage.from("mv-story-images")
         .upload(path, file, { contentType: file.type, upsert: false });
       if (uploadError) throw new Error("Falha ao enviar referência visual privada.");
-      const name = imageName.trim() || project.characters[characterIndex]?.name;
-      await persistCharacterImage(characterIndex, path, imagePrompt || project.characters[characterIndex].visual, name);
+      const name = imageNames[characterIndex]?.trim() || project.characters[characterIndex]?.name;
+      await persistCharacterImage(characterIndex, path, imagePrompts[characterIndex] || project.characters[characterIndex].visual, name);
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
@@ -865,15 +865,14 @@ export function StoriesStudio() {
             </div>
             <p className="text-xs font-semibold">Criar nova referência com Nano Banana 2 Lite</p>
             <label className="block text-xs">Nome da nova imagem
-              <input className={field + " mt-1"} maxLength={100} value={imageName}
-                placeholder={char.name} onFocus={() => {if(!imageName) setImageName(char.name);}}
-                onChange={e => setImageName(e.target.value)}/>
+              <input className={field + " mt-1"} maxLength={100} value={imageNames[ci] ?? ""}
+                placeholder={char.name}
+                onChange={e => setImageNames(old => ({ ...old, [ci]: e.target.value }))}/>
             </label>
             <label className="block text-xs">Descreva a aparência (prompt da imagem)
               <textarea className={field + " mt-1"} rows={2} maxLength={1200}
-                placeholder={char.visual} value={imagePrompt}
-                onFocus={() => {if(!imagePrompt) setImagePrompt(char.visual);}}
-                onChange={e => setImagePrompt(e.target.value)}/>
+                placeholder={char.visual} value={imagePrompts[ci] ?? ""}
+                onChange={e => setImagePrompts(old => ({ ...old, [ci]: e.target.value }))}/>
             </label>
             <button className={button} disabled={busy || !imageConfigured} onClick={() => void generateCharacterReference(ci)}>
               Gerar imagem com Nano Banana
