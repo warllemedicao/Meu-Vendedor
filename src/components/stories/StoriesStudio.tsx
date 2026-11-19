@@ -979,7 +979,8 @@ export function StoriesStudio() {
       </div>
       }
       <div className="space-y-2">
-        {project.scenes.map((s, i) => {
+        {project.scenes.filter(s => s.number === expandedScene).map(s => {
+          const i = s.number - 1;
           const filled = Boolean(s.setting.trim() && s.action.trim());
           const expanded = expandedScene === s.number;
           const chosenPlatform = selectedPlatformByScene[s.number] || platform;
@@ -988,7 +989,7 @@ export function StoriesStudio() {
             className="rounded-xl border border-border bg-surface overflow-hidden">
             <button type="button" className="w-full px-3 py-2 text-left flex items-center justify-between gap-3"
               aria-expanded={expanded} aria-controls={"story-fields-" + s.number}
-              onClick={() => setExpandedScene(expanded ? 0 : s.number)}>
+              onClick={() => setSceneWorkbenchStep("roteiro")}>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold">Cena {s.number} · {s.title} · 10s</span>
                 <span className="block truncate text-xs text-muted">
@@ -998,6 +999,7 @@ export function StoriesStudio() {
               <span className="shrink-0 text-xs text-muted">{filled ? "Preenchida" : "Pendente"} · {expanded ? "Recolher" : "Abrir"}</span>
             </button>
             {expanded && <div id={"story-fields-" + s.number} className="border-t border-border px-3 py-3 grid gap-2 sm:grid-cols-2">
+              {sceneWorkbenchStep === "roteiro" && <>
               <label className="text-xs font-semibold sm:col-span-2">Título
                 <input className={field + " mt-1 py-1.5"} maxLength={160} value={s.title}
                   disabled={project.status !== "draft"} onChange={e => updateScene(i, { title: e.target.value })}/>
@@ -1030,7 +1032,17 @@ export function StoriesStudio() {
                   disabled={project.status !== "draft"} onChange={e => updateScene(i, { transition: e.target.value })}/>
               </label>
               <p className="text-xs text-muted sm:col-span-2">Fala: {countStoryWords(s)}/26 palavras · 10 segundos</p>
-              {filled && <div className="sm:col-span-2 rounded-xl border border-border p-3 space-y-3">
+              {!filled && project.status === "draft" && <div className="flex flex-wrap items-center gap-2">
+                <button className={button} disabled={busy} onClick={() => void generateNextScene()}>Gerar cena {s.number} com Gemini</button>
+                <span className="text-xs text-muted">Se falhar, use o editor manual acima ou a opção Flash-Lite em opções avançadas.</span>
+              </div>}
+              <div className="flex flex-wrap gap-2">
+                <button className={button} disabled={busy || project.status !== "draft"} onClick={() => void saveScript(false)}>Salvar roteiro desta cena</button>
+                {filled && <button className={button + " !bg-primary !text-primary-foreground !border-primary"} onClick={() => setSceneWorkbenchStep("personagens")}>Continuar: personagens e imagens</button>}
+              </div>
+              </>}
+              {sceneWorkbenchStep === "prompt" && !filled && <p className="sm:col-span-2 text-sm text-muted">Preencha e salve a cena antes de preparar o prompt.</p>}
+              {filled && sceneWorkbenchStep === "prompt" && <div className="sm:col-span-2 rounded-xl border border-border p-3 space-y-3">
                 <h4 className="text-sm font-semibold">Preparar vídeo da cena {s.number}</h4>
                 <p className="text-xs text-muted">As imagens escolhidas são referências para baixar e anexar manualmente no gerador. O texto mantém os nomes, características e falas da cena.</p>
                 <div className="flex flex-wrap gap-2">
@@ -1062,27 +1074,33 @@ export function StoriesStudio() {
                       ...old, [promptKey(s.number, chosenPlatform)]: e.target.value,
                     }))} placeholder="O prompt desta cena aparecerá aqui para revisão e download."/>
                 </label>
-                <p className="text-xs text-muted">{Array.from(scenePromptText).length}/{PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres</p>
+                <p className={"text-xs font-semibold " + (Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars ? "text-red-600" : "text-muted")}>
+                  {Array.from(scenePromptText).length}/{PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres
+                  {Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars ? " — acima do limite; refaça a versão compacta antes de copiar." : " — dentro do limite."}
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  <button className={button} disabled={!scenePromptText.trim() || busy} onClick={() => void saveScenePrompt(s.number)}>Salvar prompt</button>
-                  <button className={button} disabled={!scenePromptText.trim()}
+                  <button className={button} disabled={!scenePromptText.trim() || busy || Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars} onClick={() => void saveScenePrompt(s.number)}>Salvar prompt</button>
+                  <button className={button} disabled={!scenePromptText.trim() || Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
                     onClick={() => downloadTextFile("cena-" + s.number + "-" + chosenPlatform + ".txt", scenePromptText)}>
                     Baixar prompt .txt
                   </button>
-                  <button className={button} disabled={!scenePromptText.trim()}
-                    onClick={() => void navigator.clipboard.writeText(scenePromptText)}>Copiar prompt</button>
+                  <button className={button} disabled={!scenePromptText.trim() || Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
+                    onClick={() => void copyScenePrompt(s.number, chosenPlatform, scenePromptText)}>Copiar prompt</button>
                 </div>
-                {s.number < 12 && project.status === "draft" && <button className={button}
-                  disabled={busy} onClick={() => void generateNextScene()}>Ir adiante: gerar próxima cena</button>}
+                {copiedScenePrompt === promptKey(s.number, chosenPlatform) && <p role="status" className="text-xs font-semibold text-green-700">Prompt copiado. Agora crie o vídeo na plataforma escolhida; depois avance para a próxima cena usando o botão abaixo.</p>}
+                {s.number < 12 && project.status === "draft" && <button className={button + " w-full !bg-primary !text-primary-foreground !border-primary"}
+                  disabled={busy || !scenePromptText.trim() || Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
+                  onClick={() => void advanceToNextScene(s.number)}>Concluir preparação · Ir para cena {s.number + 1}</button>}
+                {s.number === 12 && <p className="text-xs text-muted">Última cena. Revise todas as cenas e conclua a aprovação do roteiro quando estiver pronto.</p>}
               </div>}
             </div>}
           </div>;
         })}
       </div>
-      {project.status === "draft" ? <div className="flex flex-wrap gap-2">
+      {project.status === "draft" ? <details className="rounded-xl border border-border p-3"><summary className="cursor-pointer text-sm font-semibold">Opções de roteiro completo</summary><div className="flex flex-wrap gap-2 pt-3">
         <button className={button} disabled={busy} onClick={() => void saveScript(false)}>Salvar alterações</button>
         <button className={button} disabled={busy} onClick={() => void saveScript(true)}>Aprovar roteiro e liberar prompts</button>
-      </div> : <p className="font-semibold text-sm">Roteiro aprovado e congelado para manter os prompts consistentes.</p>}
+      </div></details> : <p className="font-semibold text-sm">Roteiro aprovado e congelado para manter os prompts consistentes.</p>}
     </section>}
 
     {stage === "gerador" && <section className={panel}>
@@ -1228,7 +1246,7 @@ export function StoriesStudio() {
         <p className="text-muted">O botão de copiar não publica nada na rede social. A publicação automática depende de integrações e permissões futuras.</p>
       </div>
     </section>
-    <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+    <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4" hidden={stage === "roteiro"}>
       <button className={button} disabled={currentStage === 0}
         onClick={() => setStage(STORY_STAGES[Math.max(0, currentStage - 1)].key)}>Etapa anterior</button>
       <span className="text-sm text-muted">Etapa {currentStage + 1} de 7 — {STORY_STAGES[currentStage].title}</span>
