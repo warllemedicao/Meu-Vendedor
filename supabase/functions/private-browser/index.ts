@@ -75,6 +75,7 @@ Deno.serve(async (req) => {
   const routes: Record<string, { path: string; method: string }> = {
     status: { path: "/session/status", method: "GET" },
     accounts_list: { path: "/session/accounts", method: "GET" },
+    accounts_login_status: { path: "/session/accounts/login-status", method: "GET" },
     accounts_create: { path: "/session/accounts/create", method: "POST" },
     accounts_select: { path: "/session/accounts/select", method: "POST" },
     inspect: { path: "/session/inspect", method: "GET" },
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
     // Forward only known, fixed browser error codes; never relay arbitrary upstream content.
     const allowed = new Set([
       "browser_not_running", "flow_page_not_active", "flow_project_not_active",
-      "invalid_account", "invalid_browser_purpose", "browser_must_be_stopped", "account_limit_reached",
+      "invalid_account", "invalid_browser_purpose", "account_setup_required", "browser_must_be_stopped", "account_limit_reached",
       "new_project_button_not_found", "prompt_field_not_unique",
       "flow_upload_action_not_found", "flow_upload_incomplete",
       "flow_add_elements_not_found", "flow_add_elements_ambiguous",
