@@ -8,12 +8,13 @@ type DownloadedVideo = { id: string; name: string; bytes: number; modifiedAt: nu
 type FlowAccount = { id: string; label: string };
 
 type DownloadDiagnostic = { stage?: string; reason?: string; flowProjectTabs?: number | null; videoCandidates?: number | null; toolbarCandidates?: number | null; resolutionCandidates?: number | null; previewClicked?: boolean; editorOpen?: boolean; downloadMenuClicked?: boolean; resolutionClicked?: boolean; frames?: { frame?: number | null; eligible?: number | null; raw?: number | null; visible?: number | null; rejectedSize?: number | null; rejectedPosition?: number | null }[] };
-type BrowserResponse = { diagnostic?: DownloadDiagnostic; video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; ready?: boolean; failed?: boolean; reason?: string; settingsApplied?: boolean; accounts?: FlowAccount[]; selected?: string; browserRunning?: boolean };
+type BrowserResponse = { diagnostic?: DownloadDiagnostic; video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; ready?: boolean; failed?: boolean; reason?: string; settingsApplied?: boolean; confirmed?: boolean; accounts?: FlowAccount[]; selected?: string; browserRunning?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [viewUrl, setViewUrl] = useState("");
+  const [accountEnrollmentActive, setAccountEnrollmentActive] = useState(false);
   const [flowAccounts, setFlowAccounts] = useState<FlowAccount[]>([]);
   const [selectedFlowAccount, setSelectedFlowAccount] = useState("primary");
 
@@ -218,6 +219,43 @@ export function PrivateBrowserConnection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!accountEnrollmentActive) return;
+    let stopped = false;
+    let checking = false;
+    const check = async () => {
+      if (stopped || checking) return;
+      checking = true;
+      try {
+        const result = await invoke("accounts_login_status");
+        if (!result.confirmed || stopped) return;
+        stopped = true;
+        setMessage("Login Google confirmado. Salvando a sessão e encerrando o Chrome...");
+        try {
+          await invoke("stop");
+          setViewUrl("");
+          setAccountEnrollmentActive(false);
+          setMessage("Conta Google conectada. Chrome fechado automaticamente e sessão preservada. Selecione a conta para usar o Flow.");
+        } catch {
+          setAccountEnrollmentActive(false);
+          setMessage("Login confirmado, mas o Chrome não pôde ser encerrado. Clique em 'Encerrar Chrome e robô' para preservar a sessão.");
+        }
+      } catch {
+        // A temporary status failure is not evidence of successful login.
+        // Keep the Chrome open and let a later check retry.
+      } finally {
+        checking = false;
+      }
+    };
+    const interval = window.setInterval(() => { void check(); }, 5000);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+    };
+    // Account onboarding is deliberately independent of the video-generation pipeline.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountEnrollmentActive]);
+
   async function selectFlowAccount(accountId: string) {
     if (busy || videoBusy) return;
     setBusy(true);
@@ -247,7 +285,8 @@ export function PrivateBrowserConnection() {
         throw new Error("Endereço de visualização inválido.");
       }
       setViewUrl(url.toString());
-      setMessage("Novo perfil aberto na página de login Google. Faça login diretamente no Google pelo Chrome. Quando terminar, clique em 'Encerrar Chrome e robô' para preservar a sessão.");
+      setAccountEnrollmentActive(true);
+      setMessage("Novo perfil aberto no login oficial do Google. Depois de concluir a autenticação, o Meu Vendedor verificará a conta e fechará o Chrome automaticamente. Não feche esta página durante a confirmação.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao criar perfil. Consulte as contas antes de repetir.");
     } finally {
@@ -283,6 +322,7 @@ export function PrivateBrowserConnection() {
     try {
       await invoke("stop");
       setViewUrl("");
+      setAccountEnrollmentActive(false);
       setDownloadedVideos([]);
       setSelectedDownloadId("");
       setGenerateAuthorized(false);
@@ -414,7 +454,7 @@ export function PrivateBrowserConnection() {
     <div className="space-y-2 rounded-lg border border-border p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-2 text-sm font-medium">
-          <img src="https://flow.google.com/favicon.ico" alt="" aria-hidden="true"
+          <img src="/flow-icon.svg" alt="Ícone do Google Flow"
             width={22} height={22} className="h-[22px] w-[22px] rounded" />
           Contas Google Flow
         </span>
@@ -434,7 +474,7 @@ export function PrivateBrowserConnection() {
         className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
         Adicionar conta Google
       </button>
-      <p className="text-xs text-muted">Seu perfil principal já conectado será preservado. Após adicionar uma conta, entre diretamente no Google pelo navegador e depois feche-o normalmente.</p>
+      <p className="text-xs text-muted">Seu perfil principal já conectado será preservado. Após adicionar uma conta, faça login diretamente no Google. Quando a autenticação for confirmada, o Chrome fechará automaticamente.</p>
     </div>
     <button type="button" disabled={busy} onClick={() => void openChrome()} className="rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">
       {busy ? "Abrindo..." : "Abrir Chrome do Flow"}
