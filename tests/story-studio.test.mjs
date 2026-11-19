@@ -90,10 +90,14 @@ test("Gemini logs only allowlisted diagnostics, never raw Google error messages"
   assert.doesNotMatch(edge, /console\.error\([^\n]*message/);
 });
 
-test("topic generator defaults to one request and displays errors next to its controls", () => {
-  assert.match(studio, /\[requested, setRequested\] = useState\(1\)/);
-  assert.match(studio, /\[1, 5, 25, 50, 100, 200, 500, 1000\]/);
+test("topic generator defaults to 5 themes, caps at 20 and displays errors next to its controls", () => {
+  assert.match(studio, /\[requested, setRequested\] = useState\(5\)/);
+  assert.match(studio, /\[5, 10, 15, 20\]/);
   assert.match(studio, /\{error && <p role="alert" className="w-full/);
   assert.match(studio, /\{message && <p role="status" className="w-full/);
-  assert.match(studio, /const count = Math\.min\(25, requested - total\)/);
+  assert.match(studio, /const count = Math\.min\(20, requested - total\)/);
+});
+
+test("story topics backend refuses counts above 20", () => {
+  assert.match(edge, /count < 1 \|\| count > 20/);
 });
