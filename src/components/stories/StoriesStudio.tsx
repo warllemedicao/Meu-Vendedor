@@ -563,14 +563,18 @@ export function StoriesStudio() {
   }
   async function saveScript(approve: boolean) {
     if (!project || !user) return;
-    if (project.scenes.length !== 12 || project.scenes.some((s, i) => s.number !== i + 1 || !s.action.trim() || !s.setting.trim()))
-      return setError("Cada uma das 12 cenas precisa ter ação, cenário e numeração correta.");
+    if (project.scenes.length !== 12 || project.scenes.some((s, i) => s.number !== i + 1))
+      return setError("A numeração das 12 cenas precisa estar correta.");
+    if (approve && project.scenes.some(s => !s.action.trim() || !s.setting.trim()))
+      return setError("Para aprovar o roteiro completo, todas as 12 cenas precisam de ação e cenário.");
     const characterNames = new Set(project.characters.map(ch => ch.name.toLowerCase()));
     if (project.characters.some(ch => !ch.name.trim() || !ch.role.trim() || !ch.visual.trim() || !ch.voice.trim()))
       return setError("Preencha nome, função, aparência e voz de todos os personagens.");
-    if (project.scenes.some(s => s.characters.some(ch => !characterNames.has(ch.toLowerCase())) ||
+    // Empty future scenes are deliberately ignored while saving an incremental draft.
+    if (project.scenes.filter(s => s.action.trim() || s.setting.trim()).some(s =>
+      s.characters.some(ch => !characterNames.has(ch.toLowerCase())) ||
       s.dialogue.some(d => d.speaker.toLowerCase() !== "narrador" && !characterNames.has(d.speaker.toLowerCase()))))
-      return setError("Um personagem mencionado na cena não existe na Bíblia de Personagens.");
+      return setError("Um personagem mencionado em uma cena preenchida não existe na Bíblia de Personagens.");
     if (project.scenes.some(s => s.dialogue.reduce((n, d) => n + d.text.trim().split(/\s+/).filter(Boolean).length, 0) > 26))
       return setError("Uma das cenas ultrapassa 26 palavras de fala. Reduza a fala para caber nos 10 segundos.");
     const client = getSupabase(); if (!client) return;
