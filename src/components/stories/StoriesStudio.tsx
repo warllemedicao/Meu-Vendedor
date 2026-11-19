@@ -824,17 +824,59 @@ export function StoriesStudio() {
             disabled={project.status !== "draft"} value={char.visual} onChange={e => updateCharacter(ci, { visual: e.target.value })}/></label>
           <label className="block">Voz, sotaque e modo de falar<textarea className={field + " mt-1"} rows={2} maxLength={450}
             disabled={project.status !== "draft"} value={char.voice} onChange={e => updateCharacter(ci, { voice: e.target.value })}/></label>
-          <p className="text-xs text-muted">{char.referenceImagePath ? "Imagem de referência vinculada" : "Sem referência visual enviada"}</p>
-          {project.status === "draft" && <label className="block">Imagem do personagem (opcional)
-            <input className="mt-2 block w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy}
-              onChange={e => {const file=e.currentTarget.files?.[0];void uploadReference(ci,file);e.currentTarget.value="";}}/>
-          </label>}
+          <div className="flex flex-wrap items-start gap-3 rounded-lg bg-surface-secondary p-2">
+            {char.referenceImagePath && (characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]) &&
+              <img className="h-24 w-20 rounded-md object-cover" alt={"Referência de " + char.name}
+                src={characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]}/>}
+            <div className="flex-1 min-w-48 space-y-2">
+              <p className="text-xs font-semibold">{char.referenceImagePath ? "Imagem vinculada: " + char.name : "Sem imagem vinculada a " + char.name}</p>
+              {char.referenceImagePath && <button className={button} onClick={() => void downloadReference(char.referenceImagePath!, char.name)}>Baixar imagem</button>}
+              {project.status === "draft" && <label className="block text-xs">Enviar imagem (PNG, JPG ou WebP)
+                <input className="mt-1 block w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy}
+                  onChange={e => {const file=e.currentTarget.files?.[0];void uploadReference(ci,file);e.currentTarget.value="";}}/>
+              </label>}
+            </div>
+          </div>
+          {project.status === "draft" && <div className="space-y-2 rounded-xl border border-border p-2">
+            <p className="text-xs font-semibold">Escolher personagem da biblioteca privada</p>
+            {characterLibrary.length === 0 && <p className="text-xs text-muted">A biblioteca começa vazia. Envie uma imagem ou gere a primeira referência.</p>}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {characterLibrary.map(entry => <div key={entry.id} className="shrink-0 w-28 rounded-md border border-border p-1 space-y-1">
+                {libraryImageUrls[entry.storage_path] &&
+                  <img src={libraryImageUrls[entry.storage_path]} className="h-20 w-full object-cover rounded"
+                    alt={entry.name}/>}
+                <p className="text-xs font-semibold truncate" title={entry.name}>{entry.name}</p>
+                <button className={button + " w-full !text-xs !px-1 !py-1"} disabled={busy}
+                  onClick={() => void chooseLibraryImage(ci, entry)}>Usar imagem</button>
+                <button className={button + " w-full !text-xs !px-1 !py-1"}
+                  onClick={() => { const name = window.prompt("Novo nome na biblioteca", entry.name); if(name) void renameLibraryCharacter(entry,name); }}>Renomear</button>
+              </div>)}
+            </div>
+            <p className="text-xs font-semibold">Criar nova referência com Nano Banana 2 Lite</p>
+            <label className="block text-xs">Nome da nova imagem
+              <input className={field + " mt-1"} maxLength={100} value={imageName}
+                placeholder={char.name} onFocus={() => {if(!imageName) setImageName(char.name);}}
+                onChange={e => setImageName(e.target.value)}/>
+            </label>
+            <label className="block text-xs">Descreva a aparência (prompt da imagem)
+              <textarea className={field + " mt-1"} rows={2} maxLength={1200}
+                placeholder={char.visual} value={imagePrompt}
+                onFocus={() => {if(!imagePrompt) setImagePrompt(char.visual);}}
+                onChange={e => setImagePrompt(e.target.value)}/>
+            </label>
+            <button className={button} disabled={busy || !imageConfigured} onClick={() => void generateCharacterReference(ci)}>
+              Gerar imagem com Nano Banana
+            </button>
+            {!imageConfigured && <p className="text-xs text-muted">Para ativar a geração, configure o segredo exclusivo HIST_IMAGEM_GEMINI_API_KEY no Supabase. Envio e biblioteca funcionam sem essa API. A geração de imagem pode consumir cota.</p>}
+          </div>}
         </div>)}
       </div>
       <div className="space-y-2">
         {project.scenes.map((s, i) => {
           const filled = Boolean(s.setting.trim() && s.action.trim());
           const expanded = expandedScene === s.number;
+          const chosenPlatform = selectedPlatformByScene[s.number] || platform;
+          const scenePromptText = scenePromptDrafts[promptKey(s.number, chosenPlatform)] || "";
           return <div key={s.number} id={"story-scene-" + s.number}
             className="rounded-xl border border-border bg-surface overflow-hidden">
             <button type="button" className="w-full px-3 py-2 text-left flex items-center justify-between gap-3"
@@ -881,6 +923,51 @@ export function StoriesStudio() {
                   disabled={project.status !== "draft"} onChange={e => updateScene(i, { transition: e.target.value })}/>
               </label>
               <p className="text-xs text-muted sm:col-span-2">Fala: {countStoryWords(s)}/26 palavras · 10 segundos</p>
+              {filled && <div className="sm:col-span-2 rounded-xl border border-border p-3 space-y-3">
+                <h4 className="text-sm font-semibold">Preparar vídeo da cena {s.number}</h4>
+                <p className="text-xs text-muted">As imagens escolhidas são referências para baixar e anexar manualmente no gerador. O texto mantém os nomes, características e falas da cena.</p>
+                <div className="flex flex-wrap gap-2">
+                  {project.characters.filter(char => s.characters.includes(char.name)).map(char =>
+                    <div key={char.name} className="rounded-md border border-border p-2 w-32 space-y-1">
+                      {char.referenceImagePath && (characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]) &&
+                        <img src={characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]}
+                          alt={char.name} className="h-24 w-full object-cover rounded"/>}
+                      <p className="truncate text-xs font-semibold">{char.name}</p>
+                      {char.referenceImagePath
+                        ? <button className={button + " !text-xs !p-1 w-full"} onClick={() => void downloadReference(char.referenceImagePath!, char.name)}>Baixar imagem</button>
+                        : <p className="text-xs text-muted">Escolha a imagem na Bíblia acima</p>}
+                    </div>)}
+                </div>
+                <label className="block text-xs font-semibold">Ferramenta para esta cena
+                  <select className={field + " mt-1"} value={chosenPlatform}
+                    onChange={e => setSelectedPlatformByScene(old => ({ ...old, [s.number]: e.target.value as Platform }))}>
+                    {platformOptions.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                </label>
+                <p className="text-xs text-muted">{PLATFORM_GUIDES[chosenPlatform].workflow} Até {PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres.</p>
+                <div className="flex flex-wrap gap-2">
+                  <button className={button} disabled={busy} onClick={() => void prepareScenePrompt(s.number, false)}>Montar prompt sem IA</button>
+                  <button className={button} disabled={busy} onClick={() => void prepareScenePrompt(s.number, true)}>Gerar prompt com Gemini</button>
+                </div>
+                <label className="block text-xs font-semibold">Prompt completo — cena {s.number}
+                  <textarea className={field + " mt-1 resize-y"} rows={4} value={scenePromptText}
+                    onChange={e => setScenePromptDrafts(old => ({
+                      ...old, [promptKey(s.number, chosenPlatform)]: e.target.value,
+                    }))} placeholder="O prompt desta cena aparecerá aqui para revisão e download."/>
+                </label>
+                <p className="text-xs text-muted">{Array.from(scenePromptText).length}/{PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres</p>
+                <div className="flex flex-wrap gap-2">
+                  <button className={button} disabled={!scenePromptText.trim() || busy} onClick={() => void saveScenePrompt(s.number)}>Salvar prompt</button>
+                  <button className={button} disabled={!scenePromptText.trim()}
+                    onClick={() => downloadTextFile("cena-" + s.number + "-" + chosenPlatform + ".txt", scenePromptText)}>
+                    Baixar prompt .txt
+                  </button>
+                  <button className={button} disabled={!scenePromptText.trim()}
+                    onClick={() => void navigator.clipboard.writeText(scenePromptText)}>Copiar prompt</button>
+                </div>
+                {s.number < 12 && project.status === "draft" && <button className={button}
+                  disabled={busy} onClick={() => void generateNextScene()}>Ir adiante: gerar próxima cena</button>}
+              </div>}
             </div>}
           </div>;
         })}
