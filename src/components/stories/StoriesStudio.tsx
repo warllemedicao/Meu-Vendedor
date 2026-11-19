@@ -88,6 +88,7 @@ export function StoriesStudio() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [clips, setClips] = useState<Clip[]>([]);
   const [busy, setBusy] = useState(false);
+  const [checkingGemini, setCheckingGemini] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -137,6 +138,20 @@ export function StoriesStudio() {
     finally { setBusy(false); }
   }
 
+  async function checkGeminiConnection() {
+    if (!user || checkingGemini || busy) return;
+    setCheckingGemini(true); setError(""); setMessage("");
+    try {
+      const result = await invokeStory("diagnose_topics", {}) as {
+        ok: boolean; model: string; elapsedMs: number; supportsGeneration: boolean;
+      };
+      if (!result.ok) throw new Error("A consulta de metadados do modelo não foi concluída.");
+      setMessage(result.supportsGeneration
+        ? "Conexão com Gemini confirmada: " + result.model + " (" + result.elapsedMs + " ms). Não foram gerados temas. A disponibilidade de geração ainda não foi testada."
+        : "A chave respondeu, mas o modelo não declarou suporte a generateContent: " + result.model + ". Nenhum tema foi gerado.");
+    } catch (e) { setError(plainError(e)); }
+    finally { setCheckingGemini(false); }
+  }
   async function generateTopics() {
     if (!user || subject.trim().length < 2) return;
     setBusy(true); setError(""); setMessage(""); setProgress(0); cancelRef.current = false;
@@ -424,9 +439,10 @@ export function StoriesStudio() {
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button className={button} disabled={busy || !user || subject.trim().length < 2} onClick={() => void generateTopics()}>
+        <button className={button} disabled={busy || checkingGemini || !user || subject.trim().length < 2} onClick={() => void generateTopics()}>
           {busy ? "Gerando..." : "Gerar temas com Gemini"}
         </button>
+        <button className={button} disabled={busy || checkingGemini || !user} onClick={() => void checkGeminiConnection()}>{checkingGemini ? "Verificando conexão..." : "Verificar Gemini sem gerar temas"}</button>
         {busy && <button className={button} onClick={() => { cancelRef.current = true; }}>Parar após o lote atual</button>}
         {busy && <span className="text-sm" role="status">{progress}/{requested} temas novos</span>}
         {error && <p role="alert" className="w-full rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}

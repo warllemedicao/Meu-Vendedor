@@ -53,6 +53,48 @@ function safeGeminiError(responseBody: unknown) {
     : "unclassified";
   return { googleStatus: status, googleCode: detail && typeof detail.code === "number" ? detail.code : null, googleCategory: category };
 }
+async function diagnoseTopicsConnection() {
+  // Metadata lookup only: no generateContent, no inference tokens, and no secret in URL/logs.
+  const key = Deno.env.get("HIST_TEMA_GEMINI_API_KEY");
+  if (!key) throw new Error("gemini_not_configured");
+  const controller = new AbortController();
+  const started = Date.now();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(MODEL),
+      { method: "GET", headers: { "x-goog-api-key": key }, signal: controller.signal, redirect: "error" },
+    );
+    const elapsedMs = Date.now() - started;
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const diagnostic = safeGeminiError(body);
+      const reason = response.status === 403 ? "gemini_permission_denied"
+        : response.status === 401 ? "gemini_invalid_key"
+        : response.status === 404 ? "gemini_model_unavailable"
+        : response.status === 429 ? "gemini_quota_exceeded"
+        : response.status >= 500 ? "gemini_service_unavailable" : "gemini_unavailable";
+      console.error("story_studio_model_check", { ok: false, status: response.status, elapsedMs, model: MODEL, ...diagnostic });
+      throw new Error(reason);
+    }
+    const metadata: unknown = await response.json();
+    const methods = record(metadata) && Array.isArray(metadata.supportedGenerationMethods)
+      ? metadata.supportedGenerationMethods : [];
+    const supportsGeneration = methods.includes("generateContent");
+    console.info("story_studio_model_check", { ok: true, status: response.status, elapsedMs, model: MODEL, supportsGeneration });
+    return { ok: true, model: MODEL, elapsedMs, supportsGeneration, note: "model_metadata_only" };
+  } catch (error) {
+    if (controller.signal.aborted) {
+      console.error("story_studio_model_check", { ok: false, reason: "gemini_timeout", model: MODEL, timeoutMs: 8000 });
+      throw new Error("gemini_timeout");
+    }
+    if (error instanceof TypeError) {
+      console.error("story_studio_model_check", { ok: false, reason: "gemini_network_error", model: MODEL });
+      throw new Error("gemini_network_error");
+    }
+    throw error;
+  } finally { clearTimeout(timeout); }
+}
 async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8192, purpose: "topics" | "script" = "script"): Promise<unknown> {
   // Topics use HIST_TEMA; scripts and prompts use HIST_ROTEIRO, without cross-purpose fallback.
   const key = purpose === "topics"
@@ -170,6 +212,7 @@ Deno.serve(async (request) => {
     if (new TextEncoder().encode(bodyText).byteLength > MAX_REQUEST_BYTES) return json({ error: "payload_too_large" }, 413, origin);
     const body: unknown = JSON.parse(bodyText);
     if (!record(body)) return json({ error: "invalid_request" }, 400, origin);
+    if (body.action === "diagnose_topics") return json(await diagnoseTopicsConnection(), 200, origin);
     if (body.action === "topics") {
       const subject = clean(body.subject, 160), genre = clean(body.genre, 80) || "geral";
       const count = Number(body.count);

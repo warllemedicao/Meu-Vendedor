@@ -111,3 +111,14 @@ test("Gemini transport errors are classified without logging sensitive details",
   assert.match(studio, /code === "gemini_network_error"/);
   assert.doesNotMatch(edge, /console\.error\([^\n]*\berror\b/);
 });
+
+test("Gemini metadata diagnostic never generates content or exposes credentials", () => {
+  const check = edge.split("async function diagnoseTopicsConnection() {")[1]?.split("async function gemini(")[0] || "";
+  assert.match(check, /HIST_TEMA_GEMINI_API_KEY/);
+  assert.match(check, /method: "GET"/);
+  assert.match(check, /"x-goog-api-key": key/);
+  assert.doesNotMatch(check, /:generateContent|\?key=/);
+  assert.match(edge, /body\.action === "diagnose_topics"/);
+  assert.match(studio, /Verificar Gemini sem gerar temas/);
+  assert.match(studio, /invokeStory\("diagnose_topics", \{\}\)/);
+});
