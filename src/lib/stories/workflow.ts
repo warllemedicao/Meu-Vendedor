@@ -51,24 +51,37 @@ export function countStoryWords(scene: StoryScene): number {
     total + line.text.trim().split(/\s+/).filter(Boolean).length, 0);
 }
 /** A fallback for editorial preview only: prompts are manually reviewable, not Gemini output. */
+/** Compact platform prompts without silently truncating dialogue, action or character identity. */
 export function makeLocalPromptDrafts(
   platform: StoryPlatform, characters: StoryCharacter[], scenes: StoryScene[],
 ): { scene: number; text: string; platform: StoryPlatform }[] {
   const guide = PLATFORM_GUIDES[platform];
   return scenes.map(scene => {
-    const cast = characters.filter(char => scene.characters.includes(char.name)).map(char =>
-      char.name + ": " + char.role + ". Visual fixo: " + char.visual + ". Voz fixa: " + char.voice + ".").join("\n");
+    const cast = characters.filter(char => scene.characters.includes(char.name));
     const dialogue = scene.dialogue.map(line => line.speaker + ': "' + line.text + '"').join("\n");
-    const parts = [
-      "CENA " + scene.number + "/12 — vídeo vertical 9:16. Duração: " + guide.duration + ".",
-      "Cenário: " + scene.setting + ".", "Ação: " + scene.action + ".",
-      cast ? "Personagens, identidade e função fixas:\n" + cast : "",
-      characters.some(ch => scene.characters.includes(ch.name) && ch.referenceImagePath)
-        ? "Anexar manualmente as imagens de referência baixadas dos personagens presentes nesta cena. Manter identidade e roupas iguais às imagens." : "",
-      dialogue ? "Falas exatamente em português brasileiro:\n" + dialogue : "Sem fala nesta cena.",
-      scene.transition ? "Continuidade para próxima cena: " + scene.transition + "." : "",
-      "Manter vestuário, traços, função e voz consistentes com as referências aprovadas.",
+    const attached = cast.some(char => char.referenceImagePath);
+    const base = [
+      "CENA " + scene.number + "/12 • vídeo 9:16 • 10s.",
+      "Cenário: " + scene.setting.trim(),
+      "Ação: " + scene.action.trim(),
     ];
-    return { scene: scene.number, platform, text: parts.filter(Boolean).join("\n") };
+    const ending = [
+      dialogue ? "Falas em português brasileiro, exatas:\n" + dialogue : "Sem fala.",
+      attached ? "Usar imagens anexadas como referência fiel dos personagens." : "",
+    ].filter(Boolean);
+    const castVariants = [
+      cast.map(ch => ch.name + " (" + ch.role + "): " + ch.visual + ". Voz: " + ch.voice).join("\n"),
+      cast.map(ch => ch.name + ": " + ch.visual + ". Voz: " + ch.voice).join("\n"),
+      cast.map(ch => ch.name + ": " + ch.visual).join("\n"),
+    ];
+    // Prefer the most complete reference that fits, without clipping essential scene or spoken text.
+    const candidates = castVariants.map(castText =>
+      [...base, castText ? "Personagens fixos:\n" + castText : "", ...ending]
+        .filter(Boolean).join("\n"));
+    const result = candidates.find(text => Array.from(text).length <= guide.absoluteChars);
+    if (!result) throw new Error(
+      "O conteúdo essencial da cena " + scene.number + " excede " + guide.absoluteChars +
+      " caracteres em " + guide.name + ". Revise a descrição dos personagens ou gere um prompt curto com Gemini. As falas não foram cortadas.");
+    return { scene: scene.number, platform, text: result };
   });
 }
