@@ -126,14 +126,13 @@ test("Gemini metadata diagnostic never generates content or exposes credentials"
 
 
 test("Histórias uses Gemini 3.5 Flash-Lite for topics and 3.5 Flash for scripts/prompts", () => {
-  assert.match(edge, /const TOPICS_MODEL = "gemini-3\\.5-flash-lite"/);
-  assert.match(edge, /const SCRIPT_MODEL = "gemini-3\\.5-flash"/);
-  assert.match(edge, /purpose === "topics" \\? TOPICS_MODEL : SCRIPT_MODEL/);
-  assert.match(edge, /encodeURIComponent\\(TOPICS_MODEL\\)/);
-  assert.match(edge, /encodeURIComponent\\(model\\)/);
-  assert.doesNotMatch(edge, /gemini-3\\.8-flash|MV_STORIES_GEMINI_MODEL/);
+  assert.match(edge, /const TOPICS_MODEL = "gemini-3[.]5-flash-lite"/);
+  assert.match(edge, /const SCRIPT_MODEL = "gemini-3[.]5-flash"/);
+  assert.match(edge, /purpose === "topics" [?] TOPICS_MODEL : SCRIPT_MODEL/);
+  assert.match(edge, /encodeURIComponent[(]TOPICS_MODEL[)]/);
+  assert.match(edge, /encodeURIComponent[(]model[)]/);
+  assert.doesNotMatch(edge, /gemini-3[.]8-flash|MV_STORIES_GEMINI_MODEL/);
 });
-
 
 test("bounded model budgets maintain 12 scenes and log only token counts", () => {
   assert.match(edge, /const SCRIPT_MAX_TOKENS = 7200/);
