@@ -2,7 +2,7 @@
 
 ## Estado atual
 
-A primeira interface foi publicada no Cloudflare em 19/11/2026 no commit `5ee21836`. Esta ampliação editorial está em `feat/historias-editorial-completo` e ainda não foi publicada. O Supabase (migração e função `story-studio`) permanece pendente; não há geração Gemini real validada. O serviço utiliza `GEMINI_API_KEY` ou `GOOGLE_API_KEY` já cadastradas no backend, conforme disponibilidade/cota. Não há transferência de créditos entre produtos Google.
+A primeira interface foi publicada no Cloudflare em 19/11/2026 no commit `5ee21836`. Esta ampliação editorial está em `feat/historias-editorial-completo` e ainda não foi publicada. O Supabase recebeu a migração `20261119061633_stories_studio` e a função `story-studio` ACTIVE v1 com JWT obrigatório. Não há geração Gemini real autenticada validada. O serviço utiliza `GEMINI_API_KEY` ou `GOOGLE_API_KEY` já cadastradas no backend, conforme disponibilidade/cota. Não há transferência de créditos entre produtos Google.
 
 ## Separação absoluta do Flow
 
@@ -26,7 +26,7 @@ Função Supabase `story-studio`: autenticação obrigatória de sessão, CORS r
 ## Pendências antes de declarar entrega concluída
 
 - Rodar `npm test`, typecheck frontend e Edge, lint e build; verificar CI.
-- Aplicar migração em ambiente autorizado e publicar `story-studio` no Supabase; não contornar o gate de migrações pendentes do projeto.
+- Migração Supabase aplicada e função `story-studio` publicada; falta validação autenticada das operações de Gemini e Storage.
 - Confirmar o modelo Gemini disponível, cota e uma chamada real autorizada de temas e roteiro.
 - Validar os prompts de 12 cenas com personagens e regras de limite da plataforma.
 - Implementar edição avançada e prévia de imagens, retentativa/cancelamento de jobs no servidor, montagem final de 120s com sincronismo de áudio e publicadores autorizados para YouTube/TikTok/Kwai.
@@ -36,7 +36,7 @@ Função Supabase `story-studio`: autenticação obrigatória de sessão, CORS r
 
 ## Publicação
 
-**Frontend básico publicado no Cloudflare; ampliação editorial em branch isolada.** Banco, Edge Function, integração de vídeo e publicação social pendentes. Não executar geração de vídeo/GPU nem enviar conteúdo a redes sociais durante os testes de integração de texto.
+**Frontend básico publicado no Cloudflare; ampliação editorial em branch isolada.** Banco e Edge Function implantados; integração de vídeo e publicação social pendentes. Não executar geração de vídeo/GPU nem enviar conteúdo a redes sociais durante os testes de integração de texto.
 
 ## Ampliação editorial — 19/11/2026
 
@@ -48,4 +48,13 @@ Função Supabase `story-studio`: autenticação obrigatória de sessão, CORS r
 - Biblioteca de clipes agora mostra estados, visualização por URL temporária e aprovação/revogação. Painel de preparação permite selecionar YouTube/TikTok/Kwai, título e descrição, sem postar.
 - Criados testes de regressão e atualizado workflow isolado de CI. Nenhum arquivo do executor Modal/Flow, IMAGEM1, IMAGEM2, IMAGEM3, Produto ou outro projeto foi alterado.
 - **Estado real:** frontend Histórias básico já publicado em Cloudflare na main do commit 5ee21836, após restauração da versão do Worker; esta ampliação está SOMENTE na branch até passar CI e ser publicada. Migração e função `story-studio` **ainda não estão implantadas no Supabase**, por isso a geração Gemini não está operacional na página de produção. Montagem final de 2 minutos e publicação automática continuam pendentes de implementação/autorização.
+
+
+## 2026-11-19 — Histórias editorial ampliado e Supabase ativado
+
+- PR #12 mesclada à main em `7acd730234dcd478be13ade1cb63bbf320fec8fd`: caixa de revisão dos temas, filtros, editor de personagens/cenas, linha do tempo de 12 cenas, prompts editáveis, revisão/aprovação de clipes e preparação de publicações YouTube/TikTok/Kwai. CI isolado `44470454563` aprovado (testes, tipos, lint e build). Fluxos de postagem são apenas assistidos; geradores Flow, YouTube Create e Dreamina não foram automatizados.
+- Migrado o módulo independente no Supabase projeto `jzchlrvxdaffnrgbvabv` com versão real `20261119061633_stories_studio` e nome do arquivo versionado no Git alinhado no commit `e238f760`.
+- Edge Function `story-studio` ACTIVE v1, `verify_jwt=true`, serviço Gemini Text do novo módulo; não altera o robô Google Flow. Não houve teste real autenticado de geração Gemini. Existe dependência de chave/modelo e cotas disponíveis no backend.
+- SQL de verificação confirmou `mv_story_topics`, `mv_story_projects`, `mv_story_prompts`, `mv_story_clips` com RLS habilitado e políticas por conta. Buckets `mv-story-clips` (100 MB) e `mv-story-images` (10 MB) privados.
+- **Não concluído:** montagem real de um único MP4 de 120s, postagem direta às redes, integração de robôs geradores e teste autenticado de uso do Gemini. Não acionar inferência de vídeo/GPU nem redes automaticamente.
 

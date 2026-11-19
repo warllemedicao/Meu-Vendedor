@@ -1,3 +1,11 @@
+## 2026-11-19 — Histórias editorial ampliado e Supabase ativado
+
+- PR #12 mesclada à main em `7acd730234dcd478be13ade1cb63bbf320fec8fd`: caixa de revisão dos temas, filtros, editor de personagens/cenas, linha do tempo de 12 cenas, prompts editáveis, revisão/aprovação de clipes e preparação de publicações YouTube/TikTok/Kwai. CI isolado `44470454563` aprovado (testes, tipos, lint e build). Fluxos de postagem são apenas assistidos; geradores Flow, YouTube Create e Dreamina não foram automatizados.
+- Migrado o módulo independente no Supabase projeto `jzchlrvxdaffnrgbvabv` com versão real `20261119061633_stories_studio` e nome do arquivo versionado no Git alinhado no commit `e238f760`.
+- Edge Function `story-studio` ACTIVE v1, `verify_jwt=true`, serviço Gemini Text do novo módulo; não altera o robô Google Flow. Não houve teste real autenticado de geração Gemini. Existe dependência de chave/modelo e cotas disponíveis no backend.
+- SQL de verificação confirmou `mv_story_topics`, `mv_story_projects`, `mv_story_prompts`, `mv_story_clips` com RLS habilitado e políticas por conta. Buckets `mv-story-clips` (100 MB) e `mv-story-images` (10 MB) privados.
+- **Não concluído:** montagem real de um único MP4 de 120s, postagem direta às redes, integração de robôs geradores e teste autenticado de uso do Gemini. Não acionar inferência de vídeo/GPU nem redes automaticamente.
+
 ## 2026-11-19 — Complemento editorial do Histórias (em validação, sem publicação)
 
 - Implementado na branch `feat/historias-editorial-completo`: revisão separada dos temas antes de salvar, salvar individual/em lote, descarte e filtros por assunto/gênero/texto/favorito; o backend anterior já limitava cada lote Gemini a 25.
