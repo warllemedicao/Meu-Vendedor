@@ -1,3 +1,11 @@
+## 19/11/2026 — API Gemini exclusiva de Campanhas de Produtos
+
+- Credencial `PROD_CAMPANHA_GEMINI_API_KEY` destinada exclusivamente à análise visual e preparação de conteúdo promocional em `campaign-content`; leitura de `GEMINI_API_KEY`/`GOOGLE_API_KEY` removida somente dessa função.
+- `GEMINI_API_KEY` permanece cadastrada para outros serviços legados que eventualmente dependam dela; não excluir nem redefinir até auditoria completa das funções, incluindo utilitários e implantações antigas.
+- Separação vigente: `HIST_TEMA_GEMINI_API_KEY` (temas), `HIST_ROTEIRO_GEMINI_API_KEY` (roteiros/prompts Histórias), `PROD_ROTEIRO_GEMINI_API_KEY` (roteiros de produtos), `PROD_CAMPANHA_GEMINI_API_KEY` (campanhas). OAuth/login/YouTube/Flow são configurações independentes.
+- O responsável declarou que cadastrou o Secret de Campanhas no Supabase; ferramenta integrada não permite enumerar os nomes/valores dos Secrets, portanto presença e validade da chave não foram verificados diretamente.
+- Mudança restrita ao módulo Campanhas, teste e documentação; Google Flow, IMAGEM1/2/3, Produtos e Histórias preservados. Validação em ambiente real deve ser distinguida de configuração de código.
+
 ## 19/11/2026 — Isolamento da chave Gemini de roteiros de produtos
 
 - A função `video-generation` usa exclusivamente `PROD_ROTEIRO_GEMINI_API_KEY` para geração direta de roteiros com Gemini e na rota de roteiros com alternativas Groq/OpenRouter. Não há uso de `GEMINI_API_KEY` nem `GOOGLE_API_KEY` neste módulo para roteiros.

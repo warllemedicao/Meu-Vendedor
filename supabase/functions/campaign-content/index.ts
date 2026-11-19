@@ -52,7 +52,7 @@ Deno.serve(async request => {
     const mime = bytes[0] === 255 && bytes[1] === 216 ? "image/jpeg" : [137,80,78,71,13,10,26,10].every((b,i)=>bytes[i]===b) ? "image/png" : new TextDecoder().decode(bytes.slice(0,4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8,12)) === "WEBP" ? "image/webp" : null;
     if (!mime) return reply({ error: { message: "Use uma foto JPEG, PNG ou WebP válida." } }, 422);
     for (const [id, until] of busy) if (until < Date.now()) busy.delete(id);
-    const content = await analyzeCampaignImage({ title, notes: body.notes, seconds: Number(body.seconds), bytes, mime }, { gemini: Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GOOGLE_API_KEY"), openrouter: Deno.env.get("OPENROUTER_API_KEY"), groq: Deno.env.get("GROQ_API_KEY") });
+    const content = await analyzeCampaignImage({ title, notes: body.notes, seconds: Number(body.seconds), bytes, mime }, { gemini: Deno.env.get("PROD_CAMPANHA_GEMINI_API_KEY"), openrouter: Deno.env.get("OPENROUTER_API_KEY"), groq: Deno.env.get("GROQ_API_KEY") });
     return reply({ ...content, imagePath: path });
   } catch (error) {
     if (error instanceof VideoJobError || error instanceof IntegrationError) return reply({ error: { message: error.message } }, error.status);
