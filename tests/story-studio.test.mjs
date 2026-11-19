@@ -80,3 +80,12 @@ test("Scripts and prompts share only dedicated Histórias script secret", () => 
   assert.match(edge, /if \(body\.action === "prompts"\)/);
   assert.doesNotMatch(studio, /HIST_ROTEIRO_GEMINI_API_KEY/);
 });
+
+test("Gemini logs only allowlisted diagnostics, never raw Google error messages", () => {
+  assert.match(edge, /function safeGeminiError\(responseBody: unknown\)/);
+  assert.match(edge, /googleStatus: status/);
+  assert.match(edge, /googleCategory: category/);
+  assert.match(edge, /purpose, model: MODEL, \.\.\.diagnostic/);
+  assert.doesNotMatch(edge, /console\.error\([^\n]*responseBody/);
+  assert.doesNotMatch(edge, /console\.error\([^\n]*message/);
+});

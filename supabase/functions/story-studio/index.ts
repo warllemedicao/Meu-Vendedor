@@ -38,6 +38,21 @@ async function authenticated(request: Request): Promise<boolean> {
   } catch { return false; }
   finally { clearTimeout(timeout); }
 }
+function safeGeminiError(responseBody: unknown) {
+  // Only log allowlisted provider error categories. Never log raw messages, prompts, keys or URLs.
+  const detail = record(responseBody) && record(responseBody.error) ? responseBody.error : null;
+  const status = detail && typeof detail.status === "string" && /^[A-Z_]{3,60}$/.test(detail.status)
+    ? detail.status : "UNKNOWN";
+  const message = detail && typeof detail.message === "string" ? detail.message : "";
+  const category = /api key.*(invalid|expired)|invalid api key/i.test(message) ? "invalid_api_key"
+    : /api key.*(restrict|block)|permission.*denied|not authorized/i.test(message) ? "api_key_restriction"
+    : /billing|payment|paid tier/i.test(message) ? "billing_requirement"
+    : /quota|rate limit|resource exhausted/i.test(message) ? "rate_limit_or_quota"
+    : /model.*(not found|not supported|not available)|not found.*model/i.test(message) ? "model_unavailable"
+    : /service unavailable|overloaded|try again later/i.test(message) ? "provider_temporarily_unavailable"
+    : "unclassified";
+  return { googleStatus: status, googleCode: detail && typeof detail.code === "number" ? detail.code : null, googleCategory: category };
+}
 async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8192, purpose: "topics" | "script" = "script"): Promise<unknown> {
   // Topics use HIST_TEMA; scripts and prompts use HIST_ROTEIRO, without cross-purpose fallback.
   const key = purpose === "topics"
@@ -58,7 +73,9 @@ async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8
       }),
     });
     if (!response.ok) {
-      // Never log the API key, provider response text, prompt or user content.
+      // Parse Google error details without exposing raw provider text, user content or credentials.
+      const responseBody: unknown = await response.json().catch(() => null);
+      const diagnostic = safeGeminiError(responseBody);
       const reason = response.status === 429 ? "gemini_quota_exceeded" :
         response.status === 401 ? "gemini_invalid_key" :
         response.status === 402 ? "gemini_billing_required" :
@@ -66,7 +83,7 @@ async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8
         response.status === 404 ? "gemini_model_unavailable" :
         response.status === 400 ? "gemini_request_rejected" :
         response.status >= 500 ? "gemini_service_unavailable" : "gemini_unavailable";
-      console.error("story_studio_gemini_http_error", { status: response.status, reason });
+      console.error("story_studio_gemini_http_error", { status: response.status, reason, purpose, model: MODEL, ...diagnostic });
       throw new Error(reason);
     }
     const result: unknown = await response.json();
