@@ -1,3 +1,11 @@
+## 2026-11-19 — Correção de “Failed to fetch” ao gerar temas
+
+- Consulta aos logs do projeto Supabase `jzchlrvxdaffnrgbvabv` confirmou `OPTIONS | 500` para `/functions/v1/story-studio` após implantação da v1; pedidos anteriores à implantação retornavam 404. A mensagem vista no navegador era compatível com preflight CORS rejeitado.
+- Causa no código: `json({}, 204, origin)` criava uma resposta 204 com corpo JSON, proibida pelo runtime Web Response.
+- Corrigido somente `supabase/functions/story-studio/index.ts` para responder `OPTIONS` com `new Response(null, { status: 204, headers: ... })` e cabeçalhos CORS, sem alterar Flow, Modal ou os arquivos IMAGEM1/2/3. Commit `d3e3e116` enviado à `main`.
+- Edge Function `story-studio` **ACTIVE v2**, JWT obrigatório, publicada e confirmada por leitura do próprio código implantado. Teste estático de regressão incluído em `tests/story-studio.test.mjs` no commit `9ddbadcf`.
+- Teste real de preflight via HTTP externo não foi executado neste ambiente (sem resolução DNS); a existência da versão ativa não comprova que a geração com Gemini já funcionou. Solicitar repetição do teste pelo navegador; se aparecer novo erro legível, verificar modelo/chave/cota Gemini em logs, sem expor credenciais.
+
 ## 2026-11-19 — Histórias editorial ampliado e Supabase ativado
 
 - PR #12 mesclada à main em `7acd730234dcd478be13ade1cb63bbf320fec8fd`: caixa de revisão dos temas, filtros, editor de personagens/cenas, linha do tempo de 12 cenas, prompts editáveis, revisão/aprovação de clipes e preparação de publicações YouTube/TikTok/Kwai. CI isolado `44470454563` aprovado (testes, tipos, lint e build). Fluxos de postagem são apenas assistidos; geradores Flow, YouTube Create e Dreamina não foram automatizados.
