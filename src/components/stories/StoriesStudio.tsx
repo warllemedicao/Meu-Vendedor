@@ -621,6 +621,7 @@ export function StoriesStudio() {
         <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())} onClick={() => void generateRemainingScenes()}>
           Gerar cenas restantes em sequência
         </button>
+        <span className="text-xs text-muted">Modo sequencial: até 12 chamadas à cota do Gemini, com intervalo mínimo de 16 segundos. Para ao primeiro erro e preserva as cenas salvas.</span>
         {busy && sceneProgress && <button className={button} onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
         {busy && sceneProgress && <span role="status" className="text-sm text-muted">{sceneProgress}</span>}
         <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())} onClick={() => void generateNextScene()}>
