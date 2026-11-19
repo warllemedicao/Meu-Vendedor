@@ -97,6 +97,7 @@ export function StoriesStudio() {
   const [onlySaved, setOnlySaved] = useState(false);
   const [subjectFilter, setSubjectFilter] = useState("");
   const [genreFilter, setGenreFilter] = useState<Genre>("geral");
+  const [characterStyleFilter, setCharacterStyleFilter] = useState<StoryCharacterStyle | "todos">("todos");
   const [draftTopics, setDraftTopics] = useState<TopicDraft[]>([]);
   const [savingTopic, setSavingTopic] = useState<string | null>(null);
   const [destination, setDestination] = useState<"youtube" | "tiktok" | "kwai">("youtube");
@@ -827,6 +828,7 @@ export function StoriesStudio() {
   }
   const visibleTopics = topics.filter(t => user && t.user_id === user.id && (!onlySaved || t.saved) &&
     (!subjectFilter || t.subject === subjectFilter) && (genreFilter === "geral" || t.genre === genreFilter) &&
+    (characterStyleFilter === "todos" || (t.character_style || "nao_definido") === characterStyleFilter) &&
     (!query || (t.title + " " + t.subject).toLowerCase().includes(query.toLowerCase())));
   const selectedVisibleCount = visibleTopics.filter(topic => selectedTopicIds.includes(topic.id)).length;
   const allVisibleSelected = visibleTopics.length > 0 && selectedVisibleCount === visibleTopics.length;
@@ -939,6 +941,13 @@ export function StoriesStudio() {
           <div className="space-y-2 pt-2">
             <select className={field} value={genreFilter} onChange={e => setGenreFilter(e.target.value as Genre)} aria-label="Filtrar por gênero">
               {genres.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+            </select>
+            <select className={field} value={characterStyleFilter}
+              onChange={e => setCharacterStyleFilter(e.target.value as StoryCharacterStyle | "todos")}
+              aria-label="Filtrar por tipo de personagem">
+              <option value="todos">Todos os estilos</option>
+              <option value="nao_definido">Sem estilo (antigos)</option>
+              {STORY_CHARACTER_STYLES.map(style => <option key={style.value} value={style.value}>{style.label}</option>)}
             </select>
             <label className="flex items-center gap-2"><input type="checkbox" checked={onlySaved}
               onChange={e => setOnlySaved(e.target.checked)}/> Somente favoritos</label>
