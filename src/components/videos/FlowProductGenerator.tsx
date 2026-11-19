@@ -40,6 +40,10 @@ async function invoke(action: string, extra: Record<string, unknown> = {}): Prom
   }
   return data;
 }
+export async function prepareFlowBrowser(): Promise<void> {
+  await invoke("start", { purpose: "flow" });
+}
+
 async function toReference(file: File): Promise<{ mime: string; data: string }> {
   if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Use imagens JPG, PNG ou WebP.");
   if (file.size > 2_500_000) throw new Error("As referências do Flow devem somar até 2,5 MB.");
