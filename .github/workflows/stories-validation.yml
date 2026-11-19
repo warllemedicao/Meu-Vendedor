@@ -1,0 +1,39 @@
+name: Validate Histórias (no deployment)
+on:
+  push:
+    branches:
+      - feat/historias-gemini-studio
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_build_only
+    steps:
+      - name: Checkout isolated development branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run all tests
+        run: npm test
+      - name: Typecheck frontend
+        run: npm run typecheck
+      - name: Typecheck Edge Functions
+        run: npm run typecheck:edge
+      - name: Lint
+        run: npm run lint
+      - name: Build static frontend
+        run: npm run build:pages
+      - name: Report isolation
+        run: echo "Validation only; no Supabase migration, secrets, Modal, Flow or Cloudflare deployment."

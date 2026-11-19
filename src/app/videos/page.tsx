@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
-import { VideoWorkspace } from "@/components/videos/VideoWorkspace";
+import { StoriesStudio } from "@/components/stories/StoriesStudio";
 import { PageHeader } from "@/components/ui/PageHeader";
 
-export const metadata: Metadata = { title: "Vídeos de produto" };
+export const metadata: Metadata = { title: "Histórias · Meu Vendedor" };
 
 export default function Page() {
   return (
     <>
-      <PageHeader
-        titulo="Vídeos de produto"
-        descricao="Transforme fotos e clipes do seu produto em um vídeo pronto para compartilhar."
-      />
-      <VideoWorkspace />
+      <PageHeader titulo="Histórias" descricao="Crie temas e roteiros com Gemini, mantenha personagens consistentes e prepare 12 cenas para seu filme de 2 minutos." />
+      <StoriesStudio />
     </>
   );
 }

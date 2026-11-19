@@ -1,3 +1,25 @@
+## 2026-11-19 — Histórias: CI completo aprovado na branch isolada
+
+- Código da nova rota e dos serviços de Histórias validado no GitHub Actions run [44465702220](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/44465702220), commit `732806ab39fae61962b3a19303163ed4d814baa1`.
+- O workflow executou `npm test`, `npm run typecheck`, `npm run typecheck:edge`, `npm run lint` e `npm run build:pages` com conclusão **success**.
+- A PR #11 continua como rascunho; **sem deploy**, sem migração remota, sem execução real Gemini e sem geração ou postagem de vídeos.
+- As últimas alterações abaixo são somente documentais, não alteram os arquivos de código aprovados pelo CI.
+
+### Complemento da implementação Histórias — limpeza e validação ainda pendente
+
+- O componente exclusivo `src/components/videos/VideoWorkspace.tsx` foi removido da branch após busca de referências; os componentes de produto usados em outras partes permanecem intactos.
+- A documentação `VIDEOS_IA.md` foi reduzida de aproximadamente 31,6 KB para um aviso com link a `HISTORIAS.md`, preservando links históricos e reduzindo conteúdo obsoleto.
+- Workflow de validação isolada `.github/workflows/stories-validation.yml` criado na branch, mas **nenhum resultado de execução de CI foi confirmado** nesta atualização. A PR #11 segue em modo rascunho, sem merge nem deploy.
+
+## 2026-11-19 — Início do novo Histórias (branch de desenvolvimento, não publicado)
+
+- Responsável autorizou substituir a interface antiga Vídeos IA por Histórias, com **arquivos novos e independentes**, preservando integralmente o robô Google Flow e arquivos IMAGEM1/2/3. Documentação antiga de Vídeos IA pode ser limpa após auditoria de dependências.
+- Criada branch `feat/historias-gemini-studio`; a rota `/videos` utiliza agora novo componente `StoriesStudio`, sem importar `VideoWorkspace`.
+- Criados serviço Supabase `story-studio` para Gemini Text (temas em lotes de 25, roteiros de 12 cenas de 10s e prompts) e agentes independentes YouTube Create/Flow/Dreamina. Teto de 900 caracteres do YouTube Create é validado no backend, conforme limite informado pelo responsável; demais tetos são internos.
+- Criada migração para quatro tabelas com RLS de usuário e buckets privados de imagens/clipes; interface oferece temas, favoritos, roteiros editáveis, retomada, aprovação, prompts e upload de MP4.
+- **Não concluído:** montagem FFmpeg de 120s, publicação em redes, testes reais Gemini, testes de build, migração remota, deploy Supabase e Cloudflare, limpeza de arquivos históricos comprovadamente sem dependentes. Nenhuma geração ou publicação real realizada.
+- A branch ainda precisa de validação de CI e revisão das pendências de banco anteriores. Não modificar o executor Flow nem inferir que commit = deploy.
+
 
 
 ## 17/11/2026 — Marco: o robô aprendeu a enviar imagens e ajustar configurações
