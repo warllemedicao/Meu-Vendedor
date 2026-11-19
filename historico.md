@@ -1,3 +1,11 @@
+## 19/11/2026 — Falha real na validação Histórias: assertions de rótulos antigos
+
+- Usuário informou falha do GitHub Actions: run `44613428956`, job `135875687826` (`Validate Histórias (no deployment)`). Logs do job foram lidos integralmente. O passo `Run all tests` falhou com **duas assertions de texto obsoletas**; `Typecheck frontend`, `Typecheck Edge Functions`, `Lint` e `Build static frontend` ficaram `skipped`.
+- `tests/story-editorial.test.mjs`: teste de edição de personagens ainda esperava o rótulo `Bíblia de personagens`, enquanto o frontend passou a mostrar `Imagens dos personagens`. Assertion alinhada ao rótulo atual.
+- `tests/story-studio.test.mjs`: teste de geração sequencial ainda esperava `Gerar todas as pendentes em sequência`, renomeado na interface para `Gerar cenas restantes`. Assertion alinhada ao rótulo atual; verificações de `generateOneScene`, persistência por `user_id`, pausa de 16 segundos e parada manual mantidas.
+- Alterações apenas nos dois arquivos de teste e documentação; não foram alterados frontend, Supabase, chaves, robô Flow nem IMAGEM1/2/3 nesta correção.
+- **O job informado continua falho em seu commit original; é necessário verificar uma nova execução na branch main para comprovar testes, typecheck, lint e build aprovados.** Não interpretar atualização das assertions como execução comprovada da suíte.
+
 ## 19/11/2026 — Correção de usabilidade móvel e análise real de erro na cena 2
 
 - Usuário mostrou captura real do quadro de produção no celular, história "O Último Graxo da Noite" com **1/12 cenas prontas**, e relatou muitos blocos repetidos, upload aceitando uma única imagem, ausência visual do gerador de imagens e erro ao tentar gerar cena 2. A captura corresponde à interface de quadro com etapas e opções escondidas, não à interface inicial dos 12 formulários.
