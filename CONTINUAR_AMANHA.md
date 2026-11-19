@@ -1,3 +1,10 @@
+## 19/11/2026 — Isolamento da chave Gemini de roteiros de produtos
+
+- A função `video-generation` usa exclusivamente `PROD_ROTEIRO_GEMINI_API_KEY` para geração direta de roteiros com Gemini e na rota de roteiros com alternativas Groq/OpenRouter. Não há uso de `GEMINI_API_KEY` nem `GOOGLE_API_KEY` neste módulo para roteiros.
+- Os prompts automáticos locais para produtos permanecem calculados no aplicativo; não foi criado novo consumo da API Gemini para prompts locais. A geração de vídeo, o executor Flow, IMAGEM1/2/3, Histórias e Campanhas não foram alterados.
+- Secret `PROD_ROTEIRO_GEMINI_API_KEY` deverá ser criado pelo responsável no Supabase. O código é versionado sem qualquer valor de chave. Sem Secret, a rota preserva alternativas previamente existentes; isso não comprova sucesso Gemini.
+- Criado teste de contrato em `tests/video-script-router.test.mjs` para garantir a leitura do novo Secret nas duas vias. Publicação e teste autenticado devem ser confirmados separadamente.
+
 ## 19/11/2026 — Chave exclusiva para roteiros e prompts de Histórias
 
 - `story-studio` passa a consultar `HIST_ROTEIRO_GEMINI_API_KEY` exclusivamente nas ações `script` e `prompts`. A ação `topics` continua com `HIST_TEMA_GEMINI_API_KEY`. Não há fallback entre essas chaves ou para `GEMINI_API_KEY`/`GOOGLE_API_KEY` no módulo Histórias.
