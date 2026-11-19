@@ -1006,7 +1006,9 @@ export function StoriesStudio() {
             <span className="text-xs font-normal text-muted">Abrir ficha</span>
           </summary>
           <div className="space-y-2 pt-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <details className="rounded-lg border border-border p-2">
+            <summary className="cursor-pointer text-xs font-semibold">Editar ficha detalhada: nome, roupa e voz</summary>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 mt-2">
             <label>Nome do personagem<input className={field + " mt-1"} maxLength={100} disabled={project.status !== "draft"}
               value={char.name} onChange={e => updateCharacter(ci, { name: e.target.value })}/></label>
             <label>Função na história<input className={field + " mt-1"} maxLength={180} disabled={project.status !== "draft"}
@@ -1016,6 +1018,7 @@ export function StoriesStudio() {
             disabled={project.status !== "draft"} value={char.visual} onChange={e => updateCharacter(ci, { visual: e.target.value })}/></label>
           <label className="block">Voz, sotaque e modo de falar<textarea className={field + " mt-1"} rows={2} maxLength={450}
             disabled={project.status !== "draft"} value={char.voice} onChange={e => updateCharacter(ci, { voice: e.target.value })}/></label>
+          </details>
           <div className="flex flex-wrap items-start gap-3 rounded-lg bg-surface-secondary p-2">
             {char.referenceImagePath && (characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]) &&
               <img className="h-24 w-20 rounded-md object-cover" alt={"Referência de " + char.name}
@@ -1030,6 +1033,24 @@ export function StoriesStudio() {
             </div>
           </div>
           {project.status === "draft" && <div className="space-y-2 rounded-xl border border-border p-2">
+            <p className="text-xs font-semibold">Criar nova referência com Nano Banana 2 Lite</p>
+                        <label className="block text-xs">Nome da nova imagem
+                          <input className={field + " mt-1"} maxLength={100} value={imageNames[ci] ?? ""}
+                            placeholder={char.name}
+                            onChange={e => setImageNames(old => ({ ...old, [ci]: e.target.value }))}/>
+                        </label>
+                        <label className="block text-xs">Descreva a aparência (prompt da imagem)
+                          <textarea className={field + " mt-1"} rows={2} maxLength={1200}
+                            placeholder={char.visual} value={imagePrompts[ci] ?? ""}
+                            onChange={e => setImagePrompts(old => ({ ...old, [ci]: e.target.value }))}/>
+                        </label>
+                        <button className={button} disabled={busy || !imageConfigured} onClick={() => void generateCharacterReference(ci)}>
+                          Gerar imagem com Nano Banana
+                        </button>
+                        {!imageConfigured && <p className="text-xs text-muted">Para ativar a geração, configure o segredo exclusivo HIST_IMAGEM_GEMINI_API_KEY no Supabase. Envio e biblioteca funcionam sem essa API. A geração de imagem pode consumir cota.</p>}
+            <details className="border-t border-border pt-2">
+              <summary className="cursor-pointer text-sm font-semibold">Usar imagem já salva ou prompt pronto</summary>
+              <div className="pt-2 space-y-2">
             <p className="text-xs font-semibold">Escolher personagem da biblioteca privada</p>
             {characterLibrary.length === 0 && <p className="text-xs text-muted">A biblioteca começa vazia. Envie uma imagem ou gere a primeira referência.</p>}
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1056,21 +1077,8 @@ export function StoriesStudio() {
                   setImagePrompts(old => ({ ...old, [ci]: preset.prompt }));
                 }}>{preset.name}</button>)}
             </div>
-            <p className="text-xs font-semibold">Criar nova referência com Nano Banana 2 Lite</p>
-            <label className="block text-xs">Nome da nova imagem
-              <input className={field + " mt-1"} maxLength={100} value={imageNames[ci] ?? ""}
-                placeholder={char.name}
-                onChange={e => setImageNames(old => ({ ...old, [ci]: e.target.value }))}/>
-            </label>
-            <label className="block text-xs">Descreva a aparência (prompt da imagem)
-              <textarea className={field + " mt-1"} rows={2} maxLength={1200}
-                placeholder={char.visual} value={imagePrompts[ci] ?? ""}
-                onChange={e => setImagePrompts(old => ({ ...old, [ci]: e.target.value }))}/>
-            </label>
-            <button className={button} disabled={busy || !imageConfigured} onClick={() => void generateCharacterReference(ci)}>
-              Gerar imagem com Nano Banana
-            </button>
-            {!imageConfigured && <p className="text-xs text-muted">Para ativar a geração, configure o segredo exclusivo HIST_IMAGEM_GEMINI_API_KEY no Supabase. Envio e biblioteca funcionam sem essa API. A geração de imagem pode consumir cota.</p>}
+              </div>
+            </details>
           </div>}
           </div>
         </details>)}
