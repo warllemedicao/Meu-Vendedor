@@ -1,3 +1,10 @@
+## 19/11/2026 — Histórias: diferenciar timeout da Gemini de falhas de autenticação
+
+- Usuário informou `generation_failed` após espera longa ao gerar 5 temas. Logs mostram POST da função `story-studio` concluído como HTTP 502 aproximadamente 60 segundos após o preflight, sem erro HTTP do Google registrado na tentativa. Isso é compatível com o abort de 60 segundos, mas não prova timeout sem o novo diagnóstico.
+- Em `story-studio`, o abort explícito agora resulta em `gemini_timeout`; falha de transporte `TypeError` vira `gemini_network_error`. Os logs registram apenas motivo permitido, finalidade e modelo, sem chaves, payload, mensagem original nem prompts. Nenhum retry automático.
+- Frontend apresenta texto específico orientando não repetir geração ao receber essas categorias. A autenticação de usuário ocorre antes da chamada Gemini e recusas retornam `unauthorized` HTTP 401, não `generation_failed`.
+- Não alterados OAuth, segredos, Cloudflare, Modal, robô Flow nem arquivos IMAGEM1/IMAGEM2/IMAGEM3. Nenhuma chamada Gemini de geração executada por esta correção.
+
 ## 19/11/2026 — Gerador de temas limitado a 5–20 e reparo de publicação
 
 - Formulário Histórias agora oferece exclusivamente 5, 10, 15 ou 20 temas; padrão 5. O lote de geração foi limitado a 20 no frontend e o backend rejeita contagens acima de 20.
