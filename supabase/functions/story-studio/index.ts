@@ -58,6 +58,7 @@ async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8
       // Never log the API key, provider response text, prompt or user content.
       const reason = response.status === 429 ? "gemini_quota_exceeded" :
         response.status === 401 ? "gemini_invalid_key" :
+        response.status === 402 ? "gemini_billing_required" :
         response.status === 403 ? "gemini_permission_denied" :
         response.status === 404 ? "gemini_model_unavailable" :
         response.status === 400 ? "gemini_request_rejected" :
@@ -170,7 +171,7 @@ Deno.serve(async (request) => {
     return json({ error: "unknown_action" }, 400, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown_error";
-    const acceptable = new Set(["scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid"]);
+    const acceptable = new Set(["scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid"]);
     return json({ error: acceptable.has(code) ? code : "generation_failed" }, code === "gemini_not_configured" ? 503 : 502, origin);
   }
 });
