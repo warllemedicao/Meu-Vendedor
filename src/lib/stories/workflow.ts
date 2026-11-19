@@ -27,13 +27,13 @@ export const PLATFORM_GUIDES: Record<StoryPlatform, {
     reminder: "Teto de 900 caracteres adotado no projeto; confirme também o limite exibido na conta.",
   },
   "google-flow": {
-    name: "Google Flow", targetChars: 2800, absoluteChars: 4000,
+    name: "Google Flow", targetChars: 1100, absoluteChars: 1600,
     duration: "Dependente do modelo; nem todo modelo entrega 10 segundos",
     workflow: "Prepare o prompt e referências. Esta interface não envia comandos ao robô Flow existente.",
     reminder: "4.000 caracteres é um teto interno para revisão, não um limite oficial confirmado.",
   },
   dreamina: {
-    name: "Dreamina", targetChars: 2800, absoluteChars: 4000,
+    name: "Dreamina", targetChars: 1100, absoluteChars: 1600,
     duration: "Dependente do modelo e do modo disponível",
     workflow: "Copie o prompt, gere o clipe na ferramenta e importe o MP4 aprovado.",
     reminder: "O teto interno não deve ser confundido com limite oficial da plataforma.",
