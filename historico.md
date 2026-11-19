@@ -1,3 +1,11 @@
+## 2026-11-19 — Gemini Text: classificar falha de provedor no Histórias
+
+- Usuário relatou `Serviço de Histórias: gemini_unavailable` ao gerar temas. Logs Supabase confirmaram `OPTIONS | 204` (preflight CORS corrigido) e `POST | 502` para `story-studio`; a função mascarava qualquer HTTP não-2xx do Google como `gemini_unavailable`.
+- Documentação oficial do Google confirmou que `gemini-3.8-flash` existe; **não alterar modelo nem credenciais por suposição**. Status upstream exato da tentativa anterior não foi registrado, então causa específica (cota, permissão, modelo, pedido ou indisponibilidade) permanece desconhecida.
+- Alterado exclusivamente `supabase/functions/story-studio/index.ts` para distinguir, sem vazar conteúdo: 429=`gemini_quota_exceeded`, 401=`gemini_invalid_key`, 403=`gemini_permission_denied`, 404=`gemini_model_unavailable`, 400=`gemini_request_rejected`, 5xx=`gemini_service_unavailable`. Log registra apenas HTTP status e categoria, sem prompt, chave ou resposta do provedor.
+- Commit `63297337` enviado à `main`; função Supabase `story-studio` **ACTIVE v3** publicada com JWT obrigatório. Teste de regressão inserido em `tests/story-studio.test.mjs` no commit `845fac14`. GitHub CI da versão mais recente ainda não confirmado no instante desta nota.
+- **Pendente:** um novo teste autenticado no navegador para obter código real devolvido pelo Google e determinar remediação específica. Não iniciar chamadas de geração automáticas para consumir cotas sem necessidade. Nenhum arquivo do robô Flow, IMAGEM1/2/3, Modal ou geradores de vídeo foi modificado.
+
 ## 2026-11-19 — Correção de “Failed to fetch” ao gerar temas
 
 - Consulta aos logs do projeto Supabase `jzchlrvxdaffnrgbvabv` confirmou `OPTIONS | 500` para `/functions/v1/story-studio` após implantação da v1; pedidos anteriores à implantação retornavam 404. A mensagem vista no navegador era compatível com preflight CORS rejeitado.
