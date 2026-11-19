@@ -832,7 +832,7 @@ export function StoriesStudio() {
         </a>)}
       </div>
       <div className="rounded-xl border border-border p-3 space-y-3">
-        <h3 className="font-semibold">Bíblia de personagens — identidade e continuidade</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Bíblia de personagens — identidade e continuidade</h3><button className={button} disabled={busy} onClick={() => void loadCharacterLibrary()}>Atualizar imagens</button></div>
         {project.characters.map((char, ci) => <div key={ci} className="rounded-xl border border-border p-3 space-y-2 text-sm">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label>Nome do personagem<input className={field + " mt-1"} maxLength={100} disabled={project.status !== "draft"}
@@ -1028,13 +1028,13 @@ export function StoriesStudio() {
         <p className="text-sm">{PLATFORM_GUIDES[platform].workflow}</p>
         <p className="text-xs text-muted">Meta: {PLATFORM_GUIDES[platform].targetChars} caracteres. Teto de validação: {PLATFORM_GUIDES[platform].absoluteChars}.</p>
       </div>
-      {project?.status === "draft" ? <p className="text-sm text-muted">Aprove o roteiro na etapa anterior para liberar os prompts.</p> :
+      {project?.status === "draft" ? <p className="text-sm text-muted">Você já pode preparar prompts das cenas preenchidas dentro da etapa Roteiro, sem aguardar as 12 cenas. A aprovação completa libera a biblioteca geral de prompts.</p> :
         !project ? <p className="text-sm text-muted">Crie um roteiro antes de continuar.</p> :
         <button className={button} onClick={() => setStage("prompts")}>Continuar para prompts</button>}
     </section>}
     {stage === "prompts" && (!project || project.status === "draft") && <section className={panel}>
       <h2 className="font-semibold">4. Prompts por cena</h2>
-      <p className="text-sm text-muted">Para gerar os 12 prompts, crie um roteiro, revise os personagens e clique em Aprovar roteiro.</p>
+      <p className="text-sm text-muted">Enquanto o roteiro está em desenvolvimento, abra a cena desejada na etapa Roteiro para escolher imagens, plataforma, gerar ou montar o prompt e baixar os arquivos imediatamente.</p>
       <button className={button} onClick={() => setStage(project ? "roteiro" : "temas")}>Ir para o roteiro</button>
     </section>}
     {stage === "prompts" && project && user && project.user_id === user.id && project.status !== "draft" && <section className={panel}>
