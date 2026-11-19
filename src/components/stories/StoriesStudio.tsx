@@ -595,7 +595,7 @@ export function StoriesStudio() {
             <p className="text-xs text-muted">{t.subject} · {t.genre}</p></div>
           <div className="flex shrink-0 gap-2">
             <button className={button} disabled={busy} onClick={() => void toggleSaved(t)}>{t.saved ? "Salvo ✓" : "Salvar"}</button>
-            <button className={button} disabled={busy} onClick={() => void generateScript(t)}>Gerar roteiro Gemini</button>
+            <button className={button} disabled={busy} onClick={() => void generateScript(t)}>Criar roteiro e gerar cena 1</button>
             <button className={button} disabled={busy} onClick={() => void createManualScript(t.title, t)}>Roteiro manual</button>
           </div>
         </div>)}
@@ -633,7 +633,7 @@ export function StoriesStudio() {
         </button>
         <span className="text-sm text-muted">{project.scenes.filter(s => !!s.action.trim() && !!s.setting.trim()).length}/12 cenas preenchidas e salvas</span>
       </div>}
-      <p className="text-sm text-muted">12 cenas × 10 segundos = 120 segundos. Os personagens e as vozes se mantêm iguais entre cenas.</p>
+      <p className="text-xs text-muted">12 cenas de 10s. Apenas a cena selecionada fica aberta; cenas geradas mostram seu conteúdo e continuam editáveis. As pendentes serão preenchidas após a geração.</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-label="Linha do tempo de 12 cenas">
         {project.scenes.map(s => <a key={s.number} href={"#story-scene-" + s.number} onClick={() => setExpandedScene(s.number)}
           className="rounded-xl border border-border bg-surface px-2 py-3 text-center text-sm hover:underline">
@@ -705,7 +705,7 @@ export function StoriesStudio() {
                   disabled={project.status !== "draft"}
                   onChange={e => updateScene(i, { characters: e.target.value.split(",").map(n => n.trim()).filter(Boolean) })}/>
               </label>
-              <label className="text-xs font-semibold">Transição para próxima cena
+              <label className="text-xs font-semibold">Transição e ligação com a próxima cena
                 <input className={field + " mt-1 py-1.5"} value={s.transition}
                   disabled={project.status !== "draft"} onChange={e => updateScene(i, { transition: e.target.value })}/>
               </label>
