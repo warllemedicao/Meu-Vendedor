@@ -42,3 +42,14 @@ test("platform-specific target does not silently substitute Flow or Dreamina lim
   assert.equal(result.platform, "youtube-create");
   assert.equal(result.scene, 2);
 });
+
+test("local prompt keeps selected character visual identity and platform limits", () => {
+  for (const style of ["frutinhas", "infantil", "pessoas_cabeca_fruta"]) {
+    const [result] = makeLocalPromptDrafts("google-flow", characters, [scene], style);
+    assert.match(result.text, /Estilo visual:/);
+    assert.ok(Array.from(result.text).length <= PLATFORM_GUIDES["google-flow"].absoluteChars);
+  }
+  const [fruit] = makeLocalPromptDrafts("google-flow", characters, [scene], "frutinhas");
+  const [people] = makeLocalPromptDrafts("google-flow", characters, [scene], "pessoas_cabeca_fruta");
+  assert.notEqual(fruit.text, people.text);
+});
