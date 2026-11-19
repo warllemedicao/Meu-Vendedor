@@ -1,3 +1,12 @@
+## 19/11/2026 — Simplificação da aba Temas: retirada de verificações e caixa demonstrativa
+
+- Removidos do formulário de Temas os botões **Verificar Gemini sem gerar temas** e **Verificar API de roteiros sem gerar**, além da caixa **Quer testar a interface antes de corrigirmos a conexão Gemini?** e seu formulário de roteiro demonstrativo/manual por título.
+- Eliminados do frontend o manipulador `checkGeminiConnection` e os estados exclusivos `checkingGemini`/`manualTitle`, evitando controles ocultos e código sem uso.
+- Permanecem disponíveis **tipo de personagem**, assunto, gênero, quantidade de temas (5/10/15/20), **Gerar temas com Gemini**, revisão e salvamento na biblioteca. A opção de roteiro manual a partir de um tema já salvo foi preservada.
+- Mantidas no backend as ações autenticadas de diagnóstico por metadados, sem botões públicos nessa tela; não foi alterada nem publicada Edge Function, Supabase ou robô Google Flow.
+- Testes de contrato `tests/story-studio.test.mjs` e `tests/story-wizard.test.mjs` atualizados para verificar a ausência dessas opções, preservando a cobertura dos fluxos reais. Verificações estáticas após a alteração passaram; **suite completa do GitHub Actions, typecheck, lint e build ainda não confirmados**, e o frontend Cloudflare ainda necessita publicação após CI aprovado.
+- Não foram alterados os arquivos IMAGEM1/IMAGEM2/IMAGEM3.
+
 ## 19/11/2026 — Histórias: tipo visual dos personagens escolhido ANTES de gerar temas
 
 - Novo seletor obrigatório na etapa **Assuntos e temas**, antes do campo de assunto e do botão Gemini, com três estilos: **Frutinhas** (frutas antropomórficas completas), **Infantil** (personagens originais fofinhos e adequados a histórias para crianças) e **Pessoas com cabeça de fruta** (corpos humanos estilizados, roupas e cabeças de fruta). Nenhuma opção inicia marcada; criar temas ou roteiro manual novo exige escolha explícita. Gênero (comédia, aventura, suspense etc.) continua separado.
