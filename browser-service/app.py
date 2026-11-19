@@ -406,10 +406,14 @@ async def flow_account_login_status(request: Request):
                             for(const e of controls){
                               const label=[e.getAttribute('aria-label'),e.getAttribute('title')].filter(Boolean).join(' ');
                               if(!/google account|conta do google|google konto/i.test(label))continue;
-                              const match=label.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/ig);
+                              const match=label.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig);
                               if(match)emails.push(...match);
                             }
-                            return {ready:prompt||newProject,emails:[...new Set(emails)].slice(0,2)};
+                            const blockingTerms=[...body.querySelectorAll('[role="dialog"],[role="alertdialog"]')]
+                              .some(e=>isVisible(e)&&/termos|terms|aceitar|accept|agree|concordo|consent/i.test(
+                                (e.innerText||'').slice(0,1200)));
+                            return {ready:(prompt||newProject)&&!blockingTerms,
+                              emails:[...new Set(emails)].slice(0,2)};
                         }""", timeout=3500)
                         ready = ready or bool(data.get("ready"))
                         found = data.get("emails", [])
