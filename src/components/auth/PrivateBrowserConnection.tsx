@@ -81,6 +81,8 @@ export function PrivateBrowserConnection() {
         invalid_browser_purpose: "Tipo de abertura do navegador inválido.",
         browser_must_be_stopped: "Feche o Chrome antes de cadastrar ou trocar de conta.",
         account_limit_reached: "Limite de seis perfis Google Flow atingido.",
+        profile_delete_failed: "Não foi possível excluir o perfil. Tente novamente com Chrome fechado.",
+        profile_path_invalid: "Diretório do perfil inválido; exclusão bloqueada por segurança.",
 
         flow_page_not_active: "Abra o Google Flow no Chrome antes de enviar.",
         flow_project_not_active: "O projeto do Google Flow não abriu. Confira a tela.",
@@ -230,15 +232,16 @@ export function PrivateBrowserConnection() {
         const result = await invoke("accounts_login_status");
         if (!result.confirmed || stopped) return;
         stopped = true;
-        setMessage("Login Google confirmado. Salvando a sessão e encerrando o Chrome...");
+        setMessage("Google Flow pronto. Salvando a sessão e encerrando o Chrome...");
         try {
           await invoke("stop");
           setViewUrl("");
           setAccountEnrollmentActive(false);
-          setMessage("Conta Google conectada. Chrome fechado automaticamente e sessão preservada. Selecione a conta para usar o Flow.");
+          await refreshFlowAccounts();
+          setMessage("Google Flow pronto: login e etapa de termos concluídos. Chrome fechado e sessão preservada. A conta já pode gerar vídeos.");
         } catch {
           setAccountEnrollmentActive(false);
-          setMessage("Login confirmado, mas o Chrome não pôde ser encerrado. Clique em 'Encerrar Chrome e robô' para preservar a sessão.");
+          setMessage("O Google Flow está pronto, mas o Chrome não pôde ser encerrado. Clique em 'Encerrar Chrome e robô' para preservar a sessão.");
         }
       } catch {
         // A temporary status failure is not evidence of successful login.
@@ -271,6 +274,23 @@ export function PrivateBrowserConnection() {
     }
   }
 
+  async function removeFlowAccount() {
+    if (busy || videoBusy || Boolean(viewUrl) || selectedFlowAccount === "primary") return;
+    const account = flowAccounts.find((item) => item.id === selectedFlowAccount);
+    if (!account || !window.confirm(`Remover "${account.label}" e apagar sua sessão Google salva neste perfil? Esta ação não pode ser desfeita.`)) return;
+    setBusy(true);
+    try {
+      const data = await invoke("accounts_delete", { accountId: account.id });
+      setFlowAccounts(data.accounts ?? []);
+      setSelectedFlowAccount(data.selected ?? "primary");
+      setMessage("Conta removida do Meu Vendedor. O perfil principal e as demais contas foram preservados.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível remover a conta.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function addFlowAccount() {
     if (busy || videoBusy || Boolean(viewUrl)) return;
     setBusy(true);
@@ -286,7 +306,7 @@ export function PrivateBrowserConnection() {
       }
       setViewUrl(url.toString());
       setAccountEnrollmentActive(true);
-      setMessage("Novo perfil aberto no login oficial do Google. Depois de concluir a autenticação, o Meu Vendedor verificará a conta e fechará o Chrome automaticamente. Não feche esta página durante a confirmação.");
+      setMessage("Entre na conta Google. Em seguida, o Meu Vendedor abrirá o Google Flow para você aceitar os termos. Depois que o Flow estiver pronto, o Chrome fechará automaticamente. Mantenha esta página aberta.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao criar perfil. Consulte as contas antes de repetir.");
     } finally {
@@ -469,12 +489,19 @@ export function PrivateBrowserConnection() {
           <option key={account.id} value={account.id}>{account.label}</option>)}
       </select>
       <p className="text-xs text-muted">Para trocar de conta, feche o Chrome, escolha o perfil e abra novamente. Cada perfil preserva sua própria sessão Google.</p>
-      <button type="button" onClick={() => void addFlowAccount()}
-        disabled={busy || videoBusy || Boolean(viewUrl)}
-        className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
-        Adicionar conta Google
-      </button>
-      <p className="text-xs text-muted">Seu perfil principal já conectado será preservado. Após adicionar uma conta, faça login diretamente no Google. Quando a autenticação for confirmada, o Chrome fechará automaticamente.</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => void addFlowAccount()}
+          disabled={busy || videoBusy || Boolean(viewUrl)}
+          className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
+          Adicionar conta Google
+        </button>
+        <button type="button" onClick={() => void removeFlowAccount()}
+          disabled={busy || videoBusy || Boolean(viewUrl) || selectedFlowAccount === "primary"}
+          className="rounded-lg border border-red-600 px-3 py-2 text-sm text-red-600 disabled:opacity-50">
+          Remover conta Google
+        </button>
+      </div>
+      <p className="text-xs text-muted">Seu perfil principal já conectado será preservado. Após o login, o navegador abrirá o Flow para aceitar os termos. A conclusão será automática quando a tela do Flow estiver pronta. O e-mail aparecerá na lista somente se o controle da conta Google o apresentar; caso contrário, será mantido um nome provisório.</p>
     </div>
     <button type="button" disabled={busy} onClick={() => void openChrome()} className="rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">
       {busy ? "Abrindo..." : "Abrir Chrome do Flow"}
