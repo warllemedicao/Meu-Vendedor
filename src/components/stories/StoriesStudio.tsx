@@ -49,6 +49,7 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
     if (code === "gemini_billing_required") {
       throw new Error("A API Gemini retornou HTTP 402: saldo ou configuração de cobrança necessária. Não foi possível gerar temas com esta chave. Você pode criar um roteiro manual enquanto verifica sua franquia no Google AI Studio.");
     }
+    if (code === "gemini_service_unavailable") throw new Error("Google Gemini retornou HTTP 503: indisponibilidade temporária. Nenhuma tentativa automática foi feita; consulte o status do serviço antes de tentar novamente.");
     if (code === "gemini_timeout") throw new Error("O Google Gemini não respondeu em até 60 segundos. Não repita a geração agora; consulte os registros antes de uma nova tentativa.");
     if (code === "gemini_network_error") throw new Error("Falha de comunicação entre Supabase e Google Gemini. Consulte os registros antes de tentar novamente.");
     if (code === "gemini_quota_exceeded") {
@@ -158,27 +159,24 @@ export function StoriesStudio() {
     const normalizedSubject = subject.trim();
     const known = new Set([...topics.filter(t => t.subject === normalizedSubject).map(t => t.title.toLowerCase()),
       ...draftTopics.filter(t => t.subject === normalizedSubject).map(t => t.title.toLowerCase())]);
-    const excluded = [...known];
-    let total = 0;
     try {
-      while (total < requested && !cancelRef.current) {
-        const count = Math.min(20, requested - total);
-        const result = await invokeStory("topics", { subject: normalizedSubject, genre, count, excludedTitles: excluded.slice(-80) }) as {
-          topics: { title: string; genre: string; synopsis: string }[]
-        };
-        if (!Array.isArray(result.topics)) throw new Error("O Gemini não retornou uma lista válida.");
-        const fresh = result.topics.filter(t => t.title && !known.has(t.title.toLowerCase()));
-        if (!fresh.length) throw new Error("O Gemini repetiu os temas. Tente outro assunto ou gênero.");
-        const batch = fresh.map(t => ({
-          localId: crypto.randomUUID(), subject: normalizedSubject, title: t.title, synopsis: t.synopsis, genre: t.genre,
-        }));
-        setDraftTopics(previous => [...previous, ...batch]);
-        batch.forEach(t => { known.add(t.title.toLowerCase()); excluded.push(t.title); });
-        total += batch.length;
-        setProgress(total);
-        if (batch.length < Math.max(1, count / 2)) break;
-      }
-      setMessage((cancelRef.current ? "Geração interrompida. " : "") + total + " temas na caixa de revisão. Salve os que desejar.");
+      // One click = one Gemini request. Never automatically repeat a partial/failed generation.
+      const result = await invokeStory("topics", {
+        subject: normalizedSubject, genre, count: requested,
+        excludedTitles: [...known].slice(-30),
+      }) as { topics: { title: string; genre: string; synopsis: string }[] };
+      if (!Array.isArray(result.topics)) throw new Error("O Gemini não retornou uma lista válida.");
+      const fresh = result.topics.filter(t => t.title && !known.has(t.title.toLowerCase()));
+      if (!fresh.length) throw new Error("O Gemini repetiu os temas. Tente outro assunto ou gênero.");
+      const batch = fresh.map(t => ({
+        localId: crypto.randomUUID(), subject: normalizedSubject, title: t.title,
+        synopsis: t.synopsis, genre: t.genre,
+      }));
+      setDraftTopics(previous => [...previous, ...batch]);
+      setProgress(batch.length);
+      setMessage(batch.length + " temas na caixa de revisão. " +
+        (batch.length < requested ? "Resposta parcial: não foram feitas solicitações adicionais. " : "") +
+        "Salve os que desejar.");
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
