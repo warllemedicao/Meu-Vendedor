@@ -85,7 +85,7 @@ test("Gemini logs only allowlisted diagnostics, never raw Google error messages"
   assert.match(edge, /function safeGeminiError\(responseBody: unknown\)/);
   assert.match(edge, /googleStatus: status/);
   assert.match(edge, /googleCategory: category/);
-  assert.match(edge, /purpose, model: MODEL, \.\.\.diagnostic/);
+  assert.match(edge, /purpose, model, \.\.\.diagnostic/);
   assert.doesNotMatch(edge, /console\.error\([^\n]*responseBody/);
   assert.doesNotMatch(edge, /console\.error\([^\n]*message/);
 });
@@ -121,4 +121,14 @@ test("Gemini metadata diagnostic never generates content or exposes credentials"
   assert.match(edge, /body\.action === "diagnose_topics"/);
   assert.match(studio, /Verificar Gemini sem gerar temas/);
   assert.match(studio, /invokeStory\("diagnose_topics", \{\}\)/);
+});
+
+
+test("Histórias uses Gemini 3.5 Flash-Lite for topics and 3.5 Flash for scripts/prompts", () => {
+  assert.match(edge, /const TOPICS_MODEL = "gemini-3\\.5-flash-lite"/);
+  assert.match(edge, /const SCRIPT_MODEL = "gemini-3\\.5-flash"/);
+  assert.match(edge, /purpose === "topics" \\? TOPICS_MODEL : SCRIPT_MODEL/);
+  assert.match(edge, /encodeURIComponent\\(TOPICS_MODEL\\)/);
+  assert.match(edge, /encodeURIComponent\\(model\\)/);
+  assert.doesNotMatch(edge, /gemini-3\\.8-flash|MV_STORIES_GEMINI_MODEL/);
 });
