@@ -46,6 +46,12 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
   const data: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
     const code = typeof data === "object" && data && "error" in data ? String(data.error) : String(res.status);
+    if (code === "gemini_billing_required") {
+      throw new Error("A API Gemini retornou HTTP 402: saldo ou configuração de cobrança necessária. Não foi possível gerar temas com esta chave. Você pode criar um roteiro manual enquanto verifica sua franquia no Google AI Studio.");
+    }
+    if (code === "gemini_quota_exceeded") {
+      throw new Error("O limite de requisições da API Gemini foi atingido. Verifique as cotas no Google AI Studio antes de tentar novamente.");
+    }
     throw new Error("Serviço de Histórias: " + code);
   }
   return data;
