@@ -41,3 +41,11 @@ test("topics, projects, prompts and clips have owner-scoped RLS", () => {
   assert.match(schema, /mv-story-images/);
   assert.match(schema, /mv-story-clips/);
 });
+
+test("CORS preflight returns a bodyless HTTP 204 with allowed headers", () => {
+  assert.match(edge, /request\.method === "OPTIONS"\) return new Response\(null, \{ status: 204/);
+  assert.match(edge, /Access-Control-Allow-Origin/);
+  assert.match(edge, /Access-Control-Allow-Headers/);
+  assert.match(edge, /Access-Control-Allow-Methods/);
+  assert.doesNotMatch(edge, /request\.method === "OPTIONS"\) return json\(\{\}, 204/);
+});
