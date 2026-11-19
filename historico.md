@@ -1,3 +1,9 @@
+## 19/11/2026 — Gerador de temas limitado a 5–20 e reparo de publicação
+
+- Formulário Histórias agora oferece exclusivamente 5, 10, 15 ou 20 temas; padrão 5. O lote de geração foi limitado a 20 no frontend e o backend rejeita contagens acima de 20.
+- Corrigida a falta de uma chave `}` na mensagem de status do JSX (linha ~431), causa do erro de lint que impediu a publicação anterior do frontend no Cloudflare; a alteração no GitHub anterior não chegou ao site.
+- Testes estáticos de contagem e validação de erros atualizados, sem chamadas de geração Gemini. Histórias usa suas chaves dedicadas, e Flow, IMAGEM1/IMAGEM2/IMAGEM3, Modal e OAuth permanecem intocados.
+
 ## 19/11/2026 — Geração de temas: erro visível e testes com baixo consumo
 
 - Logs Supabase confirmaram respostas Google HTTP 503 `UNAVAILABLE` para `gemini-3.8-flash` na operação `topics`; nenhum tema foi entregue nessas tentativas. Não há evidência nesses registros de 429/cota esgotada.
