@@ -123,8 +123,6 @@ export function StoriesStudio() {
   const [scenePromptDrafts, setScenePromptDrafts] = useState<Record<string,string>>({});
   const [expandedScene, setExpandedScene] = useState(1);
   const [sceneWorkbenchStep, setSceneWorkbenchStep] = useState<"roteiro"|"personagens"|"prompt">("roteiro");
-  const [showPendingScenes, setShowPendingScenes] = useState(false);
-  const [showAdvancedGeneration, setShowAdvancedGeneration] = useState(false);
   const [copiedScenePrompt, setCopiedScenePrompt] = useState<string | null>(null);
   const stopSceneQueue = useRef(false);
   const [error, setError] = useState("");
@@ -307,6 +305,47 @@ export function StoriesStudio() {
     }, { onConflict: "project_id,scene_number,platform" });
     if (dbError) return setError("Não foi possível salvar o prompt.");
     setMessage("Prompt da cena " + sceneNumber + " salvo para " + provider + ".");
+  }
+  async function advanceToNextScene(sceneNumber: number) {
+    if (!project || !user || busy || sceneNumber >= 12) return;
+    const current = project.scenes.find(s => s.number === sceneNumber);
+    const next = project.scenes.find(s => s.number === sceneNumber + 1);
+    if (!current?.action.trim() || !current.setting.trim() || !next) {
+      setError("Preencha cenário e ação da cena atual antes de avançar."); return;
+    }
+    const provider = selectedPlatformByScene[sceneNumber] || platform;
+    const promptText = scenePromptDrafts[promptKey(sceneNumber, provider)]?.trim() || "";
+    const limit = PLATFORM_GUIDES[provider].absoluteChars;
+    if (!promptText || Array.from(promptText).length > limit) {
+      setError("Prepare um prompt de até " + limit + " caracteres antes de avançar."); return;
+    }
+    const client = getSupabase(); if (!client) return;
+    setBusy(true); setError(""); setMessage("");
+    try {
+      // Commit the reviewed current scene and its prompt BEFORE requesting any subsequent inference.
+      const { error: scriptSaveError } = await client.from("mv_story_projects")
+        .update({ scenes: project.scenes, characters: project.characters, updated_at: new Date().toISOString() })
+        .eq("id", project.id).eq("user_id", user.id);
+      if (scriptSaveError) throw new Error("Não foi possível salvar esta cena. Nenhuma nova geração foi enviada.");
+      const { error: promptSaveError } = await client.from("mv_story_prompts").upsert({
+        user_id: user.id, project_id: project.id, scene_number: sceneNumber,
+        platform: provider, prompt: promptText,
+      }, { onConflict: "project_id,scene_number,platform" });
+      if (promptSaveError) throw new Error("A cena foi salva, mas o prompt não. Nenhuma nova geração foi enviada.");
+      if (next.action.trim() && next.setting.trim()) {
+        selectWorkbenchScene(next.number);
+        setMessage("Cena " + sceneNumber + " salva. Abrindo cena " + next.number + " já existente.");
+        return;
+      }
+      const firstMissing = project.scenes.findIndex(s => !s.action.trim() || !s.setting.trim());
+      if (firstMissing !== sceneNumber) {
+        selectWorkbenchScene(firstMissing + 1);
+        setMessage("Os materiais foram salvos. Complete primeiro a cena " + (firstMissing + 1) + " para preservar a ordem.");
+        return;
+      }
+      await generateOneScene(project);
+    } catch (e) { setError(plainError(e)); }
+    finally { setBusy(false); setSceneProgress(""); void loadProjects(); }
   }
   async function copyScenePrompt(sceneNumber: number, provider: Platform, prompt: string) {
     if (Array.from(prompt).length > PLATFORM_GUIDES[provider].absoluteChars) {
@@ -976,6 +1015,11 @@ export function StoriesStudio() {
             {!imageConfigured && <p className="text-xs text-muted">Para ativar a geração, configure o segredo exclusivo HIST_IMAGEM_GEMINI_API_KEY no Supabase. Envio e biblioteca funcionam sem essa API. A geração de imagem pode consumir cota.</p>}
           </div>}
         </div>)}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+          <p className="text-xs text-muted">As imagens escolhidas serão usadas como referência visual no prompt. Você as baixará para anexar na plataforma.</p>
+          <button className={button + " !bg-primary !text-primary-foreground !border-primary"}
+            onClick={() => setSceneWorkbenchStep("prompt")}>Continuar: prompt e downloads</button>
+        </div>
       </div>
       }
       <div className="space-y-2">
