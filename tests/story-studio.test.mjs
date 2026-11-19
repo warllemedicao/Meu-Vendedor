@@ -64,3 +64,11 @@ test("Gemini HTTP 402 is diagnosed without implying free quota or changing secre
   assert.match(studio, /code === "gemini_billing_required"/);
   assert.match(studio, /HTTP 402: saldo ou configuração de cobrança necessária/);
 });
+
+test("Histórias topic generation uses only its dedicated server-side Gemini secret", () => {
+  assert.match(edge, /Deno\.env\.get\("HIST_TEMA_GEMINI_API_KEY"\)/);
+  assert.match(edge, /purpose === "topics"/);
+  assert.match(edge, /}, 6000, "topics"\)/);
+  assert.match(edge, /Deno\.env\.get\("GEMINI_API_KEY"\)/);
+  assert.doesNotMatch(studio, /HIST_TEMA_GEMINI_API_KEY/);
+});
