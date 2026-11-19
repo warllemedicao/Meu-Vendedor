@@ -203,7 +203,16 @@ export function StoriesStudio() {
   }
   function updateCharacter(index: number, changes: Partial<Character>) {
     if (!project || project.status !== "draft") return;
-    setProject({ ...project, characters: project.characters.map((char, i) => i === index ? { ...char, ...changes } : char) });
+    const previousName = project.characters[index].name;
+    const nextName = changes.name ?? previousName;
+    setProject({ ...project,
+      characters: project.characters.map((char, i) => i === index ? { ...char, ...changes } : char),
+      scenes: previousName === nextName ? project.scenes : project.scenes.map(scene => ({
+        ...scene,
+        characters: scene.characters.map(name => name === previousName ? nextName : name),
+        dialogue: scene.dialogue.map(line => line.speaker === previousName ? { ...line, speaker: nextName } : line),
+      })),
+    });
   }
   function updateScene(index: number, changes: Partial<Scene>) {
     if (!project || project.status !== "draft") return;
@@ -401,20 +410,41 @@ export function StoriesStudio() {
     </section>
 
     {project && user && project.user_id === user.id && <section className={panel}>
-      <h2 className="text-lg font-semibold">3. Roteiro — {activeTopic?.title || project.title}</h2>
+      <h2 className="text-lg font-semibold">4. Roteiro — {activeTopic?.title || project.title}</h2>
       <p className="text-sm text-muted">12 cenas × 10 segundos = 120 segundos. Os personagens e as vozes se mantêm iguais entre cenas.</p>
-      <div className="rounded-xl border border-border p-3">
-        <h3 className="font-semibold">Bíblia de personagens</h3>
-        {project.characters.map((c, ci) => <div key={c.name} className="mt-3 text-sm">
-          <p className="font-semibold">{c.name} · {c.role}</p><p>Visual: {c.visual}</p><p>Voz: {c.voice}</p>
-          <p className="text-xs text-muted">{c.referenceImagePath ? "Imagem de referência salva no projeto" : "Sem imagem de referência"}</p>
-          {project.status === "draft" && <input className="mt-2 block w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy}
-            onChange={e => {const file=e.currentTarget.files?.[0];void uploadReference(ci,file);e.currentTarget.value="";}}/>}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-label="Linha do tempo de 12 cenas">
+        {project.scenes.map(s => <a key={s.number} href={"#story-scene-" + s.number}
+          className="rounded-xl border border-border bg-surface px-2 py-3 text-center text-sm hover:underline">
+          <span className="block font-semibold">Cena {s.number}</span><span className="text-xs text-muted">10s · {clips.find(c => c.scene_number === s.number)?.approved ? "Aprovado" : clips.some(c => c.scene_number === s.number) ? "Enviado" : "Pendente"}</span>
+        </a>)}
+      </div>
+      <div className="rounded-xl border border-border p-3 space-y-3">
+        <h3 className="font-semibold">Bíblia de personagens — identidade e continuidade</h3>
+        {project.characters.map((char, ci) => <div key={ci} className="rounded-xl border border-border p-3 space-y-2 text-sm">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label>Nome do personagem<input className={field + " mt-1"} maxLength={100} disabled={project.status !== "draft"}
+              value={char.name} onChange={e => updateCharacter(ci, { name: e.target.value })}/></label>
+            <label>Função na história<input className={field + " mt-1"} maxLength={180} disabled={project.status !== "draft"}
+              value={char.role} onChange={e => updateCharacter(ci, { role: e.target.value })}/></label>
+          </div>
+          <label className="block">Aparência, roupas, cores e acessórios<textarea className={field + " mt-1"} rows={2} maxLength={1100}
+            disabled={project.status !== "draft"} value={char.visual} onChange={e => updateCharacter(ci, { visual: e.target.value })}/></label>
+          <label className="block">Voz, sotaque e modo de falar<textarea className={field + " mt-1"} rows={2} maxLength={450}
+            disabled={project.status !== "draft"} value={char.voice} onChange={e => updateCharacter(ci, { voice: e.target.value })}/></label>
+          <p className="text-xs text-muted">{char.referenceImagePath ? "Imagem de referência vinculada" : "Sem referência visual enviada"}</p>
+          {project.status === "draft" && <label className="block">Imagem do personagem (opcional)
+            <input className="mt-2 block w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy}
+              onChange={e => {const file=e.currentTarget.files?.[0];void uploadReference(ci,file);e.currentTarget.value="";}}/>
+          </label>}
         </div>)}
       </div>
       <div className="space-y-4">
-        {project.scenes.map((s, i) => <div key={s.number} className="rounded-xl border border-border p-3 space-y-3">
-          <h3 className="font-semibold">Cena {s.number} — {s.title} · 10s</h3>
+        {project.scenes.map((s, i) => <div key={s.number} id={"story-scene-" + s.number} className="rounded-xl border border-border p-3 space-y-3">
+          <h3 className="font-semibold">Cena {s.number} · 10 segundos</h3>
+          <label className="block text-sm">Título da cena
+            <input className={field + " mt-1"} maxLength={160} value={s.title} disabled={project.status !== "draft"}
+              onChange={e => updateScene(i, { title: e.target.value })}/>
+          </label>
           <label className="block text-sm">Cenário
             <textarea className={field + " mt-1"} rows={2} value={s.setting} disabled={project.status !== "draft"}
               onChange={e => updateScene(i, { setting: e.target.value })}/>
@@ -431,7 +461,15 @@ export function StoriesStudio() {
                 return colon < 0 ? null : { speaker: line.slice(0, colon).trim(), text: line.slice(colon + 1).trim() };
               }).filter((d): d is Dialogue => !!d && !!d.speaker && !!d.text) })}/>
           </label>
-          <p className="text-xs text-muted">Personagens: {s.characters.join(", ")} · Transição: {s.transition || "corte"}</p>
+          <label className="block text-sm">Personagens presentes (nomes separados por vírgula)
+            <input className={field + " mt-1"} disabled={project.status !== "draft"} value={s.characters.join(", ")}
+              onChange={e => updateScene(i, { characters: e.target.value.split(",").map(n => n.trim()).filter(Boolean) })}/>
+          </label>
+          <label className="block text-sm">Transição e ligação com a próxima cena
+            <input className={field + " mt-1"} disabled={project.status !== "draft"} value={s.transition}
+              onChange={e => updateScene(i, { transition: e.target.value })}/>
+          </label>
+          <p className="text-xs text-muted">Fala aproximada: {s.dialogue.reduce((n,d) => n + d.text.split(/\s+/).filter(Boolean).length, 0)}/26 palavras · tempo-alvo: 10s</p>
         </div>)}
       </div>
       {project.status === "draft" ? <div className="flex flex-wrap gap-2">
@@ -441,44 +479,79 @@ export function StoriesStudio() {
     </section>}
 
     {project && user && project.user_id === user.id && project.status !== "draft" && <section className={panel}>
-      <h2 className="text-lg font-semibold">4. Agentes de prompt</h2>
+      <h2 className="text-lg font-semibold">5. Agentes de prompt</h2>
       <label className="block text-sm font-semibold">Plataforma de geração
-        <select className={field + " mt-1"} value={platform} onChange={e => {setPlatform(e.target.value as Platform);setPrompts([]);}}>
+        <select className={field + " mt-1"} value={platform} onChange={e => { const next = e.target.value as Platform; setPlatform(next); setPrompts([]); void loadPlatformPrompts(next); }}>
           {platformOptions.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
       </label>
       <p className="text-sm text-muted">O agente respeita a Bíblia de Personagens e o roteiro aprovado. YouTube Create: máximo de 900 caracteres.</p>
       <button className={button} disabled={busy} onClick={() => void generatePrompts()}>Gerar e salvar 12 prompts com Gemini</button>
       {prompts.map(p => <div className="rounded-xl border border-border p-3 space-y-2" key={p.scene}>
-        <div className="flex items-center justify-between"><h3 className="font-semibold">Cena {p.scene}</h3>
-          <button className={button} onClick={() => void navigator.clipboard.writeText(p.text)}>Copiar prompt</button></div>
-        <p className="whitespace-pre-wrap text-sm">{p.text}</p>
-        <p className={"text-xs " + (maxPrompt && p.text.length > maxPrompt ? "text-red-600" : "text-muted")}>
-          {p.text.length} caracteres {maxPrompt ? "/ " + maxPrompt : ""}
-        </p>
+        <h3 className="font-semibold">Prompt da cena {p.scene}</h3>
+        <textarea aria-label={"Prompt da cena " + p.scene} className={field} rows={5} value={p.text}
+          onChange={e => setPrompts(previous => previous.map(x => x.scene === p.scene && x.platform === p.platform ?
+            { ...x, text: e.target.value } : x))}/>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className={"text-xs " + (maxPrompt && Array.from(p.text).length > maxPrompt ? "text-red-600" : "text-muted")}>
+            {Array.from(p.text).length} caracteres {maxPrompt ? "/ " + maxPrompt : " (limite interno do agente)"}
+          </p>
+          <div className="flex gap-2">
+            <button className={button} disabled={busy || !p.text.trim() || !!(maxPrompt && Array.from(p.text).length > maxPrompt)}
+              onClick={() => void saveEditedPrompt(p.scene)}>Salvar edição</button>
+            <button className={button} onClick={() => void navigator.clipboard.writeText(p.text)}>Copiar prompt</button>
+          </div>
+        </div>
       </div>)}
     </section>}
 
     {project && user && project.user_id === user.id && <section className={panel}>
-      <h2 className="text-lg font-semibold">5. Biblioteca de clipes</h2>
+      <h2 className="text-lg font-semibold">6. Biblioteca de clipes e aprovação</h2>
       <p className="text-sm text-muted">Importe um MP4 de cada cena. Os arquivos ficam em Storage privado. Montagem em 2 minutos e publicação serão habilitadas em uma etapa própria de integração.</p>
+      <p className="text-sm font-semibold">{clips.filter(c => c.approved).length}/12 clipes aprovados</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {project.scenes.map(s => <label key={s.number} className="block rounded-xl border border-border p-3 text-sm">
-          <span className="font-semibold">Cena {s.number}</span>
-          <span className="ml-2 text-muted">{clips.some(c => c.scene_number === s.number) ? "MP4 armazenado" : "Pendente"}</span>
-          <input className="mt-2 block w-full text-xs" type="file" accept="video/mp4" disabled={busy}
-            onChange={e => {const file=e.currentTarget.files?.[0];void uploadClip(s.number,file);e.currentTarget.value="";}}/>
-        </label>)}
+        {project.scenes.map(s => {const clip = clips.find(c => c.scene_number === s.number); return <div key={s.number}
+          className="rounded-xl border border-border p-3 space-y-2 text-sm">
+          <p className="font-semibold">Cena {s.number} — {s.title}</p>
+          <p className="text-xs text-muted">{clip ? clip.approved ? "Aprovado" : "Enviado · aguardando revisão" : "Vídeo pendente"}</p>
+          <label className="block">Selecionar MP4
+            <input className="mt-2 block w-full text-xs" type="file" accept="video/mp4" disabled={busy}
+              onChange={e => {const file=e.currentTarget.files?.[0];void uploadClip(s.number,file);e.currentTarget.value="";}}/>
+          </label>
+          {clip && <div className="flex flex-wrap gap-2">
+            <button className={button} onClick={() => void previewClip(s.number)}>Visualizar</button>
+            <button className={button} disabled={busy} onClick={() => void approveClip(s.number, !clip.approved)}>
+              {clip.approved ? "Retirar aprovação" : "Aprovar clipe"}
+            </button>
+          </div>}
+        </div>})}
       </div>
     </section>}
 
     <section className={panel}>
-      <h2 className="text-lg font-semibold">6. Montagem e publicação</h2>
-      <p className="text-sm text-muted">Preparação: unir 12 cenas com áudio sincronizado, exportar MP4 9:16 de 2 minutos e enviar por canais autorizados.</p>
-      <div className="flex flex-wrap gap-2"><span className="rounded-lg border px-3 py-2 text-sm">YouTube · API de upload</span>
-        <span className="rounded-lg border px-3 py-2 text-sm">TikTok · rascunho/API autorizada</span>
-        <span className="rounded-lg border px-3 py-2 text-sm">Kwai · compartilhamento assistido</span></div>
-      <p className="text-sm font-semibold">Publicação indisponível até integração, revisão e autorização dos canais.</p>
+      <h2 className="text-lg font-semibold">7. Preparar montagem e publicação</h2>
+      <p className="text-sm text-muted">Vídeo final planejado: 12 cenas de 10s, 2 minutos, MP4 9:16 (1080 × 1920). A montagem automática e o envio direto às plataformas ainda não estão habilitados.</p>
+      <label className="block text-sm">Rede de destino
+        <select className={field + " mt-1"} value={destination} onChange={e => setDestination(e.target.value as "youtube" | "tiktok" | "kwai")}>
+          <option value="youtube">YouTube Shorts</option><option value="tiktok">TikTok</option><option value="kwai">Kwai</option>
+        </select>
+      </label>
+      <label className="block text-sm">Título da publicação
+        <input className={field + " mt-1"} maxLength={220} value={publishTitle} onChange={e => setPublishTitle(e.target.value)}/>
+      </label>
+      <label className="block text-sm">Descrição e hashtags
+        <textarea className={field + " mt-1"} rows={4} value={publishDescription} onChange={e => setPublishDescription(e.target.value)}/>
+      </label>
+      <button className={button} onClick={() => void navigator.clipboard.writeText(
+        [publishTitle, publishDescription].filter(Boolean).join("\n\n")
+      )}>Copiar título e descrição</button>
+      <div className="rounded-xl border border-border p-3 space-y-2 text-sm">
+        <p className="font-semibold">{destination === "youtube" ? "YouTube Shorts" : destination === "tiktok" ? "TikTok" : "Kwai"} — preparação</p>
+        <p>{destination === "youtube" ? "O upload por YouTube Data API depende de autorização e integração específicas." :
+          destination === "tiktok" ? "Publicação direta exige aprovação e permissões da Content Posting API; sem elas, conclua no aplicativo." :
+          "Publicação automatizada no Kwai Brasil ainda não foi confirmada; prepare e compartilhe manualmente."}</p>
+        <p className="text-muted">O botão de copiar não publica nada na rede social.</p>
+      </div>
     </section>
     {error && <p role="alert" className="rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
     {message && <p role="status" className="rounded-xl border border-border p-3 text-sm">{message}</p>}
