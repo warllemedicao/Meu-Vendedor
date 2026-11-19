@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
 import { STORY_STAGES, PLATFORM_GUIDES, makeEmptyStoryScenes, makeLocalPromptDrafts, countStoryWords, type StoryStage } from "@/lib/stories/workflow";
@@ -104,6 +104,7 @@ export function StoriesStudio() {
   const [checkingGemini, setCheckingGemini] = useState(false);
   const [progress, setProgress] = useState(0);
   const [sceneProgress, setSceneProgress] = useState("");
+  const stopSceneQueue = useRef(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const loadTopics = useCallback(async () => {
@@ -125,12 +126,18 @@ export function StoriesStudio() {
   useEffect(() => { void Promise.resolve().then(() => Promise.all([loadTopics(), loadProjects()])); }, [loadTopics, loadProjects]);
   async function openProject(selected: Project) {
     if (!user) return;
-    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setStage("roteiro");
+    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setPublishDescription(""); setStage("roteiro");
     const client = getSupabase(); if (!client) return;
     const [clipsResult, promptResult] = await Promise.all([
       client.from("mv_story_clips").select("id,scene_number,storage_path,approved").eq("user_id", user.id).eq("project_id", selected.id),
       client.from("mv_story_prompts").select("scene_number,prompt,platform").eq("user_id", user.id).eq("project_id", selected.id).eq("platform", platform).order("scene_number"),
     ]);
+    if (selected.topic_id) {
+      const { data: sourceTopic } = await client.from("mv_story_topics")
+        .select("id,user_id,subject,title,synopsis,genre,saved")
+        .eq("id", selected.topic_id).eq("user_id", user.id).maybeSingle();
+      if (sourceTopic) { setActiveTopic(sourceTopic as Topic); setPublishDescription(sourceTopic.synopsis); }
+    }
     setClips((clipsResult.data || []) as Clip[]);
     setPrompts((promptResult.data || []).map(p => ({ scene: p.scene_number as number, text: p.prompt as string, platform: p.platform as Platform })));
   }
@@ -239,38 +246,63 @@ export function StoriesStudio() {
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
+  async function generateOneScene(working: Project): Promise<Project> {
+    if (!user || working.status !== "draft") throw new Error("Roteiro não está disponível para edição.");
+    const nextIndex = working.scenes.findIndex(s => !s.action.trim() || !s.setting.trim());
+    if (nextIndex < 0) return working;
+    if (nextIndex > 0 && (!working.characters.length ||
+      working.scenes.slice(0, nextIndex).some(s => !s.action.trim() || !s.setting.trim())))
+      throw new Error("Complete as cenas anteriores e a ficha dos personagens antes de continuar.");
+    const client = getSupabase();
+    if (!client) throw new Error("Supabase indisponível.");
+    const sceneNumber = nextIndex + 1;
+    setSceneProgress("Gerando cena " + sceneNumber + " de 12");
+    const result = await invokeStory("script_scene", {
+      title: working.title, synopsis: activeTopic?.synopsis || publishDescription,
+      genre: working.genre || activeTopic?.genre || "geral", sceneNumber,
+      characters: working.characters, previousScenes: working.scenes.slice(0, nextIndex),
+    }) as { characters: Character[]; scene: Scene };
+    if (!Array.isArray(result.characters) || !result.characters.length ||
+      !result.scene || result.scene.number !== sceneNumber || !result.scene.action || !result.scene.setting)
+      throw new Error("O Gemini não retornou uma cena válida.");
+    const scenes = working.scenes.map((scene, i) => i === nextIndex ? result.scene : scene);
+    const characters = working.characters.length ? working.characters : result.characters;
+    const { error: saveError } = await client.from("mv_story_projects")
+      .update({ characters, scenes, updated_at: new Date().toISOString() })
+      .eq("id", working.id).eq("user_id", user.id);
+    if (saveError) throw new Error("A cena foi gerada, mas não foi salva. Não repita a geração antes de verificar o projeto.");
+    const updated = { ...working, scenes, characters };
+    setProject(updated);
+    setMessage("Cena " + sceneNumber + "/12 salva. " +
+      (sceneNumber === 12 ? "Roteiro completo; revise e aprove." : "Você já pode gerar a próxima cena."));
+    return updated;
+  }
   async function generateNextScene() {
     if (!project || !user || project.status !== "draft" || busy) return;
-    const nextIndex = project.scenes.findIndex(s => !s.action.trim() || !s.setting.trim());
-    if (nextIndex < 0) return setMessage("As 12 cenas estão completas. Revise e aprove o roteiro.");
-    if (nextIndex > 0 && (!project.characters.length ||
-      project.scenes.slice(0, nextIndex).some(s => !s.action.trim() || !s.setting.trim())))
-      return setError("Complete as cenas anteriores e a ficha dos personagens antes de continuar.");
-    const client = getSupabase(); if (!client) return;
-    const sceneNumber = nextIndex + 1;
-    setBusy(true); setError(""); setSceneProgress("Gerando cena " + sceneNumber + " de 12");
-    try {
-      const result = await invokeStory("script_scene", {
-        title: project.title, synopsis: activeTopic?.synopsis || publishDescription,
-        genre: project.genre || activeTopic?.genre || "geral", sceneNumber,
-        characters: project.characters, previousScenes: project.scenes.slice(0, nextIndex),
-      }) as { characters: Character[]; scene: Scene };
-      if (!Array.isArray(result.characters) || !result.characters.length ||
-        !result.scene || result.scene.number !== sceneNumber || !result.scene.action || !result.scene.setting)
-        throw new Error("O Gemini não retornou uma cena válida.");
-      const scenes = project.scenes.map((scene, i) => i === nextIndex ? result.scene : scene);
-      const characters = project.characters.length ? project.characters : result.characters;
-      // Save scene before updating UI, so reloads resume at the first missing scene.
-      const { error: saveError } = await client.from("mv_story_projects")
-        .update({ characters, scenes, updated_at: new Date().toISOString() })
-        .eq("id", project.id).eq("user_id", user.id);
-      if (saveError) throw new Error("A cena foi gerada, mas não foi salva. Não repita a geração antes de verificar o projeto.");
-      setProject({ ...project, scenes, characters });
-      void loadProjects();
-      setMessage("Cena " + sceneNumber + "/12 salva. " +
-        (sceneNumber === 12 ? "Roteiro completo; revise e aprove." : "Use Gerar próxima cena quando desejar continuar."));
-    } catch (e) { setError(plainError(e)); }
+    setBusy(true); setError(""); setSceneProgress("");
+    try { await generateOneScene(project); void loadProjects(); }
+    catch (e) { setError(plainError(e)); }
     finally { setBusy(false); setSceneProgress(""); }
+  }
+  async function generateRemainingScenes() {
+    if (!project || !user || project.status !== "draft" || busy) return;
+    stopSceneQueue.current = false;
+    setBusy(true); setError(""); setSceneProgress("");
+    let working = project;
+    try {
+      while (working.scenes.some(s => !s.action.trim() || !s.setting.trim()) && !stopSceneQueue.current) {
+        // Each success is committed to Supabase before the next paid request.
+        working = await generateOneScene(working);
+        if (!working.scenes.some(s => !s.action.trim() || !s.setting.trim()) || stopSceneQueue.current) break;
+        // Free-tier model quota observed: 5 RPM. Keep <= 4 requests per minute,
+        // including fast responses. No retry on any HTTP 503, 429 or timeout.
+        setSceneProgress("Cena salva. Intervalo de segurança de 16 segundos antes da próxima...");
+        await new Promise(resolve => setTimeout(resolve, 16_000));
+      }
+      void loadProjects();
+      if (stopSceneQueue.current) setMessage("Geração interrompida. Cenas já concluídas permanecem salvas.");
+    } catch (e) { setError(plainError(e)); void loadProjects(); }
+    finally { setBusy(false); setSceneProgress(""); stopSceneQueue.current = false; }
   }
   async function createManualScript(title: string, topic?: Topic) {
     if (!user || title.trim().length < 3) return setError("Digite um título com pelo menos 3 caracteres.");
@@ -581,6 +613,11 @@ export function StoriesStudio() {
     {stage === "roteiro" && project && user && project.user_id === user.id && <section className={panel}>
       <h2 className="text-lg font-semibold">4. Roteiro — {activeTopic?.title || project.title}</h2>
       {project.status === "draft" && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3">
+        <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())} onClick={() => void generateRemainingScenes()}>
+          Gerar cenas restantes em sequência
+        </button>
+        {busy && sceneProgress && <button className={button} onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
+        {busy && sceneProgress && <span role="status" className="text-sm text-muted">{sceneProgress}</span>}
         <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())} onClick={() => void generateNextScene()}>
           {busy && sceneProgress ? sceneProgress : "Gerar próxima cena com Gemini"}
         </button>
