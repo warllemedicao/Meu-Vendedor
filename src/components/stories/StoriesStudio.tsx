@@ -10,7 +10,7 @@ type Topic = { id: string; user_id: string; subject: string; title: string; syno
 type Character = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string };
 type Dialogue = { speaker: string; text: string };
 type Scene = { number: number; durationSeconds: 10; title: string; setting: string; action: string; characters: string[]; dialogue: Dialogue[]; transition: string };
-type Project = { id: string; title: string; status: string; characters: Character[]; scenes: Scene[] };
+type Project = { id: string; user_id: string; title: string; status: string; characters: Character[]; scenes: Scene[] };
 type Prompt = { scene: number; text: string; platform: Platform };
 type Clip = { id: string; scene_number: number; storage_path: string; approved: boolean };
 
@@ -85,7 +85,7 @@ export function StoriesStudio() {
   const loadProjects = useCallback(async () => {
     if (!user) { setProjects([]); return; }
     const client = getSupabase(); if (!client) return;
-    const { data } = await client.from("mv_story_projects").select("id,title,status,characters,scenes")
+    const { data } = await client.from("mv_story_projects").select("id,user_id,title,status,characters,scenes")
       .eq("user_id", user.id).order("updated_at", { ascending: false }).limit(100);
     setProjects((data || []) as Project[]);
   }, [user]);
@@ -162,7 +162,7 @@ export function StoriesStudio() {
       const { data, error: dbError } = await client.from("mv_story_projects")
         .insert({ user_id: user.id, topic_id: topic.id, title: topic.title, genre: topic.genre,
           characters: result.characters, scenes: result.scenes, status: "draft" })
-        .select("id,title,status,characters,scenes").single();
+        .select("id,user_id,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível salvar o roteiro.");
       setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]);
       void loadProjects();
@@ -228,7 +228,7 @@ export function StoriesStudio() {
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
-  const visibleTopics = topics.filter(t => (!onlySaved || t.saved) && (genre === "geral" || t.genre === genre)
+  const visibleTopics = topics.filter(t => user && t.user_id === user.id && (!onlySaved || t.saved) && (genre === "geral" || t.genre === genre)
     && (!query || (t.title + " " + t.subject).toLowerCase().includes(query.toLowerCase())));
   const maxPrompt = platformOptions.find(p => p.value === platform)?.maximum;
 
@@ -285,14 +285,14 @@ export function StoriesStudio() {
       <h2 className="text-lg font-semibold">Projetos salvos</h2>
       <p className="text-sm text-muted">Retome um roteiro após fechar o navegador.</p>
       <div className="flex flex-wrap gap-2">
-        {projects.map(p => <button key={p.id} className={button} disabled={busy} onClick={() => void openProject(p)}>
+        {projects.filter(p => user && p.user_id === user.id).map(p => <button key={p.id} className={button} disabled={busy} onClick={() => void openProject(p)}>
           {p.title} · {p.status}
         </button>)}
         {!projects.length && <p className="text-sm text-muted">Ainda não há histórias salvas.</p>}
       </div>
     </section>
 
-    {project && <section className={panel}>
+    {project && user && project.user_id === user.id && <section className={panel}>
       <h2 className="text-lg font-semibold">3. Roteiro — {activeTopic?.title || project.title}</h2>
       <p className="text-sm text-muted">12 cenas × 10 segundos = 120 segundos. Os personagens e as vozes se mantêm iguais entre cenas.</p>
       <div className="rounded-xl border border-border p-3">
@@ -332,7 +332,7 @@ export function StoriesStudio() {
       </div> : <p className="font-semibold text-sm">Roteiro aprovado e congelado para manter os prompts consistentes.</p>}
     </section>}
 
-    {project && project.status !== "draft" && <section className={panel}>
+    {project && user && project.user_id === user.id && project.status !== "draft" && <section className={panel}>
       <h2 className="text-lg font-semibold">4. Agentes de prompt</h2>
       <label className="block text-sm font-semibold">Plataforma de geração
         <select className={field + " mt-1"} value={platform} onChange={e => {setPlatform(e.target.value as Platform);setPrompts([]);}}>
