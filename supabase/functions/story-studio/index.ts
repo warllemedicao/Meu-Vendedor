@@ -2,6 +2,8 @@ import { storyPromptAgents as RULES } from "./_shared/agents/index.ts";
 // Independent Gemini text service for Histórias. No Google Flow automation code is imported.
 const TOPICS_MODEL = "gemini-3.5-flash-lite";
 const SCRIPT_MODEL = "gemini-3.5-flash";
+// Nano Banana 2 Lite uses an independent key: never borrow topic/script quotas silently.
+const IMAGE_MODEL = "gemini-3.1-flash-lite-image";
 const APP_ORIGIN = Deno.env.get("MV_APP_ORIGIN") || "https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev";
 const MAX_REQUEST_BYTES = 50_000;
 const TOPICS_MAX_TOKENS = (count: number) => Math.min(3800, 1800 + count * 100);
@@ -164,6 +166,50 @@ async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8
     throw error;
   } finally { clearTimeout(timeout); }
 }
+async function generateCharacterImage(prompt: string): Promise<{ mimeType: string; data: string; model: string }> {
+  const key = Deno.env.get("HIST_IMAGEM_GEMINI_API_KEY");
+  if (!key) throw new Error("image_api_not_configured");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(IMAGE_MODEL) + ":generateContent",
+      {
+        method: "POST", redirect: "error", signal: controller.signal,
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: "Crie uma imagem original de referência de um único personagem para animação, corpo inteiro, fundo simples e iluminação clara, orientação vertical 9:16. Preserve fielmente estas características. Não inclua texto, marca ou marca d'água. " + prompt }] }],
+          generationConfig: { responseModalities: ["TEXT", "IMAGE"], imageConfig: { aspectRatio: "9:16" } },
+        }),
+      },
+    );
+    if (!response.ok) {
+      const details: unknown = await response.json().catch(() => null);
+      const diagnostic = safeGeminiError(details);
+      console.error("story_image_provider_failure", { status: response.status, model: IMAGE_MODEL, ...diagnostic });
+      throw new Error(response.status === 429 ? "gemini_quota_exceeded" :
+        response.status === 403 ? "gemini_permission_denied" :
+        response.status === 400 ? "gemini_request_rejected" :
+        response.status >= 500 ? "gemini_service_unavailable" : "image_generation_failed");
+    }
+    const result: unknown = await response.json();
+    const candidates = record(result) && Array.isArray(result.candidates) ? result.candidates : [];
+    const content = record(candidates[0]) && record(candidates[0].content) ? candidates[0].content : null;
+    const parts = content && Array.isArray(content.parts) ? content.parts : [];
+    const imagePart = parts.find(part => record(part) && record(part.inlineData) &&
+      typeof part.inlineData.data === "string" && /^image\/(png|jpeg|webp)$/.test(String(part.inlineData.mimeType)));
+    if (!record(imagePart) || !record(imagePart.inlineData)) throw new Error("image_generation_failed");
+    const data = imagePart.inlineData.data;
+    const mimeType = imagePart.inlineData.mimeType;
+    if (typeof data !== "string" || data.length > 5_500_000 || data.length < 100 ||
+        typeof mimeType !== "string") throw new Error("image_generation_failed");
+    return { data, mimeType, model: IMAGE_MODEL };
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("gemini_timeout");
+    if (error instanceof TypeError) throw new Error("gemini_network_error");
+    throw error;
+  } finally { clearTimeout(timer); }
+}
 function normalizeScene(x: unknown, index: number) {
   if (!record(x)) throw new Error("scene_invalid");
   const characters = Array.isArray(x.characters) ? x.characters.filter(v => string(v, 100)).slice(0, 8) : [];
@@ -230,6 +276,14 @@ Deno.serve(async (request) => {
     if (!record(body)) return json({ error: "invalid_request" }, 400, origin);
     if (body.action === "diagnose_topics") return json(await diagnoseModelConnection("topics"), 200, origin);
     if (body.action === "diagnose_script") return json(await diagnoseModelConnection("script"), 200, origin);
+    if (body.action === "image_config")
+      return json({ configured: Boolean(Deno.env.get("HIST_IMAGEM_GEMINI_API_KEY")), model: IMAGE_MODEL }, 200, origin);
+    if (body.action === "image_character") {
+      const name = clean(body.name, 100), prompt = clean(body.prompt, 1200);
+      if (!name || prompt.length < 15) return json({ error: "invalid_image_input" }, 400, origin);
+      const result = await generateCharacterImage("Nome do personagem: " + name + ". " + prompt);
+      return json(result, 200, origin);
+    }
     if (body.action === "topics") {
       const subject = clean(body.subject, 160), genre = clean(body.genre, 80) || "geral";
       const count = Number(body.count);
@@ -341,7 +395,7 @@ Deno.serve(async (request) => {
     return json({ error: "unknown_action" }, 400, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown_error";
-    const acceptable = new Set(["scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_timeout","gemini_network_error","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","gemini_output_truncated","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid"]);
+    const acceptable = new Set(["image_api_not_configured","image_generation_failed","invalid_image_input","scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_timeout","gemini_network_error","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","gemini_output_truncated","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid"]);
     return json({ error: acceptable.has(code) ? code : "generation_failed" }, code === "gemini_not_configured" || code === "gemini_service_unavailable" || code === "gemini_timeout" ? 503 : 502, origin);
   }
 });
