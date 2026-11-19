@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feat/historias-gemini-studio
+      - feat/historias-editorial-completo
   workflow_dispatch:
 
 permissions:
