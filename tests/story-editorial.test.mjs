@@ -43,7 +43,7 @@ test("script starts generating the first scene automatically after persisting dr
   assert.match(code, /await generateOneScene\(data as Project, topic\.synopsis\)/);
   assert.match(code, /Criar roteiro e gerar cena 1/);
   assert.match(code, /setExpandedScene\(sceneNumber\)/);
-  assert.match(code, /setExpandedScene\(Math\.max\(1, selected\.scenes\.findIndex/);
+  assert.match(code, /selected\.scenes\.reduce\(\(last, s\)/);
 });
 
 test("compact script editor displays saved scene content and collapses others", () => {
