@@ -93,6 +93,17 @@ async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8
     const text = first.content.parts.filter(record).map(p => typeof p.text === "string" ? p.text : "").join("");
     if (text.length > 180_000) throw new Error("gemini_response_too_large");
     try { return JSON.parse(text); } catch { throw new Error("gemini_invalid_json"); }
+  } catch (error) {
+    // Distinguish a slow Gemini response from network failures without logging secrets or raw errors.
+    if (controller.signal.aborted) {
+      console.error("story_studio_gemini_transport_error", { reason: "gemini_timeout", purpose, model: MODEL, timeoutMs: 60_000 });
+      throw new Error("gemini_timeout");
+    }
+    if (error instanceof TypeError) {
+      console.error("story_studio_gemini_transport_error", { reason: "gemini_network_error", purpose, model: MODEL });
+      throw new Error("gemini_network_error");
+    }
+    throw error;
   } finally { clearTimeout(timeout); }
 }
 function normalizeScene(x: unknown, index: number) {
@@ -191,7 +202,7 @@ Deno.serve(async (request) => {
     return json({ error: "unknown_action" }, 400, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown_error";
-    const acceptable = new Set(["scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid"]);
+    const acceptable = new Set(["scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_timeout","gemini_network_error","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid"]);
     return json({ error: acceptable.has(code) ? code : "generation_failed" }, code === "gemini_not_configured" ? 503 : 502, origin);
   }
 });
