@@ -171,3 +171,14 @@ test("timeouts and truncated responses retain distinct diagnostic errors", () =>
   assert.match(studio, /code === "gemini_output_truncated"/);
   assert.match(edge, /code === "gemini_service_unavailable" [|][|] code === "gemini_timeout" [ ?] 503/);
 });
+
+
+test("transient provider errors pause only the affected generation model", () => {
+  assert.match(studio, /const geminiCooldowns = new Map/);
+  assert.match(studio, /action === "topics"/);
+  assert.match(studio, /action === "script" [|][|] action === "prompts"/);
+  assert.match(studio, /code === "gemini_service_unavailable" [|][|] code === "gemini_timeout"/);
+  assert.match(studio, /geminiCooldowns[.]set[(]scope/);
+  assert.match(studio, /geminiCooldowns[.]delete[(]scope[)]/);
+  assert.match(studio, /a tentativa não foi enviada/);
+});
