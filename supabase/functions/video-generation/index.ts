@@ -90,12 +90,12 @@ Deno.serve(createVideoGenerationHandler({
     const { data: { user }, error } = await auth.auth.getUser(token);
     return error ? null : user?.id ?? null;
   },
-  geminiApiKey: () => Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GOOGLE_API_KEY"),
+  geminiApiKey: () => Deno.env.get("PROD_ROTEIRO_GEMINI_API_KEY"),
   geminiScriptEnabled: () => true,
   scriptProvidersConfigured: () => true, // Sugestão local sempre disponível, mesmo sem provedor gratuito.
   generateScriptWithFallback: (input) => routeAdvertisingScript(input, {
     useAccountCredits: true,
-    geminiKey: Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("GOOGLE_API_KEY"),
+    geminiKey: Deno.env.get("PROD_ROTEIRO_GEMINI_API_KEY"),
     groqKey: Deno.env.get("GROQ_API_KEY"),
     openRouterKey: Deno.env.get("OPENROUTER_API_KEY"),
   }),
