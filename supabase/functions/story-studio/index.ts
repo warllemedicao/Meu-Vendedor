@@ -70,6 +70,8 @@ function normalizeScene(x: unknown, index: number) {
   const dialogue = Array.isArray(x.dialogue) ? x.dialogue.filter(record).slice(0, 12).map(d => ({
     speaker: clean(d.speaker, 100), text: clean(d.text, 500),
   })).filter(d => d.speaker && d.text) : [];
+  const totalWords = dialogue.reduce((sum, line) => sum + line.text.split(/\s+/).filter(Boolean).length, 0);
+  if (totalWords > 26) throw new Error("scene_dialogue_too_long");
   return { number: index + 1, durationSeconds: 10,
     title: clean(x.title, 160) || "Cena " + (index + 1),
     setting: clean(x.setting, 1000),
@@ -158,7 +160,7 @@ Deno.serve(async (request) => {
     return json({ error: "unknown_action" }, 400, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown_error";
-    const acceptable = new Set(["gemini_not_configured","gemini_unavailable","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid"]);
+    const acceptable = new Set(["scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid"]);
     return json({ error: acceptable.has(code) ? code : "generation_failed" }, code === "gemini_not_configured" ? 503 : 502, origin);
   }
 });
