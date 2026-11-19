@@ -133,3 +133,15 @@ test("general navigation header excludes roteiro without redundant narrowed stag
   assert.equal((header.match(/stage !== "roteiro"/g) || []).length, 1);
   assert.match(header, /STORY_STAGES\.map/);
 });
+
+test("character style is explicitly selected before topic creation and persisted per topic and project", () => {
+  assert.match(code, /setCharacterStyle\] = useState<Exclude<StoryCharacterStyle, "nao_definido"> \| null>\(null\)/);
+  assert.match(code, /STORY_CHARACTER_STYLES\.map\(option/);
+  assert.match(code, /if \(!characterStyle\) return setError\("Escolha o tipo de personagem/);
+  assert.match(code, /characterStyle, count: requested/);
+  assert.match(code, /character_style: t\.character_style, saved: true/);
+  assert.match(code, /onConflict: "user_id,subject,title,character_style"/);
+  assert.match(code, /character_style: topic\.character_style \|\| "nao_definido"/);
+  assert.match(code, /characterStyle: working\.character_style \|\| "nao_definido"/);
+  assert.match(code, /characterStyle: project\.character_style \|\| "nao_definido"/);
+});
