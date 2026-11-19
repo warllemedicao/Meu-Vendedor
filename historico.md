@@ -1,3 +1,11 @@
+## 19/11/2026 — Correção de TS1005 no JSX da lista compacta de temas
+
+- Analisado diretamente o run GitHub Actions `44639955209`, job `135968161534`. Logs: **387/387 testes passaram**, mas o `Typecheck frontend` falhou em `src/components/stories/StoriesStudio.tsx:924:9` com `TS1005: '}' expected`; Typecheck Edge, lint e build foram pulados.
+- Causa confirmada na `main`: durante a compactação dos temas não salvos, o bloco `{draftTopics.map(t => <article ...` terminava em `</article>)` em vez de `</article>)}`. A expressão JSX continuava aberta e o parser falhava na linha seguinte.
+- Correção cirúrgica em `StoriesStudio.tsx`, alterando **somente o fechamento da expressão JSX**. Commit `1d5a809b9ac6a6f5841fbf6448630af5b23701cd`. Conferência posterior da versão no GitHub confirmou o bloco fechado.
+- Teste estático de regressão adicionado em `tests/story-editorial.test.mjs`, exigindo `</article>)}` no mapa dos cartões compactos e rejeitando o fechamento defeituoso. Commit `7d0ac09767ba226b4945f2d5aa5e1b010165a987`.
+- **Não foi possível executar aqui a suíte completa, compilador TypeScript, lint nem build. Necessário verificar o novo CI na main antes de publicar no Cloudflare.** Nenhum tema real foi excluído; backend Supabase, robô Flow e IMAGEM1/IMAGEM2/IMAGEM3 não foram alterados.
+
 ## 19/11/2026 — Histórias/Temas: limpeza dos temas antigos e interface compacta
 
 - Pedido: os temas legados, criados antes da seleção do tipo de personagem, continuam na biblioteca; o usuário quer exclusão individual ou em lote e menos conteúdo repetido.
