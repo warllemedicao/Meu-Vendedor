@@ -1,3 +1,12 @@
+## 19/11/2026 — Sincronização de diagnose_topics em produção (Supabase v16)
+
+- Confirmada divergência: `main` continha a ação autenticada `diagnose_topics` e o botão `Verificar Gemini sem gerar temas`, mas a Edge Function `story-studio` publicada na versão 15 não continha essa ação.
+- Publicados em produção `index.ts` e quatro arquivos dos agentes de prompts, exatamente a partir da `main`, como Edge Function `story-studio` **ACTIVE v16**, com `verify_jwt: true` preservado.
+- Leitura posterior da função implantada confirmou a presença de `body.action === "diagnose_topics"` e resposta `model_metadata_only`. Nenhuma chamada `generateContent`, geração de conteúdo ou alteração de segredos foi realizada nesta intervenção.
+- Worker Cloudflare `meu-vendedor` teve implantação v176 às 16:00 UTC, porém não foi possível confirmar por leitura dos assets estáticos a presença do botão na versão servida; não declarar validação do frontend em produção.
+- Logs anteriores à correção apontam HTTP Google 503 `UNAVAILABLE` e timeout de 60s na operação de temas. Ainda falta acionar uma vez o diagnóstico autenticado, somente de metadados, no site para verificar a chave e o modelo sem inferência.
+- Nenhuma alteração em Flow, IMAGEM1, IMAGEM2, IMAGEM3, chaves, OAuth ou provedores de vídeo.
+
 ## 19/11/2026 — Verificação Gemini de Histórias sem geração
 
 - O AI Studio mostrou uma resposta rápida para "OK", mas a captura exibiu no seletor `Gemini 4 Hydrogen` mesmo com `model=gemini-3.8-flash` no endereço. Portanto o teste isolado não prova que o modelo configurado no Meu Vendedor respondeu.
