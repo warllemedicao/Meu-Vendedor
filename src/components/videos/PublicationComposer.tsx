@@ -203,6 +203,20 @@ export function PublicationComposer({
       }} className="text-primary underline">Copiar hashtags</button>
     </div>
     <div className="flex flex-wrap gap-3 text-sm">
+      {shopee && <div className="w-full space-y-2 rounded-xl border border-border bg-background p-3">
+        <p className="text-sm font-semibold">Enviar para Shopee Vídeos</p>
+        <p className="text-xs text-muted">No celular, o botão oferece o MP4 ao compartilhamento do sistema. Se a Shopee não aparecer, salve o arquivo e abra o aplicativo Shopee → Live e Vídeos → Vídeos → +. Não existe envio automático confirmado para o editor.</p>
+        <button type="button" disabled={!valid || busy || !url} onClick={() => void shareNow()}
+          className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
+          {busy ? "Preparando compartilhamento..." : "Compartilhar MP4 para Shopee Vídeos"}
+        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <a href={url || undefined} download={filename} className="text-sm text-primary underline">Salvar MP4 no dispositivo</a>
+          <a href="https://shopee.com.br/" target="_blank" rel="noopener noreferrer"
+            className="text-sm text-primary underline">Abrir Shopee (não abre diretamente o editor)</a>
+        </div>
+        <p className="text-xs text-muted">Depois de selecionar o vídeo no app, vincule o produto à postagem e confirme manualmente. O botão não publica por API.</p>
+      </div>}
       <a href={url || undefined} download={filename} className="text-primary underline">Baixar mídia</a>
       <button type="button" disabled={!valid} onClick={async () => {
         try { await navigator.clipboard.writeText(text); setNotice("Legenda, hashtags e link copiados."); }
