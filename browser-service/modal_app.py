@@ -83,8 +83,10 @@ def browser_gateway():
     @browser_service.app.middleware("http")
     async def persist_stopped_profile(request: Request, call_next):
         response = await call_next(request)
-        if request.url.path == "/session/stop" and request.method == "POST" and response.status_code == 200:
-            profile_volume.commit()
+        if request.method == "POST" and response.status_code == 200 and request.url.path in (
+            "/session/stop", "/session/accounts/create", "/session/accounts/select", "/session/accounts/delete"
+        ):
+            await profile_volume.commit.aio()
         return response
 
     # The FastAPI instance from app.py owns the routes; install the startup
