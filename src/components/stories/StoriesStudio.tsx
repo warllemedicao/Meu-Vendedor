@@ -9,7 +9,7 @@ type Genre = "geral" | "comedia" | "suspense" | "educativo" | "aventura" | "dram
 type Platform = "youtube-create" | "google-flow" | "dreamina";
 type Topic = { id: string; user_id: string; subject: string; title: string; synopsis: string; genre: string; saved: boolean };
 type TopicDraft = Pick<Topic, "subject" | "title" | "synopsis" | "genre"> & { localId: string };
-type Character = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string };
+type Character = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string; referenceImagePrompt?: string };
 type Dialogue = { speaker: string; text: string };
 type Scene = { number: number; durationSeconds: 10; title: string; setting: string; action: string; characters: string[]; dialogue: Dialogue[]; transition: string };
 type Project = { id: string; user_id: string; title: string; status: string; genre?: string; topic_id?: string | null; characters: Character[]; scenes: Scene[] };
@@ -179,7 +179,7 @@ export function StoriesStudio() {
     const character = project.characters[characterIndex];
     if (!character) throw new Error("Personagem não encontrado.");
     const characters = project.characters.map((entry, i) =>
-      i === characterIndex ? { ...entry, referenceImagePath: storagePath } : entry);
+      i === characterIndex ? { ...entry, referenceImagePath: storagePath, referenceImagePrompt: prompt.trim().slice(0,1200) } : entry);
     const { error: saveError } = await client.from("mv_story_projects")
       .update({ characters, updated_at: new Date().toISOString() })
       .eq("id", project.id).eq("user_id", user.id);
@@ -198,10 +198,21 @@ export function StoriesStudio() {
     else setMessage("Imagem associada e salva na biblioteca: " + name);
   }
   async function chooseLibraryImage(characterIndex: number, entry: LibraryCharacter) {
-    if (!project || project.status !== "draft") return;
+    if (!project || !user || project.status !== "draft") return;
+    const client = getSupabase(); if (!client) return;
     setBusy(true); setError("");
-    try { await persistCharacterImage(characterIndex, entry.storage_path, entry.image_prompt); }
-    catch(e) { setError(plainError(e)); } finally { setBusy(false); }
+    try {
+      const characters = project.characters.map((ch, i) => i === characterIndex
+        ? { ...ch, referenceImagePath: entry.storage_path, referenceImagePrompt: entry.image_prompt } : ch);
+      const { error: saveError } = await client.from("mv_story_projects")
+        .update({ characters, updated_at: new Date().toISOString() })
+        .eq("id", project.id).eq("user_id", user.id);
+      if (saveError) throw new Error("Não foi possível vincular a imagem selecionada.");
+      setProject({ ...project, characters });
+      if (libraryImageUrls[entry.storage_path])
+        setCharacterImageUrls(prev => ({ ...prev, [entry.storage_path]: libraryImageUrls[entry.storage_path] }));
+      setMessage("Imagem de " + entry.name + " associada ao personagem " + project.characters[characterIndex].name + ".");
+    } catch(e) { setError(plainError(e)); } finally { setBusy(false); }
   }
   async function renameLibraryCharacter(entry: LibraryCharacter, name: string) {
     if (!user || !name.trim() || name.length > 100) return;
