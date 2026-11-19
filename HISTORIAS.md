@@ -58,3 +58,16 @@ Função Supabase `story-studio`: autenticação obrigatória de sessão, CORS r
 - SQL de verificação confirmou `mv_story_topics`, `mv_story_projects`, `mv_story_prompts`, `mv_story_clips` com RLS habilitado e políticas por conta. Buckets `mv-story-clips` (100 MB) e `mv-story-images` (10 MB) privados.
 - **Não concluído:** montagem real de um único MP4 de 120s, postagem direta às redes, integração de robôs geradores e teste autenticado de uso do Gemini. Não acionar inferência de vídeo/GPU nem redes automaticamente.
 
+
+## 2026-11-19 — Histórias: interface completa por etapas, sem depender da correção Gemini
+
+- Pedido: terminar primeiro a interface, sem tentar solucionar agora os erros de comunicação e sem gerar vídeos. Branch independente `feat/historias-wizard-interface`, preservando Flow, IMAGEM1/2/3, Modal e serviços de Produto.
+- Nova navegação assistida com **sete etapas**: Temas → Roteiro → Ferramenta → Prompts → Cenas → Montagem → Publicação, com estágio ativo, resumo do projeto e navegação anterior/próxima.
+- Criada alternativa **Roteiro manual**, permitindo salvar projeto real com doze cenas editáveis no Supabase quando a API Gemini está indisponível; os campos não são apresentados como conteúdo da IA.
+- Seleção visual de agentes YouTube Create, Google Flow e Dreamina, com texto de exigências e limites internos explicitados. Os agentes desta fase organizam prompts, sem controlar sites ou renderizar vídeo.
+- Introduzida **Montagem visual** com 12 espaços, cronologia 0–120 segundos, progresso de clipes aprovados e download do plano de produção JSON sem caminhos privados. Montagem/renderização MP4 e publicação automática **não** foram implementadas e aparecem como pendentes.
+- Novos arquivos apenas do módulo: `src/lib/stories/workflow.ts`, alterações em `src/components/stories/StoriesStudio.tsx`, testes em `tests/story-wizard.test.mjs`, workflow de CI restrito à branch. Nenhum login, configuração de vídeo real ou gasto de créditos foi iniciado.
+- A investigação de `gemini_unavailable` permanece separada. Este trabalho não altera a função `story-studio`; o backend Gemini continua exigindo posterior diagnóstico.
+- Registro documental de leitura nesta sessão: `AGENTS.md`, `.github/copilot-instructions.md`, `HISTORIAS.md`, `README.md`, `HISTORICO.md`, `AJUSTES_ESTUDIO.md`, `ARQUITETURA_VIDEO_SINCRONIZADO.md`, `ASSISTENTE_DE_DIVULGACAO.md` integralmente; `ARQUITETURA.md`, `CONTINUAR_AMANHA.md` e `historico.md` parcialmente. Outros arquivos continuam não lidos integralmente nesta sessão; não declarar a leitura documental exigida em AGENTS como completa. Conferir os documentos restantes antes de outras mudanças.
+- Pendente confirmar CI, revisão e deploy. Não confundir commit com publicação.
+

@@ -4,6 +4,7 @@ on:
     branches:
       - feat/historias-gemini-studio
       - feat/historias-editorial-completo
+      - feat/historias-wizard-interface
   workflow_dispatch:
 
 permissions:
