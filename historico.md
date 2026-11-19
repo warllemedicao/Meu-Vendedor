@@ -1,3 +1,12 @@
+## 19/11/2026, 19h43–19h48 BRT — Validação Histórias: lint `prefer-const` após testes e TypeScript aprovados
+
+- Conferido especificamente o workflow GitHub Actions run `44631298929`, job `135938322985`, com início de log `2026-11-19T22:43:43Z` (19h43min43s BRT), correspondente à execução apontada pelo usuário por volta de 19h44, e lint às `22:45:39Z` (19h45min39s BRT).
+- **Evidência diretamente do job:** `Run all tests` = success; `Typecheck frontend` = success; `Typecheck Edge Functions` = success; `Lint` = failure; `Build static frontend` = skipped. Lint reportou **um erro** em `src/components/stories/StoriesStudio.tsx:407:9`: `'characters' is never reassigned. Use 'const' instead` (`prefer-const`). Os outros oito avisos da mesma análise não interromperam o job.
+- **Verificação antes de editar:** inspecionada a função `uploadCharacterBatch` atual da branch main. Variável `characters` não era reatribuída; o código altera somente elementos `characters[emptyIndex]`. Logo `const` preserva a semântica.
+- **Correção mínima:** única linha `let characters = [...project.characters];` → `const characters = [...project.characters];`, commit `a7db539201a6cca700a241ca2a7ad52a0e4e95e4`. Diff retornado pelo GitHub confirmou **exatamente um arquivo e uma linha alterados**. A versão publicada na branch main foi relida e o vínculo das imagens ao projeto permaneceu intacto.
+- Workflow da main permanece configurado para executar testes, typecheck frontend, typecheck Edge, lint e build ao alterar `src/components/stories/**`. **Nova execução após o commit ainda não confirmada**; não declarar lint/build aprovados nem implantar Cloudflare antes do resultado positivo.
+- Robô Flow, IMAGEM1/IMAGEM2/IMAGEM3, Supabase e demais módulos não foram modificados por essa correção.
+
 ## 19/11/2026 — Nova falha GitHub Actions: TypeScript TS2367 no cabeçalho condicional
 
 - Execução fornecida pelo usuário: run `44614995846`, job `135881186764`. Lidos logs e etapas reais: `npm test` **passou**, mas `Typecheck frontend` **falhou com 8 erros TS2367** em `src/components/stories/StoriesStudio.tsx`, linhas originais 815, 820, 822, 825, 827, 829, 833 e 836. Typecheck Edge Functions, lint e build ficaram sem execução após o erro.
