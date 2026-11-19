@@ -89,3 +89,11 @@ test("Gemini logs only allowlisted diagnostics, never raw Google error messages"
   assert.doesNotMatch(edge, /console\.error\([^\n]*responseBody/);
   assert.doesNotMatch(edge, /console\.error\([^\n]*message/);
 });
+
+test("topic generator defaults to one request and displays errors next to its controls", () => {
+  assert.match(studio, /\[requested, setRequested\] = useState\(1\)/);
+  assert.match(studio, /\[1, 5, 25, 50, 100, 200, 500, 1000\]/);
+  assert.match(studio, /\{error && <p role="alert" className="w-full/);
+  assert.match(studio, /\{message && <p role="status" className="w-full/);
+  assert.match(studio, /const count = Math\.min\(25, requested - total\)/);
+});

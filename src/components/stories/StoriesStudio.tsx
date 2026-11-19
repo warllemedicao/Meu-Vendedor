@@ -68,7 +68,7 @@ export function StoriesStudio() {
   const [manualTitle, setManualTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [genre, setGenre] = useState<Genre>("geral");
-  const [requested, setRequested] = useState(50);
+  const [requested, setRequested] = useState(1);
   const [query, setQuery] = useState("");
   const [onlySaved, setOnlySaved] = useState(false);
   const [subjectFilter, setSubjectFilter] = useState("");
@@ -404,7 +404,7 @@ export function StoriesStudio() {
     </header>
     <section className={panel} hidden={stage !== "temas"}>
       <h2 className="text-lg font-semibold">1. Assuntos e temas</h2>
-      <p className="text-sm text-muted">Use Gemini Text para gerar até 1.000 ideias, em lotes de 25. Revise os resultados na próxima caixa e salve somente os temas desejados.</p>
+      <p className="text-sm text-muted">Comece com 1 tema para testar a conexão Gemini. Para solicitações maiores, use as opções de quantidade; o sistema enviará lotes de até 25. Revise os resultados antes de salvar.</p>
       <label className="block text-sm font-medium">Assunto principal
         <input className={field + " mt-1"} value={subject} maxLength={160} onChange={e => setSubject(e.target.value)}
           placeholder="Ex.: manutenção de fábrica" />
@@ -417,7 +417,7 @@ export function StoriesStudio() {
         </label>
         <label className="block text-sm font-medium">Quantidade
           <select className={field + " mt-1"} value={requested} onChange={e => setRequested(Number(e.target.value))}>
-            {[25, 50, 100, 200, 500, 1000].map(n => <option key={n} value={n}>{n} temas</option>)}
+            {[1, 5, 25, 50, 100, 200, 500, 1000].map(n => <option key={n} value={n}>{n} {n === 1 ? "tema" : "temas"}</option>)}
           </select>
         </label>
       </div>
@@ -427,6 +427,8 @@ export function StoriesStudio() {
         </button>
         {busy && <button className={button} onClick={() => { cancelRef.current = true; }}>Parar após o lote atual</button>}
         {busy && <span className="text-sm" role="status">{progress}/{requested} temas novos</span>}
+        {error && <p role="alert" className="w-full rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
+        {message && <p role="status" className="w-full rounded-xl border border-border p-3 text-sm">{message}</p>
       </div>
       {!user && <p className="text-sm text-muted">Entre em Conta e conexões para salvar seu catálogo privado.</p>}
       <div className="rounded-xl border border-border p-3 space-y-2">
