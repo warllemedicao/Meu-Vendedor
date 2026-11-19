@@ -29,7 +29,7 @@ function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" 
   const affiliateUrl = linkEdit.source === initialAffiliateUrl ? linkEdit.value : initialAffiliateUrl;
   const [notes, setNotes] = useState(""), [speechEdit, setSpeechEdit] = useState<{ source: string; value: string } | null>(null), [seconds, setSeconds] = useState(8);
   const speech = speechEdit?.source === initialSpeech ? speechEdit.value : initialSpeech;
-  const setSpeech = (value: string) => setSpeechEdit({ source: initialSpeech, value });
+  const setSpeech = (value: string) => { setSpeechEdit({ source: initialSpeech, value }); setSource(null); };
   const [analysis, setAnalysis] = useState<CampaignAnalysis | null>(null), [photo, setPhoto] = useState<File>();
   const [scene, setScene] = useState("Ambiente coerente com o produto e iluminação natural");
   const [generator, setGenerator] = useState<CampaignGenerator>("google-flow");
@@ -134,7 +134,7 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
   }
   async function analyze() {
     if (!user || busy) return; setBusy(true); setError(""); setNotice("");
-    try { const value = await analyzeProductCampaign(product, user.id, notes, seconds, photo); setAnalysis(value); setSpeech(value.speech); setNarrated(null); setNotice("Foto analisada. Confira os detalhes e a fala antes de continuar."); }
+    try { const value = await analyzeProductCampaign(product, user.id, notes, seconds, photo); setAnalysis(value); setSpeech(value.speech); setSource(null); setNarrated(null); setNotice("Foto analisada. Confira os detalhes e a fala antes de continuar."); }
     catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível analisar a foto."); }
     finally { setBusy(false); }
   }
@@ -156,7 +156,7 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
           {product.imageUrl && <div className="rounded-xl bg-white p-3"><Image unoptimized width={240} height={160} src={product.imageUrl} alt={product.title} className="mx-auto h-40 max-w-full object-contain" /></div>}
           <label className="block text-sm">Seu link de divulgação<input type="url" value={affiliateUrl} onChange={e => setLinkEdit({ source: initialAffiliateUrl, value: e.target.value })} placeholder="Gere seu link no botão abaixo ou cole seu link HTTPS" className={field} /></label>
           {product.owned && product.platform === "Shopee" && <button type="button" disabled={busy || !user} onClick={() => void generateLink()} className={`${button} w-full border-primary text-primary`}>{busy ? "Aguarde…" : "Gerar meu link de divulgação"}</button>}
-          <label className="block text-sm">Outra foto para a IA analisar (opcional)<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e => { setPhoto(e.target.files?.[0]); setAnalysis(null); setSpeech(""); setNarrated(null); }} className="mt-2 block w-full text-sm" /></label>
+          <label className="block text-sm">Outra foto para a IA analisar (opcional)<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e => { setPhoto(e.target.files?.[0]); setAnalysis(null); setSpeech(""); setSource(null); setNarrated(null); }} className="mt-2 block w-full text-sm" /></label>
           <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Duração do vídeo curto<select value={seconds} onChange={e => setSeconds(Number(e.target.value))} className={field}><option value={6}>6 segundos</option><option value={7}>7 segundos</option><option value={8}>8 segundos</option>{generator !== "google-flow" && <option value={10}>10 segundos</option>}</select></label><label className="text-sm">Detalhes confirmados (opcional)<input maxLength={1500} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex.: modelo, variante, tamanho" className={field} /></label></div>
           <fieldset className="space-y-3 rounded-xl border border-border p-4"><legend className="px-2 text-sm font-semibold">Como será a divulgação?</legend>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -201,11 +201,11 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
             <p className="text-sm text-muted">Plataforma escolhida: <strong>{generator === "google-flow" ? "Google Flow" : generator === "dreamina" ? "Dreamina" : "YouTube Create"}</strong>. Confira o prompt otimizado e as referências antes de clicar em Gerar.</p>
             {generator !== "google-flow" && <a href={GENERATOR_LINKS[generator]} target="_blank" rel="noopener noreferrer" title="Abrir gerador selecionado" aria-label="Abrir gerador selecionado" className={`${button} inline-flex items-center gap-2 border-primary text-primary`}><ExternalLink className="h-5 w-5" /> Abrir plataforma</a>}
             {generator === "youtube-create" && <p className="text-xs text-muted">YouTube Create não possui um gerador web equivalente ao Flow. O link abre as instruções oficiais para instalar o aplicativo móvel; para criar vídeos por prompt no navegador, escolha Google Flow ou Dreamina.</p>}
-            <label className="block text-sm">Cenário<input value={scene} onChange={e => setScene(e.target.value)} className={field}/></label>
+            <label className="block text-sm">Cenário<input value={scene} onChange={e => { setScene(e.target.value); setSource(null); setNarrated(null); }} className={field}/></label>
             {generatorIssue ? <p role="alert" className="text-sm text-danger">{generatorIssue}</p> : <div className="space-y-2">
               <p className="text-sm font-medium">Prompt único do anúncio · {seconds} segundos</p>
               <textarea aria-label="Prompt otimizado para o gerador selecionado" readOnly={generator !== "google-flow"} rows={10} value={approvedPrompt}
-                onChange={e => setFlowPromptEdit({ source: selectedPrompt, value: e.target.value })} maxLength={generator === "google-flow" ? 4000 : undefined} className={field}/>
+                onChange={e => { setFlowPromptEdit({ source: selectedPrompt, value: e.target.value }); setSource(null); setNarrated(null); }} maxLength={generator === "google-flow" ? 4000 : undefined} className={field}/>
               <p className="text-xs text-muted">{approvedPrompt.length} caracteres{generator === "google-flow" ? " / 4000" : ""}{generator === "youtube-create" ? ` / ${YOUTUBE_PROMPT_LIMIT}` : ""}. Um vídeo por anúncio; use a foto original do produto e do personagem.</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(approvedPrompt); setNotice("Prompt da cena copiado."); } catch { setNotice("Selecione o prompt acima e copie manualmente."); } }} className={button} title="Copiar prompt da cena"><Copy className="inline h-4 w-4" /> Copiar prompt</button>
