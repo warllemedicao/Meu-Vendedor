@@ -18,7 +18,7 @@ test("editable characters and scenes preserve identity and chronology", () => {
   assert.match(code, /function updateCharacter/);
   assert.match(code, /previousName === nextName/);
   assert.match(code, /Cenas prontas para produzir/);
-  assert.match(code, /Bíblia de personagens/);
+  assert.match(code, /Imagens dos personagens/);
   assert.match(code, /Transição e ligação com a próxima cena/);
 });
 test("prompts can be edited, saved, copied and checked for YouTube Create limit", () => {
