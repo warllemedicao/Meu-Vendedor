@@ -68,7 +68,7 @@ test("Gemini HTTP 402 is diagnosed without implying free quota or changing secre
 test("Histórias topic generation uses only its dedicated server-side Gemini secret", () => {
   assert.match(edge, /Deno\.env\.get\("HIST_TEMA_GEMINI_API_KEY"\)/);
   assert.match(edge, /purpose === "topics"/);
-  assert.match(edge, /}, 6000, "topics"\)/);
+  assert.match(edge, /TOPICS_MAX_TOKENS\(count\), "topics"\)/);
   assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_GEMINI_API_KEY"\)/);
   assert.doesNotMatch(edge, /Deno\.env\.get\("GEMINI_API_KEY"\)|Deno\.env\.get\("GOOGLE_API_KEY"\)/);
   assert.doesNotMatch(studio, /HIST_TEMA_GEMINI_API_KEY/);
@@ -95,7 +95,8 @@ test("topic generator defaults to 5 themes, caps at 20 and displays errors next 
   assert.match(studio, /\[5, 10, 15, 20\]/);
   assert.match(studio, /\{error && <p role="alert" className="w-full/);
   assert.match(studio, /\{message && <p role="status" className="w-full/);
-  assert.match(studio, /const count = Math\.min\(20, requested - total\)/);
+  assert.match(studio, /count: requested/);
+  assert.doesNotMatch(studio, /while \(total < requested/);
 });
 
 test("story topics backend refuses counts above 20", () => {
@@ -131,4 +132,17 @@ test("Histórias uses Gemini 3.5 Flash-Lite for topics and 3.5 Flash for scripts
   assert.match(edge, /encodeURIComponent\\(TOPICS_MODEL\\)/);
   assert.match(edge, /encodeURIComponent\\(model\\)/);
   assert.doesNotMatch(edge, /gemini-3\\.8-flash|MV_STORIES_GEMINI_MODEL/);
+});
+
+
+test("bounded model budgets maintain 12 scenes and log only token counts", () => {
+  assert.match(edge, /const SCRIPT_MAX_TOKENS = 7200/);
+  assert.match(edge, /const PROMPTS_MAX_TOKENS = 8500/);
+  assert.match(edge, /TOPICS_MAX_TOKENS\(count\)/);
+  assert.match(edge, /maxOutputTokens: maxTokens/);
+  assert.match(edge, /story_studio_gemini_usage/);
+  assert.match(edge, /usage\.thoughtsTokenCount/);
+  assert.doesNotMatch(edge, /generateContent\?key=/);
+  assert.match(studio, /One click = one Gemini request/);
+  assert.match(studio, /gemini_service_unavailable/);
 });
