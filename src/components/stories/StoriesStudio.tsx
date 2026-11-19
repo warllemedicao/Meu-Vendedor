@@ -441,7 +441,7 @@ export function StoriesStudio() {
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
-  async function generateOneScene(working: Project, synopsisOverride?: string): Promise<Project> {
+  async function generateOneScene(working: Project, synopsisOverride?: string, scriptModel: "primary" | "flash-lite" = "primary"): Promise<Project> {
     if (!user || working.status !== "draft") throw new Error("Roteiro não está disponível para edição.");
     const nextIndex = working.scenes.findIndex(s => !s.action.trim() || !s.setting.trim());
     if (nextIndex < 0) return working;
@@ -455,7 +455,7 @@ export function StoriesStudio() {
     const result = await invokeStory("script_scene", {
       title: working.title, synopsis: synopsisOverride ?? activeTopic?.synopsis ?? publishDescription,
       genre: working.genre || activeTopic?.genre || "geral", sceneNumber,
-      characters: working.characters, previousScenes: working.scenes.slice(0, nextIndex),
+      characters: working.characters, previousScenes: working.scenes.slice(0, nextIndex), scriptModel,
     }) as { characters: Character[]; scene: Scene };
     if (!Array.isArray(result.characters) || !result.characters.length ||
       !result.scene || result.scene.number !== sceneNumber || !result.scene.action || !result.scene.setting)
@@ -478,6 +478,15 @@ export function StoriesStudio() {
     setBusy(true); setError(""); setSceneProgress("");
     try { await generateOneScene(project); void loadProjects(); }
     catch (e) { setError(plainError(e)); }
+    finally { setBusy(false); setSceneProgress(""); }
+  }
+  async function generateNextSceneLite() {
+    if (!project || !user || project.status !== "draft" || busy) return;
+    setBusy(true); setError(""); setSceneProgress("");
+    try {
+      await generateOneScene(project, undefined, "flash-lite");
+      void loadProjects();
+    } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); setSceneProgress(""); }
   }
   async function generateRemainingScenes() {
@@ -824,6 +833,9 @@ export function StoriesStudio() {
         <span className="text-xs text-muted">Modo sequencial: até 12 chamadas à cota do Gemini, com intervalo mínimo de 16 segundos. Para ao primeiro erro e preserva as cenas salvas.</span>
         {busy && sceneProgress && <button className={button} onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
         {busy && sceneProgress && <span role="status" className="text-sm text-muted">{sceneProgress}</span>}
+        <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())}
+          onClick={() => void generateNextSceneLite()}>Gerar próxima cena com Flash-Lite (alternativa)</button>
+        <span className="text-xs text-muted">Alternativa manual: usa a chave exclusiva de roteiros, não a de temas. Apenas uma requisição por clique; pode consumir cota e também apresentar indisponibilidade.</span>
         <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())} onClick={() => void generateNextScene()}>
           {busy && sceneProgress ? sceneProgress : "Gerar próxima cena com Gemini"}
         </button>
