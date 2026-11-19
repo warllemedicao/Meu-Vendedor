@@ -874,14 +874,16 @@ export function StoriesStudio() {
     </section>
 
     <section className={panel} hidden={stage !== "roteiro"}>
-      <h2 className="text-lg font-semibold">Projetos salvos</h2>
-      <p className="text-sm text-muted">Retome um roteiro após fechar o navegador.</p>
-      <div className="flex flex-wrap gap-2">
+      <details>
+        <summary className="cursor-pointer text-sm font-semibold">Projetos salvos ({projects.length}) · abrir histórico de roteiros</summary>
+        <p className="text-xs text-muted pt-2">Retome um roteiro após fechar o navegador.</p>
+      <div className="flex flex-wrap gap-2 pt-3">
         {projects.filter(p => user && p.user_id === user.id).map(p => <button key={p.id} className={button} disabled={busy} onClick={() => void openProject(p)}>
           {p.title} · {p.status}
         </button>)}
         {!projects.length && <p className="text-sm text-muted">Ainda não há histórias salvas.</p>}
       </div>
+      </details>
     </section>
 
     {stage === "roteiro" && !project && <section className={panel}>
@@ -1124,7 +1126,7 @@ export function StoriesStudio() {
                 </label>
                 <p className="text-xs text-muted">{PLATFORM_GUIDES[chosenPlatform].workflow} Até {PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres.</p>
                 <div className="flex flex-wrap gap-2">
-                  <button className={button} disabled={busy} onClick={() => void prepareScenePrompt(s.number, false)}>Montar prompt sem IA</button>
+                  <button className={button} disabled={busy} onClick={() => void prepareScenePrompt(s.number, false)}>{Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars ? "Corrigir para o limite sem IA" : "Montar prompt sem IA"}</button>
                   <button className={button} disabled={busy} onClick={() => void prepareScenePrompt(s.number, true)}>Gerar prompt com Gemini</button>
                 </div>
                 <label className="block text-xs font-semibold">Prompt completo — cena {s.number}
