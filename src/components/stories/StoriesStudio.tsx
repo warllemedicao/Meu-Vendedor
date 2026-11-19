@@ -948,8 +948,9 @@ export function StoriesStudio() {
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={allVisibleSelected} disabled={!visibleTopics.length || deletingTopics || busy}
           onChange={e => {
+            const checked = e.target.checked;
             const visibleIds = new Set(visibleTopics.map(topic => topic.id));
-            setSelectedTopicIds(current => e.target.checked
+            setSelectedTopicIds(current => checked
               ? [...new Set([...current, ...visibleIds])]
               : current.filter(id => !visibleIds.has(id)));
           }}/>
