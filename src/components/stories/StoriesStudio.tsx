@@ -133,7 +133,7 @@ export function StoriesStudio() {
       .eq("user_id", user.id).order("updated_at", { ascending: false }).limit(100);
     setProjects((data || []) as Project[]);
   }, [user]);
-  useEffect(() => { void Promise.resolve().then(() => Promise.all([loadTopics(), loadProjects(), loadCharacterLibrary()])); }, [loadTopics, loadProjects(), loadCharacterLibrary]);
+
   const loadCharacterLibrary = useCallback(async () => {
     if (!user) { setCharacterLibrary([]); setLibraryImageUrls({}); return; }
     const client = getSupabase(); if (!client) return;
@@ -149,6 +149,7 @@ export function StoriesStudio() {
     }));
     setLibraryImageUrls(Object.fromEntries(signed.filter(([,url])=>url)));
   }, [user]);
+  useEffect(() => { void Promise.resolve().then(() => Promise.all([loadTopics(), loadProjects(), loadCharacterLibrary()])); }, [loadTopics, loadProjects, loadCharacterLibrary]);
   useEffect(() => {
     if (!user) return;
     void invokeStory("image_config", {}).then(result => {
@@ -189,6 +190,8 @@ export function StoriesStudio() {
       image_prompt: prompt.trim().slice(0,1600), storage_path: storagePath,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id,name" });
+    const { data: imageData } = await client.storage.from("mv-story-images").createSignedUrl(storagePath, 600);
+    if (imageData?.signedUrl) setCharacterImageUrls(prev => ({ ...prev, [storagePath]: imageData.signedUrl }));
     setProject({ ...project, characters });
     await loadCharacterLibrary();
     if (libraryError) setMessage("Imagem associada ao roteiro; não foi possível atualizar a biblioteca.");
@@ -311,17 +314,18 @@ export function StoriesStudio() {
   }
   async function uploadReference(characterIndex: number, file?: File) {
     if (!file || !user || !project || project.status !== "draft") return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024)
+    if (!["image/jpeg","image/png","image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024)
       return setError("Use PNG, JPG ou WebP de até 10 MB.");
     const client = getSupabase(); if (!client) return;
     setBusy(true); setError("");
     try {
       const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-      const path = user.id + "/" + project.id + "/character-" + characterIndex + "-" + crypto.randomUUID() + "." + ext;
-      const { error: uploadError } = await client.storage.from("mv-story-images").upload(path, file, { contentType: file.type, upsert: false });
+      const path = user.id + "/library/" + crypto.randomUUID() + "." + ext;
+      const { error: uploadError } = await client.storage.from("mv-story-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
       if (uploadError) throw new Error("Falha ao enviar referência visual privada.");
-      setProject({ ...project, characters: project.characters.map((c, i) => i === characterIndex ? { ...c, referenceImagePath: path } : c) });
-      setMessage("Referência visual associada ao personagem. Salve o roteiro para persistir.");
+      const name = imageName.trim() || project.characters[characterIndex]?.name;
+      await persistCharacterImage(characterIndex, path, imagePrompt || project.characters[characterIndex].visual, name);
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
