@@ -17,7 +17,11 @@ test("Gemini secrets are server only and authenticated requests are mandatory", 
   assert.match(edge, /GEMINI_API_KEY/);
   assert.match(edge, /authenticated\(request\)/);
   assert.match(edge, /SUPABASE_URL/);
-  assert.doesNotMatch(studio, /GEMINI_API_KEY|GOOGLE_API_KEY|service_role/);
+  // The UI may mention the optional secret NAME in setup instructions, but must never read it.
+  assert.doesNotMatch(studio, /Deno\\.env\\.get\\(["'].*(?:GEMINI_API_KEY|GOOGLE_API_KEY|service_role)/);
+  assert.doesNotMatch(studio, /process\\.env\\.(?!NEXT_PUBLIC_)[A-Z_]*(?:GEMINI_API_KEY|GOOGLE_API_KEY|SERVICE_ROLE)/);
+  assert.doesNotMatch(studio, /https:\\/\\/generativelanguage\\.googleapis\\.com/);
+  assert.match(studio, /fetch\\(url \\+ "\\/functions\\/v1\\/story-studio"/);
 });
 test("story script validates exactly twelve ten-second scenes", () => {
   assert.match(edge, /result\.scenes\.length !== 12/);
@@ -85,7 +89,8 @@ test("Gemini logs only allowlisted diagnostics, never raw Google error messages"
   assert.match(edge, /function safeGeminiError\(responseBody: unknown\)/);
   assert.match(edge, /googleStatus: status/);
   assert.match(edge, /googleCategory: category/);
-  assert.match(edge, /purpose, model, \.\.\.diagnostic/);
+  assert.match(edge, /story_studio_gemini_http_error", \\{ status: response\\.status, reason, purpose, model, elapsedMs: Date\\.now\\(\\) - started, \\.\\.\\.diagnostic \\}/);
+  assert.match(edge, /function safeGeminiError/);
   assert.doesNotMatch(edge, /console\.error\([^\n]*responseBody/);
   assert.doesNotMatch(edge, /console\.error\([^\n]*message/);
 });
@@ -132,7 +137,8 @@ test("Histórias uses Gemini 3.5 Flash-Lite for topics and 3.5 Flash for scripts
   assert.match(edge, /const TOPICS_MODEL = "gemini-3[.]5-flash-lite"/);
   assert.match(edge, /const SCRIPT_MODEL = "gemini-3[.]5-flash"/);
   assert.match(edge, /purpose === "topics" [?] TOPICS_MODEL : SCRIPT_MODEL/);
-  assert.match(edge, /encodeURIComponent[(]TOPICS_MODEL[)]/);
+  // Model names are selected by purpose before construction of the shared endpoint.
+  assert.match(edge, /const model = purpose === "topics" \\? TOPICS_MODEL : SCRIPT_MODEL/);
   assert.match(edge, /encodeURIComponent[(]model[)]/);
   assert.doesNotMatch(edge, /gemini-3[.]8-flash|MV_STORIES_GEMINI_MODEL/);
 });
