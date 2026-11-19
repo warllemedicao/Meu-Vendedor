@@ -333,9 +333,7 @@ async def create_flow_account(request: Request):
         data = await request.json()
     except Exception:
         raise HTTPException(400, "invalid_account")
-    label = data.get("label") if isinstance(data, dict) else None
-    if not isinstance(label, str) or not 1 <= len(label.strip()) <= 48 or any(
-        ord(c) < 32 for c in label):
+    if not isinstance(data, dict):
         raise HTTPException(400, "invalid_account")
     async with lock:
         if chrome_running():
@@ -344,9 +342,10 @@ async def create_flow_account(request: Request):
         if len(config["accounts"]) >= MAX_FLOW_ACCOUNTS:
             raise HTTPException(409, "account_limit_reached")
         identifier = "account-" + secrets.token_hex(8)
+        label = f"Conta Google {len(config['accounts']) + 1}"
         profile = PROFILE_ROOT / "flow-accounts" / identifier
         profile.mkdir(mode=0o700, parents=True, exist_ok=False)
-        config["accounts"].append({"id": identifier, "label": label.strip()})
+        config["accounts"].append({"id": identifier, "label": label})
         config["selected"] = identifier
         save_flow_accounts(config)
         return {**config, "browserRunning": False}
@@ -413,6 +412,13 @@ async def health(request: Request):
 async def start(request: Request):
     global chrome_process, browser_monitor_task
     authorize(request)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict) or payload.get("purpose", "flow") not in ("flow", "account_login"):
+        raise HTTPException(400, "invalid_browser_purpose")
+    login_only = payload.get("purpose") == "account_login"
     async with lock:
         if chrome_running():
             record_event("chrome_already_running")
@@ -431,7 +437,7 @@ async def start(request: Request):
                 "--window-size=1280,800",
                 "--download-default-directory=" + DOWNLOAD_DIR,
                 "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=9222",
-                "https://flow.google.com/"
+                "https://accounts.google.com/ServiceLogin" if login_only else "https://flow.google.com/"
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             await asyncio.sleep(2)
             if chrome_running():
