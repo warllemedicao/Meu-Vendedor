@@ -920,7 +920,7 @@ export function StoriesStudio() {
             onClick={() => void saveDraftTopics([t])}>Salvar</button>
           <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || !!savingTopic}
             onClick={() => setDraftTopics(previous => previous.filter(item => item.localId !== t.localId))}>Descartar</button>
-        </article>)
+        </article>)}
         {!draftTopics.length && <p className="text-sm text-muted">Os temas gerados aparecerão aqui antes de serem salvos.</p>}
       </div>
     </section>
