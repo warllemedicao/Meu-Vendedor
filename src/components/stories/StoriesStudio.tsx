@@ -89,7 +89,6 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
 export function StoriesStudio() {
   const { user } = useAuth();
   const [stage, setStage] = useState<StoryStage>("temas");
-  const [manualTitle, setManualTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [genre, setGenre] = useState<Genre>("geral");
   const [characterStyle, setCharacterStyle] = useState<Exclude<StoryCharacterStyle, "nao_definido"> | null>(null);
@@ -111,7 +110,6 @@ export function StoriesStudio() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [clips, setClips] = useState<Clip[]>([]);
   const [busy, setBusy] = useState(false);
-  const [checkingGemini, setCheckingGemini] = useState(false);
   const [progress, setProgress] = useState(0);
   const [sceneProgress, setSceneProgress] = useState("");
   const [characterLibrary, setCharacterLibrary] = useState<LibraryCharacter[]>([]);
@@ -460,23 +458,6 @@ export function StoriesStudio() {
     finally { setBusy(false); }
   }
 
-  async function checkGeminiConnection(purpose: "topics" | "script" = "topics") {
-    if (!user || checkingGemini || busy) return;
-    setCheckingGemini(true); setError(""); setMessage("");
-    try {
-      const action = purpose === "topics" ? "diagnose_topics" : "diagnose_script";
-      const result = await invokeStory(action, {}) as {
-        ok: boolean; model: string; elapsedMs: number; supportsGeneration: boolean;
-      };
-      if (!result.ok) throw new Error("A consulta de metadados do modelo não foi concluída.");
-      setMessage(result.supportsGeneration
-        ? "Conexão de " + (purpose === "topics" ? "temas" : "roteiros") + " confirmada: " + result.model +
-          " (" + result.elapsedMs + " ms). Somente metadados consultados; geração não testada."
-        : "A chave respondeu, mas o modelo não declarou suporte a generateContent: " + result.model +
-          ". Nenhum conteúdo foi gerado.");
-    } catch (e) { setError(plainError(e)); }
-    finally { setCheckingGemini(false); }
-  }
   async function generateTopics() {
     if (!user || subject.trim().length < 2) return;
     if (!characterStyle) return setError("Escolha o tipo de personagem antes de gerar os temas.");
@@ -875,26 +856,14 @@ export function StoriesStudio() {
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button className={button} disabled={busy || checkingGemini || !user || !characterStyle || subject.trim().length < 2} onClick={() => void generateTopics()}>
+        <button className={button} disabled={busy || !user || !characterStyle || subject.trim().length < 2} onClick={() => void generateTopics()}>
           {busy ? "Gerando..." : "Gerar temas com Gemini"}
         </button>
-        <button className={button} disabled={busy || checkingGemini || !user} onClick={() => void checkGeminiConnection()}>{checkingGemini ? "Verificando conexão..." : "Verificar Gemini sem gerar temas"}</button>
-        <button className={button} disabled={busy || checkingGemini || !user} onClick={() => void checkGeminiConnection("script")}>Verificar API de roteiros sem gerar</button>
         {busy && <span className="text-sm" role="status">{progress}/{requested} temas novos</span>}
         {error && <p role="alert" className="w-full rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
         {message && <p role="status" className="w-full rounded-xl border border-border p-3 text-sm">{message}</p>}
       </div>
       {!user && <p className="text-sm text-muted">Entre em Conta e conexões para salvar seu catálogo privado.</p>}
-      <div className="rounded-xl border border-border p-3 space-y-2">
-        <p className="font-semibold text-sm">Quer testar a interface antes de corrigirmos a conexão Gemini?</p>
-        <p className="text-xs text-muted">Crie um roteiro manual real, com 12 cenas editáveis, sem simular conteúdo gerado por IA.</p>
-        <div className="flex flex-wrap gap-2">
-          <input className={field + " flex-1 min-w-44"} value={manualTitle} maxLength={220} onChange={e => setManualTitle(e.target.value)}
-            placeholder="Título da sua história" aria-label="Título para roteiro manual"/>
-          <button className={button} disabled={busy || !user || !characterStyle || manualTitle.trim().length < 3}
-            onClick={() => void createManualScript(manualTitle)}>Criar roteiro manual</button>
-        </div>
-      </div>
     </section>
 
     <section className={panel} hidden={stage !== "temas"}>
