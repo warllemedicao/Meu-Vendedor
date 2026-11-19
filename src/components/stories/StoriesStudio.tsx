@@ -178,6 +178,8 @@ export function StoriesStudio() {
     if (!project || !user) return;
     if (project.scenes.length !== 12 || project.scenes.some((s, i) => s.number !== i + 1 || !s.action.trim() || !s.setting.trim()))
       return setError("Cada uma das 12 cenas precisa ter ação, cenário e numeração correta.");
+    if (project.scenes.some(s => s.dialogue.reduce((n, d) => n + d.text.trim().split(/\s+/).filter(Boolean).length, 0) > 26))
+      return setError("Uma das cenas ultrapassa 26 palavras de fala. Reduza a fala para caber nos 10 segundos.");
     const client = getSupabase(); if (!client) return;
     setBusy(true); setError("");
     try {
