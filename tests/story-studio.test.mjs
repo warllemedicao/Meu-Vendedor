@@ -18,10 +18,10 @@ test("Gemini secrets are server only and authenticated requests are mandatory", 
   assert.match(edge, /authenticated\(request\)/);
   assert.match(edge, /SUPABASE_URL/);
   // The UI may mention the optional secret NAME in setup instructions, but must never read it.
-  assert.doesNotMatch(studio, /Deno\\.env\\.get\\(["'].*(?:GEMINI_API_KEY|GOOGLE_API_KEY|service_role)/);
-  assert.doesNotMatch(studio, /process\\.env\\.(?!NEXT_PUBLIC_)[A-Z_]*(?:GEMINI_API_KEY|GOOGLE_API_KEY|SERVICE_ROLE)/);
-  assert.doesNotMatch(studio, /https:\\/\\/generativelanguage\\.googleapis\\.com/);
-  assert.match(studio, /fetch\\(url \\+ "\\/functions\\/v1\\/story-studio"/);
+  assert.ok(!studio.includes("Deno.env.get("), "Frontend must not load server-side secrets");
+  assert.ok(!/process[.]env[.](?:HIST_|GEMINI_|GOOGLE_|SUPABASE_SERVICE_ROLE)/.test(studio), "Frontend must not read private environment variables");
+  assert.ok(!studio.includes("generativelanguage.googleapis.com"), "Frontend must not contact Gemini directly");
+  assert.ok(studio.includes('fetch(url + "/functions/v1/story-studio"'), "Frontend must use authenticated Supabase function");
 });
 test("story script validates exactly twelve ten-second scenes", () => {
   assert.match(edge, /result\.scenes\.length !== 12/);
@@ -89,7 +89,7 @@ test("Gemini logs only allowlisted diagnostics, never raw Google error messages"
   assert.match(edge, /function safeGeminiError\(responseBody: unknown\)/);
   assert.match(edge, /googleStatus: status/);
   assert.match(edge, /googleCategory: category/);
-  assert.match(edge, /story_studio_gemini_http_error", \\{ status: response\\.status, reason, purpose, model, elapsedMs: Date\\.now\\(\\) - started, \\.\\.\\.diagnostic \\}/);
+  assert.ok(edge.includes('console.error("story_studio_gemini_http_error", { status: response.status, reason, purpose, model, elapsedMs: Date.now() - started, ...diagnostic }'), "Gemini provider errors must use allowlisted diagnostic fields");
   assert.match(edge, /function safeGeminiError/);
   assert.doesNotMatch(edge, /console\.error\([^\n]*responseBody/);
   assert.doesNotMatch(edge, /console\.error\([^\n]*message/);
@@ -138,7 +138,7 @@ test("Histórias uses Gemini 3.5 Flash-Lite for topics and 3.5 Flash for scripts
   assert.match(edge, /const SCRIPT_MODEL = "gemini-3[.]5-flash"/);
   assert.match(edge, /purpose === "topics" [?] TOPICS_MODEL : SCRIPT_MODEL/);
   // Model names are selected by purpose before construction of the shared endpoint.
-  assert.match(edge, /const model = purpose === "topics" \\? TOPICS_MODEL : SCRIPT_MODEL/);
+  assert.ok(edge.includes('const model = purpose === "topics" ? TOPICS_MODEL : SCRIPT_MODEL'), "Model routing must use the requested purpose");
   assert.match(edge, /encodeURIComponent[(]model[)]/);
   assert.doesNotMatch(edge, /gemini-3[.]8-flash|MV_STORIES_GEMINI_MODEL/);
 });
