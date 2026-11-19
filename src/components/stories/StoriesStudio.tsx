@@ -7,7 +7,7 @@ import { getSupabase } from "@/lib/supabase/client";
 type Genre = "geral" | "comedia" | "suspense" | "educativo" | "aventura" | "drama";
 type Platform = "youtube-create" | "google-flow" | "dreamina";
 type Topic = { id: string; user_id: string; subject: string; title: string; synopsis: string; genre: string; saved: boolean };
-type Character = { name: string; role: string; visual: string; voice: string };
+type Character = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string };
 type Dialogue = { speaker: string; text: string };
 type Scene = { number: number; durationSeconds: 10; title: string; setting: string; action: string; characters: string[]; dialogue: Dialogue[]; transition: string };
 type Project = { id: string; title: string; status: string; characters: Character[]; scenes: Scene[] };
@@ -62,6 +62,7 @@ export function StoriesStudio() {
   const [query, setQuery] = useState("");
   const [onlySaved, setOnlySaved] = useState(false);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [activeTopic, setActiveTopic] = useState<Topic | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [platform, setPlatform] = useState<Platform>("youtube-create");
@@ -81,7 +82,41 @@ export function StoriesStudio() {
     if (dbError) { setError("Não foi possível carregar os temas. Verifique a migração do Histórias."); return; }
     setTopics((data || []) as Topic[]);
   }, [user]);
-  useEffect(() => { void loadTopics(); }, [loadTopics]);
+  const loadProjects = useCallback(async () => {
+    if (!user) { setProjects([]); return; }
+    const client = getSupabase(); if (!client) return;
+    const { data } = await client.from("mv_story_projects").select("id,title,status,characters,scenes")
+      .eq("user_id", user.id).order("updated_at", { ascending: false }).limit(100);
+    setProjects((data || []) as Project[]);
+  }, [user]);
+  useEffect(() => { void loadTopics(); void loadProjects(); }, [loadTopics, loadProjects]);
+  async function openProject(selected: Project) {
+    if (!user) return;
+    setError(""); setProject(selected); setActiveTopic(null);
+    const client = getSupabase(); if (!client) return;
+    const [clipsResult, promptResult] = await Promise.all([
+      client.from("mv_story_clips").select("id,scene_number,storage_path,approved").eq("user_id", user.id).eq("project_id", selected.id),
+      client.from("mv_story_prompts").select("scene_number,prompt,platform").eq("user_id", user.id).eq("project_id", selected.id).eq("platform", platform).order("scene_number"),
+    ]);
+    setClips((clipsResult.data || []) as Clip[]);
+    setPrompts((promptResult.data || []).map(p => ({ scene: p.scene_number as number, text: p.prompt as string, platform: p.platform as Platform })));
+  }
+  async function uploadReference(characterIndex: number, file?: File) {
+    if (!file || !user || !project || project.status !== "draft") return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024)
+      return setError("Use PNG, JPG ou WebP de até 10 MB.");
+    const client = getSupabase(); if (!client) return;
+    setBusy(true); setError("");
+    try {
+      const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+      const path = user.id + "/" + project.id + "/character-" + characterIndex + "-" + crypto.randomUUID() + "." + ext;
+      const { error: uploadError } = await client.storage.from("mv-story-images").upload(path, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw new Error("Falha ao enviar referência visual privada.");
+      setProject({ ...project, characters: project.characters.map((c, i) => i === characterIndex ? { ...c, referenceImagePath: path } : c) });
+      setMessage("Referência visual associada ao personagem. Salve o roteiro para persistir.");
+    } catch (e) { setError(plainError(e)); }
+    finally { setBusy(false); }
+  }
 
   async function generateTopics() {
     if (!user || subject.trim().length < 2) return;
@@ -130,6 +165,7 @@ export function StoriesStudio() {
         .select("id,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível salvar o roteiro.");
       setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]);
+      void loadProjects();
       setMessage("Roteiro criado. Revise e aprove as cenas antes de gerar prompts.");
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
@@ -151,6 +187,7 @@ export function StoriesStudio() {
         .eq("id", project.id).eq("user_id", user.id);
       if (dbError) throw new Error("Não foi possível salvar o roteiro.");
       setProject({ ...project, status: approve ? "approved" : "draft" });
+      void loadProjects();
       setMessage(approve ? "Roteiro aprovado. Você já pode gerar os prompts." : "Rascunho salvo.");
       setPrompts([]);
     } catch (e) { setError(plainError(e)); }
@@ -242,13 +279,27 @@ export function StoriesStudio() {
       </div>
     </section>
 
+    <section className={panel}>
+      <h2 className="text-lg font-semibold">Projetos salvos</h2>
+      <p className="text-sm text-muted">Retome um roteiro após fechar o navegador.</p>
+      <div className="flex flex-wrap gap-2">
+        {projects.map(p => <button key={p.id} className={button} disabled={busy} onClick={() => void openProject(p)}>
+          {p.title} · {p.status}
+        </button>)}
+        {!projects.length && <p className="text-sm text-muted">Ainda não há histórias salvas.</p>}
+      </div>
+    </section>
+
     {project && <section className={panel}>
       <h2 className="text-lg font-semibold">3. Roteiro — {activeTopic?.title || project.title}</h2>
       <p className="text-sm text-muted">12 cenas × 10 segundos = 120 segundos. Os personagens e as vozes se mantêm iguais entre cenas.</p>
       <div className="rounded-xl border border-border p-3">
         <h3 className="font-semibold">Bíblia de personagens</h3>
-        {project.characters.map(c => <div key={c.name} className="mt-3 text-sm">
+        {project.characters.map((c, ci) => <div key={c.name} className="mt-3 text-sm">
           <p className="font-semibold">{c.name} · {c.role}</p><p>Visual: {c.visual}</p><p>Voz: {c.voice}</p>
+          <p className="text-xs text-muted">{c.referenceImagePath ? "Imagem de referência salva no projeto" : "Sem imagem de referência"}</p>
+          {project.status === "draft" && <input className="mt-2 block w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy}
+            onChange={e => {const file=e.currentTarget.files?.[0];void uploadReference(ci,file);e.currentTarget.value="";}}/>}
         </div>)}
       </div>
       <div className="space-y-4">
