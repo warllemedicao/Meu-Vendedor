@@ -21,22 +21,22 @@ export const PLATFORM_GUIDES: Record<StoryPlatform, {
   workflow: string; reminder: string;
 }> = {
   "youtube-create": {
-    name: "YouTube Create", targetChars: 850, absoluteChars: 900,
+    name: "YouTube Create", targetChars: 780, absoluteChars: 900,
     duration: "Até 10 segundos, conforme disponibilidade no aplicativo",
     workflow: "Copie o prompt e use os recursos disponíveis no aplicativo oficial; depois importe o MP4.",
     reminder: "Teto de 900 caracteres adotado no projeto; confirme também o limite exibido na conta.",
   },
   "google-flow": {
-    name: "Google Flow", targetChars: 1100, absoluteChars: 1600,
-    duration: "Dependente do modelo; nem todo modelo entrega 10 segundos",
+    name: "Google Flow", targetChars: 900, absoluteChars: 1600,
+    duration: "Omni Flash 1.2: até 10s em modos compatíveis; Veo 3.1 Lite: 4, 6 ou 8s",
     workflow: "Prepare o prompt e referências. Esta interface não envia comandos ao robô Flow existente.",
-    reminder: "4.000 caracteres é um teto interno para revisão, não um limite oficial confirmado.",
+    reminder: "Teto editorial interno de 1.600 caracteres; o modo e a duração reais dependem do modelo ativo.",
   },
   dreamina: {
-    name: "Dreamina", targetChars: 1100, absoluteChars: 1600,
+    name: "Dreamina", targetChars: 650, absoluteChars: 1200,
     duration: "Dependente do modelo e do modo disponível",
     workflow: "Copie o prompt, gere o clipe na ferramenta e importe o MP4 aprovado.",
-    reminder: "O teto interno não deve ser confundido com limite oficial da plataforma.",
+    reminder: "Teto editorial interno de 1.200 caracteres; prefira 30–100 palavras quando usar Seedance 2.0.",
   },
 };
 export function makeEmptyStoryScenes(): StoryScene[] {
