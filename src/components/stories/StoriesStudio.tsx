@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
 import { STORY_STAGES, PLATFORM_GUIDES, makeEmptyStoryScenes, makeLocalPromptDrafts, countStoryWords, type StoryStage } from "@/lib/stories/workflow";
@@ -93,7 +93,6 @@ export function StoriesStudio() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const cancelRef = useRef(false);
   const loadTopics = useCallback(async () => {
     if (!user) { setTopics([]); return; }
     const client = getSupabase();
@@ -155,7 +154,7 @@ export function StoriesStudio() {
   }
   async function generateTopics() {
     if (!user || subject.trim().length < 2) return;
-    setBusy(true); setError(""); setMessage(""); setProgress(0); cancelRef.current = false;
+    setBusy(true); setError(""); setMessage(""); setProgress(0);
     const normalizedSubject = subject.trim();
     const known = new Set([...topics.filter(t => t.subject === normalizedSubject).map(t => t.title.toLowerCase()),
       ...draftTopics.filter(t => t.subject === normalizedSubject).map(t => t.title.toLowerCase())]);
@@ -441,7 +440,6 @@ export function StoriesStudio() {
           {busy ? "Gerando..." : "Gerar temas com Gemini"}
         </button>
         <button className={button} disabled={busy || checkingGemini || !user} onClick={() => void checkGeminiConnection()}>{checkingGemini ? "Verificando conexão..." : "Verificar Gemini sem gerar temas"}</button>
-        {busy && <button className={button} onClick={() => { cancelRef.current = true; }}>Parar após o lote atual</button>}
         {busy && <span className="text-sm" role="status">{progress}/{requested} temas novos</span>}
         {error && <p role="alert" className="w-full rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
         {message && <p role="status" className="w-full rounded-xl border border-border p-3 text-sm">{message}</p>}
