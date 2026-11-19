@@ -52,9 +52,15 @@ test("CORS preflight returns a bodyless HTTP 204 with allowed headers", () => {
 
 test("Gemini provider errors remain safe while reporting the actual HTTP failure class", () => {
   for (const code of ["gemini_quota_exceeded", "gemini_invalid_key", "gemini_permission_denied",
-    "gemini_model_unavailable", "gemini_request_rejected", "gemini_service_unavailable"]) {
+    "gemini_model_unavailable", "gemini_request_rejected", "gemini_service_unavailable", "gemini_billing_required"]) {
     assert.match(edge, new RegExp(code));
   }
   assert.match(edge, /status: response\.status, reason/);
   assert.doesNotMatch(edge, /console\.error\([^\n]*(key|prompt|payload|response\.text\()/);
+});
+
+test("Gemini HTTP 402 is diagnosed without implying free quota or changing secrets", () => {
+  assert.match(edge, /response\.status === 402 \? "gemini_billing_required"/);
+  assert.match(studio, /code === "gemini_billing_required"/);
+  assert.match(studio, /HTTP 402: saldo ou configuração de cobrança necessária/);
 });
