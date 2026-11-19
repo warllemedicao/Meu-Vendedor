@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { Clapperboard, Copy, Download, ExternalLink, Sparkles, PlayCircle } from "lucide-react";
+import { Copy, Download, ExternalLink, Sparkles, PlayCircle } from "lucide-react";
 import { buildGeneratorPrompts, GENERATOR_LINKS, YOUTUBE_PROMPT_LIMIT, type CampaignGenerator } from "@/lib/campaign-generator-prompts";
 import { useEffect, useRef, useState } from "react";
 import { marketplaceAction } from "@/lib/marketplace";
@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { affiliateUrlValid, campaignPrompt, productHashtags, storePublicationDraft, type CampaignProduct } from "@/lib/product-campaign";
 import { analyzeProductCampaign, type CampaignAnalysis } from "@/lib/campaign-ai";
 import { PublicationComposer } from "./PublicationComposer";
+import { FlowProductGenerator, prepareFlowBrowser } from "./FlowProductGenerator";
 import { ManualChatGPTPrompt } from "./ManualChatGPTPrompt";
 import { useManualPromptDraft } from "@/hooks/useManualPromptDraft";
 import { CampaignNarration } from "./CampaignNarration";
@@ -32,6 +33,8 @@ function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" 
   const [analysis, setAnalysis] = useState<CampaignAnalysis | null>(null), [photo, setPhoto] = useState<File>();
   const [scene, setScene] = useState("Ambiente coerente com o produto e iluminação natural");
   const [generator, setGenerator] = useState<CampaignGenerator>("google-flow");
+  const [generatorChosen, setGeneratorChosen] = useState(false);
+  const [flowConnectionNotice, setFlowConnectionNotice] = useState("");
   const [sceneIndex, setSceneIndex] = useState(0);
   const [presentation, setPresentation] = useState<"presenter" | "voiceover">("voiceover");
   const [presenterId, setPresenterId] = useState<PresenterId>("ana");
@@ -43,7 +46,7 @@ function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" 
   const [notice, setNotice] = useState(""), [error, setError] = useState("");
   const [source, setSource] = useState<Media | null>(null);
   const [narrated, setNarrated] = useState<{ source: string; speech: string; media: Media } | null>(null);
-  const final = narrated && narrated.source === source?.id && narrated.speech === speech ? narrated.media : null;
+  const final = narrated && narrated.source === source?.id && narrated.speech === speech ? narrated.media : (generator === "google-flow" && source ? source : null);
   useEffect(() => { if (!initialAffiliateUrl) return; const frame = requestAnimationFrame(() => { if (!dialog.current?.open) dialog.current?.showModal(); }); return () => cancelAnimationFrame(frame); }, [initialAffiliateUrl]);
   const caption = analysis ? (analysis.caption.includes(product.title) ? analysis.caption : `${product.title}\n${analysis.caption}`) : product.title;
   const hashtags = analysis?.hashtags.length ? [...new Set([...analysis.hashtags, "#Publicidade"])].join(" ") : productHashtags(product.title, product.platform);
@@ -65,6 +68,21 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
     });
   } catch (failure) { generatorIssue = failure instanceof Error ? failure.message : "Não foi possível preparar as cenas."; }
   const selectedPrompt = generatorPrompts[Math.min(sceneIndex, generatorPrompts.length - 1)] ?? "";
+  async function chooseGenerator(next: CampaignGenerator) {
+    if (busy) return;
+    setGenerator(next); setGeneratorChosen(true); setSceneIndex(0);
+    setAnalysis(null); setNarrated(null); setFlowConnectionNotice("");
+    if (next === "google-flow") {
+      setFlowConnectionNotice("Preparando o Chrome do Flow sem exibir o navegador...");
+      try {
+        await prepareFlowBrowser();
+        setFlowConnectionNotice("Chrome do Flow preparado em segundo plano.");
+      } catch {
+        setFlowConnectionNotice("Não foi possível preparar o Chrome agora. Confira o login Google na área Contas. O sistema poderá tentar iniciar quando você gerar.");
+      }
+    }
+  }
+
   function downloadText(text: string, name: string) {
     const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = name; anchor.click();
@@ -143,7 +161,25 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
               <p className="text-xs text-muted">Ao usar Google Flow, anexe manualmente a imagem do produto e a imagem do personagem escolhido. O Meu Vendedor não transfere essas imagens automaticamente para o Flow.</p>
             </div>}
           </fieldset>
-          <button type="button" disabled={busy || !user} onClick={() => void analyze()} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{busy ? "Analisando a foto e criando a divulgação…" : "Analisar foto e criar roteiro com IA"}</button>
+          <fieldset className="space-y-2 rounded-xl border border-border p-3">
+            <legend className="px-2 text-sm font-semibold">Escolha onde gerar o vídeo antes da análise</legend>
+            <div className="flex flex-wrap gap-3" role="group" aria-label="Gerador de vídeo">
+              <button type="button" title="Google Flow" aria-label="Selecionar Google Flow" aria-pressed={generatorChosen && generator === "google-flow"}
+                onClick={() => void chooseGenerator("google-flow")} className={`${button} ${generatorChosen && generator === "google-flow" ? "border-primary bg-primary-soft" : ""}`}>
+                <Image src="/flow-icon.svg" width={28} height={28} alt="Google Flow" unoptimized />
+              </button>
+              <button type="button" title="Dreamina" aria-label="Selecionar Dreamina" aria-pressed={generatorChosen && generator === "dreamina"}
+                onClick={() => void chooseGenerator("dreamina")} className={`${button} ${generatorChosen && generator === "dreamina" ? "border-primary bg-primary-soft" : ""}`}>
+                <Sparkles className="h-7 w-7" />
+              </button>
+              <button type="button" title="YouTube Create" aria-label="Selecionar YouTube Create" aria-pressed={generatorChosen && generator === "youtube-create"}
+                onClick={() => void chooseGenerator("youtube-create")} className={`${button} ${generatorChosen && generator === "youtube-create" ? "border-primary bg-primary-soft" : ""}`}>
+                <PlayCircle className="h-7 w-7" />
+              </button>
+            </div>
+            {flowConnectionNotice && <p className="text-xs text-muted" role="status">{flowConnectionNotice}</p>}
+          </fieldset>
+          <button type="button" disabled={busy || !user || !generatorChosen} onClick={() => void analyze()} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{busy ? "Analisando a foto e criando a divulgação…" : "Analisar foto e criar roteiro com IA"}</button>
           {!user && <p className="text-sm text-muted">Entre na conta para analisar a imagem e gerar a voz.</p>}
           <ManualChatGPTPrompt draft={manualPrompt} brief={{ name: product.title, store: product.platform, features: notes, benefits: analysis?.benefits.join("; "), videoType: "Vídeo gerado por IA em cenas independentes (Google Flow, Dreamina ou YouTube Create)", duration: `${seconds} segundos de fala`, format: "9:16", character: presentation === "presenter" ? `${presenter.name}: ${presenter.visualIdentity}. ${presenter.preferences}. Foto de referência: ${presenter.image ?? "indisponível"}` : "Sem personagem; somente produto", presentationStyle: `${scene}. ${presenterDirection}` }} />
           {manualPrompt.applied && <label className="block text-sm">Direção manual em uso no vídeo<textarea readOnly value={manualPrompt.applied} rows={5} className={field} /></label>}
@@ -154,13 +190,8 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
         <div hidden={step !== 1} className="space-y-4">
           <h3 className="text-lg font-semibold">2. Gere seu vídeo com IA</h3>
           <div className="space-y-4">
-            <p className="text-sm text-muted">Escolha o gerador. O Meu Vendedor prepara um prompt por cena e as referências do produto e do personagem. Os sites externos não recebem os arquivos automaticamente.</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Gerador de vídeo">
-              <button type="button" title="Google Flow" aria-label="Selecionar Google Flow" aria-pressed={generator === "google-flow"} onClick={() => { setGenerator("google-flow"); setSceneIndex(0); }} className={`${button} ${generator === "google-flow" ? "border-primary bg-primary-soft" : ""}`}><Clapperboard className="h-6 w-6" /></button>
-              <button type="button" title="Dreamina" aria-label="Selecionar Dreamina" aria-pressed={generator === "dreamina"} onClick={() => { setGenerator("dreamina"); setSceneIndex(0); }} className={`${button} ${generator === "dreamina" ? "border-primary bg-primary-soft" : ""}`}><Sparkles className="h-6 w-6" /></button>
-              <button type="button" title="YouTube Create: editor móvel, não gerador web" aria-label="Selecionar YouTube Create" aria-pressed={generator === "youtube-create"} onClick={() => { setGenerator("youtube-create"); setSceneIndex(0); }} className={`${button} ${generator === "youtube-create" ? "border-primary bg-primary-soft" : ""}`}><PlayCircle className="h-6 w-6" /></button>
-              <a href={GENERATOR_LINKS[generator]} target="_blank" rel="noopener noreferrer" title="Abrir gerador selecionado" aria-label="Abrir gerador selecionado" className={`${button} border-primary text-primary`}><ExternalLink className="h-5 w-5" /></a>
-            </div>
+            <p className="text-sm text-muted">Plataforma escolhida: <strong>{generator === "google-flow" ? "Google Flow" : generator === "dreamina" ? "Dreamina" : "YouTube Create"}</strong>. Confira o prompt otimizado e as referências antes de clicar em Gerar.</p>
+            {generator !== "google-flow" && <a href={GENERATOR_LINKS[generator]} target="_blank" rel="noopener noreferrer" title="Abrir gerador selecionado" aria-label="Abrir gerador selecionado" className={`${button} inline-flex items-center gap-2 border-primary text-primary`}><ExternalLink className="h-5 w-5" /> Abrir plataforma</a>}
             {generator === "youtube-create" && <p className="text-xs text-muted">YouTube Create não possui um gerador web equivalente ao Flow. O link abre as instruções oficiais para instalar o aplicativo móvel; para criar vídeos por prompt no navegador, escolha Google Flow ou Dreamina.</p>}
             <label className="block text-sm">Cenário<input value={scene} onChange={e => setScene(e.target.value)} className={field}/></label>
             {generatorIssue ? <p role="alert" className="text-sm text-danger">{generatorIssue}</p> : <div className="space-y-2">
@@ -177,12 +208,23 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
               {photo && <button type="button" onClick={() => { const url = URL.createObjectURL(photo); const anchor = document.createElement("a"); anchor.href = url; anchor.download = photo.name; anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); }} className={button}><Download className="inline h-4 w-4" /> Foto enviada</button>}
               {presentation === "presenter" && presenter.image && <button type="button" onClick={() => void saveReference(presenter.image!, `personagem-${presenter.id}.webp`)} className={button}><Download className="inline h-4 w-4" /> Foto de {presenter.name}</button>}
             </div>
-            <p className="text-xs text-muted">Anexe as imagens no gerador externo e cole o prompt da cena. Se o download da imagem do marketplace for bloqueado pelo servidor de origem, abra a imagem e salve-a manualmente. Depois importe o vídeo gerado abaixo.</p>
+            {generator === "google-flow" ? <p className="text-xs text-muted">O robô treinado enviará as referências do produto e do personagem e baixará o MP4 automaticamente. Se a imagem do marketplace estiver protegida, use a seleção de imagem abaixo.</p> :
+              <p className="text-xs text-muted">Anexe as imagens no gerador externo e cole o prompt da cena. Depois importe o vídeo gerado abaixo.</p>}
           </div>
-          <label className="block rounded-xl border border-dashed border-border p-4 text-sm">Importe o vídeo gerado (ou uma imagem pronta)<input type="file" disabled={busy} accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" className="mt-2 block w-full" onChange={e => { const file = e.target.files?.[0]; if (file) { if (!["video/mp4", "video/webm", "image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size || file.size > 150 * 1024 * 1024) setError("Use MP4, WebM, JPG, PNG ou WebP de até 150 MB."); else acceptSource(file, file.name); } e.target.value = ""; }}/></label>
+          {generator === "google-flow" && !generatorIssue && <FlowProductGenerator
+            key={product.id + "-" + selectedPrompt}
+            prompt={selectedPrompt}
+            productImageUrl={product.imageUrl}
+            photo={photo}
+            presenterImageUrl={presentation === "presenter" ? presenter.image : undefined}
+            presenterMode={presentation === "presenter"}
+            onVideo={(file) => acceptSource(file, file.name)} />}
+          {generator !== "google-flow" && <label className="block rounded-xl border border-dashed border-border p-4 text-sm">Importe o vídeo gerado (ou uma imagem pronta)<input type="file" disabled={busy} accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" className="mt-2 block w-full" onChange={e => { const file = e.target.files?.[0]; if (file) { if (!["video/mp4", "video/webm", "image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size || file.size > 150 * 1024 * 1024) setError("Use MP4, WebM, JPG, PNG ou WebP de até 150 MB."); else acceptSource(file, file.name); } e.target.value = ""; }}/></label>}
           {source && <button type="button" disabled={busy} onClick={() => setStep(2)} className={button}>Continuar com o vídeo escolhido</button>}
         </div>
-        {source && <div hidden={step !== 2} className="space-y-5"><h3 className="text-lg font-semibold">3. Ouça e aprove seu vídeo</h3>{presentation === "presenter" && <p className="rounded-lg border border-border p-3 text-sm text-muted">A narração adicionada aqui é uma faixa de áudio externa. Para que {presenter.name} apareça falando com movimento labial, gere e importe um vídeo já sincronizado na ferramenta externa.</p>}<CampaignNarration key={`${source.id}-${speech}`} source={source} speech={speech} onBusy={setBusy} onReady={media => setNarrated(media ? { source: source.id, speech, media: { ...media, id: crypto.randomUUID() } } : null)} />{final && <><MediaPreview media={final.blob}/><button type="button" disabled={busy} onClick={() => void approve()} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">Aprovar vídeo e preparar compartilhamento</button></>}</div>}
+        {source && <div hidden={step !== 2} className="space-y-5"><h3 className="text-lg font-semibold">3. {generator === "google-flow" ? "Confira e aprove seu vídeo" : "Ouça e aprove seu vídeo"}</h3>
+          {generator === "google-flow" && <><MediaPreview media={source.blob}/><p className="text-xs text-muted">Vídeo gerado e salvo. Confira o áudio original do Flow antes de compartilhar; não adicionaremos narração por cima automaticamente.</p><button type="button" disabled={busy} onClick={() => void approve()} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">Aprovar vídeo e compartilhar na Shopee ou outra plataforma</button></>}
+          {generator !== "google-flow" && <>{presentation === "presenter" && <p className="rounded-lg border border-border p-3 text-sm text-muted">A narração adicionada aqui é uma faixa de áudio externa. Para que {presenter.name} apareça falando com movimento labial, gere e importe um vídeo já sincronizado na ferramenta externa.</p>}<CampaignNarration key={`${source.id}-${speech}`} source={source} speech={speech} onBusy={setBusy} onReady={media => setNarrated(media ? { source: source.id, speech, media: { ...media, id: crypto.randomUUID() } } : null)} />{final && <><MediaPreview media={final.blob}/><button type="button" disabled={busy} onClick={() => void approve()} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">Aprovar vídeo e preparar compartilhamento</button></>}</>}</div>}
         {step === 3 && final && <PublicationComposer key={final.id} product={product} affiliateUrl={affiliateUrl} media={final.blob} filename={final.filename} initialCaption={caption} initialHashtags={hashtags} />}
         {error && <p role="alert" className="mt-4 rounded-xl bg-danger-soft p-3 text-sm text-danger">{error}</p>}{notice && <p role="status" className="mt-4 text-sm text-primary">{notice}</p>}
         {step > 0 && <button type="button" disabled={busy} onClick={() => { setStep(step - 1); setError(""); }} className={`${button} mt-5`}>Voltar</button>}
