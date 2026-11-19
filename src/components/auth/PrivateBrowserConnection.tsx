@@ -161,7 +161,20 @@ export function PrivateBrowserConnection() {
       const videoUrl = await createVideoAssetUrl(supabase, userId, savedPath);
       setSavedVideoPath(savedPath);
       setSavedVideoUrl(videoUrl);
-      setMessage("MP4 salvo no armazenamento privado do Meu Vendedor. Confira a prévia abaixo.");
+      // Only shut down the browser after Supabase has confirmed the upload
+      // and the independent playback URL has been created. Keep the saved
+      // video visible even if browser shutdown fails.
+      setMessage("MP4 salvo no Meu Vendedor. Encerrando Chrome remoto...");
+      try {
+        await invoke("stop");
+        setViewUrl("");
+        setDownloadedVideos([]);
+        setSelectedDownloadId("");
+        setGenerateAuthorized(false);
+        setMessage("Vídeo salvo no Meu Vendedor. Chrome encerrado automaticamente; login do Google preservado. Confira a prévia abaixo.");
+      } catch {
+        setMessage("Vídeo salvo no Meu Vendedor, mas o Chrome não pôde ser encerrado automaticamente. Use 'Encerrar Chrome e robô' para fechá-lo. O vídeo permanece salvo.");
+      }
       return true;
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
