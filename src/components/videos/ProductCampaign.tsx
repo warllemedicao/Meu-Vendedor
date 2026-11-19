@@ -35,6 +35,7 @@ function CampaignEditor({ product, initialAffiliateUrl = "", initialSpeech = "" 
   const [generator, setGenerator] = useState<CampaignGenerator>("google-flow");
   const [generatorChosen, setGeneratorChosen] = useState(false);
   const [flowConnectionNotice, setFlowConnectionNotice] = useState("");
+  const [flowPromptEdit, setFlowPromptEdit] = useState<{ source: string; value: string } | null>(null);
   const [sceneIndex, setSceneIndex] = useState(0);
   const [presentation, setPresentation] = useState<"presenter" | "voiceover">("voiceover");
   const [presenterId, setPresenterId] = useState<PresenterId>("ana");
@@ -68,9 +69,10 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
     });
   } catch (failure) { generatorIssue = failure instanceof Error ? failure.message : "Não foi possível preparar as cenas."; }
   const selectedPrompt = generatorPrompts[Math.min(sceneIndex, generatorPrompts.length - 1)] ?? "";
+  const approvedPrompt = generator === "google-flow" && flowPromptEdit?.source === selectedPrompt ? flowPromptEdit.value : selectedPrompt;
   async function chooseGenerator(next: CampaignGenerator) {
     if (busy) return;
-    setGenerator(next); setGeneratorChosen(true); setSceneIndex(0);
+    setGenerator(next); setGeneratorChosen(true); setSceneIndex(0); setFlowPromptEdit(null);
     setAnalysis(null); setNarrated(null); setFlowConnectionNotice("");
     if (next === "google-flow") {
       setFlowConnectionNotice("Preparando o Chrome do Flow sem exibir o navegador...");
@@ -196,10 +198,11 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
             <label className="block text-sm">Cenário<input value={scene} onChange={e => setScene(e.target.value)} className={field}/></label>
             {generatorIssue ? <p role="alert" className="text-sm text-danger">{generatorIssue}</p> : <div className="space-y-2">
               <p className="text-sm font-medium">Prompt único do anúncio · {seconds} segundos</p>
-              <textarea aria-label="Prompt otimizado para o gerador selecionado" readOnly rows={10} value={selectedPrompt} className={field}/>
-              <p className="text-xs text-muted">{selectedPrompt.length} caracteres{generator === "youtube-create" ? ` / ${YOUTUBE_PROMPT_LIMIT}` : ""}. Um vídeo por anúncio; use a foto original do produto e do personagem.</p>
+              <textarea aria-label="Prompt otimizado para o gerador selecionado" readOnly={generator !== "google-flow"} rows={10} value={approvedPrompt}
+                onChange={e => setFlowPromptEdit({ source: selectedPrompt, value: e.target.value })} maxLength={generator === "google-flow" ? 4000 : undefined} className={field}/>
+              <p className="text-xs text-muted">{approvedPrompt.length} caracteres{generator === "google-flow" ? " / 4000" : ""}{generator === "youtube-create" ? ` / ${YOUTUBE_PROMPT_LIMIT}` : ""}. Um vídeo por anúncio; use a foto original do produto e do personagem.</p>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(selectedPrompt); setNotice("Prompt da cena copiado."); } catch { setNotice("Selecione o prompt acima e copie manualmente."); } }} className={button} title="Copiar prompt da cena"><Copy className="inline h-4 w-4" /> Copiar prompt</button>
+                <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(approvedPrompt); setNotice("Prompt da cena copiado."); } catch { setNotice("Selecione o prompt acima e copie manualmente."); } }} className={button} title="Copiar prompt da cena"><Copy className="inline h-4 w-4" /> Copiar prompt</button>
                 <button type="button" onClick={() => downloadText(generatorPrompts.map((prompt, index) => `CENA ${index + 1}\n${prompt}`).join("\n\n---\n\n"), "prompts-divulgacao.txt")} className={button}><Download className="inline h-4 w-4" /> Baixar prompts</button>
               </div>
             </div>}
@@ -213,10 +216,10 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
           </div>
           {generator === "google-flow" && !generatorIssue && <FlowProductGenerator
             key={product.id + "-" + selectedPrompt}
-            prompt={selectedPrompt}
+            prompt={approvedPrompt}
             productImageUrl={product.imageUrl}
             photo={photo}
-            presenterImageUrl={presentation === "presenter" ? presenter.image : undefined}
+            presenterImageUrl={presentation === "presenter" ? (presenter.image ?? undefined) : undefined}
             presenterMode={presentation === "presenter"}
             onVideo={(file) => acceptSource(file, file.name)} />}
           {generator !== "google-flow" && <label className="block rounded-xl border border-dashed border-border p-4 text-sm">Importe o vídeo gerado (ou uma imagem pronta)<input type="file" disabled={busy} accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" className="mt-2 block w-full" onChange={e => { const file = e.target.files?.[0]; if (file) { if (!["video/mp4", "video/webm", "image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size || file.size > 150 * 1024 * 1024) setError("Use MP4, WebM, JPG, PNG ou WebP de até 150 MB."); else acceptSource(file, file.name); } e.target.value = ""; }}/></label>}
