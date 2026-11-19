@@ -366,7 +366,7 @@ export function StoriesStudio() {
   }
   async function openProject(selected: Project) {
     if (!user) return;
-    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setPublishDescription(""); setExpandedScene(Math.max(1, selected.scenes.findIndex(s => !s.action?.trim() || !s.setting?.trim()) + 1)); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
+    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setPublishDescription(""); setExpandedScene(Math.max(1, selected.scenes.reduce((last, s) => s.action?.trim() && s.setting?.trim() ? s.number : last, 1))); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
     const client = getSupabase(); if (!client) return;
     const [clipsResult, promptResult] = await Promise.all([
       client.from("mv_story_clips").select("id,scene_number,storage_path,approved").eq("user_id", user.id).eq("project_id", selected.id),
@@ -767,14 +767,14 @@ export function StoriesStudio() {
           <p className="text-sm text-muted">Do primeiro tema à preparação da publicação, em sete etapas.</p></div>
         <div className="text-sm font-semibold">2 min · 12 cenas · 9:16</div>
       </div>
-      <nav aria-label="Etapas do gerador de histórias" className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+      <nav aria-label="Etapas do gerador de histórias" className={stage === "roteiro" ? "flex flex-wrap gap-2" : "grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7"}>
         {STORY_STAGES.map((item, i) => <button type="button" key={item.key} aria-current={stage === item.key ? "step" : undefined}
           onClick={() => { setStage(item.key); setError(""); }}
-          className={"min-h-20 rounded-xl border p-3 text-left text-sm transition-colors " +
+          className={(stage === "roteiro" ? "rounded-lg border px-3 py-2 text-left text-xs transition-colors " : "min-h-20 rounded-xl border p-3 text-left text-sm transition-colors ") +
             (stage === item.key ? "border-primary bg-primary/10 font-semibold" : "border-border bg-surface hover:bg-surface-secondary")}>
-          <span className="mb-1 block text-xs text-muted">{String(i + 1).padStart(2, "0")} / 07</span>
+          {stage !== "roteiro" && <span className="mb-1 block text-xs text-muted">{String(i + 1).padStart(2, "0")} / 07</span>}
           <span className="block font-semibold">{item.title}</span>
-          <span className="block text-xs text-muted">{item.description}</span>
+          {stage !== "roteiro" && <span className="block text-xs text-muted">{item.description}</span>}
         </button>)}
       </nav>
       {project && <p className="rounded-xl border border-border p-3 text-sm">
@@ -1103,7 +1103,10 @@ export function StoriesStudio() {
                 </div>
                 <label className="block text-xs font-semibold">Ferramenta para esta cena
                   <select className={field + " mt-1"} value={chosenPlatform}
-                    onChange={e => setSelectedPlatformByScene(old => ({ ...old, [s.number]: e.target.value as Platform }))}>
+                    onChange={e => {
+                      setSelectedPlatformByScene(old => ({ ...old, [s.number]: e.target.value as Platform }));
+                      setCopiedScenePrompt(null);
+                    }}>
                     {platformOptions.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
                   </select>
                 </label>
@@ -1114,9 +1117,10 @@ export function StoriesStudio() {
                 </div>
                 <label className="block text-xs font-semibold">Prompt completo — cena {s.number}
                   <textarea className={field + " mt-1 resize-y"} rows={4} value={scenePromptText}
-                    onChange={e => setScenePromptDrafts(old => ({
-                      ...old, [promptKey(s.number, chosenPlatform)]: e.target.value,
-                    }))} placeholder="O prompt desta cena aparecerá aqui para revisão e download."/>
+                    onChange={e => {
+                      setScenePromptDrafts(old => ({ ...old, [promptKey(s.number, chosenPlatform)]: e.target.value }));
+                      setCopiedScenePrompt(null);
+                    }} placeholder="O prompt desta cena aparecerá aqui para revisão e download."/>
                 </label>
                 <p className={"text-xs font-semibold " + (Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars ? "text-red-600" : "text-muted")}>
                   {Array.from(scenePromptText).length}/{PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres
@@ -1132,6 +1136,18 @@ export function StoriesStudio() {
                     onClick={() => void copyScenePrompt(s.number, chosenPlatform, scenePromptText)}>Copiar prompt</button>
                 </div>
                 {copiedScenePrompt === promptKey(s.number, chosenPlatform) && <p role="status" className="text-xs font-semibold text-green-700">Prompt copiado. Agora crie o vídeo na plataforma escolhida; depois avance para a próxima cena usando o botão abaixo.</p>}
+                <div className="rounded-xl border border-border bg-surface-secondary/40 p-3 space-y-2">
+                  <p className="text-xs font-semibold">Vídeo pronto na plataforma?</p>
+                  <label className="block text-xs">Importar MP4 desta cena (opcional, até 100 MB)
+                    <input className="mt-1 block w-full text-xs" type="file" accept="video/mp4" disabled={busy}
+                      onChange={e => {
+                        const file = e.currentTarget.files?.[0];
+                        void uploadClip(s.number, file);
+                        e.currentTarget.value = "";
+                      }}/>
+                  </label>
+                  <p className="text-xs text-muted">{clips.find(clip => clip.scene_number === s.number) ? "MP4 salvo no projeto. Você pode seguir para outra cena." : "Você pode avançar sem importar o vídeo agora e voltar depois."}</p>
+                </div>
                 {s.number < 12 && project.status === "draft" && <button className={button + " w-full !bg-primary !text-primary-foreground !border-primary"}
                   disabled={busy || !scenePromptText.trim() || Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
                   onClick={() => void advanceToNextScene(s.number)}>Concluir preparação · Ir para cena {s.number + 1}</button>}
