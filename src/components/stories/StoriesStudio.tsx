@@ -103,6 +103,8 @@ export function StoriesStudio() {
   const [publishTitle, setPublishTitle] = useState("");
   const [publishDescription, setPublishDescription] = useState("");
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
+  const [deletingTopics, setDeletingTopics] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeTopic, setActiveTopic] = useState<Topic | null>(null);
   const [project, setProject] = useState<Project | null>(null);
@@ -512,6 +514,41 @@ export function StoriesStudio() {
     if (dbError) setError("Não foi possível alterar o favorito.");
     else setTopics(old => old.map(t => t.id === topic.id ? { ...t, saved: !t.saved } : t));
   }
+  function toggleTopicSelection(topicId: string) {
+    setSelectedTopicIds(current => current.includes(topicId)
+      ? current.filter(id => id !== topicId) : [...current, topicId]);
+  }
+  async function deleteSelectedTopics() {
+    if (!user || busy || deletingTopics) return;
+    const visibleIds = new Set(visibleTopics.map(topic => topic.id));
+    const ids = [...new Set(selectedTopicIds)].filter(id => visibleIds.has(id) &&
+      topics.some(topic => topic.id === id && topic.user_id === user.id));
+    if (!ids.length) return setError("Marque pelo menos um tema visível para excluir.");
+    if (!window.confirm("Excluir definitivamente " + ids.length + " tema(s)? Roteiros já criados permanecerão salvos, sem o vínculo com o tema excluído.")) return;
+    const client = getSupabase(); if (!client) return setError("Supabase indisponível.");
+    setDeletingTopics(true); setError(""); setMessage("");
+    let deletedCount = 0;
+    try {
+      for (let index = 0; index < ids.length; index += 50) {
+        const batch = ids.slice(index, index + 50);
+        const { data: deleted, error: deleteError } = await client.from("mv_story_topics")
+          .delete().eq("user_id", user.id).in("id", batch).select("id");
+        if (deleteError) throw new Error("Falha ao excluir o lote de temas.");
+        const deletedIds = (deleted || []).map(row => row.id as string);
+        if (deletedIds.length !== batch.length)
+          throw new Error("Nem todos os temas do lote foram removidos.");
+        deletedCount += deletedIds.length;
+        setTopics(current => current.filter(topic => !deletedIds.includes(topic.id)));
+        setSelectedTopicIds(current => current.filter(id => !deletedIds.includes(id)));
+      }
+      setMessage(deletedCount + " tema(s) excluído(s). Os roteiros existentes foram preservados.");
+    } catch (e) {
+      setError(plainError(e) + " " + deletedCount + " tema(s) removido(s) antes da falha.");
+    } finally {
+      await Promise.all([loadTopics(), loadProjects()]);
+      setDeletingTopics(false);
+    }
+  }
   async function generateScript(topic: Topic) {
     if (!user || busy) return;
     const client = getSupabase(); if (!client) return setError("Supabase indisponível.");
@@ -791,6 +828,8 @@ export function StoriesStudio() {
   const visibleTopics = topics.filter(t => user && t.user_id === user.id && (!onlySaved || t.saved) &&
     (!subjectFilter || t.subject === subjectFilter) && (genreFilter === "geral" || t.genre === genreFilter) &&
     (!query || (t.title + " " + t.subject).toLowerCase().includes(query.toLowerCase())));
+  const selectedVisibleCount = visibleTopics.filter(topic => selectedTopicIds.includes(topic.id)).length;
+  const allVisibleSelected = visibleTopics.length > 0 && selectedVisibleCount === visibleTopics.length;
   const subjects = Array.from(new Set(topics.filter(t => user && t.user_id === user.id).map(t => t.subject))).sort();
   const maxPrompt = platformOptions.find(p => p.value === platform)?.maximum;
 
@@ -872,43 +911,69 @@ export function StoriesStudio() {
         <button className={button} disabled={!draftTopics.length || !!savingTopic || busy}
           onClick={() => void saveDraftTopics(draftTopics)}>Salvar todos os temas</button>
       </div>
-      <p className="text-sm text-muted">Esta caixa contém os resultados ainda não salvos. Você decide o que manter na biblioteca.</p>
       <div className="max-h-80 space-y-2 overflow-y-auto" aria-live="polite">
-        {draftTopics.map(t => <article key={t.localId} className="flex flex-col gap-2 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0"><p className="font-medium">{t.title}</p><p className="text-sm text-muted">{t.synopsis}</p>
-            <p className="text-xs text-muted">{t.subject} · {t.genre} · {STORY_CHARACTER_STYLES.find(s => s.value === t.character_style)?.label || "Estilo não definido"}</p></div>
-          <div className="flex shrink-0 gap-2">
-            <button className={button} disabled={busy || !!savingTopic} onClick={() => void saveDraftTopics([t])}>Salvar</button>
-            <button className={button} disabled={busy || !!savingTopic}
-              onClick={() => setDraftTopics(previous => previous.filter(item => item.localId !== t.localId))}>Descartar</button>
-          </div>
-        </article>)}
+        {draftTopics.map(t => <article key={t.localId} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+          <p className="min-w-0 flex-1 truncate text-sm font-semibold" title={t.title}>{t.title}</p>
+          <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || !!savingTopic}
+            onClick={() => void saveDraftTopics([t])}>Salvar</button>
+          <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || !!savingTopic}
+            onClick={() => setDraftTopics(previous => previous.filter(item => item.localId !== t.localId))}>Descartar</button>
+        </article>)
         {!draftTopics.length && <p className="text-sm text-muted">Os temas gerados aparecerão aqui antes de serem salvos.</p>}
       </div>
     </section>
     <section className={panel} hidden={stage !== "temas"}>
-      <h2 className="text-lg font-semibold">3. Biblioteca de temas <span className="text-sm text-muted">({visibleTopics.length})</span></h2>
-      <div className="flex flex-wrap gap-3">
-        <input className={field + " max-w-sm"} value={query} onChange={e => setQuery(e.target.value)} placeholder="Filtrar temas e assuntos" />
-        <select className={field + " max-w-xs"} value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)} aria-label="Filtrar por assunto">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">3. Biblioteca de temas ({visibleTopics.length})</h2>
+        <button className={button + " !text-xs"} disabled={deletingTopics || busy || selectedVisibleCount === 0}
+          onClick={() => void deleteSelectedTopics()}>Excluir selecionados ({selectedVisibleCount})</button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <input className={field + " min-w-36 flex-1"} value={query} onChange={e => setQuery(e.target.value)}
+          placeholder="Buscar tema" aria-label="Buscar temas por título ou assunto"/>
+        <select className={field + " max-w-44"} value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)} aria-label="Filtrar por assunto">
           <option value="">Todos os assuntos</option>{subjects.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className={field + " max-w-xs"} value={genreFilter} onChange={e => setGenreFilter(e.target.value as Genre)} aria-label="Filtrar por gênero">
-          {genres.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-        </select>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={onlySaved} onChange={e => setOnlySaved(e.target.checked)}/> Somente favoritos</label>
-      </div>
-      <div className="max-h-96 space-y-2 overflow-y-auto">
-        {visibleTopics.map(t => <div key={t.id} className="flex flex-col gap-2 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
-          <div><p className="font-semibold">{t.title}</p><p className="text-sm text-muted">{t.synopsis}</p>
-            <p className="text-xs text-muted">{t.subject} · {t.genre} · {STORY_CHARACTER_STYLES.find(s => s.value === t.character_style)?.label || "Estilo não definido"}</p></div>
-          <div className="flex shrink-0 gap-2">
-            <button className={button} disabled={busy} onClick={() => void toggleSaved(t)}>{t.saved ? "Salvo ✓" : "Salvar"}</button>
-            <button className={button} disabled={busy} onClick={() => void generateScript(t)}>Criar roteiro e gerar cena 1</button>
-            <button className={button} disabled={busy} onClick={() => void createManualScript(t.title, t)}>Roteiro manual</button>
+        <details className="rounded-lg border border-border px-2 py-2 text-xs">
+          <summary className="cursor-pointer">Filtros</summary>
+          <div className="space-y-2 pt-2">
+            <select className={field} value={genreFilter} onChange={e => setGenreFilter(e.target.value as Genre)} aria-label="Filtrar por gênero">
+              {genres.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+            </select>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={onlySaved}
+              onChange={e => setOnlySaved(e.target.checked)}/> Somente favoritos</label>
           </div>
+        </details>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={allVisibleSelected} disabled={!visibleTopics.length || deletingTopics || busy}
+          onChange={e => {
+            const visibleIds = new Set(visibleTopics.map(topic => topic.id));
+            setSelectedTopicIds(current => e.target.checked
+              ? [...new Set([...current, ...visibleIds])]
+              : current.filter(id => !visibleIds.has(id)));
+          }}/>
+        Selecionar todos os temas exibidos ({visibleTopics.length})
+      </label>
+      <div className="max-h-96 space-y-1 overflow-y-auto">
+        {visibleTopics.map(t => <div key={t.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+          <input type="checkbox" checked={selectedTopicIds.includes(t.id)} disabled={deletingTopics || busy}
+            aria-label={"Selecionar " + t.title} onChange={() => toggleTopicSelection(t.id)}/>
+          <p className="min-w-0 flex-1 truncate text-sm font-semibold" title={t.title}>{t.title}</p>
+          <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || deletingTopics}
+            onClick={() => void generateScript(t)}>Roteiro</button>
+          <details className="shrink-0 text-xs">
+            <summary className="cursor-pointer px-1 py-1" aria-label={"Mais opções de " + t.title}>Mais</summary>
+            <div className="space-y-2 pt-2">
+              <p className="text-xs text-muted">{STORY_CHARACTER_STYLES.find(s => s.value === t.character_style)?.label || "Estilo não definido"}</p>
+              <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || deletingTopics}
+                onClick={() => void toggleSaved(t)}>{t.saved ? "Remover favorito" : "Favoritar"}</button>
+              <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || deletingTopics}
+                onClick={() => void createManualScript(t.title, t)}>Roteiro manual</button>
+            </div>
+          </details>
         </div>)}
-        {!visibleTopics.length && <p className="text-sm text-muted">Nenhum tema encontrado. Gere uma lista acima.</p>}
+        {!visibleTopics.length && <p className="text-sm text-muted">Nenhum tema encontrado.</p>}
       </div>
     </section>
 
