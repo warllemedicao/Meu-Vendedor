@@ -12,7 +12,7 @@ type TopicDraft = Pick<Topic, "subject" | "title" | "synopsis" | "genre"> & { lo
 type Character = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string };
 type Dialogue = { speaker: string; text: string };
 type Scene = { number: number; durationSeconds: 10; title: string; setting: string; action: string; characters: string[]; dialogue: Dialogue[]; transition: string };
-type Project = { id: string; user_id: string; title: string; status: string; characters: Character[]; scenes: Scene[] };
+type Project = { id: string; user_id: string; title: string; status: string; genre?: string; topic_id?: string | null; characters: Character[]; scenes: Scene[] };
 type Prompt = { scene: number; text: string; platform: Platform };
 type Clip = { id: string; scene_number: number; storage_path: string; approved: boolean };
 
@@ -33,7 +33,7 @@ const plainError = (error: unknown): string => error instanceof Error ? error.me
 const geminiCooldowns = new Map<"topics" | "script", number>();
 function generationScope(action: string): "topics" | "script" | null {
   if (action === "topics") return "topics";
-  if (action === "script" || action === "prompts") return "script";
+  if (action === "script" || action === "prompts" || action === "script_scene" || action === "prompt_scene") return "script";
   return null;
 }
 
@@ -77,12 +77,6 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
   if (scope) geminiCooldowns.delete(scope);
   return data;
 }
-function isScript(value: unknown): value is { characters: Character[]; scenes: Scene[] } {
-  if (!value || typeof value !== "object" || !("characters" in value) || !("scenes" in value)) return false;
-  const data = value as { characters: unknown; scenes: unknown };
-  return Array.isArray(data.characters) && data.characters.length > 0 && Array.isArray(data.scenes) && data.scenes.length === 12;
-}
-
 export function StoriesStudio() {
   const { user } = useAuth();
   const [stage, setStage] = useState<StoryStage>("temas");
@@ -109,6 +103,7 @@ export function StoriesStudio() {
   const [busy, setBusy] = useState(false);
   const [checkingGemini, setCheckingGemini] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [sceneProgress, setSceneProgress] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const loadTopics = useCallback(async () => {
@@ -123,7 +118,7 @@ export function StoriesStudio() {
   const loadProjects = useCallback(async () => {
     if (!user) { setProjects([]); return; }
     const client = getSupabase(); if (!client) return;
-    const { data } = await client.from("mv_story_projects").select("id,user_id,title,status,characters,scenes")
+    const { data } = await client.from("mv_story_projects").select("id,user_id,topic_id,genre,title,status,characters,scenes")
       .eq("user_id", user.id).order("updated_at", { ascending: false }).limit(100);
     setProjects((data || []) as Project[]);
   }, [user]);
@@ -227,23 +222,55 @@ export function StoriesStudio() {
     else setTopics(old => old.map(t => t.id === topic.id ? { ...t, saved: !t.saved } : t));
   }
   async function generateScript(topic: Topic) {
-    if (!user) return;
+    if (!user || busy) return;
+    const client = getSupabase(); if (!client) return setError("Supabase indisponível.");
     setBusy(true); setError(""); setMessage("");
     try {
-      const result = await invokeStory("script", { title: topic.title, synopsis: topic.synopsis, genre: topic.genre });
-      if (!isScript(result)) throw new Error("O Gemini não retornou as 12 cenas completas.");
-      const client = getSupabase(); if (!client) throw new Error("Supabase indisponível.");
-      const { data, error: dbError } = await client.from("mv_story_projects")
-        .insert({ user_id: user.id, topic_id: topic.id, title: topic.title, genre: topic.genre,
-          characters: result.characters, scenes: result.scenes, status: "draft" })
-        .select("id,user_id,title,status,characters,scenes").single();
-      if (dbError || !data) throw new Error("Não foi possível salvar o roteiro.");
+      // Persist before inference so a provider 503 never destroys the new story.
+      const { data, error: dbError } = await client.from("mv_story_projects").insert({
+        user_id: user.id, topic_id: topic.id, title: topic.title, genre: topic.genre,
+        characters: [], scenes: makeEmptyStoryScenes(), status: "draft",
+      }).select("id,user_id,topic_id,genre,title,status,characters,scenes").single();
+      if (dbError || !data) throw new Error("Não foi possível iniciar o rascunho retomável.");
       setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setStage("roteiro");
       setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
       void loadProjects();
-      setMessage("Roteiro criado. Revise e aprove as cenas antes de gerar prompts.");
+      setMessage("Rascunho criado. Clique em Gerar próxima cena para gerar e salvar uma cena por vez, sem solicitações automáticas.");
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
+  }
+  async function generateNextScene() {
+    if (!project || !user || project.status !== "draft" || busy) return;
+    const nextIndex = project.scenes.findIndex(s => !s.action.trim() || !s.setting.trim());
+    if (nextIndex < 0) return setMessage("As 12 cenas estão completas. Revise e aprove o roteiro.");
+    if (nextIndex > 0 && (!project.characters.length ||
+      project.scenes.slice(0, nextIndex).some(s => !s.action.trim() || !s.setting.trim())))
+      return setError("Complete as cenas anteriores e a ficha dos personagens antes de continuar.");
+    const client = getSupabase(); if (!client) return;
+    const sceneNumber = nextIndex + 1;
+    setBusy(true); setError(""); setSceneProgress("Gerando cena " + sceneNumber + " de 12");
+    try {
+      const result = await invokeStory("script_scene", {
+        title: project.title, synopsis: activeTopic?.synopsis || publishDescription,
+        genre: project.genre || activeTopic?.genre || "geral", sceneNumber,
+        characters: project.characters, previousScenes: project.scenes.slice(0, nextIndex),
+      }) as { characters: Character[]; scene: Scene };
+      if (!Array.isArray(result.characters) || !result.characters.length ||
+        !result.scene || result.scene.number !== sceneNumber || !result.scene.action || !result.scene.setting)
+        throw new Error("O Gemini não retornou uma cena válida.");
+      const scenes = project.scenes.map((scene, i) => i === nextIndex ? result.scene : scene);
+      const characters = project.characters.length ? project.characters : result.characters;
+      // Save scene before updating UI, so reloads resume at the first missing scene.
+      const { error: saveError } = await client.from("mv_story_projects")
+        .update({ characters, scenes, updated_at: new Date().toISOString() })
+        .eq("id", project.id).eq("user_id", user.id);
+      if (saveError) throw new Error("A cena foi gerada, mas não foi salva. Não repita a geração antes de verificar o projeto.");
+      setProject({ ...project, scenes, characters });
+      void loadProjects();
+      setMessage("Cena " + sceneNumber + "/12 salva. " +
+        (sceneNumber === 12 ? "Roteiro completo; revise e aprove." : "Use Gerar próxima cena quando desejar continuar."));
+    } catch (e) { setError(plainError(e)); }
+    finally { setBusy(false); setSceneProgress(""); }
   }
   async function createManualScript(title: string, topic?: Topic) {
     if (!user || title.trim().length < 3) return setError("Digite um título com pelo menos 3 caracteres.");
@@ -335,20 +362,30 @@ export function StoriesStudio() {
     finally { setBusy(false); }
   }
   async function generatePrompts() {
-    if (!project || project.status === "draft" || !user) return;
-    setBusy(true); setError("");
+    if (!project || project.status === "draft" || !user || busy) return;
+    const existing = new Set(prompts.filter(p => p.platform === platform).map(p => p.scene));
+    const scene = project.scenes.find(s => !existing.has(s.number));
+    if (!scene) return setMessage("Os 12 prompts desta plataforma já estão salvos.");
+    const client = getSupabase(); if (!client) return;
+    setBusy(true); setError(""); setSceneProgress("Gerando prompt " + scene.number + " de 12");
     try {
-      const result = await invokeStory("prompts", { platform, script: { characters: project.characters, scenes: project.scenes } }) as { prompts: Prompt[] };
-      if (!Array.isArray(result.prompts) || result.prompts.length !== 12) throw new Error("Faltam prompts para algumas cenas.");
-      const client = getSupabase(); if (!client) return;
-      const rows = result.prompts.map(p => ({ user_id: user.id, project_id: project.id, scene_number: p.scene, platform: p.platform, prompt: p.text }));
-      const { error: dbError } = await client.from("mv_story_prompts").upsert(rows, { onConflict: "project_id,scene_number,platform" });
-      if (dbError) throw new Error("Não foi possível salvar os prompts.");
-      setPrompts(result.prompts);
+      const result = await invokeStory("prompt_scene", {
+        platform, sceneNumber: scene.number, scene, characters: project.characters,
+      }) as { prompt: Prompt };
+      if (!result.prompt || result.prompt.scene !== scene.number ||
+        result.prompt.platform !== platform || !result.prompt.text?.trim())
+        throw new Error("O Gemini não retornou o prompt da cena solicitada.");
+      const { error: dbError } = await client.from("mv_story_prompts").upsert({
+        user_id: user.id, project_id: project.id, scene_number: scene.number,
+        platform, prompt: result.prompt.text,
+      }, { onConflict: "project_id,scene_number,platform" });
+      if (dbError) throw new Error("O prompt foi gerado, mas não foi salvo. Confira o projeto antes de repetir.");
+      setPrompts(previous => [...previous.filter(p => !(p.platform === platform && p.scene === scene.number)), result.prompt]
+        .sort((a,b) => a.scene - b.scene));
       setStage("prompts");
-      setMessage("12 prompts gerados e salvos para " + platform + ".");
+      setMessage("Prompt " + scene.number + "/12 salvo para " + platform + ". Prossiga quando desejar.");
     } catch (e) { setError(plainError(e)); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setSceneProgress(""); }
   }
   async function loadPlatformPrompts(selected: Platform) {
     if (!user || !project) return;
@@ -543,6 +580,12 @@ export function StoriesStudio() {
     </section>}
     {stage === "roteiro" && project && user && project.user_id === user.id && <section className={panel}>
       <h2 className="text-lg font-semibold">4. Roteiro — {activeTopic?.title || project.title}</h2>
+      {project.status === "draft" && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3">
+        <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())} onClick={() => void generateNextScene()}>
+          {busy && sceneProgress ? sceneProgress : "Gerar próxima cena com Gemini"}
+        </button>
+        <span className="text-sm text-muted">{project.scenes.filter(s => !!s.action.trim() && !!s.setting.trim()).length}/12 cenas preenchidas e salvas</span>
+      </div>}
       <p className="text-sm text-muted">12 cenas × 10 segundos = 120 segundos. Os personagens e as vozes se mantêm iguais entre cenas.</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-label="Linha do tempo de 12 cenas">
         {project.scenes.map(s => <a key={s.number} href={"#story-scene-" + s.number}
@@ -648,7 +691,7 @@ export function StoriesStudio() {
       <p className="text-sm text-muted">{PLATFORM_GUIDES[platform].workflow} {PLATFORM_GUIDES[platform].reminder}</p>
       <p className="text-xs text-muted">Os prompts gerados via Gemini ficam no banco; os rascunhos locais são prévias editoriais até você salvar cada cena.</p>
       <div className="flex flex-wrap gap-2">
-        <button className={button} disabled={busy} onClick={() => void generatePrompts()}>Gerar 12 prompts com Gemini</button>
+        <button className={button} disabled={busy} onClick={() => void generatePrompts()}>{busy && sceneProgress ? sceneProgress : "Gerar próximo prompt com Gemini (1 por clique)"}</button>
         <button className={button} disabled={busy} onClick={previewLocalPrompts}>Montar rascunhos locais sem IA</button>
         <button className={button} disabled={busy} onClick={() => void loadPlatformPrompts(platform)}>Reabrir prompts salvos</button>
       </div>
