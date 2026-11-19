@@ -100,11 +100,12 @@ export function AccountHub() {
     <section role="tabpanel" id="panel-acesso" aria-labelledby="tab-acesso" hidden={section !== "acesso"}><AuthForm /></section>
     <section role="tabpanel" id="panel-google" aria-labelledby="tab-google" hidden={section !== "google"} className="space-y-4">
       {!user && <p className="text-sm text-muted">Entre em Meu acesso para conectar suas redes.</p>}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <FacebookConnection key={`facebook:${user?.id ?? "anonymous"}`} />
+      <details className="rounded-xl border border-border bg-surface p-3">
+        <summary className="cursor-pointer text-sm font-semibold">Redes e serviços · mostrar/ocultar conexões</summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <FacebookConnection key={`facebook:${user?.id ?? "anonymous"}`} />
         <YouTubeConnection key={`youtube:${user?.id ?? "anonymous"}`} compact />
         <TikTokConnection key={`tiktok:${user?.id ?? "anonymous"}`} />
-        {user && <PrivateBrowserConnection key={`private-browser:${user.id}`} />}
         {[
           { name: "Instagram", icon: Camera, href: "/videos", status: "Publicação manual" },
           { name: "Pinterest", icon: Pin, href: "https://www.pinterest.com/pin-builder/", status: "Publicação manual" },
@@ -115,9 +116,11 @@ export function AccountHub() {
           <div className="min-w-0 flex-1"><h3 className="font-semibold">{item.name}</h3><p className="text-xs text-muted">{item.status}</p></div>
           <a href={item.href} target={item.href.startsWith("https:") ? "_blank" : undefined} rel={item.href.startsWith("https:") ? "noopener noreferrer" : undefined} className="rounded-lg border border-border p-2" aria-label={`Abrir ${item.name}`}><ExternalLink className="h-4 w-4" /></a>
         </article>)}
-      </div>
+        </div>
+      </details>
+      {user && <PrivateBrowserConnection key={`private-browser:${user.id}`} />}
       <div className="mt-5 space-y-3">
-        <h2 className="text-sm font-semibold">Marketplaces e afiliados</h2>
+        <h2 className="text-sm font-semibold">Marketplaces e afiliados · selecione a loja para mostrar os detalhes</h2>
       {connectorCatalog.filter((connector) => connector.id !== "tiktok").map((connector) => {
         const connection = connections.find((item) => item.platform_id === connector.id);
         const statusLabel = connector.id === "shopee"
