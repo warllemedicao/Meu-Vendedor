@@ -439,7 +439,7 @@ export function StoriesStudio() {
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button className={button} disabled={busy || !user || subject.trim().length < 2} onClick={() => void generateTopics()}>
+        <button className={button} disabled={busy || checkingGemini || !user || subject.trim().length < 2} onClick={() => void generateTopics()}>
           {busy ? "Gerando..." : "Gerar temas com Gemini"}
         </button>
         <button className={button} disabled={busy || checkingGemini || !user} onClick={() => void checkGeminiConnection()}>{checkingGemini ? "Verificando conexão..." : "Verificar Gemini sem gerar temas"}</button>
