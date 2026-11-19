@@ -182,3 +182,30 @@ test("transient provider errors pause only the affected generation model", () =>
   assert.match(studio, /geminiCooldowns[.]delete[(]scope[)]/);
   assert.match(studio, /a tentativa não foi enviada/);
 });
+
+
+test("one scene per script inference with owner-scoped persistence and manual resume", () => {
+  assert.match(edge, /body\.action === "script_scene"/);
+  assert.match(edge, /previous\.length !== sceneNumber - 1/);
+  assert.match(edge, /first \? 2600 : 1800/);
+  assert.match(edge, /return json\(\{ characters: cast, scene \}, 200, origin\)/);
+  assert.match(studio, /invokeStory\("script_scene"/);
+  assert.match(studio, /async function generateOneScene/);
+  assert.match(studio, /await generateOneScene\(working\)/);
+  assert.match(studio, /\.update\(\{ characters, scenes, updated_at:/);
+  assert.match(studio, /\.eq\("id", working\.id\)\.eq\("user_id", user\.id\)/);
+  assert.match(studio, /Gerar cenas restantes em sequência/);
+  assert.match(studio, /16_000/);
+  assert.match(studio, /stopSceneQueue\.current/);
+  assert.doesNotMatch(studio, /invokeStory\("script", \{ title: topic\.title/);
+});
+
+test("one platform prompt per inference, without overwriting approved prompts", () => {
+  assert.match(edge, /body\.action === "prompt_scene"/);
+  assert.match(edge, /Gere somente o prompt desta cena/);
+  assert.match(studio, /invokeStory\("prompt_scene"/);
+  assert.match(studio, /\.select\("scene_number"\)\.eq\("project_id", project\.id\)/);
+  assert.match(studio, /\.upsert\(\{\s*user_id: user\.id, project_id: project\.id, scene_number: scene\.number/);
+  assert.match(studio, /Gerar próximo prompt com Gemini/);
+  assert.doesNotMatch(studio, /invokeStory\("prompts", \{ platform, script:/);
+});
