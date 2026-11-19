@@ -114,14 +114,17 @@ test("Gemini transport errors are classified without logging sensitive details",
 });
 
 test("Gemini metadata diagnostic never generates content or exposes credentials", () => {
-  const check = edge.split("async function diagnoseTopicsConnection() {")[1]?.split("async function gemini(")[0] || "";
+  const check = edge.split('async function diagnoseModelConnection(purpose: "topics" | "script") {')[1]?.split("async function gemini(")[0] || "";
   assert.match(check, /HIST_TEMA_GEMINI_API_KEY/);
   assert.match(check, /method: "GET"/);
   assert.match(check, /"x-goog-api-key": key/);
   assert.doesNotMatch(check, /:generateContent|\?key=/);
   assert.match(edge, /body\.action === "diagnose_topics"/);
   assert.match(studio, /Verificar Gemini sem gerar temas/);
-  assert.match(studio, /invokeStory\("diagnose_topics", \{\}\)/);
+  assert.match(studio, /purpose === "topics" \? "diagnose_topics" : "diagnose_script"/);
+  assert.match(edge, /body\.action === "diagnose_script"/);
+  assert.match(check, /HIST_ROTEIRO_GEMINI_API_KEY/);
+  assert.match(studio, /Verificar API de roteiros sem gerar/);
 });
 
 
@@ -159,4 +162,12 @@ test("prompt character ceilings are consistent across frontend and agents", () =
   assert.match(flow, /maximum: 1600/);
   assert.match(dreamina, /target: 650/);
   assert.match(dreamina, /maximum: 1200/);
+});
+
+
+test("timeouts and truncated responses retain distinct diagnostic errors", () => {
+  assert.match(edge, /first[.]finishReason === "MAX_TOKENS"/);
+  assert.match(edge, /"gemini_output_truncated"/);
+  assert.match(studio, /code === "gemini_output_truncated"/);
+  assert.match(edge, /code === "gemini_service_unavailable" [|][|] code === "gemini_timeout" [ ?] 503/);
 });
