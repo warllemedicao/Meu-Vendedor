@@ -557,7 +557,7 @@ export function StoriesStudio() {
             <input className={field + " mt-1"} disabled={project.status !== "draft"} value={s.transition}
               onChange={e => updateScene(i, { transition: e.target.value })}/>
           </label>
-          <p className="text-xs text-muted">Fala aproximada: {s.dialogue.reduce((n,d) => n + d.text.split(/\s+/).filter(Boolean).length, 0)}/26 palavras · tempo-alvo: 10s</p>
+          <p className="text-xs text-muted">Fala aproximada: {countStoryWords(s)}/26 palavras · tempo-alvo: 10s</p>
         </div>)}
       </div>
       {project.status === "draft" ? <div className="flex flex-wrap gap-2">
