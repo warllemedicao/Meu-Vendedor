@@ -69,6 +69,14 @@ test("Histórias topic generation uses only its dedicated server-side Gemini sec
   assert.match(edge, /Deno\.env\.get\("HIST_TEMA_GEMINI_API_KEY"\)/);
   assert.match(edge, /purpose === "topics"/);
   assert.match(edge, /}, 6000, "topics"\)/);
-  assert.match(edge, /Deno\.env\.get\("GEMINI_API_KEY"\)/);
+  assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_GEMINI_API_KEY"\)/);
+  assert.doesNotMatch(edge, /Deno\.env\.get\("GEMINI_API_KEY"\)|Deno\.env\.get\("GOOGLE_API_KEY"\)/);
   assert.doesNotMatch(studio, /HIST_TEMA_GEMINI_API_KEY/);
+});
+
+test("Scripts and prompts share only dedicated Histórias script secret", () => {
+  assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_GEMINI_API_KEY"\)/);
+  assert.match(edge, /if \(body\.action === "script"\)/);
+  assert.match(edge, /if \(body\.action === "prompts"\)/);
+  assert.doesNotMatch(studio, /HIST_ROTEIRO_GEMINI_API_KEY/);
 });
