@@ -184,3 +184,12 @@ test("legacy theme style filter limits bulk deletion to visible owner-scoped sel
   assert.match(code, /for \(let index = 0; index < ids\.length; index \+= 50\)/);
   assert.match(code, /await Promise\.all\(\[loadTopics\(\), loadProjects\(\)\]\)/);
 });
+
+test("compact theme draft list has a balanced JSX map expression", () => {
+  const begin = code.indexOf("{draftTopics.map(t => <article");
+  const end = code.indexOf("{!draftTopics.length &&", begin);
+  assert.ok(begin >= 0 && end > begin, "The compact draft list must exist");
+  const markup = code.slice(begin, end).trim();
+  assert.match(markup, /<\/article>\)\}$/);
+  assert.doesNotMatch(markup, /<\/article>\)\s*$/);
+});
