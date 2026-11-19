@@ -372,8 +372,31 @@ export function StoriesStudio() {
   const subjects = Array.from(new Set(topics.filter(t => user && t.user_id === user.id).map(t => t.subject))).sort();
   const maxPrompt = platformOptions.find(p => p.value === platform)?.maximum;
 
+  const currentStage = STORY_STAGES.findIndex(item => item.key === stage);
+  const approvedCount = clips.filter(clip => clip.approved).length;
   return <div className="space-y-6">
-    <section className={panel}>
+    <header className={panel}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="text-xl font-bold">Estúdio de Histórias</h2>
+          <p className="text-sm text-muted">Do primeiro tema à preparação da publicação, em sete etapas.</p></div>
+        <div className="text-sm font-semibold">2 min · 12 cenas · 9:16</div>
+      </div>
+      <nav aria-label="Etapas do gerador de histórias" className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        {STORY_STAGES.map((item, i) => <button type="button" key={item.key} aria-current={stage === item.key ? "step" : undefined}
+          onClick={() => { setStage(item.key); setError(""); }}
+          className={"min-h-20 rounded-xl border p-3 text-left text-sm transition-colors " +
+            (stage === item.key ? "border-primary bg-primary/10 font-semibold" : "border-border bg-surface hover:bg-surface-secondary")}>
+          <span className="mb-1 block text-xs text-muted">{String(i + 1).padStart(2, "0")} / 07</span>
+          <span className="block font-semibold">{item.title}</span>
+          <span className="block text-xs text-muted">{item.description}</span>
+        </button>)}
+      </nav>
+      {project && <p className="rounded-xl border border-border p-3 text-sm">
+        <strong>História em edição:</strong> {project.title} · {project.status === "draft" ? "Roteiro em revisão" : "Roteiro aprovado"} · {approvedCount}/12 clipes aprovados
+      </p>}
+      <p className="text-xs text-muted">A interface pode ser explorada mesmo com o Gemini indisponível. A criação manual fica identificada; nenhuma tela simula um vídeo gerado.</p>
+    </header>
+    <section className={panel} hidden={stage !== "temas"}>
       <h2 className="text-lg font-semibold">1. Assuntos e temas</h2>
       <p className="text-sm text-muted">Use Gemini Text para gerar até 1.000 ideias, em lotes de 25. Revise os resultados na próxima caixa e salve somente os temas desejados.</p>
       <label className="block text-sm font-medium">Assunto principal
@@ -400,9 +423,19 @@ export function StoriesStudio() {
         {busy && <span className="text-sm" role="status">{progress}/{requested} temas novos</span>}
       </div>
       {!user && <p className="text-sm text-muted">Entre em Conta e conexões para salvar seu catálogo privado.</p>}
+      <div className="rounded-xl border border-border p-3 space-y-2">
+        <p className="font-semibold text-sm">Quer testar a interface antes de corrigirmos a conexão Gemini?</p>
+        <p className="text-xs text-muted">Crie um roteiro manual real, com 12 cenas editáveis, sem simular conteúdo gerado por IA.</p>
+        <div className="flex flex-wrap gap-2">
+          <input className={field + " flex-1 min-w-44"} value={manualTitle} maxLength={220} onChange={e => setManualTitle(e.target.value)}
+            placeholder="Título da sua história" aria-label="Título para roteiro manual"/>
+          <button className={button} disabled={busy || !user || manualTitle.trim().length < 3}
+            onClick={() => void createManualScript(manualTitle)}>Criar roteiro manual</button>
+        </div>
+      </div>
     </section>
 
-    <section className={panel}>
+    <section className={panel} hidden={stage !== "temas"}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">2. Temas gerados — revisão ({draftTopics.length})</h2>
         <button className={button} disabled={!draftTopics.length || !!savingTopic || busy}
@@ -422,7 +455,7 @@ export function StoriesStudio() {
         {!draftTopics.length && <p className="text-sm text-muted">Os temas gerados aparecerão aqui antes de serem salvos.</p>}
       </div>
     </section>
-    <section className={panel}>
+    <section className={panel} hidden={stage !== "temas"}>
       <h2 className="text-lg font-semibold">3. Biblioteca de temas <span className="text-sm text-muted">({visibleTopics.length})</span></h2>
       <div className="flex flex-wrap gap-3">
         <input className={field + " max-w-sm"} value={query} onChange={e => setQuery(e.target.value)} placeholder="Filtrar temas e assuntos" />
@@ -440,14 +473,15 @@ export function StoriesStudio() {
             <p className="text-xs text-muted">{t.subject} · {t.genre}</p></div>
           <div className="flex shrink-0 gap-2">
             <button className={button} disabled={busy} onClick={() => void toggleSaved(t)}>{t.saved ? "Salvo ✓" : "Salvar"}</button>
-            <button className={button} disabled={busy} onClick={() => void generateScript(t)}>Gerar roteiro</button>
+            <button className={button} disabled={busy} onClick={() => void generateScript(t)}>Gerar roteiro Gemini</button>
+            <button className={button} disabled={busy} onClick={() => void createManualScript(t.title, t)}>Roteiro manual</button>
           </div>
         </div>)}
         {!visibleTopics.length && <p className="text-sm text-muted">Nenhum tema encontrado. Gere uma lista acima.</p>}
       </div>
     </section>
 
-    <section className={panel}>
+    <section className={panel} hidden={stage !== "roteiro"}>
       <h2 className="text-lg font-semibold">Projetos salvos</h2>
       <p className="text-sm text-muted">Retome um roteiro após fechar o navegador.</p>
       <div className="flex flex-wrap gap-2">
@@ -458,7 +492,12 @@ export function StoriesStudio() {
       </div>
     </section>
 
-    {project && user && project.user_id === user.id && <section className={panel}>
+    {stage === "roteiro" && !project && <section className={panel}>
+      <h2 className="font-semibold">Roteiro ainda não iniciado</h2>
+      <p className="text-sm text-muted">Na etapa Temas, selecione Gerar roteiro Gemini ou Roteiro manual para abrir um editor com 12 cenas.</p>
+      <button className={button} onClick={() => setStage("temas")}>Voltar aos temas</button>
+    </section>}
+    {stage === "roteiro" && project && user && project.user_id === user.id && <section className={panel}>
       <h2 className="text-lg font-semibold">4. Roteiro — {activeTopic?.title || project.title}</h2>
       <p className="text-sm text-muted">12 cenas × 10 segundos = 120 segundos. Os personagens e as vozes se mantêm iguais entre cenas.</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-label="Linha do tempo de 12 cenas">
@@ -527,7 +566,7 @@ export function StoriesStudio() {
       </div> : <p className="font-semibold text-sm">Roteiro aprovado e congelado para manter os prompts consistentes.</p>}
     </section>}
 
-    {project && user && project.user_id === user.id && project.status !== "draft" && <section className={panel}>
+    {stage === "prompts" && project && user && project.user_id === user.id && project.status !== "draft" && <section className={panel}>
       <h2 className="text-lg font-semibold">5. Agentes de prompt</h2>
       <label className="block text-sm font-semibold">Plataforma de geração
         <select className={field + " mt-1"} value={platform} onChange={e => { const next = e.target.value as Platform; setPlatform(next); setPrompts([]); void loadPlatformPrompts(next); }}>
@@ -554,7 +593,7 @@ export function StoriesStudio() {
       </div>)}
     </section>}
 
-    {project && user && project.user_id === user.id && <section className={panel}>
+    {stage === "cenas" && project && user && project.user_id === user.id && <section className={panel}>
       <h2 className="text-lg font-semibold">6. Biblioteca de clipes e aprovação</h2>
       <p className="text-sm text-muted">Importe um MP4 de cada cena. Os arquivos ficam em Storage privado. Montagem em 2 minutos e publicação serão habilitadas em uma etapa própria de integração.</p>
       <p className="text-sm font-semibold">{clips.filter(c => c.approved).length}/12 clipes aprovados</p>
@@ -577,7 +616,7 @@ export function StoriesStudio() {
       </div>
     </section>}
 
-    <section className={panel}>
+    <section className={panel} hidden={stage !== "publicacao"}>
       <h2 className="text-lg font-semibold">7. Preparar montagem e publicação</h2>
       <p className="text-sm text-muted">Vídeo final planejado: 12 cenas de 10s, 2 minutos, MP4 9:16 (1080 × 1920). A montagem automática e o envio direto às plataformas ainda não estão habilitados.</p>
       <label className="block text-sm">Rede de destino
