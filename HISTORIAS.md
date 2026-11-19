@@ -31,7 +31,7 @@ Função Supabase `story-studio`: autenticação obrigatória de sessão, CORS r
 - Validar os prompts de 12 cenas com personagens e regras de limite da plataforma.
 - Implementar edição avançada e prévia de imagens, retentativa/cancelamento de jobs no servidor, montagem final de 120s com sincronismo de áudio e publicadores autorizados para YouTube/TikTok/Kwai.
 - Verificar comportamento de upload de até 100 MB nas condições reais de Storage e infraestrutura.
-- Auditar referências antes de remover o antigo estúdio e sua documentação legada. `VIDEOS_IA.md` foi mantido como histórico até essa conferência.
+- Auditar referências antes de remover o antigo estúdio e sua documentação legada. `VIDEOS_IA.md` foi reduzido a um aviso de descontinuação com link para este documento; o antigo conteúdo continua acessível pelo Git.
 - Nenhum robô novo de YouTube Create/Dreamina foi criado; não há API pública confirmada nem autorização para automatizar a interface dessas plataformas.
 
 ## Publicação
