@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
+import { STORY_STAGES, PLATFORM_GUIDES, makeEmptyStoryScenes, makeLocalPromptDrafts, countStoryWords, type StoryStage } from "@/lib/stories/workflow";
 
 type Genre = "geral" | "comedia" | "suspense" | "educativo" | "aventura" | "drama";
 type Platform = "youtube-create" | "google-flow" | "dreamina";
@@ -57,6 +58,8 @@ function isScript(value: unknown): value is { characters: Character[]; scenes: S
 
 export function StoriesStudio() {
   const { user } = useAuth();
+  const [stage, setStage] = useState<StoryStage>("temas");
+  const [manualTitle, setManualTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [genre, setGenre] = useState<Genre>("geral");
   const [requested, setRequested] = useState(50);
@@ -100,7 +103,7 @@ export function StoriesStudio() {
   useEffect(() => { void Promise.resolve().then(() => Promise.all([loadTopics(), loadProjects()])); }, [loadTopics, loadProjects]);
   async function openProject(selected: Project) {
     if (!user) return;
-    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title);
+    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setStage("roteiro");
     const client = getSupabase(); if (!client) return;
     const [clipsResult, promptResult] = await Promise.all([
       client.from("mv_story_clips").select("id,scene_number,storage_path,approved").eq("user_id", user.id).eq("project_id", selected.id),
@@ -194,12 +197,56 @@ export function StoriesStudio() {
           characters: result.characters, scenes: result.scenes, status: "draft" })
         .select("id,user_id,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível salvar o roteiro.");
-      setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]);
+      setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setStage("roteiro");
       setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
       void loadProjects();
       setMessage("Roteiro criado. Revise e aprove as cenas antes de gerar prompts.");
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
+  }
+  async function createManualScript(title: string, topic?: Topic) {
+    if (!user || title.trim().length < 3) return setError("Digite um título com pelo menos 3 caracteres.");
+    const client = getSupabase(); if (!client) return;
+    setBusy(true); setError("");
+    try {
+      const scenes = makeEmptyStoryScenes();
+      const characters: Character[] = [{ name: "Personagem 1", role: "Definir função",
+        visual: "Definir aparência e roupas", voice: "Definir voz" }];
+      const { data, error: dbError } = await client.from("mv_story_projects").insert({
+        user_id: user.id, ...(topic ? { topic_id: topic.id } : {}), title: title.trim(),
+        genre: topic?.genre || genre, characters, scenes, status: "draft",
+      }).select("id,user_id,title,status,characters,scenes").single();
+      if (dbError || !data) throw new Error("Não foi possível criar o roteiro manual.");
+      setActiveTopic(topic || null); setProject(data as Project); setPrompts([]); setClips([]);
+      setPublishTitle(title.trim()); setPublishDescription(topic?.synopsis || ""); setStage("roteiro");
+      setMessage("Rascunho manual criado com 12 cenas vazias. Preencha e aprove antes de gerar prompts.");
+      void loadProjects();
+    } catch (e) { setError(plainError(e)); }
+    finally { setBusy(false); }
+  }
+  function previewLocalPrompts() {
+    if (!project || project.status === "draft") return;
+    setPrompts(makeLocalPromptDrafts(platform, project.characters, project.scenes));
+    setStage("prompts");
+    setMessage("Rascunhos locais montados a partir do roteiro, SEM Gemini. Revise os limites e salve os que desejar.");
+  }
+  function downloadProductionPlan() {
+    if (!project) return;
+    const data = { format: "Plano editorial — nenhum vídeo gerado",
+      title: project.title, aspectRatio: "9:16", targetSeconds: 120,
+      generator: platform, characters: project.characters.map(({ referenceImagePath, ...rest }) => ({
+        ...rest, referenceImage: referenceImagePath ? "Referência privada vinculada" : "Não enviada",
+      })), scenes: project.scenes,
+      prompts: prompts.map(({ scene, platform, text }) => ({ scene, platform, text })),
+      clips: project.scenes.map(scene => ({ scene: scene.number,
+        status: clips.find(clip => clip.scene_number === scene.number)?.approved ? "approved" :
+          clips.some(clip => clip.scene_number === scene.number) ? "uploaded" : "missing" })),
+      publication: { destination, title: publishTitle, description: publishDescription },
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = "historia-" + project.id.slice(0, 8) + "-planejamento.json";
+    anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 500);
   }
   function updateCharacter(index: number, changes: Partial<Character>) {
     if (!project || project.status !== "draft") return;
@@ -239,6 +286,7 @@ export function StoriesStudio() {
         .eq("id", project.id).eq("user_id", user.id);
       if (dbError) throw new Error("Não foi possível salvar o roteiro.");
       setProject({ ...project, status: approve ? "approved" : "draft" });
+      if (approve) setStage("gerador");
       void loadProjects();
       setMessage(approve ? "Roteiro aprovado. Você já pode gerar os prompts." : "Rascunho salvo.");
       setPrompts([]);
@@ -256,6 +304,7 @@ export function StoriesStudio() {
       const { error: dbError } = await client.from("mv_story_prompts").upsert(rows, { onConflict: "project_id,scene_number,platform" });
       if (dbError) throw new Error("Não foi possível salvar os prompts.");
       setPrompts(result.prompts);
+      setStage("prompts");
       setMessage("12 prompts gerados e salvos para " + platform + ".");
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
