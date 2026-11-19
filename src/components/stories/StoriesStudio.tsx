@@ -811,12 +811,12 @@ export function StoriesStudio() {
   const currentStage = STORY_STAGES.findIndex(item => item.key === stage);
   const approvedCount = clips.filter(clip => clip.approved).length;
   return <div className="space-y-6">
-    <header className={panel}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <header className={stage === "roteiro" ? "space-y-2" : panel}>
+      {stage !== "roteiro" && <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-xl font-bold">Estúdio de Histórias</h2>
           <p className="text-sm text-muted">Do primeiro tema à preparação da publicação, em sete etapas.</p></div>
         <div className="text-sm font-semibold">2 min · 12 cenas · 9:16</div>
-      </div>
+      </div>}
       <details className="rounded-xl border border-border bg-surface p-2" open={stage !== "roteiro"}>
         <summary className="cursor-pointer px-2 py-1 text-xs font-semibold">Navegação geral do projeto (abrir outras etapas)</summary>
       <nav aria-label="Etapas do gerador de histórias" className={stage === "roteiro" ? "flex flex-wrap gap-2" : "grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7"}>
@@ -830,10 +830,10 @@ export function StoriesStudio() {
         </button>)}
       </nav>
       </details>
-      {project && <p className="rounded-xl border border-border p-3 text-sm">
+      {project && stage !== "roteiro" && <p className="rounded-xl border border-border p-3 text-sm">
         <strong>História em edição:</strong> {project.title} · {project.status === "draft" ? "Roteiro em revisão" : "Roteiro aprovado"} · {approvedCount}/12 clipes aprovados
       </p>}
-      <p className="text-xs text-muted">A interface pode ser explorada mesmo com o Gemini indisponível. A criação manual fica identificada; nenhuma tela simula um vídeo gerado.</p>
+      {stage !== "roteiro" && <p className="text-xs text-muted">A interface pode ser explorada mesmo com o Gemini indisponível. A criação manual fica identificada; nenhuma tela simula um vídeo gerado.</p>}
     </header>
     <section className={panel} hidden={stage !== "temas"}>
       <h2 className="text-lg font-semibold">1. Assuntos e temas</h2>
@@ -942,16 +942,12 @@ export function StoriesStudio() {
       <button className={button} onClick={() => setStage("temas")}>Voltar aos temas</button>
     </section>}
     {stage === "roteiro" && project && user && project.user_id === user.id && <section className={panel}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Estúdio de histórias · quadro de produção</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold truncate">{activeTopic?.title || project.title}</h2>
-          <p className="text-xs text-muted">Cena {expandedScene} de 12 · 10 segundos por cena · mantenha seus personagens iguais</p>
+          <p className="text-xs text-muted">Cena {expandedScene}/12 · 10s por cena · {project.scenes.filter(s => s.action.trim() && s.setting.trim()).length} prontas</p>
         </div>
-        <div className="rounded-xl bg-primary/10 border border-primary/30 px-4 py-2 text-center">
-          <span className="block text-lg font-bold">{project.scenes.filter(s => s.action.trim() && s.setting.trim()).length}/12</span>
-          <span className="text-xs">roteiros criados</span>
-        </div>
+        <button type="button" className={button + " shrink-0 !px-2 !py-1 !text-xs"} onClick={() => setStage("temas")}>Temas</button>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-surface-secondary" aria-label="Progresso das cenas geradas">
         <div className="h-full rounded-full bg-primary" style={{ width: project.scenes.filter(s => s.action.trim() && s.setting.trim()).length / 12 * 100 + "%" }}/>
@@ -965,16 +961,6 @@ export function StoriesStudio() {
             Cena {s.number} {s.action.trim() && s.setting.trim() ? "✓" : "· pendente"}
           </button>)}
       </nav>
-      <details className="rounded-xl border border-border bg-surface-secondary/40 px-3 py-2">
-        <summary className="cursor-pointer text-xs font-semibold">Mostrar todas as 12 cenas e pendências</summary>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-3">
-          {project.scenes.map(s => <button key={s.number} type="button" onClick={() => selectWorkbenchScene(s.number)}
-            className={"rounded-lg border px-2 py-2 text-xs " +
-              (expandedScene === s.number ? "border-primary bg-primary/10" : "border-border bg-surface")}>
-            Cena {s.number} · {s.action.trim() && s.setting.trim() ? "Pronta" : "Pendente"}
-          </button>)}
-        </div>
-      </details>
       <div className="rounded-2xl border border-border bg-surface-secondary/30 p-3 space-y-3">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Etapas da cena selecionada">
           {([
@@ -987,7 +973,7 @@ export function StoriesStudio() {
                 (sceneWorkbenchStep === step ? "bg-primary text-primary-foreground" : "border border-border bg-surface hover:bg-surface-secondary")}
               onClick={() => setSceneWorkbenchStep(step)}>{label}</button>)}
         </div>
-        {project.status === "draft" && <details className="rounded-xl border border-border p-2">
+        {sceneWorkbenchStep === "roteiro" && project.status === "draft" && <details className="rounded-xl border border-border p-2">
           <summary className="cursor-pointer text-xs font-semibold">Opções avançadas de geração (manual, pode consumir cota)</summary>
           <div className="flex flex-wrap gap-2 pt-3">
             <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())}
@@ -1010,11 +996,7 @@ export function StoriesStudio() {
             onChange={e => {const files=e.currentTarget.files; void uploadCharacterBatch(files); e.currentTarget.value="";}}/>
           <span className="block mt-1 text-xs font-normal text-muted">PNG, JPG e WebP, até 10 MB por arquivo. Não substitui imagens já vinculadas.</span>
         </label>}
-        <details className="rounded-xl border border-border p-2" open>
-          <summary className="cursor-pointer text-sm font-semibold">Criar imagem com Nano Banana</summary>
-          <p className="text-xs text-muted pt-2">Para gerar, abra a ficha do personagem abaixo. A descrição e o botão ficam dentro da ficha. Se a API não estiver configurada, use envio manual.</p>
-          {project.characters.length > 0 && <button className={button + " mt-2"} onClick={() => setMessage("Abra a ficha de um personagem abaixo para definir o nome e gerar a imagem.")}>Preparar personagem</button>}
-        </details>
+        <p className="text-xs text-muted">Para gerar imagem, abra a ficha do personagem abaixo. O campo de descrição e o botão Nano Banana estarão lá.</p>
         {project.characters.map((char, ci) => <details key={ci} open={ci === 0 ? true : undefined} className="rounded-xl border border-border p-3 text-sm">
           <summary className="cursor-pointer flex items-center gap-3 font-semibold">
             {char.referenceImagePath && (characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]) &&
@@ -1154,8 +1136,9 @@ export function StoriesStudio() {
               </label>
               <p className="text-xs text-muted sm:col-span-2">Fala: {countStoryWords(s)}/26 palavras · 10 segundos</p>
               {!filled && project.status === "draft" && <div className="flex flex-wrap items-center gap-2">
-                <button className={button} disabled={busy} onClick={() => void generateNextScene()}>Gerar cena {s.number} com Gemini</button>
-                <span className="text-xs text-muted">Se falhar, use o editor manual acima ou a opção Flash-Lite em opções avançadas.</span>
+                <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy} onClick={() => void generateNextScene()}>Gerar cena {s.number} · Gemini Flash</button>
+                <button className={button} disabled={busy} onClick={() => void generateNextSceneLite()}>Tentar Flash-Lite</button>
+                <span className="text-xs text-muted">Se houver erro 503, o Google está indisponível. A cena anterior continua salva. Nenhuma tentativa automática é feita.</span>
               </div>}
               <div className="flex flex-wrap gap-2">
                 <button className={button} disabled={busy || project.status !== "draft"} onClick={() => void saveScript(false)}>Salvar roteiro desta cena</button>
