@@ -102,13 +102,14 @@ async function diagnoseModelConnection(purpose: "topics" | "script") {
     throw error;
   } finally { clearTimeout(timeout); }
 }
-async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8192, purpose: "topics" | "script" = "script"): Promise<unknown> {
+async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8192, purpose: "topics" | "script" = "script", scriptModel: "primary" | "flash-lite" = "primary"): Promise<unknown> {
   // Topics use HIST_TEMA; scripts and prompts use HIST_ROTEIRO, without cross-purpose fallback.
   const key = purpose === "topics"
     ? Deno.env.get("HIST_TEMA_GEMINI_API_KEY")
     : Deno.env.get("HIST_ROTEIRO_GEMINI_API_KEY");
   if (!key) throw new Error("gemini_not_configured");
-  const model = purpose === "topics" ? TOPICS_MODEL : SCRIPT_MODEL;
+  let model = purpose === "topics" ? TOPICS_MODEL : SCRIPT_MODEL;
+  if (purpose === "script" && scriptModel === "flash-lite") model = TOPICS_MODEL;
   const started = Date.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
@@ -323,7 +324,7 @@ Deno.serve(async (request) => {
           : "Continue a história produzindo somente a cena solicitada, com duração de 10 segundos. Responda JSON {scene:{title,setting,action,characters:[nomes],dialogue:[{speaker,text}],transition}}. Use exclusivamente os personagens e vozes da ficha fornecida. Preserve a sequência das cenas anteriores; 1 ação principal, ambiente até 160 caracteres, ação até 300 e no máximo 22 palavras de fala em português brasileiro. Planeje um desfecho completo na cena 12. Não repita cenas já escritas e não acrescente outros campos.",
         { title, synopsis, genre, sceneNumber, totalScenes: 12, characters,
           previousScenes, phase: sceneNumber <= 3 ? "apresentação" : sceneNumber <= 9 ? "desenvolvimento e conflito" : "resolução e encerramento" },
-        first ? 2600 : 1800, "script");
+        first ? 2600 : 1800, "script", body.scriptModel === "flash-lite" ? "flash-lite" : "primary");
       if (!record(response)) throw new Error("scene_invalid");
       const roster = first ? response.characters : characters;
       if (!Array.isArray(roster) || roster.length < 1 || roster.length > 4) throw new Error("character_incomplete");
