@@ -30,8 +30,21 @@ const button = "rounded-xl border border-border bg-surface px-4 py-2 text-sm fon
 const field = "w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm";
 const panel = "rounded-2xl border border-border bg-surface p-4 space-y-4";
 const plainError = (error: unknown): string => error instanceof Error ? error.message : "Não foi possível concluir a operação.";
+const geminiCooldowns = new Map<"topics" | "script", number>();
+function generationScope(action: string): "topics" | "script" | null {
+  if (action === "topics") return "topics";
+  if (action === "script" || action === "prompts") return "script";
+  return null;
+}
+
 
 async function invokeStory(action: string, payload: Record<string, unknown>) {
+  const scope = generationScope(action);
+  if (scope) {
+    const remaining = (geminiCooldowns.get(scope) || 0) - Date.now();
+    if (remaining > 0) throw new Error("O Gemini apresentou instabilidade nesta ferramenta. Aguarde " +
+      Math.ceil(remaining / 1000) + " segundos antes de uma nova solicitação; a tentativa não foi enviada.");
+  }
   const client = getSupabase();
   if (!client) throw new Error("O Supabase não está configurado neste navegador.");
   const { data: { session } } = await client.auth.getSession();
@@ -46,6 +59,9 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
   const data: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
     const code = typeof data === "object" && data && "error" in data ? String(data.error) : String(res.status);
+    if (scope && (code === "gemini_service_unavailable" || code === "gemini_timeout")) {
+      geminiCooldowns.set(scope, Date.now() + (code === "gemini_timeout" ? 120_000 : 90_000));
+    }
     if (code === "gemini_billing_required") {
       throw new Error("A API Gemini retornou HTTP 402: saldo ou configuração de cobrança necessária. Não foi possível gerar temas com esta chave. Você pode criar um roteiro manual enquanto verifica sua franquia no Google AI Studio.");
     }
@@ -58,6 +74,7 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
     }
     throw new Error("Serviço de Histórias: " + code);
   }
+  if (scope) geminiCooldowns.delete(scope);
   return data;
 }
 function isScript(value: unknown): value is { characters: Character[]; scenes: Scene[] } {
