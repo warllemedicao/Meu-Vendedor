@@ -811,7 +811,7 @@ export function StoriesStudio() {
   const currentStage = STORY_STAGES.findIndex(item => item.key === stage);
   const approvedCount = clips.filter(clip => clip.approved).length;
   return <div className="space-y-6">
-    <header className={stage === "roteiro" ? "space-y-2" : panel}>
+    {stage !== "roteiro" && <header className={panel}>
       {stage !== "roteiro" && <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-xl font-bold">Estúdio de Histórias</h2>
           <p className="text-sm text-muted">Do primeiro tema à preparação da publicação, em sete etapas.</p></div>
@@ -834,7 +834,7 @@ export function StoriesStudio() {
         <strong>História em edição:</strong> {project.title} · {project.status === "draft" ? "Roteiro em revisão" : "Roteiro aprovado"} · {approvedCount}/12 clipes aprovados
       </p>}
       {stage !== "roteiro" && <p className="text-xs text-muted">A interface pode ser explorada mesmo com o Gemini indisponível. A criação manual fica identificada; nenhuma tela simula um vídeo gerado.</p>}
-    </header>
+    </header>}
     <section className={panel} hidden={stage !== "temas"}>
       <h2 className="text-lg font-semibold">1. Assuntos e temas</h2>
       <p className="text-sm text-muted">Selecione de 5 a 20 temas por geração. O padrão é 5 temas. Revise os resultados antes de salvar.</p>
@@ -1081,7 +1081,7 @@ export function StoriesStudio() {
         </div>
       </div>
       }
-      <div className="space-y-2">
+      {sceneWorkbenchStep !== "personagens" && <div className="space-y-2">
         {project.scenes.filter(s => s.number === expandedScene).map(s => {
           const i = s.number - 1;
           const filled = Boolean(s.setting.trim() && s.action.trim());
@@ -1216,7 +1216,7 @@ export function StoriesStudio() {
             </div>}
           </div>;
         })}
-      </div>
+      </div>}
       {project.status === "draft" ? <details className="rounded-xl border border-border p-3"><summary className="cursor-pointer text-sm font-semibold">Opções de roteiro completo</summary><div className="flex flex-wrap gap-2 pt-3">
         <button className={button} disabled={busy} onClick={() => void saveScript(false)}>Salvar alterações</button>
         <button className={button} disabled={busy} onClick={() => void saveScript(true)}>Aprovar roteiro e liberar prompts</button>
