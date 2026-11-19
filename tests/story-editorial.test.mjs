@@ -171,3 +171,16 @@ test("topic lists are compact and show the title without duplicate synopses", ()
   assert.ok(draftStart >= 0 && draftEnd > draftStart);
   assert.doesNotMatch(code.slice(draftStart, draftEnd), /\{t\.synopsis\}/);
 });
+
+test("legacy theme style filter limits bulk deletion to visible owner-scoped selections", () => {
+  assert.match(code, /characterStyleFilter, setCharacterStyleFilter/);
+  assert.match(code, /characterStyleFilter === "todos" \|\|/);
+  assert.match(code, /value="nao_definido">Sem estilo \(antigos\)/);
+  assert.match(code, /const selectedVisibleCount = visibleTopics\.filter/);
+  assert.match(code, /const allVisibleSelected = visibleTopics\.length > 0/);
+  assert.match(code, /const checked = e\.target\.checked/);
+  assert.match(code, /current\.filter\(id => !visibleIds\.has\(id\)\)/);
+  assert.match(code, /topics\.some\(topic => topic\.id === id && topic\.user_id === user\.id\)/);
+  assert.match(code, /for \(let index = 0; index < ids\.length; index \+= 50\)/);
+  assert.match(code, /await Promise\.all\(\[loadTopics\(\), loadProjects\(\)\]\)/);
+});
