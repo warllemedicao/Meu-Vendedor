@@ -75,7 +75,7 @@ test("every completed scene supports separate video provider, prompt and downloa
   assert.match(code, /saveScenePrompt\(s\.number\)/);
   assert.match(code, /downloadTextFile\("cena-" \+ s\.number/);
   assert.match(code, /downloadReference\(char\.referenceImagePath!/);
-  assert.match(code, /Gerar próxima cena com Gemini/);
+  assert.match(code, /Gerar cena \{s\.number\} com Gemini/);
   assert.match(code, /Falha ao consultar prompt anterior. Nenhum crédito Gemini foi utilizado/);
 });
 
@@ -84,4 +84,25 @@ test("save partial scene drafts without requiring all twelve scenes to be filled
   assert.match(code, /project\.scenes\.filter\(s => s\.action\.trim\(\) \|\| s\.setting\.trim\(\)\)/);
   assert.match(code, /Rascunho salvo/);
   assert.match(code, /Aprovar roteiro e liberar prompts/);
+});
+
+test("single scene studio keeps future scenes hidden and avoids duplicate next-stage controls", () => {
+  assert.match(code, /project\.scenes\.filter\(s => s\.number === expandedScene\)\.map/);
+  assert.match(code, /Mostrar todas as 12 cenas e pendências/);
+  assert.match(code, /sceneWorkbenchStep === "personagens"/);
+  assert.match(code, /sceneWorkbenchStep === "prompt"/);
+  assert.match(code, /Concluir preparação · Ir para cena/);
+  assert.match(code, /stage !== "roteiro" && <footer/);
+  assert.doesNotMatch(code, /Ir adiante: gerar próxima cena/);
+  assert.match(code, /async function advanceToNextScene\(sceneNumber: number\)/);
+  assert.match(code, /if \(promptSaveError\) throw new Error/);
+  assert.match(code, /await generateOneScene\(project\)/);
+});
+
+test("story prompt download enforces platform cap and tells the user what to do after copying", () => {
+  assert.match(code, /Array\.from\(scenePromptText\)\.length > PLATFORM_GUIDES\[chosenPlatform\]\.absoluteChars/);
+  assert.match(code, /copyScenePrompt\(s\.number, chosenPlatform, scenePromptText\)/);
+  assert.match(code, /Prompt copiado\. Agora crie o vídeo/);
+  assert.match(code, /Importar MP4 desta cena/);
+  assert.match(code, /prepareScenePrompt\(s\.number, false\)/);
 });
