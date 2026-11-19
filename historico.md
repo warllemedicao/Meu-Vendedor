@@ -1,3 +1,12 @@
+## 19/11/2026 — Incidente real: primeira cena Gemini 3.5 Flash excede 60 segundos
+
+- Novo relato do usuário após frontend publicado: `O Google Gemini não respondeu em até 60 segundos` ao gerar a cena. Consulta de logs Supabase do período 17:30–20:00 UTC encontrou evento em **2026-11-19 19:19:35 UTC**: `story_studio_gemini_transport_error`, `reason=gemini_timeout`, `purpose=script`, `model=gemini-3.5-flash`, `elapsedMs=60002`, `timeoutMs=60000`, POST /story-studio 503. Evidência: a resposta do serviço Google não foi recebida antes da interrupção; **não há prova da causa interna do Google**.
+- No mesmo dia, chamadas de **temas** ao `gemini-3.5-flash-lite` concluíram em 1636–1949 ms com HTTP 200 e `finishReason=STOP`, enquanto a consulta `GetModel` do Flash mostrou `supportsGeneration=true`. Metadados funcionando não garantem inferência rápida.
+- Projeto de roteiro fica persistido antes de chamar a API, para que o usuário possa reabrir e retomar a primeira cena sem duplicar projetos nem desperdiçar conteúdo salvo. Não habilitar retentativas automáticas após timeout.
+- Implementada alternativa **opt-in** `Gerar próxima cena com Flash-Lite (alternativa)`: o frontend envia `scriptModel=flash-lite` somente na requisição explicitamente acionada pelo usuário; backend seleciona `gemini-3.5-flash-lite` mas usa exclusivamente `HIST_ROTEIRO_GEMINI_API_KEY` para essa finalidade, sem reutilizar o segredo de temas e sem alterar o modelo dos prompts. O caminho padrão `gemini-3.5-flash` permanece disponível. Novo teste de contrato adicionado.
+- Supabase `story-studio` **v23 ACTIVE**, JWT obrigatório. Nenhuma chamada de geração real foi executada nesta correção. A alternativa ainda precisa de validação funcional e publicação do frontend, e **não há garantia de que o Flash-Lite responderá** a roteiros usando a chave reservada aos roteiros.
+- A investigação e correção não modificaram chaves de API, robô Google Flow, imagens IMAGEM1/2/3, tabelas nem outros módulos.
+
 ## 19/11/2026 — Correção dos 3 testes vermelhos da validação Histórias
 
 - Log do usuário do GitHub Actions `Validate Histórias (no deployment)`: **371 testes, 368 aprovados e 3 falhas**, todas no arquivo `tests/story-studio.test.mjs`. A execução parou em `npm test`, antes de TypeScript, lint e build.
