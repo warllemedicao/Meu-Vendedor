@@ -1,3 +1,11 @@
+## 19/11/2026 — Nova falha GitHub Actions: TypeScript TS2367 no cabeçalho condicional
+
+- Execução fornecida pelo usuário: run `44614995846`, job `135881186764`. Lidos logs e etapas reais: `npm test` **passou**, mas `Typecheck frontend` **falhou com 8 erros TS2367** em `src/components/stories/StoriesStudio.tsx`, linhas originais 815, 820, 822, 825, 827, 829, 833 e 836. Typecheck Edge Functions, lint e build ficaram sem execução após o erro.
+- Causa precisa: o cabeçalho já estava condicionado por `stage !== "roteiro"`, mas possuía comparações redundantes `stage === "roteiro"` e `stage !== "roteiro"` no mesmo bloco. O TypeScript corretamente restringiu o tipo e rejeitou comparações impossíveis.
+- Corrigido reestruturando **somente o cabeçalho de navegação geral**: quando a etapa é roteiro, não aparece; nas demais etapas, o conteúdo usa classes fixas sem comparações impossíveis. Nenhuma lógica de geração Gemini, salvamento, autenticação ou upload de imagens foi alterada.
+- Adicionado teste de regressão em `tests/story-editorial.test.mjs` que exige única condição externa de exibição e proíbe verificações internas desnecessárias contra `roteiro`.
+- **Necessário confirmar a próxima execução completa do workflow**; não declarar CI aprovado com base apenas na revisão do código. Robô Google Flow e arquivos IMAGEM1/2/3 permanecem intocados.
+
 ## 19/11/2026 — Falha real na validação Histórias: assertions de rótulos antigos
 
 - Usuário informou falha do GitHub Actions: run `44613428956`, job `135875687826` (`Validate Histórias (no deployment)`). Logs do job foram lidos integralmente. O passo `Run all tests` falhou com **duas assertions de texto obsoletas**; `Typecheck frontend`, `Typecheck Edge Functions`, `Lint` e `Build static frontend` ficaram `skipped`.
