@@ -5,6 +5,14 @@ on:
       - feat/historias-gemini-studio
       - feat/historias-editorial-completo
       - feat/historias-wizard-interface
+      - main
+    paths:
+      - "src/components/stories/**"
+      - "src/lib/stories/**"
+      - "supabase/functions/story-studio/**"
+      - "supabase/migrations/*story*"
+      - "tests/story-*.test.mjs"
+      - ".github/workflows/stories-validation.yml"
   workflow_dispatch:
 
 permissions:
