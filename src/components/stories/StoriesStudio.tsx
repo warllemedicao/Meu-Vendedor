@@ -1306,13 +1306,13 @@ export function StoriesStudio() {
         <p className="text-muted">O botão de copiar não publica nada na rede social. A publicação automática depende de integrações e permissões futuras.</p>
       </div>
     </section>
-    <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4" hidden={stage === "roteiro"}>
+    {stage !== "roteiro" && <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
       <button className={button} disabled={currentStage === 0}
         onClick={() => setStage(STORY_STAGES[Math.max(0, currentStage - 1)].key)}>Etapa anterior</button>
       <span className="text-sm text-muted">Etapa {currentStage + 1} de 7 — {STORY_STAGES[currentStage].title}</span>
       <button className={button} disabled={currentStage === STORY_STAGES.length - 1}
         onClick={() => setStage(STORY_STAGES[Math.min(STORY_STAGES.length - 1, currentStage + 1)].key)}>Próxima etapa</button>
-    </footer>
+    </footer>}
     {error && <p role="alert" className="rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
     {message && <p role="status" className="rounded-xl border border-border p-3 text-sm">{message}</p>}
   </div>;
