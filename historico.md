@@ -1,3 +1,12 @@
+## 19/11/2026 — Complemento da produção cena a cena: rascunhos parciais e verificações
+
+- Corrigido `saveScript(false)`: agora permite **salvar projetos com apenas 1 a 11 cenas completas**, respeitando a numeração, personagens e falas das cenas preenchidas. Somente `saveScript(true)` exige as 12 cenas completas para a aprovação final. Antes, a validação de todas as cenas bloqueava a edição incremental.
+- Modelos de descrição de personagens originais incluídos na UI como presets textuais iniciais; **não são imagens pré-geradas**. Dados de imagem guardam nome, descrição e prompt; upload manual e seleção de biblioteca não exigem a chave de imagem. Nomes e prompts de nova imagem são independentes por personagem.
+- Evitado consumo Gemini quando a busca por prompt previamente salvo falhar; imagens de biblioteca são reutilizadas sem duplicar registros ou alterar os nomes dos personagens no roteiro. Upload atualiza o projeto e a biblioteca imediatamente, sem esperar a aprovação do roteiro.
+- Corrigida migração GitHub para a versão realmente aplicada no Supabase: `20261119183537_story_character_library.sql`; arquivo de versão divergente removido. Foram confirmadas as quatro políticas de RLS e a Edge Function `story-studio` v22 ACTIVE (imagem condicionada a `HIST_IMAGEM_GEMINI_API_KEY`).
+- Ajustado workflow `Validate Histórias (no deployment)` para validar também alterações na `main` relativas a Histórias. Ele executa testes, typecheck frontend/Edge, lint e build, **sem fazer deploy**. O resultado de execução do workflow e o frontend Cloudflare **ainda não foram confirmados**.
+- Passaram 14 verificações estáticas pontuais dos caminhos de UI, chaves, payloads, referências, downloads e RLS. **Nenhuma geração externa, vídeo ou teste autenticado foi executado**, portanto não foi comprovada disponibilidade nem preço do Nano Banana nesta conta.
+
 ## 19/11/2026 — Histórias: produção cena a cena, biblioteca privada de personagens e prompts por plataforma
 
 - Fluxo reorganizado para o usuário trabalhar na **cena 1 imediatamente após sua geração**, sem esperar as 12 cenas. Dentro de cada cena preenchida: revisar o roteiro, escolher referências visuais da Biblioteca de Personagens, selecionar YouTube Create, Google Flow ou Dreamina **individualmente para aquela cena**, montar prompt local sem IA ou gerar um prompt com Gemini, editar, salvar, copiar e **baixar prompt .txt e as imagens de referência privadas**. O usuário gera o vídeo manualmente na ferramenta desejada e pode seguir para a cena seguinte.
