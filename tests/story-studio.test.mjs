@@ -238,3 +238,14 @@ test("prompt scene receives reference-presence metadata, not private image paths
   assert.match(schema, /user_id = \(select auth\.uid\(\)\)/);
   assert.match(schema, /split_part\(storage_path, '\/', 1\)/);
 });
+
+test("optional Flash-Lite scene route uses the script key and does not borrow topic secret", () => {
+  const geminiClient = edge.split("async function gemini(")[1]?.split("async function generateCharacterImage(")[0] || "";
+  assert.match(geminiClient, /scriptModel: "primary" \| "flash-lite" = "primary"/);
+  assert.match(geminiClient, /purpose === "script" && scriptModel === "flash-lite"/);
+  assert.match(geminiClient, /Deno\.env\.get\("HIST_ROTEIRO_GEMINI_API_KEY"\)/);
+  assert.match(edge, /body\.scriptModel === "flash-lite" \? "flash-lite" : "primary"/);
+  assert.match(studio, /generateOneScene\(project, undefined, "flash-lite"\)/);
+  assert.match(studio, /Gerar próxima cena com Flash-Lite \(alternativa\)/);
+  assert.doesNotMatch(studio, /HIST_TEMA_GEMINI_API_KEY/);
+});
