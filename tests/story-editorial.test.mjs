@@ -56,3 +56,25 @@ test("compact script editor displays saved scene content and collapses others", 
   assert.match(code, /value=\{s\.dialogue\.map/);
   assert.match(code, /value=\{s\.transition\}/);
 });
+
+test("story character library can upload, reuse, rename, generate optionally and download privately", () => {
+  for (const needle of ["loadCharacterLibrary", "mv_story_characters", "mv-story-images",
+    "chooseLibraryImage", "renameLibraryCharacter", "uploadReference", "generateCharacterReference",
+    "downloadReference", "HIST_IMAGEM_GEMINI_API_KEY"]) {
+    assert.ok(code.includes(needle), "Missing " + needle);
+  }
+  assert.match(code, /createSignedUrl\(entry\.storage_path, 600\)/);
+  assert.match(code, /\.eq\("id", project\.id\)\.eq\("user_id", user\.id\)/);
+  assert.match(code, /referenc[eE]ImagePath/);
+});
+
+test("every completed scene supports separate video provider, prompt and downloads", () => {
+  assert.match(code, /selectedPlatformByScene\[s\.number\]/);
+  assert.match(code, /prepareScenePrompt\(s\.number, false\)/);
+  assert.match(code, /prepareScenePrompt\(s\.number, true\)/);
+  assert.match(code, /saveScenePrompt\(s\.number\)/);
+  assert.match(code, /downloadTextFile\("cena-" \+ s\.number/);
+  assert.match(code, /downloadReference\(char\.referenceImagePath!/);
+  assert.match(code, /Gerar próxima cena com Gemini/);
+  assert.match(code, /Falha ao consultar prompt anterior. Nenhum crédito Gemini foi utilizado/);
+});
