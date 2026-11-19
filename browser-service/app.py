@@ -77,6 +77,8 @@ def selected_chrome_profile():
     return str(PROFILE_ROOT / "flow-accounts" / selected)
 
 
+# Read-only enrollment monitor. No credentials, cookies, emails or tokens read.
+account_login_state = {"active": False, "profile": None, "confirmations": 0}
 MAX_MANUAL_VIDEO_BYTES = 100 * 1024 * 1024
 
 
@@ -351,6 +353,51 @@ async def create_flow_account(request: Request):
         return {**config, "browserRunning": False}
 
 
+@app.get("/session/accounts/login-status")
+async def flow_account_login_status(request: Request):
+    """Confirm a real Google Account landing page, never a login form."""
+    authorize(request)
+    if not account_login_state["active"]:
+        return {"confirmed": False, "reason": "not_enrolling"}
+    if not chrome_running():
+        account_login_state["confirmations"] = 0
+        return {"confirmed": False, "reason": "browser_not_running"}
+    async with lock:
+        if account_login_state["profile"] != read_flow_accounts()["selected"]:
+            return {"confirmed": False, "reason": "profile_changed"}
+        try:
+            async with async_playwright() as pw:
+                browser = await pw.chromium.connect_over_cdp(
+                    "http://127.0.0.1:9222", timeout=8000)
+                try:
+                    pages = [p for context in browser.contexts for p in context.pages if not p.is_closed()]
+                    # The ServiceLogin continue URL points to myaccount.google.com.
+                    # Reaching the protected account site indicates Google accepted
+                    # the login; Google itself handles passwords and 2FA.
+                    authenticated = any(
+                        urlsplit(p.url).hostname == "myaccount.google.com"
+                        and urlsplit(p.url).path not in ("/signin", "/ServiceLogin")
+                        for p in pages
+                    )
+                finally:
+                    await browser.close()
+        except Exception:
+            account_login_state["confirmations"] = 0
+            return {"confirmed": False, "reason": "checking"}
+        if authenticated:
+            account_login_state["confirmations"] += 1
+        else:
+            account_login_state["confirmations"] = 0
+        confirmed = account_login_state["confirmations"] >= 2
+        if confirmed:
+            print("mv_account_login_verified " + __import__("json").dumps({
+                "verified": True, "mode": "google_account_landing",
+                "profile": "isolated" if account_login_state["profile"] != "primary" else "primary"
+            }), flush=True)
+        return {"confirmed": confirmed, "reason": "authenticated" if confirmed
+                else "awaiting_google_login"}
+
+
 @app.post("/session/accounts/select")
 async def select_flow_account(request: Request):
     authorize(request)
@@ -379,6 +426,7 @@ def chrome_running():
 
 async def stop_browser():
     global chrome_process, browser_monitor_task
+    account_login_state.update({"active": False, "profile": None, "confirmations": 0})
     view_tickets.clear()
     for ticket_info in video_download_tickets.values():
         try:
@@ -419,6 +467,8 @@ async def start(request: Request):
     if not isinstance(payload, dict) or payload.get("purpose", "flow") not in ("flow", "account_login"):
         raise HTTPException(400, "invalid_browser_purpose")
     login_only = payload.get("purpose") == "account_login"
+    if login_only and read_flow_accounts()["selected"] == "primary":
+        raise HTTPException(409, "account_setup_required")
     async with lock:
         if chrome_running():
             record_event("chrome_already_running")
@@ -426,6 +476,11 @@ async def start(request: Request):
         if chrome_process is not None:
             await stop_browser()
         try:
+            account_login_state.update({
+                "active": login_only,
+                "profile": read_flow_accounts()["selected"] if login_only else None,
+                "confirmations": 0
+            })
             os.makedirs(selected_chrome_profile(), mode=0o700, exist_ok=True)
             os.makedirs(DOWNLOAD_DIR, mode=0o700, exist_ok=True)
             # Open a regular Chrome GUI independently of Playwright.
@@ -437,7 +492,7 @@ async def start(request: Request):
                 "--window-size=1280,800",
                 "--download-default-directory=" + DOWNLOAD_DIR,
                 "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=9222",
-                "https://accounts.google.com/ServiceLogin" if login_only else "https://flow.google.com/"
+                "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmyaccount.google.com%2F" if login_only else "https://flow.google.com/"
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             await asyncio.sleep(2)
             if chrome_running():
