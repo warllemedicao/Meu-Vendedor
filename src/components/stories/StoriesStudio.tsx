@@ -949,6 +949,16 @@ export function StoriesStudio() {
         </div>
         <button type="button" className={button + " shrink-0 !px-2 !py-1 !text-xs"} onClick={() => setStage("temas")}>Temas</button>
       </div>
+      {project.status === "draft" && project.scenes.some(s => !s.action.trim() || !s.setting.trim()) &&
+        <div className="flex flex-wrap items-center gap-2">
+          <button className={button + " !px-3 !py-1.5"} disabled={busy}
+            onClick={() => void generateRemainingScenes()}>Gerar cenas restantes</button>
+          {busy && sceneProgress && <button className={button + " !px-3 !py-1.5"}
+            onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
+          <span className="text-xs text-muted">Uma por vez, sem repetir erros. Consome cota Gemini.</span>
+        </div>}
+      {error && <p role="alert" className="rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
+      {message && <p role="status" className="rounded-xl border border-border p-2 text-xs">{message}</p>}
       <div className="h-1.5 overflow-hidden rounded-full bg-surface-secondary" aria-label="Progresso das cenas geradas">
         <div className="h-full rounded-full bg-primary" style={{ width: project.scenes.filter(s => s.action.trim() && s.setting.trim()).length / 12 * 100 + "%" }}/>
       </div>
@@ -978,9 +988,7 @@ export function StoriesStudio() {
           <div className="flex flex-wrap gap-2 pt-3">
             <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())}
               onClick={() => void generateNextSceneLite()}>Tentar cena pendente com Flash-Lite</button>
-            <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())}
-              onClick={() => void generateRemainingScenes()}>Gerar todas as pendentes em sequência</button>
-            {busy && sceneProgress && <button className={button} onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
+            <span className="text-xs text-muted">A geração de cenas restantes está disponível no topo do quadro.</span>
           </div>
           <p className="text-xs text-muted pt-2">Uma cena por chamada, sem retentativa após erro. Se a IA falhar, você pode editar manualmente. Nenhuma chave de temas é reutilizada.</p>
         </details>}
@@ -1381,7 +1389,7 @@ export function StoriesStudio() {
       <button className={button} disabled={currentStage === STORY_STAGES.length - 1}
         onClick={() => setStage(STORY_STAGES[Math.min(STORY_STAGES.length - 1, currentStage + 1)].key)}>Próxima etapa</button>
     </footer>}
-    {error && <p role="alert" className="rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
-    {message && <p role="status" className="rounded-xl border border-border p-3 text-sm">{message}</p>}
+    {stage !== "roteiro" && error && <p role="alert" className="rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
+    {stage !== "roteiro" && message && <p role="status" className="rounded-xl border border-border p-3 text-sm">{message}</p>}
   </div>;
 }
