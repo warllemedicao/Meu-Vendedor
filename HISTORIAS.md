@@ -1,3 +1,11 @@
+## 19/11/2026 — Histórias: Secret exclusivo para geração de temas
+
+- A função `story-studio` passa a obter a credencial de `action: "topics"` exclusivamente de `HIST_TEMA_GEMINI_API_KEY`. Não há fallback para `GEMINI_API_KEY` nem `GOOGLE_API_KEY` nessa ação.
+- Geração de roteiro (`script`) e prompts (`prompts`) permanecem com as credenciais legadas por enquanto; a chave dedicada futura para roteiro/prompts depende de outra etapa autorizada.
+- O responsável cadastrará o novo Secret diretamente no Supabase, sem enviar nem versionar o valor da chave. O código isoladamente não ativa a nova configuração até que a Edge Function seja publicada e o Secret esteja disponível.
+- Alterações restritas ao módulo Histórias, ao teste e à documentação. Robô Google Flow, IMAGEM1, IMAGEM2, IMAGEM3, demais provedores, login Google e Produto preservados.
+- Validação de integração autenticada e teste real do Google dependem do novo Secret. Não houve execução de geração real neste commit.
+
 # Histórias — módulo independente do Meu Vendedor
 
 ## Estado atual
