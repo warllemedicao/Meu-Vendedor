@@ -101,3 +101,13 @@ test("topic generator defaults to 5 themes, caps at 20 and displays errors next 
 test("story topics backend refuses counts above 20", () => {
   assert.match(edge, /count < 1 \|\| count > 20/);
 });
+
+test("Gemini transport errors are classified without logging sensitive details", () => {
+  assert.match(edge, /controller\.signal\.aborted/);
+  assert.match(edge, /reason: "gemini_timeout"/);
+  assert.match(edge, /reason: "gemini_network_error"/);
+  assert.match(edge, /"gemini_timeout","gemini_network_error"/);
+  assert.match(studio, /code === "gemini_timeout"/);
+  assert.match(studio, /code === "gemini_network_error"/);
+  assert.doesNotMatch(edge, /console\.error\([^\n]*\berror\b/);
+});
