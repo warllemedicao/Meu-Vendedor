@@ -322,10 +322,52 @@ async def lifespan(app: FastAPI):
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 app.mount('/novnc', StaticFiles(directory='/usr/share/novnc', check_dir=False), name='novnc')
 
+async def flow_visible_account_email(page):
+    """Read only the Google account widget label on the Flow tab."""
+    try:
+        result = await page.locator("body").evaluate(r"""body => {
+          const found=[];
+          for(const el of body.querySelectorAll('button,[role="button"]')){
+            const label=[el.getAttribute('aria-label'),el.getAttribute('title')].filter(Boolean).join(' ');
+            if(!/google account|conta do google|google konto/i.test(label))continue;
+            const addresses=label.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig)||[];
+            found.push(...addresses);
+          }
+          return [...new Set(found)].slice(0,2);
+        }""", timeout=2000)
+        if len(result) == 1 and re.fullmatch(
+            r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}", result[0]
+        ):
+            return result[0][:80]
+    except Exception:
+        pass
+    return None
+
+
 @app.get("/session/accounts")
 async def list_flow_accounts(request: Request):
     authorize(request)
     data = read_flow_accounts()
+    if chrome_running():
+        async with lock:
+            try:
+                async with async_playwright() as pw:
+                    browser = await pw.chromium.connect_over_cdp(
+                        "http://127.0.0.1:9222", timeout=4000)
+                    try:
+                        pages = [p for ctx in browser.contexts for p in ctx.pages
+                                 if not p.is_closed() and urlsplit(p.url).hostname == "flow.google.com"]
+                        if pages:
+                            email = await flow_visible_account_email(pages[0])
+                            if email:
+                                for account in data["accounts"]:
+                                    if account["id"] == data["selected"]:
+                                        account["label"] = email
+                                save_flow_accounts(data)
+                    finally:
+                        await browser.close()
+            except Exception:
+                pass
     return {**data, "browserRunning": chrome_running()}
 
 
