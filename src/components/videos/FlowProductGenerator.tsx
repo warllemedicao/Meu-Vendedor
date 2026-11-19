@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { getSupabase } from "@/lib/supabase/client";
 import { uploadVideoResult, createVideoAssetUrl, MAX_VIDEO_RESULT_BYTES } from "@/lib/video-assets";
 
@@ -69,9 +70,17 @@ export function FlowProductGenerator({ prompt, productImageUrl, photo, presenter
   const [problem, setProblem] = useState("");
   const [ready, setReady] = useState<File | null>(null);
   const [imageOverride, setImageOverride] = useState<File>();
+  const [localPhotoUrl, setLocalPhotoUrl] = useState("");
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [savedPath, setSavedPath] = useState("");
   useEffect(() => { if (prompt) { setReady(null); setSavedPath(""); } }, [prompt]);
+  useEffect(() => {
+    const current = imageOverride ?? photo;
+    if (!current) { setLocalPhotoUrl(""); return; }
+    const url = URL.createObjectURL(current);
+    setLocalPhotoUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageOverride, photo]);
 
   async function generate() {
     if (working || !prompt.trim()) return;
@@ -88,7 +97,7 @@ export function FlowProductGenerator({ prompt, productImageUrl, photo, presenter
         if (!presenterImageUrl) throw new Error("O personagem selecionado não possui imagem de referência.");
         refs.push(await fromUrl(presenterImageUrl, "personagem.png"));
       }
-      if (photo || imageOverride) refs.push(photo ?? imageOverride!);
+      if (imageOverride || photo) refs.push((imageOverride ?? photo)!);
       else if (productImageUrl) {
         try { refs.push(await fromUrl(productImageUrl, "produto.jpg")); }
         catch { throw new Error("Não consegui transferir a foto do produto. Escolha a foto no campo de referência abaixo e tente novamente."); }
@@ -159,6 +168,19 @@ export function FlowProductGenerator({ prompt, productImageUrl, photo, presenter
   return <section aria-label="Geração do produto no Google Flow" className="space-y-4 rounded-xl border border-border p-4">
     <h4 className="font-semibold">Google Flow · robô integrado</h4>
     <p className="text-sm text-muted">O Chrome remoto utiliza a conta selecionada e funciona sem abrir uma janela na tela. Para trocar de conta ou aceitar termos, use a área Contas.</p>
+    <div className="flex flex-wrap items-start gap-3 rounded-lg bg-background p-3">
+      <div className="space-y-1">
+        <p className="text-xs text-muted">Produto a enviar</p>
+        {localPhotoUrl ? <Image unoptimized src={localPhotoUrl} width={112} height={150} alt="Foto selecionada do produto" className="h-36 w-28 rounded-lg object-contain" /> :
+          productImageUrl ? <Image unoptimized src={productImageUrl} width={112} height={150} alt="Imagem de referência do produto" className="h-36 w-28 rounded-lg object-contain" /> :
+          <p className="text-xs text-danger">Foto do produto necessária</p>}
+      </div>
+      {presenterMode && <div className="space-y-1">
+        <p className="text-xs text-muted">Personagem a enviar</p>
+        {presenterImageUrl ? <Image unoptimized src={presenterImageUrl} width={112} height={150} alt="Referência do personagem escolhido" className="h-36 w-28 rounded-lg object-contain" /> :
+          <p className="text-xs text-danger">Referência do personagem indisponível</p>}
+      </div>}
+    </div>
     <label className="block text-sm">Foto de referência do produto (opcional se a imagem do produto carregar)
       <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => {
         setImageOverride(e.target.files?.[0]); setReady(null);
