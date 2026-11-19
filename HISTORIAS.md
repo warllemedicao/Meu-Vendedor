@@ -1,3 +1,10 @@
+## 19/11/2026 — Chave exclusiva para roteiros e prompts de Histórias
+
+- `story-studio` passa a consultar `HIST_ROTEIRO_GEMINI_API_KEY` exclusivamente nas ações `script` e `prompts`. A ação `topics` continua com `HIST_TEMA_GEMINI_API_KEY`. Não há fallback entre essas chaves ou para `GEMINI_API_KEY`/`GOOGLE_API_KEY` no módulo Histórias.
+- A chave Gemini para Produtos e Campanhas não foi alterada; cada função externa ao Histórias mantém configuração anterior.
+- O responsável precisa cadastrar o Secret `HIST_ROTEIRO_GEMINI_API_KEY` manualmente no Supabase, sem expor o valor. Antes do Secret e da publicação da nova Edge Function, roteiros e prompts podem retornar `gemini_not_configured`.
+- Sem modificação do Google Flow, IMAGEM1, IMAGEM2, IMAGEM3, autenticação Google ou automação de vídeo. Testes de contrato adicionados; geração Gemini real autenticada ainda depende de validação.
+
 ## 19/11/2026 — Histórias: Secret exclusivo para geração de temas
 
 - A função `story-studio` passa a obter a credencial de `action: "topics"` exclusivamente de `HIST_TEMA_GEMINI_API_KEY`. Não há fallback para `GEMINI_API_KEY` nem `GOOGLE_API_KEY` nessa ação.
