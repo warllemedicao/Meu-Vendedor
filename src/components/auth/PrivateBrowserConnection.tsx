@@ -16,7 +16,6 @@ export function PrivateBrowserConnection() {
   const [viewUrl, setViewUrl] = useState("");
   const [flowAccounts, setFlowAccounts] = useState<FlowAccount[]>([]);
   const [selectedFlowAccount, setSelectedFlowAccount] = useState("primary");
-  const [newAccountLabel, setNewAccountLabel] = useState("");
 
   const [videoBusy, setVideoBusy] = useState(false);
   const [savedVideoPath, setSavedVideoPath] = useState("");
@@ -77,7 +76,8 @@ export function PrivateBrowserConnection() {
         ? (await (error.context as Response).clone().json().catch(() => null))?.error : null);
       const labels: Record<string, string> = {
         browser_not_running: "O Chrome não está iniciado. Clique em Chrome para abrir novamente.",
-        invalid_account: "O nome ou o identificador da conta é inválido.",
+        invalid_account: "A conta selecionada é inválida.",
+        invalid_browser_purpose: "Tipo de abertura do navegador inválido.",
         browser_must_be_stopped: "Feche o Chrome antes de cadastrar ou trocar de conta.",
         account_limit_reached: "Limite de seis perfis Google Flow atingido.",
 
@@ -234,22 +234,20 @@ export function PrivateBrowserConnection() {
   }
 
   async function addFlowAccount() {
-    const label = newAccountLabel.trim();
-    if (busy || videoBusy || !label || label.length > 48) return;
+    if (busy || videoBusy || Boolean(viewUrl)) return;
     setBusy(true);
     try {
-      const data = await invoke("accounts_create", { label });
+      const data = await invoke("accounts_create");
       setFlowAccounts(data.accounts ?? []);
       setSelectedFlowAccount(data.selected ?? "primary");
-      setNewAccountLabel("");
-      await invoke("start");
+      await invoke("start", { purpose: "account_login" });
       const view = await invoke("view");
       const url = new URL(view.viewUrl ?? "");
       if (url.protocol !== "https:" || !url.pathname.endsWith("/viewer") || !url.searchParams.has("ticket")) {
         throw new Error("Endereço de visualização inválido.");
       }
       setViewUrl(url.toString());
-      setMessage("Novo perfil aberto. Faça login diretamente na página do Google pelo Chrome. Quando terminar, clique em 'Encerrar Chrome e robô' para preservar a sessão.");
+      setMessage("Novo perfil aberto na página de login Google. Faça login diretamente no Google pelo Chrome. Quando terminar, clique em 'Encerrar Chrome e robô' para preservar a sessão.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao criar perfil. Consulte as contas antes de repetir.");
     } finally {
@@ -262,7 +260,7 @@ export function PrivateBrowserConnection() {
     setBusy(true);
     setMessage("");
     try {
-      await invoke("start");
+      await invoke("start", { purpose: "flow" });
       const data = await invoke("view");
       const url = new URL(data.viewUrl ?? "");
       if (url.protocol !== "https:" || !url.pathname.endsWith("/viewer") || !url.searchParams.has("ticket")) {
@@ -415,7 +413,11 @@ export function PrivateBrowserConnection() {
     <p className="text-sm text-muted">Contas Google com perfis Chrome independentes. O login ocorre apenas na página oficial do Google; o Meu Vendedor não recebe sua senha.</p>
     <div className="space-y-2 rounded-lg border border-border p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">Contas Google Flow</span>
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <img src="https://flow.google.com/favicon.ico" alt="" aria-hidden="true"
+            width={22} height={22} className="h-[22px] w-[22px] rounded" />
+          Contas Google Flow
+        </span>
         <button type="button" onClick={() => void refreshFlowAccounts()} disabled={busy || videoBusy}
           className="rounded-lg border border-border px-3 py-1 text-xs disabled:opacity-50">Atualizar contas</button>
       </div>
@@ -427,19 +429,15 @@ export function PrivateBrowserConnection() {
           <option key={account.id} value={account.id}>{account.label}</option>)}
       </select>
       <p className="text-xs text-muted">Para trocar de conta, feche o Chrome, escolha o perfil e abra novamente. Cada perfil preserva sua própria sessão Google.</p>
-      <div className="flex flex-wrap gap-2">
-        <input aria-label="Nome da nova conta" value={newAccountLabel}
-          onChange={(event) => setNewAccountLabel(event.target.value)} maxLength={48}
-          placeholder="Ex.: Minha segunda conta" disabled={busy || videoBusy || Boolean(viewUrl)}
-          className="min-w-[180px] flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm disabled:opacity-50" />
-        <button type="button" onClick={() => void addFlowAccount()}
-          disabled={busy || videoBusy || Boolean(viewUrl) || !newAccountLabel.trim()}
-          className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Adicionar conta e fazer login</button>
-      </div>
+      <button type="button" onClick={() => void addFlowAccount()}
+        disabled={busy || videoBusy || Boolean(viewUrl)}
+        className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">
+        Adicionar conta Google
+      </button>
       <p className="text-xs text-muted">Seu perfil principal já conectado será preservado. Após adicionar uma conta, entre diretamente no Google pelo navegador e depois feche-o normalmente.</p>
     </div>
     <button type="button" disabled={busy} onClick={() => void openChrome()} className="rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">
-      {busy ? "Abrindo..." : "Chrome"}
+      {busy ? "Abrindo..." : "Abrir Chrome do Flow"}
     </button>
     <button type="button" disabled={busy || !viewUrl} onClick={() => void closeChrome()}
       className="rounded-lg border border-red-600 px-4 py-2 text-sm text-red-600 disabled:opacity-50">
