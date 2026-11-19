@@ -1,3 +1,12 @@
+## 19/11/2026 — Proteções contra instabilidade Gemini e diagnóstico de roteiros
+
+- Análise combinada do log Supabase e documentação oficial: HTTP 503 `UNAVAILABLE` em temas é emitido pelo próprio Google e corresponde a indisponibilidade ou sobrecarga temporária do provedor; não há evidência de que a palavra `mecânico`, seleção de gênero ou a validação local JSON provoquem esse HTTP 503. Timeout de 60s da ação `script` no modelo `gemini-3.5-flash` foi registrado, sem prova definitiva de sua causa interna.
+- A Edge Function `story-studio` foi atualizada para incluir `diagnose_script`, usando apenas GET de metadados, chave `HIST_ROTEIRO_GEMINI_API_KEY` e modelo Flash, sem consumo de inferência; `diagnose_topics` permanece isolada no Flash-Lite.
+- `MAX_TOKENS` agora recebe classificação dedicada `gemini_output_truncated` antes do parser JSON. Falhas `gemini_service_unavailable` e `gemini_timeout` retornam HTTP 503 ao frontend (sem adicionar chamadas automáticas); `gemini_invalid_json` permanece separado.
+- Frontend atualizado na `main`: botão de verificação sem gerar para a chave de roteiros; após 503, resguarda 90 segundos antes de nova requisição à mesma finalidade; após timeout, 120 segundos. O bloqueio é apenas no contexto do navegador atual e não garante limite distribuído entre sessões/dispositivos. Diagnósticos metadata-only seguem permitidos durante a pausa.
+- Testes de contrato atualizados e dez verificações estáticas pontuais aprovadas. Publicado Supabase `story-studio` **ACTIVE v20**, `verify_jwt: true`; não houve inferência real nos testes. A implantação do frontend Cloudflare e validação da suíte completa/CI ainda exigem confirmação independente.
+- Mantidos modelos Gemini 3.5, limites editoriais, chaves, os executores Flow, IMAGEM1/2/3, Produtos e Campanhas. O problema de capacidade HTTP 503 do Google não pode ser corrigido por alterações apenas no Meu Vendedor; as proteções limitam efeitos e aumentam precisão do diagnóstico.
+
 ## 19/11/2026 — Auditoria de compatibilidade e economia de prompts do Histórias
 
 - Lidos `story-studio`, agentes YouTube Create/Flow/Dreamina, wizard `StoriesStudio`, guias `workflow.ts`, testes e configuração de API. Confrontadas instruções com a documentação oficial de YouTube Create, Google Flow e Dreamina.
