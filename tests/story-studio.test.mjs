@@ -255,3 +255,18 @@ test("individual prompt budget reserves tokens for Gemini reasoning", () => {
   assert.match(edge, /first\.finishReason === "MAX_TOKENS"/);
   assert.match(edge, /gemini_output_truncated/);
 });
+
+test("character appearance category is sent consistently through Gemini topics, script and prompt actions", () => {
+  assert.match(edge, /const CHARACTER_STYLE_RULES =/);
+  for (const name of ["frutinhas", "infantil", "pessoas_cabeca_fruta", "nao_definido"]) {
+    assert.match(edge, new RegExp(name + ":"));
+  }
+  assert.match(edge, /characterStyleRule\(body\.characterStyle\)/);
+  assert.match(edge, /Estilo obrigatório dos personagens:/);
+  assert.match(edge, /Tipo visual a preservar nos clipes:/);
+  assert.match(studio, /characterStyle: project\.character_style \|\| "nao_definido"/);
+  const migration = read("supabase/migrations/20261119230412_stories_character_styles.sql");
+  assert.match(migration, /add column if not exists character_style/);
+  assert.match(migration, /unique \(user_id, subject, title, character_style\)/);
+  assert.match(migration, /'nao_definido'/);
+});
