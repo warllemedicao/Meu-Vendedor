@@ -122,6 +122,10 @@ export function StoriesStudio() {
   const [selectedPlatformByScene, setSelectedPlatformByScene] = useState<Record<number,Platform>>({});
   const [scenePromptDrafts, setScenePromptDrafts] = useState<Record<string,string>>({});
   const [expandedScene, setExpandedScene] = useState(1);
+  const [sceneWorkbenchStep, setSceneWorkbenchStep] = useState<"roteiro"|"personagens"|"prompt">("roteiro");
+  const [showPendingScenes, setShowPendingScenes] = useState(false);
+  const [showAdvancedGeneration, setShowAdvancedGeneration] = useState(false);
+  const [copiedScenePrompt, setCopiedScenePrompt] = useState<string | null>(null);
   const stopSceneQueue = useRef(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -285,6 +289,7 @@ export function StoriesStudio() {
         : makeLocalPromptDrafts(provider, project.characters, [scene])[0]?.text;
       if (!draft) throw new Error("O prompt não foi preparado.");
       setScenePromptDrafts(old => ({ ...old, [key]: draft }));
+      setSceneWorkbenchStep("prompt");
       setMessage(useGemini ? "Prompt gerado; revise e salve antes de baixar." : "Rascunho criado sem usar API. Revise e salve.");
     } catch(e) { setError(plainError(e)); }
     finally { setBusy(false); setSceneProgress(""); }
@@ -294,7 +299,7 @@ export function StoriesStudio() {
     const provider = selectedPlatformByScene[sceneNumber] || platform;
     const text = scenePromptDrafts[promptKey(sceneNumber, provider)]?.trim() || "";
     const maximum = platformOptions.find(p => p.value === provider)?.maximum || 900;
-    if (!text || Array.from(text).length > maximum) return setError("Revise o limite de caracteres do prompt.");
+    if (!text || Array.from(text).length > maximum) return setError("O prompt excede o teto de " + maximum + " caracteres. Use Montar prompt sem IA para uma versão enxuta, ou revise antes de salvar.");
     const client = getSupabase(); if (!client) return;
     const { error: dbError } = await client.from("mv_story_prompts").upsert({
       user_id: user.id, project_id: project.id, scene_number: sceneNumber,
@@ -303,9 +308,26 @@ export function StoriesStudio() {
     if (dbError) return setError("Não foi possível salvar o prompt.");
     setMessage("Prompt da cena " + sceneNumber + " salvo para " + provider + ".");
   }
+  async function copyScenePrompt(sceneNumber: number, provider: Platform, prompt: string) {
+    if (Array.from(prompt).length > PLATFORM_GUIDES[provider].absoluteChars) {
+      setError("O prompt excede o limite de " + PLATFORM_GUIDES[provider].absoluteChars +
+        " caracteres. Refaça a versão compacta antes de copiar."); return;
+    }
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiedScenePrompt(promptKey(sceneNumber, provider));
+      setMessage("Prompt da cena " + sceneNumber + " copiado. Para continuar a história, use o botão Gerar próxima cena dentro deste painel.");
+    } catch { setError("O navegador não conseguiu copiar o prompt. Use Baixar prompt .txt."); }
+  }
+  function selectWorkbenchScene(sceneNumber: number) {
+    setExpandedScene(sceneNumber);
+    setSceneWorkbenchStep("roteiro");
+    setCopiedScenePrompt(null);
+    setError("");
+  }
   async function openProject(selected: Project) {
     if (!user) return;
-    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setPublishDescription(""); setExpandedScene(Math.max(1, selected.scenes.findIndex(s => !s.action?.trim() || !s.setting?.trim()) + 1)); setStage("roteiro");
+    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setPublishDescription(""); setExpandedScene(Math.max(1, selected.scenes.findIndex(s => !s.action?.trim() || !s.setting?.trim()) + 1)); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
     const client = getSupabase(); if (!client) return;
     const [clipsResult, promptResult] = await Promise.all([
       client.from("mv_story_clips").select("id,scene_number,storage_path,approved").eq("user_id", user.id).eq("project_id", selected.id),
@@ -432,7 +454,7 @@ export function StoriesStudio() {
         characters: [], scenes: makeEmptyStoryScenes(), status: "draft",
       }).select("id,user_id,topic_id,genre,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível iniciar o rascunho retomável.");
-      setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setStage("roteiro");
+      setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
       setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
       void loadProjects();
       setSceneProgress("Gerando a primeira cena do roteiro...");
@@ -469,6 +491,7 @@ export function StoriesStudio() {
     const updated = { ...working, scenes, characters };
     setProject(updated);
     setExpandedScene(sceneNumber);
+    setSceneWorkbenchStep("roteiro");
     setMessage("Cena " + sceneNumber + "/12 salva. " +
       (sceneNumber === 12 ? "Roteiro completo; revise e aprove." : "Você já pode gerar a próxima cena."));
     return updated;
