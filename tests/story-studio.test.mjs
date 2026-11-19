@@ -200,7 +200,7 @@ test("one scene per script inference with owner-scoped persistence and manual re
   assert.match(studio, /await generateOneScene\(working\)/);
   assert.match(studio, /\.update\(\{ characters, scenes, updated_at:/);
   assert.match(studio, /\.eq\("id", working\.id\)\.eq\("user_id", user\.id\)/);
-  assert.match(studio, /Gerar cenas restantes em sequência/);
+  assert.match(studio, /Gerar todas as pendentes em sequência/);
   assert.match(studio, /16_000/);
   assert.match(studio, /stopSceneQueue\.current/);
   assert.doesNotMatch(studio, /invokeStory\("script", \{ title: topic\.title/);
@@ -246,6 +246,6 @@ test("optional Flash-Lite scene route uses the script key and does not borrow to
   assert.match(geminiClient, /Deno\.env\.get\("HIST_ROTEIRO_GEMINI_API_KEY"\)/);
   assert.match(edge, /body\.scriptModel === "flash-lite" \? "flash-lite" : "primary"/);
   assert.match(studio, /generateOneScene\(project, undefined, "flash-lite"\)/);
-  assert.match(studio, /Gerar próxima cena com Flash-Lite \(alternativa\)/);
+  assert.match(studio, /Tentar cena pendente com Flash-Lite/);
   assert.doesNotMatch(studio, /HIST_TEMA_GEMINI_API_KEY/);
 });
