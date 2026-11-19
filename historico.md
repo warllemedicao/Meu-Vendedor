@@ -1,3 +1,12 @@
+## 2026-11-19 — Complemento editorial do Histórias (em validação, sem publicação)
+
+- Implementado na branch `feat/historias-editorial-completo`: revisão separada dos temas antes de salvar, salvar individual/em lote, descarte e filtros por assunto/gênero/texto/favorito; o backend anterior já limitava cada lote Gemini a 25.
+- Editor ampliado com Bíblia de Personagens editável (nome, função, aparência e voz), propagação de renomeações para cenas, edição de títulos/personagens/transições/falas e linha do tempo com 12 cenas. Aprovação verifica referências aos personagens e limite aproximado de 26 palavras por cena.
+- Prompts por plataforma podem ser recuperados, editados, salvos individualmente e copiados; limite de 900 caracteres informado para YouTube Create permanece validado no frontend e no backend.
+- Biblioteca de clipes agora mostra estados, visualização por URL temporária e aprovação/revogação. Painel de preparação permite selecionar YouTube/TikTok/Kwai, título e descrição, sem postar.
+- Criados testes de regressão e atualizado workflow isolado de CI. Nenhum arquivo do executor Modal/Flow, IMAGEM1, IMAGEM2, IMAGEM3, Produto ou outro projeto foi alterado.
+- **Estado real:** frontend Histórias básico já publicado em Cloudflare na main do commit 5ee21836, após restauração da versão do Worker; esta ampliação está SOMENTE na branch até passar CI e ser publicada. Migração e função `story-studio` **ainda não estão implantadas no Supabase**, por isso a geração Gemini não está operacional na página de produção. Montagem final de 2 minutos e publicação automática continuam pendentes de implementação/autorização.
+
 ## 2026-11-19 — Histórias: CI completo aprovado na branch isolada
 
 - Código da nova rota e dos serviços de Histórias validado no GitHub Actions run [44465702220](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/44465702220), commit `732806ab39fae61962b3a19303163ed4d814baa1`.
