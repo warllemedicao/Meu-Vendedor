@@ -37,7 +37,15 @@ export function AccountHub() {
   useEffect(() => {
     let active = true;
     if (!userId) return () => { active = false; };
-    void marketplaceAction("status").then((status) => {
+    // Do not leave the Shopee section in "Verificando..." indefinitely
+    // when the remote status request hangs. A timeout means unknown, not missing.
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    void Promise.race([
+      marketplaceAction("status"),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("shopee_status_timeout")), 15000);
+      }),
+    ]).then((status) => {
       if (active) {
         setShopeeStatus({ userId, error: false, status });
         setStatusRefreshing(false);
@@ -47,7 +55,7 @@ export function AccountHub() {
         setShopeeStatus({ userId, error: true, status: null });
         setStatusRefreshing(false);
       }
-    });
+    }).finally(() => { if (timeoutId) clearTimeout(timeoutId); });
     return () => { active = false; };
   }, [userId, statusRevision, shopeeConnection?.id, shopeeConnection?.status, shopeeConnection?.last_sync_at]);
   const currentShopeeStatus = shopeeStatus?.userId === userId ? shopeeStatus : null;
