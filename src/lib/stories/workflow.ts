@@ -9,6 +9,18 @@ export const STORY_STAGES = [
   { key: "publicacao", title: "Publicação", description: "Prepare os canais" },
 ] as const;
 export type StoryStage = (typeof STORY_STAGES)[number]["key"];
+export type StoryCharacterStyle = "nao_definido" | "frutinhas" | "infantil" | "pessoas_cabeca_fruta";
+export const STORY_CHARACTER_STYLES: { value: Exclude<StoryCharacterStyle, "nao_definido">; label: string; description: string }[] = [
+  { value: "frutinhas", label: "Frutinhas", description: "Frutas falantes com corpo de fruta, braços e pernas, animação 3D." },
+  { value: "infantil", label: "Infantil", description: "Personagens originais fofinhos, coloridos e expressivos para histórias infantis." },
+  { value: "pessoas_cabeca_fruta", label: "Pessoas com cabeça de fruta", description: "Corpo humano estilizado, roupas e cabeça em forma de fruta." },
+];
+export const STORY_CHARACTER_STYLE_INSTRUCTIONS: Record<StoryCharacterStyle, string> = {
+  nao_definido: "",
+  frutinhas: "Estilo visual: personagens são frutas antropomórficas completas, corpo da fruta com braços e pernas, expressões e roupas; sem corpo humano realista.",
+  infantil: "Estilo visual: personagens infantis originais, fofinhos, arredondados, coloridos e expressivos; conteúdo adequado a crianças, sem elementos assustadores.",
+  pessoas_cabeca_fruta: "Estilo visual: personagens com corpo humano estilizado, roupas e acessórios, mas com cabeça em forma de fruta expressiva; preservar sempre esta anatomia.",
+};
 export type StoryPlatform = "youtube-create" | "google-flow" | "dreamina";
 export type StoryCharacter = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string; referenceImagePrompt?: string };
 export type StoryDialogue = { speaker: string; text: string };
@@ -54,6 +66,7 @@ export function countStoryWords(scene: StoryScene): number {
 /** Compact platform prompts without silently truncating dialogue, action or character identity. */
 export function makeLocalPromptDrafts(
   platform: StoryPlatform, characters: StoryCharacter[], scenes: StoryScene[],
+  characterStyle: StoryCharacterStyle = "nao_definido",
 ): { scene: number; text: string; platform: StoryPlatform }[] {
   const guide = PLATFORM_GUIDES[platform];
   return scenes.map(scene => {
@@ -62,6 +75,7 @@ export function makeLocalPromptDrafts(
     const attached = cast.some(char => char.referenceImagePath);
     const base = [
       "CENA " + scene.number + "/12 · vídeo 9:16 · 10s.",
+      STORY_CHARACTER_STYLE_INSTRUCTIONS[characterStyle],
       "Cenário: " + scene.setting.trim(),
       "Ação: " + scene.action.trim(),
     ];
