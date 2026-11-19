@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
     accounts_login_status: { path: "/session/accounts/login-status", method: "GET" },
     accounts_create: { path: "/session/accounts/create", method: "POST" },
     accounts_select: { path: "/session/accounts/select", method: "POST" },
+    accounts_delete: { path: "/session/accounts/delete", method: "POST" },
     inspect: { path: "/session/inspect", method: "GET" },
     diagnose: { path: "/session/diagnose", method: "GET" },
     learning_start: { path: "/session/learning/start", method: "POST" },
@@ -103,18 +104,18 @@ Deno.serve(async (req) => {
   if (action === "start" && input?.purpose !== undefined &&
       input.purpose !== "flow" && input.purpose !== "account_login")
     return reply({ error: "invalid_browser_purpose" }, 400);
-  if (action === "accounts_select" &&
+  if ((action === "accounts_select" || action === "accounts_delete") &&
       (typeof input?.accountId !== "string" || !/^(primary|account-[a-f0-9]{16})$/.test(input.accountId)))
     return reply({ error: "invalid_account" }, 400);
   const target = routes[action];
   const startedAt = Date.now();
   const response = await fetch(new URL(target.path, base), {
     method: target.method,
-    headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" || action === "learning_start" || action === "video_download" || action === "accounts_create" || action === "accounts_select" || action === "start" ? { "content-type": "application/json" } : {}) },
+    headers: { authorization: "Bearer " + serviceSecret, ...(action === "stage" || action === "learning_start" || action === "video_download" || action === "accounts_create" || action === "accounts_select" || action === "accounts_delete" || action === "start" ? { "content-type": "application/json" } : {}) },
     ...(action === "stage" || action === "learning_start" ? { body: JSON.stringify({ prompt: input?.prompt, images: input?.images, imageRightsConfirmed: input?.imageRightsConfirmed, configureAndGenerate: input?.configureAndGenerate === true }) }
       : action === "video_download" ? { body: JSON.stringify({ appOrigin: origin, downloadId: input?.downloadId }) }
       : action === "accounts_create" ? { body: JSON.stringify({}) }
-      : action === "accounts_select" ? { body: JSON.stringify({ accountId: input?.accountId }) }
+      : action === "accounts_select" || action === "accounts_delete" ? { body: JSON.stringify({ accountId: input?.accountId }) }
       : action === "start" ? { body: JSON.stringify({ purpose: input?.purpose ?? "flow" }) } : {}),
     signal: AbortSignal.timeout(action === "stage" ? 120000 : (action === "video_download" || action === "video_train") ? 45000 : action === "video_generated_ready" ? 30000 : action === "start" || action === "learning_start" ? 60000 : 12000),
   }).catch(() => null);
@@ -130,7 +131,7 @@ Deno.serve(async (req) => {
     // Forward only known, fixed browser error codes; never relay arbitrary upstream content.
     const allowed = new Set([
       "browser_not_running", "flow_page_not_active", "flow_project_not_active",
-      "invalid_account", "invalid_browser_purpose", "account_setup_required", "browser_must_be_stopped", "account_limit_reached",
+      "invalid_account", "invalid_browser_purpose", "account_setup_required", "browser_must_be_stopped", "account_limit_reached", "profile_delete_failed", "profile_path_invalid",
       "new_project_button_not_found", "prompt_field_not_unique",
       "flow_upload_action_not_found", "flow_upload_incomplete",
       "flow_add_elements_not_found", "flow_add_elements_ambiguous",
