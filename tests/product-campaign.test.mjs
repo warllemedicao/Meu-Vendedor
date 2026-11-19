@@ -19,3 +19,10 @@ test('hashtags partem do produto e não misturam palavras vazias ou plataforma d
  const tags=productHashtags('Camisa Flamengo para adultos','Shopee');assert.ok(tags.includes('#Camisa'));assert.ok(tags.includes('#Flamengo'));assert.ok(tags.includes('#Publicidade'));assert.ok(!tags.includes('#para'));
  assert.ok(!productHashtags('Garrafa térmica','Amazon').includes('#Shopee'));
 });
+
+test('Campanhas consulta apenas o Secret Gemini reservado a campanhas de produtos', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../supabase/functions/campaign-content/index.ts', import.meta.url), 'utf8');
+  assert.match(source, /Deno\.env\.get\("PROD_CAMPANHA_GEMINI_API_KEY"\)/);
+  assert.doesNotMatch(source, /Deno\.env\.get\("GEMINI_API_KEY"\)|Deno\.env\.get\("GOOGLE_API_KEY"\)/);
+});
