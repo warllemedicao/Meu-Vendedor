@@ -37,3 +37,22 @@ test("social publication choices do not trigger social APIs", () => {
   for (const channel of ["youtube", "tiktok", "kwai"]) assert.ok(code.includes(channel));
   assert.doesNotMatch(code, /fetch\(["']https:\/\/(www\.)?(youtube|tiktok|kwai)/);
 });
+
+
+test("script starts generating the first scene automatically after persisting draft", () => {
+  assert.match(code, /await generateOneScene\(data as Project, topic\.synopsis\)/);
+  assert.match(code, /Criar roteiro e gerar cena 1/);
+  assert.match(code, /setExpandedScene\(sceneNumber\)/);
+  assert.match(code, /setExpandedScene\(Math\.max\(1, selected\.scenes\.findIndex/);
+});
+
+test("compact script editor displays saved scene content and collapses others", () => {
+  assert.match(code, /const expanded = expandedScene === s\.number/);
+  assert.match(code, /aria-expanded=\{expanded\}/);
+  assert.match(code, /\{expanded && <div id=\{"story-fields-" \+ s\.number\}/);
+  assert.match(code, /\{filled \? s\.action : "Cena ainda não gerada/);
+  assert.match(code, /rows=\{2\}\s*value=\{s\.action\}/);
+  assert.match(code, /value=\{s\.setting\}/);
+  assert.match(code, /value=\{s\.dialogue\.map/);
+  assert.match(code, /value=\{s\.transition\}/);
+});
