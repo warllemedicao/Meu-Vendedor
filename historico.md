@@ -1,3 +1,14 @@
+## 19/11/2026 — Auditoria de compatibilidade e economia de prompts do Histórias
+
+- Lidos `story-studio`, agentes YouTube Create/Flow/Dreamina, wizard `StoriesStudio`, guias `workflow.ts`, testes e configuração de API. Confrontadas instruções com a documentação oficial de YouTube Create, Google Flow e Dreamina.
+- Confirmações externas: YouTube Create admite prompt de até 900 caracteres; Flow Omni Flash 1.2 tem modos até 10s e Veo 3.1 Lite de 4/6/8s, variando plano/modo; Dreamina Seedance 2.0 recomenda prompts claros de 30–100 palavras, não impondo teto universal de 1200 caracteres.
+- Revisados agentes da geração de prompts, ainda sem requisições de vídeo: YouTube alvo 780/teto 900; Flow alvo 900/teto editorial 1600; Dreamina alvo 650/teto editorial 1200. Instruções agora priorizam ação única, movimento, câmera, fala, imagens de referência quando efetivamente anexadas e duração compatível com o modelo escolhido.
+- Corrigidas divergências no editor: Flow e Dreamina agora validam seus tetos também na edição/salvamento; botão de copiar prompt deixa de depender de título/descrição de publicação. Guias frontend alinhados; comentários e mensagem desatualizados de 4000 caracteres corrigidos.
+- `story-studio` publicado ACTIVE v19 JWT obrigatório, confirmado por releitura; os modelos Gemini 3.5, chaves exclusivas e tetos de tokens 2300–3800 (temas), 7200 (roteiro) e 8500 (prompts) permanecem. Nenhum teste de inferência, Flow, Dreamina, YouTube Create, renderização ou publicação foi executado; custo de tokens efetivo depende de `usageMetadata` e `finishReason` em teste autenticado posterior.
+- Auditoria pendente: roteiro ainda é editorialmente fixo em 12x10s mesmo quando ferramenta só gera 8s; o app não solicita o modelo específico da plataforma nem resolve automaticamente a diferença de duração. A função aceita roteiro aprovado no cliente para gerar prompts, mas a análise sobre consistência final e fontes visuais exige teste real. Rascunhos locais podem ultrapassar o limite e requerem edição antes de salvar.
+- Testes de contrato estáticos verificados (10 afirmações), mas `npm test`, lint, build e deploy do frontend Cloudflare **não** executados/confirmados neste ambiente. Worker Cloudflare permanece em versão anterior às edições frontend.
+- Preservados robô Google Flow, arquivos IMAGEM1/2/3, OAuth, Modal, Produtos e Campanhas.
+
 ## 19/11/2026 — Redução de custos e diagnóstico de timeout no Histórias
 
 - Logs Supabase às 16:30 UTC confirmaram `story_studio_gemini_transport_error`, `purpose: script`, modelo `gemini-3.5-flash`, timeout de 60.000 ms e retorno HTTP 502. As tentativas de temas no `gemini-3.5-flash-lite` também registraram HTTP 503 do Google. Não há demonstração de falha do parser JSON nas tentativas com erro.
