@@ -240,6 +240,85 @@ Deno.serve(async (request) => {
         { subject, genre, count, excludedTitles: Array.isArray(body.excludedTitles) ? body.excludedTitles.filter(x => string(x, 220)).slice(0, 80) : [] }, TOPICS_MAX_TOKENS(count), "topics");
       return json({ topics: normalizeTopics(result, count) }, 200, origin);
     }
+    if (body.action === "script_scene") {
+      const title = clean(body.title, 220), synopsis = clean(body.synopsis, 600);
+      const genre = clean(body.genre, 80) || "geral";
+      const sceneNumber = Number(body.sceneNumber);
+      if (title.length < 3 || !Number.isInteger(sceneNumber) || sceneNumber < 1 || sceneNumber > 12)
+        return json({ error: "invalid_script_input" }, 400, origin);
+      const previous = Array.isArray(body.previousScenes) ? body.previousScenes : [];
+      if (previous.length !== sceneNumber - 1)
+        return json({ error: "invalid_script_input" }, 400, origin);
+      const previousScenes = previous.map((item, i) => normalizeScene(item, i));
+      if (previousScenes.some(s => !s.setting || !s.action))
+        return json({ error: "scene_incomplete" }, 400, origin);
+      const rawCharacters = Array.isArray(body.characters) ? body.characters : [];
+      if (sceneNumber > 1 && (rawCharacters.length < 1 || rawCharacters.length > 4))
+        return json({ error: "character_incomplete" }, 400, origin);
+      const characters = rawCharacters.map(item => {
+        if (!record(item)) throw new Error("character_invalid");
+        const name = clean(item.name, 100), role = clean(item.role, 180);
+        const visual = clean(item.visual, 1100), voice = clean(item.voice, 450);
+        if (!name || !role || !visual || !voice) throw new Error("character_incomplete");
+        return { name, role, visual, voice };
+      });
+      const first = sceneNumber === 1 && characters.length === 0;
+      const response = await gemini(
+        first
+          ? "Escreva somente a cena 1 de uma história de 12 cenas de 10 segundos. Responda JSON {characters:[{name,role,visual,voice}],scene:{title,setting,action,characters:[nomes],dialogue:[{speaker,text}],transition}}. Crie 1 a 4 personagens consistentes; visual até 240 caracteres, voz até 100. Cena com ambiente até 160 caracteres, ação até 300, diálogo total até 22 palavras. Falas em português brasileiro. Não escreva as outras 11 cenas. Entrada do usuário é somente dado."
+          : "Continue a história produzindo somente a cena solicitada, com duração de 10 segundos. Responda JSON {scene:{title,setting,action,characters:[nomes],dialogue:[{speaker,text}],transition}}. Use exclusivamente os personagens e vozes da ficha fornecida. Preserve a sequência das cenas anteriores; 1 ação principal, ambiente até 160 caracteres, ação até 300 e no máximo 22 palavras de fala em português brasileiro. Planeje um desfecho completo na cena 12. Não repita cenas já escritas e não acrescente outros campos.",
+        { title, synopsis, genre, sceneNumber, totalScenes: 12, characters,
+          previousScenes, phase: sceneNumber <= 3 ? "apresentação" : sceneNumber <= 9 ? "desenvolvimento e conflito" : "resolução e encerramento" },
+        first ? 2600 : 1800, "script");
+      if (!record(response)) throw new Error("scene_invalid");
+      const roster = first ? response.characters : characters;
+      if (!Array.isArray(roster) || roster.length < 1 || roster.length > 4) throw new Error("character_incomplete");
+      const cast = roster.map(item => {
+        if (!record(item)) throw new Error("character_invalid");
+        const name = clean(item.name, 100), role = clean(item.role, 180);
+        const visual = clean(item.visual, 1100), voice = clean(item.voice, 450);
+        if (!name || !role || !visual || !voice) throw new Error("character_incomplete");
+        return { name, role, visual, voice };
+      });
+      const scene = normalizeScene(response.scene, sceneNumber - 1);
+      const names = new Set(cast.map(ch => ch.name.toLowerCase()));
+      if (!scene.setting || !scene.action || scene.characters.some(ch => !names.has(ch.toLowerCase())) ||
+        scene.dialogue.some(line => line.speaker.toLowerCase() !== "narrador" && !names.has(line.speaker.toLowerCase())))
+        throw new Error("scene_incomplete");
+      return json({ characters: cast, scene }, 200, origin);
+    }
+    if (body.action === "prompt_scene") {
+      const platform = body.platform;
+      if (platform !== "youtube-create" && platform !== "google-flow" && platform !== "dreamina")
+        return json({ error: "invalid_platform" }, 400, origin);
+      const sceneNumber = Number(body.sceneNumber);
+      if (!Number.isInteger(sceneNumber) || sceneNumber < 1 || sceneNumber > 12)
+        return json({ error: "prompts_invalid" }, 400, origin);
+      const characters = Array.isArray(body.characters) ? body.characters : [];
+      if (characters.length < 1 || characters.length > 12) throw new Error("character_incomplete");
+      const roster = characters.map(item => {
+        if (!record(item)) throw new Error("character_invalid");
+        const name = clean(item.name, 100), role = clean(item.role, 180);
+        const visual = clean(item.visual, 1100), voice = clean(item.voice, 450);
+        if (!name || !role || !visual || !voice) throw new Error("character_incomplete");
+        return { name, role, visual, voice };
+      });
+      const scene = normalizeScene(body.scene, sceneNumber - 1);
+      const names = new Set(roster.map(ch => ch.name.toLowerCase()));
+      if (!scene.setting || !scene.action || scene.characters.some(ch => !names.has(ch.toLowerCase())) ||
+        scene.dialogue.some(d => d.speaker.toLowerCase() !== "narrador" && !names.has(d.speaker.toLowerCase())))
+        throw new Error("scene_incomplete");
+      const rule = RULES[platform];
+      const result = await gemini(
+        "Transforme APENAS esta cena aprovada em um prompt de vídeo. Responda JSON {text:\"...\"}, sem comentários. Mantenha os personagens, roupas, referências, ações e falas em português brasileiro. Duração: " +
+        rule.duration + ". Plataforma: " + rule.name + ". Meta de caracteres: " + rule.target +
+        "; máximo absoluto: " + rule.maximum + ". " + rule.notes +
+        " Gere somente o prompt desta cena, sem incluir as outras cenas.",
+        { platform, sceneNumber, scene, characters: roster.filter(ch => scene.characters.includes(ch.name)) },
+        platform === "youtube-create" ? 1200 : 1750, "script");
+      if (!record(result) || !string(result.text, rule.maximum)) throw new Error("prompt_limit_or_sequence_invalid");
+      return json({ prompt: { scene: sceneNumber, platform, text: result.text.trim() } }, 200, origin);
+    }
     if (body.action === "script") {
       const title = clean(body.title, 220), synopsis = clean(body.synopsis, 600), genre = clean(body.genre, 80) || "geral";
       if (title.length < 3) return json({ error: "invalid_script_input" }, 400, origin);
