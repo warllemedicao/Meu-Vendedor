@@ -61,13 +61,13 @@ export function makeLocalPromptDrafts(
     const dialogue = scene.dialogue.map(line => line.speaker + ': "' + line.text + '"').join("\n");
     const attached = cast.some(char => char.referenceImagePath);
     const base = [
-      "CENA " + scene.number + "/12 • vídeo 9:16 • 10s.",
+      "CENA " + scene.number + "/12 · vídeo 9:16 · 10s.",
       "Cenário: " + scene.setting.trim(),
       "Ação: " + scene.action.trim(),
     ];
     const ending = [
-      dialogue ? "Falas em português brasileiro, exatas:\n" + dialogue : "Sem fala.",
-      attached ? "Usar imagens anexadas como referência fiel dos personagens." : "",
+      dialogue ? "Falas exatas em pt-BR:\n" + dialogue : "Sem fala.",
+      attached ? "Anexar imagens de referência; preservar identidade e roupas." : "",
     ].filter(Boolean);
     const castVariants = [
       cast.map(ch => ch.name + " (" + ch.role + "): " + ch.visual + ". Voz: " + ch.voice).join("\n"),
