@@ -1,3 +1,9 @@
+### Complemento da implementação Histórias — limpeza e validação ainda pendente
+
+- O componente exclusivo `src/components/videos/VideoWorkspace.tsx` foi removido da branch após busca de referências; os componentes de produto usados em outras partes permanecem intactos.
+- A documentação `VIDEOS_IA.md` foi reduzida de aproximadamente 31,6 KB para um aviso com link a `HISTORIAS.md`, preservando links históricos e reduzindo conteúdo obsoleto.
+- Workflow de validação isolada `.github/workflows/stories-validation.yml` criado na branch, mas **nenhum resultado de execução de CI foi confirmado** nesta atualização. A PR #11 segue em modo rascunho, sem merge nem deploy.
+
 ## 2026-11-19 — Início do novo Histórias (branch de desenvolvimento, não publicado)
 
 - Responsável autorizou substituir a interface antiga Vídeos IA por Histórias, com **arquivos novos e independentes**, preservando integralmente o robô Google Flow e arquivos IMAGEM1/2/3. Documentação antiga de Vídeos IA pode ser limpa após auditoria de dependências.
