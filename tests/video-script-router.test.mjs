@@ -55,3 +55,12 @@ test('chaves cadastradas sem prova de plano gratuito nunca acionam Gemini/Groq',
  assert.deepEqual(calls,['https://openrouter.ai/api/v1/chat/completions']);
  assert.equal(result.provider,'local');
 });
+
+// Production wiring contract: only the product studio can access this key.
+test('video-generation uses dedicated Gemini credential for product scripts in both routes', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../supabase/functions/video-generation/index.ts', import.meta.url), 'utf8');
+  assert.match(source, /geminiApiKey: \(\) => Deno\.env\.get\("PROD_ROTEIRO_GEMINI_API_KEY"\)/);
+  assert.match(source, /geminiKey: Deno\.env\.get\("PROD_ROTEIRO_GEMINI_API_KEY"\)/);
+  assert.doesNotMatch(source, /Deno\.env\.get\("GEMINI_API_KEY"\)|Deno\.env\.get\("GOOGLE_API_KEY"\)/);
+});
