@@ -1,6 +1,7 @@
 import { storyPromptAgents as RULES } from "./_shared/agents/index.ts";
 // Independent Gemini text service for Histórias. No Google Flow automation code is imported.
-const MODEL = Deno.env.get("MV_STORIES_GEMINI_MODEL") || "gemini-3.8-flash";
+const TOPICS_MODEL = "gemini-3.5-flash-lite";
+const SCRIPT_MODEL = "gemini-3.5-flash";
 const APP_ORIGIN = Deno.env.get("MV_APP_ORIGIN") || "https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev";
 const MAX_REQUEST_BYTES = 50_000;
 
@@ -62,7 +63,7 @@ async function diagnoseTopicsConnection() {
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(MODEL),
+      "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(TOPICS_MODEL),
       { method: "GET", headers: { "x-goog-api-key": key }, signal: controller.signal, redirect: "error" },
     );
     const elapsedMs = Date.now() - started;
@@ -74,22 +75,22 @@ async function diagnoseTopicsConnection() {
         : response.status === 404 ? "gemini_model_unavailable"
         : response.status === 429 ? "gemini_quota_exceeded"
         : response.status >= 500 ? "gemini_service_unavailable" : "gemini_unavailable";
-      console.error("story_studio_model_check", { ok: false, status: response.status, elapsedMs, model: MODEL, ...diagnostic });
+      console.error("story_studio_model_check", { ok: false, status: response.status, elapsedMs, model: TOPICS_MODEL, ...diagnostic });
       throw new Error(reason);
     }
     const metadata: unknown = await response.json();
     const methods = record(metadata) && Array.isArray(metadata.supportedGenerationMethods)
       ? metadata.supportedGenerationMethods : [];
     const supportsGeneration = methods.includes("generateContent");
-    console.info("story_studio_model_check", { ok: true, status: response.status, elapsedMs, model: MODEL, supportsGeneration });
-    return { ok: true, model: MODEL, elapsedMs, supportsGeneration, note: "model_metadata_only" };
+    console.info("story_studio_model_check", { ok: true, status: response.status, elapsedMs, model: TOPICS_MODEL, supportsGeneration });
+    return { ok: true, model: TOPICS_MODEL, elapsedMs, supportsGeneration, note: "model_metadata_only" };
   } catch (error) {
     if (controller.signal.aborted) {
-      console.error("story_studio_model_check", { ok: false, reason: "gemini_timeout", model: MODEL, timeoutMs: 8000 });
+      console.error("story_studio_model_check", { ok: false, reason: "gemini_timeout", model: TOPICS_MODEL, timeoutMs: 8000 });
       throw new Error("gemini_timeout");
     }
     if (error instanceof TypeError) {
-      console.error("story_studio_model_check", { ok: false, reason: "gemini_network_error", model: MODEL });
+      console.error("story_studio_model_check", { ok: false, reason: "gemini_network_error", model: TOPICS_MODEL });
       throw new Error("gemini_network_error");
     }
     throw error;
@@ -101,10 +102,11 @@ async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8
     ? Deno.env.get("HIST_TEMA_GEMINI_API_KEY")
     : Deno.env.get("HIST_ROTEIRO_GEMINI_API_KEY");
   if (!key) throw new Error("gemini_not_configured");
+  const model = purpose === "topics" ? TOPICS_MODEL : SCRIPT_MODEL;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
   try {
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(MODEL) + ":generateContent?key=" + encodeURIComponent(key);
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent?key=" + encodeURIComponent(key);
     const response = await fetch(url, {
       method: "POST", redirect: "error", signal: controller.signal,
       headers: { "Content-Type": "application/json" },
@@ -125,7 +127,7 @@ async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8
         response.status === 404 ? "gemini_model_unavailable" :
         response.status === 400 ? "gemini_request_rejected" :
         response.status >= 500 ? "gemini_service_unavailable" : "gemini_unavailable";
-      console.error("story_studio_gemini_http_error", { status: response.status, reason, purpose, model: MODEL, ...diagnostic });
+      console.error("story_studio_gemini_http_error", { status: response.status, reason, purpose, model: model, ...diagnostic });
       throw new Error(reason);
     }
     const result: unknown = await response.json();
@@ -138,11 +140,11 @@ async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8
   } catch (error) {
     // Distinguish a slow Gemini response from network failures without logging secrets or raw errors.
     if (controller.signal.aborted) {
-      console.error("story_studio_gemini_transport_error", { reason: "gemini_timeout", purpose, model: MODEL, timeoutMs: 60_000 });
+      console.error("story_studio_gemini_transport_error", { reason: "gemini_timeout", purpose, model: model, timeoutMs: 60_000 });
       throw new Error("gemini_timeout");
     }
     if (error instanceof TypeError) {
-      console.error("story_studio_gemini_transport_error", { reason: "gemini_network_error", purpose, model: MODEL });
+      console.error("story_studio_gemini_transport_error", { reason: "gemini_network_error", purpose, model: model });
       throw new Error("gemini_network_error");
     }
     throw error;
