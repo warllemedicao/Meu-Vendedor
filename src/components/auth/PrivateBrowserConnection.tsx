@@ -503,6 +503,9 @@ export function PrivateBrowserConnection() {
       </div>
       <p className="text-xs text-muted">Seu perfil principal já conectado será preservado. Após o login, o navegador abrirá o Flow para aceitar os termos. A conclusão será automática quando a tela do Flow estiver pronta. O e-mail aparecerá na lista somente se o controle da conta Google o apresentar; caso contrário, será mantido um nome provisório.</p>
     </div>
+    <details className="rounded-xl border border-border p-3">
+      <summary className="cursor-pointer text-sm font-semibold">Área de testes do Google Flow · mostrar/ocultar navegador e ferramentas</summary>
+      <div className="mt-4 space-y-4">
     <button type="button" disabled={busy} onClick={() => void openChrome()} className="rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">
       {busy ? "Abrindo..." : "Abrir Chrome do Flow"}
     </button>
@@ -569,5 +572,7 @@ export function PrivateBrowserConnection() {
       <iframe title="Tela privada do Chrome" src={viewUrl} referrerPolicy="no-referrer" className="h-[min(80vh,900px)] w-full rounded-lg border border-border" />
       <a href={viewUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="text-sm underline">Abrir Chrome em tela cheia</a>
     </div>}
+      </div>
+    </details>
   </article>;
 }
