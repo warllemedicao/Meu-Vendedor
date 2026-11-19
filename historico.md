@@ -1,3 +1,13 @@
+## 19/11/2026 — Histórias/Temas: limpeza dos temas antigos e interface compacta
+
+- Pedido: os temas legados, criados antes da seleção do tipo de personagem, continuam na biblioteca; o usuário quer exclusão individual ou em lote e menos conteúdo repetido.
+- Frontend `StoriesStudio.tsx`: adicionado estado de seleção, checkbox por tema, **Selecionar todos os temas exibidos** e botão **Excluir selecionados (N)**, desativado quando não há seleção. O seletor trabalha sobre os temas visíveis após busca/filtros, não sobre registros ocultos; operação valida novamente IDs e `user_id` antes de excluir. Exige confirmação nativa explícita, divide lotes em no máximo 50 IDs, exibe contagem e erros parciais, atualiza as listas após o processo.
+- Adicionado filtro de tipo de personagem com opção **Sem estilo (antigos)**, que usa o valor `nao_definido` atribuído pela migração anterior; assim é possível selecionar só temas antigos para exclusão sem afetar temas de estilos novos.
+- Cartões de temas salvos e de temas gerados ainda não salvos compactados: **exibem apenas o título** e ações diretas. Removidas sinopses e metadados repetidos da listagem; em biblioteca, opções secundárias de favorito e roteiro manual ficam em menu `Mais`. Busca e filtro de assunto continuam visíveis; demais filtros ficam recolhidos.
+- Proteção de dados verificada diretamente no Supabase (somente leitura): FK `mv_story_projects_topic_id_fkey` usa `ON DELETE SET NULL`, de modo que **excluir o tema não exclui projetos, cenas e roteiros já salvos**. Política RLS de `mv_story_topics` é restrita a `auth.uid() = user_id`. **Nenhum tema real foi excluído pelo assistente**; só o usuário logado poderá confirmar pela UI.
+- Atualizados testes de contrato `tests/story-editorial.test.mjs` para nova etiqueta do botão Roteiro, exclusão sob usuário autenticado, confirmação, seleção visível, filtros de legado e renderização sem sinopses. **12 verificações estáticas pontuais aprovadas**. Não houve execução local de npm test, typecheck, lint, build ou teste de integração; conferir resultado do GitHub Actions antes da publicação do frontend Cloudflare.
+- Alterações restritas a frontend, testes e histórico. Supabase Edge Function, base de dados, robô Google Flow e arquivos IMAGEM1, IMAGEM2, IMAGEM3 não modificados.
+
 ## 19/11/2026 — Simplificação da aba Temas: retirada de verificações e caixa demonstrativa
 
 - Removidos do formulário de Temas os botões **Verificar Gemini sem gerar temas** e **Verificar API de roteiros sem gerar**, além da caixa **Quer testar a interface antes de corrigirmos a conexão Gemini?** e seu formulário de roteiro demonstrativo/manual por título.
