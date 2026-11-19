@@ -1,3 +1,10 @@
+## 19/11/2026 — Diagnóstico restrito dos erros Gemini em Histórias
+
+- `story-studio`: o erro HTTP Gemini agora registra status HTTP, finalidade (tema ou roteiro), modelo, status e código numérico do provedor, além de categoria técnica inferida por palavras-chave permitidas.
+- As mensagens brutas do Google e os dados da requisição não vão para logs; nunca registrar chave, prompt, resposta bruta nem dados do usuário.
+- Nenhuma chamada de geração Gemini foi usada para o diagnóstico, para preservar o limite combinado de até cinco roteiros (preferência por uma solicitação apenas).
+- Não alterar OAuth, Cloudflare, Modal, Google Flow ou arquivos IMAGEM1/IMAGEM2/IMAGEM3. Permanecem as chaves `HIST_TEMA_GEMINI_API_KEY` e `HIST_ROTEIRO_GEMINI_API_KEY`.
+
 ## 19/11/2026 — API Gemini exclusiva de Campanhas de Produtos
 
 - Credencial `PROD_CAMPANHA_GEMINI_API_KEY` destinada exclusivamente à análise visual e preparação de conteúdo promocional em `campaign-content`; leitura de `GEMINI_API_KEY`/`GOOGLE_API_KEY` removida somente dessa função.
