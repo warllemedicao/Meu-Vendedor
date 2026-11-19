@@ -39,10 +39,10 @@ async function authenticated(request: Request): Promise<boolean> {
   finally { clearTimeout(timeout); }
 }
 async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8192, purpose: "topics" | "script" = "script"): Promise<unknown> {
-  // Topics have their own credential; never borrow the product or script key.
+  // Topics use HIST_TEMA; scripts and prompts use HIST_ROTEIRO, without cross-purpose fallback.
   const key = purpose === "topics"
     ? Deno.env.get("HIST_TEMA_GEMINI_API_KEY")
-    : Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
+    : Deno.env.get("HIST_ROTEIRO_GEMINI_API_KEY");
   if (!key) throw new Error("gemini_not_configured");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
