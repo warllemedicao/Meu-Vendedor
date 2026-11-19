@@ -145,3 +145,18 @@ test("bounded model budgets maintain 12 scenes and log only token counts", () =>
   assert.match(studio, /One click = one Gemini request/);
   assert.match(studio, /gemini_service_unavailable/);
 });
+
+
+test("prompt character ceilings are consistent across frontend and agents", () => {
+  const workflow = read("src/lib/stories/workflow.ts");
+  const flow = read("supabase/functions/story-studio/_shared/agents/google-flow.ts");
+  const dreamina = read("supabase/functions/story-studio/_shared/agents/dreamina.ts");
+  assert.match(studio, /label: "Google Flow", maximum: 1600/);
+  assert.match(studio, /label: "Dreamina", maximum: 1200/);
+  assert.match(workflow, /"Google Flow", targetChars: 900, absoluteChars: 1600/);
+  assert.match(workflow, /"Dreamina", targetChars: 650, absoluteChars: 1200/);
+  assert.match(flow, /target: 900/);
+  assert.match(flow, /maximum: 1600/);
+  assert.match(dreamina, /target: 650/);
+  assert.match(dreamina, /maximum: 1200/);
+});
