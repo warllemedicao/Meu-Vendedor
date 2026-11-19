@@ -1,3 +1,10 @@
+## 2026-11-19 — Histórias: CI completo aprovado na branch isolada
+
+- Código da nova rota e dos serviços de Histórias validado no GitHub Actions run [44465702220](https://github.com/warllemedicao/Meu-Vendedor/actions/runs/44465702220), commit `732806ab39fae61962b3a19303163ed4d814baa1`.
+- O workflow executou `npm test`, `npm run typecheck`, `npm run typecheck:edge`, `npm run lint` e `npm run build:pages` com conclusão **success**.
+- A PR #11 continua como rascunho; **sem deploy**, sem migração remota, sem execução real Gemini e sem geração ou postagem de vídeos.
+- As últimas alterações abaixo são somente documentais, não alteram os arquivos de código aprovados pelo CI.
+
 ### Complemento da implementação Histórias — limpeza e validação ainda pendente
 
 - O componente exclusivo `src/components/videos/VideoWorkspace.tsx` foi removido da branch após busca de referências; os componentes de produto usados em outras partes permanecem intactos.
