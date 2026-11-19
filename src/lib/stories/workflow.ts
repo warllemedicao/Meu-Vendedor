@@ -10,7 +10,7 @@ export const STORY_STAGES = [
 ] as const;
 export type StoryStage = (typeof STORY_STAGES)[number]["key"];
 export type StoryPlatform = "youtube-create" | "google-flow" | "dreamina";
-export type StoryCharacter = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string };
+export type StoryCharacter = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string; referenceImagePrompt?: string };
 export type StoryDialogue = { speaker: string; text: string };
 export type StoryScene = {
   number: number; durationSeconds: 10; title: string; setting: string;
@@ -63,6 +63,8 @@ export function makeLocalPromptDrafts(
       "CENA " + scene.number + "/12 — vídeo vertical 9:16. Duração: " + guide.duration + ".",
       "Cenário: " + scene.setting + ".", "Ação: " + scene.action + ".",
       cast ? "Personagens, identidade e função fixas:\n" + cast : "",
+      characters.some(ch => scene.characters.includes(ch.name) && ch.referenceImagePath)
+        ? "Anexar manualmente as imagens de referência baixadas dos personagens presentes nesta cena. Manter identidade e roupas iguais às imagens." : "",
       dialogue ? "Falas exatamente em português brasileiro:\n" + dialogue : "Sem fala nesta cena.",
       scene.transition ? "Continuidade para próxima cena: " + scene.transition + "." : "",
       "Manter vestuário, traços, função e voz consistentes com as referências aprovadas.",
