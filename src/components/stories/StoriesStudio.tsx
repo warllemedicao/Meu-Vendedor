@@ -268,7 +268,7 @@ export function StoriesStudio() {
       return setError("Gere ou preencha esta cena antes de preparar o prompt.");
     const provider = selectedPlatformByScene[sceneNumber] || platform;
     const client = getSupabase(); if (!client) return;
-    setBusy(true); setError(""); setSceneProgress(useGemini ? "Gerando prompt da cena " + sceneNumber : "");
+    setBusy(true); setError(""); setCopiedScenePrompt(null); setSceneProgress(useGemini ? "Gerando prompt da cena " + sceneNumber : "");
     try {
       const key = promptKey(sceneNumber, provider);
       const { data: existing, error: readError } = await client.from("mv_story_prompts").select("prompt")
@@ -584,7 +584,7 @@ export function StoriesStudio() {
         genre: topic?.genre || genre, characters, scenes, status: "draft",
       }).select("id,user_id,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível criar o roteiro manual.");
-      setActiveTopic(topic || null); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1);
+      setActiveTopic(topic || null); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setSceneWorkbenchStep("roteiro");
       setPublishTitle(title.trim()); setPublishDescription(topic?.synopsis || ""); setStage("roteiro");
       setMessage("Rascunho manual criado com 12 cenas vazias. Preencha e aprove antes de gerar prompts.");
       void loadProjects();
@@ -593,9 +593,12 @@ export function StoriesStudio() {
   }
   function previewLocalPrompts() {
     if (!project || project.status === "draft") return;
-    setPrompts(makeLocalPromptDrafts(platform, project.characters, project.scenes));
-    setStage("prompts");
-    setMessage("Rascunhos locais montados a partir do roteiro, SEM Gemini. Revise os limites e salve os que desejar.");
+    setError("");
+    try {
+      setPrompts(makeLocalPromptDrafts(platform, project.characters, project.scenes));
+      setStage("prompts");
+      setMessage("Rascunhos locais montados sem Gemini, respeitando o limite de cada plataforma.");
+    } catch (e) { setError(plainError(e)); }
   }
   function downloadProductionPlan() {
     if (!project) return;
@@ -1232,7 +1235,7 @@ export function StoriesStudio() {
           <div className="flex gap-2">
             <button className={button} disabled={busy || !p.text.trim() || !!(maxPrompt && Array.from(p.text).length > maxPrompt)}
               onClick={() => void saveEditedPrompt(p.scene)}>Salvar edição</button>
-            <button className={button} disabled={!p.text.trim()} onClick={() => void navigator.clipboard.writeText(p.text)}>Copiar prompt</button>
+            <button className={button} disabled={!p.text.trim() || !!(maxPrompt && Array.from(p.text).length > maxPrompt)} onClick={() => void navigator.clipboard.writeText(p.text)}>Copiar prompt</button>
           </div>
         </div>
       </div>)}
