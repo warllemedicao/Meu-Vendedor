@@ -848,30 +848,65 @@ export function StoriesStudio() {
       <button className={button} onClick={() => setStage("temas")}>Voltar aos temas</button>
     </section>}
     {stage === "roteiro" && project && user && project.user_id === user.id && <section className={panel}>
-      <h2 className="text-lg font-semibold">4. Roteiro — {activeTopic?.title || project.title}</h2>
-      {project.status === "draft" && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3">
-        <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())} onClick={() => void generateRemainingScenes()}>
-          Gerar cenas restantes em sequência
-        </button>
-        <span className="text-xs text-muted">Modo sequencial: até 12 chamadas à cota do Gemini, com intervalo mínimo de 16 segundos. Para ao primeiro erro e preserva as cenas salvas.</span>
-        {busy && sceneProgress && <button className={button} onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
-        {busy && sceneProgress && <span role="status" className="text-sm text-muted">{sceneProgress}</span>}
-        <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())}
-          onClick={() => void generateNextSceneLite()}>Gerar próxima cena com Flash-Lite (alternativa)</button>
-        <span className="text-xs text-muted">Alternativa manual: usa a chave exclusiva de roteiros, não a de temas. Apenas uma requisição por clique; pode consumir cota e também apresentar indisponibilidade.</span>
-        <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())} onClick={() => void generateNextScene()}>
-          {busy && sceneProgress ? sceneProgress : "Gerar próxima cena com Gemini"}
-        </button>
-        <span className="text-sm text-muted">{project.scenes.filter(s => !!s.action.trim() && !!s.setting.trim()).length}/12 cenas preenchidas e salvas</span>
-      </div>}
-      <p className="text-xs text-muted">12 cenas de 10s. Apenas a cena selecionada fica aberta; cenas geradas mostram seu conteúdo e continuam editáveis. As pendentes serão preenchidas após a geração.</p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-label="Linha do tempo de 12 cenas">
-        {project.scenes.map(s => <a key={s.number} href={"#story-scene-" + s.number} onClick={() => setExpandedScene(s.number)}
-          className="rounded-xl border border-border bg-surface px-2 py-3 text-center text-sm hover:underline">
-          <span className="block font-semibold">Cena {s.number}</span><span className="text-xs text-muted">10s · {clips.find(c => c.scene_number === s.number)?.approved ? "Aprovado" : clips.some(c => c.scene_number === s.number) ? "Enviado" : "Pendente"}</span>
-        </a>)}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Estúdio de histórias · quadro de produção</p>
+          <h2 className="text-lg font-semibold truncate">{activeTopic?.title || project.title}</h2>
+          <p className="text-xs text-muted">Cena {expandedScene} de 12 · 10 segundos por cena · mantenha seus personagens iguais</p>
+        </div>
+        <div className="rounded-xl bg-primary/10 border border-primary/30 px-4 py-2 text-center">
+          <span className="block text-lg font-bold">{project.scenes.filter(s => s.action.trim() && s.setting.trim()).length}/12</span>
+          <span className="text-xs">roteiros criados</span>
+        </div>
       </div>
-      <div className="rounded-xl border border-border p-3 space-y-3">
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface-secondary" aria-label="Progresso das cenas geradas">
+        <div className="h-full rounded-full bg-primary" style={{ width: project.scenes.filter(s => s.action.trim() && s.setting.trim()).length / 12 * 100 + "%" }}/>
+      </div>
+      <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Cenas prontas para produzir">
+        {project.scenes.filter(s => (s.action.trim() && s.setting.trim()) || s.number === expandedScene).map(s =>
+          <button key={s.number} type="button" aria-current={expandedScene === s.number ? "step" : undefined}
+            className={"shrink-0 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors " +
+              (expandedScene === s.number ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:bg-surface-secondary")}
+            onClick={() => selectWorkbenchScene(s.number)}>
+            Cena {s.number} {s.action.trim() && s.setting.trim() ? "✓" : "· pendente"}
+          </button>)}
+      </nav>
+      <details className="rounded-xl border border-border bg-surface-secondary/40 px-3 py-2">
+        <summary className="cursor-pointer text-xs font-semibold">Mostrar todas as 12 cenas e pendências</summary>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-3">
+          {project.scenes.map(s => <button key={s.number} type="button" onClick={() => selectWorkbenchScene(s.number)}
+            className={"rounded-lg border px-2 py-2 text-xs " +
+              (expandedScene === s.number ? "border-primary bg-primary/10" : "border-border bg-surface")}>
+            Cena {s.number} · {s.action.trim() && s.setting.trim() ? "Pronta" : "Pendente"}
+          </button>)}
+        </div>
+      </details>
+      <div className="rounded-2xl border border-border bg-surface-secondary/30 p-3 space-y-3">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Etapas da cena selecionada">
+          {([
+            ["roteiro", "1 · Revisar roteiro"],
+            ["personagens", "2 · Personagens e imagens"],
+            ["prompt", "3 · Prompt e download"],
+          ] as const).map(([step,label]) =>
+            <button key={step} type="button" aria-pressed={sceneWorkbenchStep === step}
+              className={"rounded-xl px-3 py-2 text-sm font-semibold transition-colors " +
+                (sceneWorkbenchStep === step ? "bg-primary text-primary-foreground" : "border border-border bg-surface hover:bg-surface-secondary")}
+              onClick={() => setSceneWorkbenchStep(step)}>{label}</button>)}
+        </div>
+        {project.status === "draft" && <details className="rounded-xl border border-border p-2">
+          <summary className="cursor-pointer text-xs font-semibold">Opções avançadas de geração (manual, pode consumir cota)</summary>
+          <div className="flex flex-wrap gap-2 pt-3">
+            <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())}
+              onClick={() => void generateNextSceneLite()}>Tentar cena pendente com Flash-Lite</button>
+            <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())}
+              onClick={() => void generateRemainingScenes()}>Gerar todas as pendentes em sequência</button>
+            {busy && sceneProgress && <button className={button} onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
+          </div>
+          <p className="text-xs text-muted pt-2">Uma cena por chamada, sem retentativa após erro. Se a IA falhar, você pode editar manualmente. Nenhuma chave de temas é reutilizada.</p>
+        </details>}
+        {busy && sceneProgress && <p role="status" className="rounded-xl border border-border p-2 text-sm">{sceneProgress}</p>}
+      </div>
+      {sceneWorkbenchStep === "personagens" &&       <div className="rounded-xl border border-border p-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Bíblia de personagens — identidade e continuidade</h3><button className={button} disabled={busy} onClick={() => void loadCharacterLibrary()}>Atualizar imagens</button></div>
         {project.characters.map((char, ci) => <div key={ci} className="rounded-xl border border-border p-3 space-y-2 text-sm">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -942,6 +977,7 @@ export function StoriesStudio() {
           </div>}
         </div>)}
       </div>
+      }
       <div className="space-y-2">
         {project.scenes.map((s, i) => {
           const filled = Boolean(s.setting.trim() && s.action.trim());
