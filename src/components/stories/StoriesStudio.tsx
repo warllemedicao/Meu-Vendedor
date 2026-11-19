@@ -351,7 +351,7 @@ export function StoriesStudio() {
       </div>)}
     </section>}
 
-    {project && <section className={panel}>
+    {project && user && project.user_id === user.id && <section className={panel}>
       <h2 className="text-lg font-semibold">5. Biblioteca de clipes</h2>
       <p className="text-sm text-muted">Importe um MP4 de cada cena. Os arquivos ficam em Storage privado. Montagem em 2 minutos e publicação serão habilitadas em uma etapa própria de integração.</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
