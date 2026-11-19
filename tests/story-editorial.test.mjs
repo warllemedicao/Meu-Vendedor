@@ -41,7 +41,7 @@ test("social publication choices do not trigger social APIs", () => {
 
 test("script starts generating the first scene automatically after persisting draft", () => {
   assert.match(code, /await generateOneScene\(data as Project, topic\.synopsis\)/);
-  assert.match(code, /Criar roteiro e gerar cena 1/);
+  assert.match(code, /onClick=\{\(\) => void generateScript\(t\)\}>Roteiro<\/button>/);
   assert.match(code, /setExpandedScene\(sceneNumber\)/);
   assert.match(code, /selected\.scenes\.reduce\(\(last, s\)/);
 });
@@ -144,4 +144,30 @@ test("character style is explicitly selected before topic creation and persisted
   assert.match(code, /character_style: topic\.character_style \|\| "nao_definido"/);
   assert.match(code, /characterStyle: working\.character_style \|\| "nao_definido"/);
   assert.match(code, /characterStyle: project\.character_style \|\| "nao_definido"/);
+});
+
+test("saved topics allow scoped individual and bulk deletion without deleting story projects", () => {
+  assert.match(code, /const \[selectedTopicIds, setSelectedTopicIds\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(code, /function toggleTopicSelection\(topicId: string\)/);
+  assert.match(code, /const visibleIds = new Set\(visibleTopics\.map\(topic => topic\.id\)\)/);
+  assert.match(code, /async function deleteSelectedTopics\(\)/);
+  assert.match(code, /window\.confirm\("Excluir definitivamente "/);
+  assert.match(code, /\.from\("mv_story_topics"\)/);
+  assert.match(code, /\.delete\(\)\.eq\("user_id", user\.id\)\.in\("id", batch\)\.select\("id"\)/);
+  assert.match(code, /Selecionar todos os temas exibidos/);
+  assert.match(code, /Excluir selecionados/);
+  assert.match(code, /Roteiros já criados permanecerão salvos/);
+});
+
+test("topic lists are compact and show the title without duplicate synopses", () => {
+  const start = code.indexOf('<h2 className="text-lg font-semibold">3. Biblioteca de temas');
+  const end = code.indexOf('<section className={panel} hidden={stage !== "roteiro"}>', start);
+  assert.ok(start >= 0 && end > start);
+  const library = code.slice(start, end);
+  assert.match(library, /truncate text-sm font-semibold/);
+  assert.doesNotMatch(library, /\{t\.synopsis\}/);
+  const draftStart = code.indexOf('Temas gerados — revisão');
+  const draftEnd = code.indexOf('3. Biblioteca de temas', draftStart);
+  assert.ok(draftStart >= 0 && draftEnd > draftStart);
+  assert.doesNotMatch(code.slice(draftStart, draftEnd), /\{t\.synopsis\}/);
 });
