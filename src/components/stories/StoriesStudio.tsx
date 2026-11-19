@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase/client";
 type Genre = "geral" | "comedia" | "suspense" | "educativo" | "aventura" | "drama";
 type Platform = "youtube-create" | "google-flow" | "dreamina";
 type Topic = { id: string; user_id: string; subject: string; title: string; synopsis: string; genre: string; saved: boolean };
+type TopicDraft = Pick<Topic, "subject" | "title" | "synopsis" | "genre"> & { localId: string };
 type Character = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string };
 type Dialogue = { speaker: string; text: string };
 type Scene = { number: number; durationSeconds: 10; title: string; setting: string; action: string; characters: string[]; dialogue: Dialogue[]; transition: string };
@@ -61,6 +62,13 @@ export function StoriesStudio() {
   const [requested, setRequested] = useState(50);
   const [query, setQuery] = useState("");
   const [onlySaved, setOnlySaved] = useState(false);
+  const [subjectFilter, setSubjectFilter] = useState("");
+  const [genreFilter, setGenreFilter] = useState<Genre>("geral");
+  const [draftTopics, setDraftTopics] = useState<TopicDraft[]>([]);
+  const [savingTopic, setSavingTopic] = useState<string | null>(null);
+  const [destination, setDestination] = useState<"youtube" | "tiktok" | "kwai">("youtube");
+  const [publishTitle, setPublishTitle] = useState("");
+  const [publishDescription, setPublishDescription] = useState("");
   const [topics, setTopics] = useState<Topic[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeTopic, setActiveTopic] = useState<Topic | null>(null);
@@ -92,7 +100,7 @@ export function StoriesStudio() {
   useEffect(() => { void Promise.resolve().then(() => Promise.all([loadTopics(), loadProjects()])); }, [loadTopics, loadProjects]);
   async function openProject(selected: Project) {
     if (!user) return;
-    setError(""); setProject(selected); setActiveTopic(null);
+    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title);
     const client = getSupabase(); if (!client) return;
     const [clipsResult, promptResult] = await Promise.all([
       client.from("mv_story_clips").select("id,scene_number,storage_path,approved").eq("user_id", user.id).eq("project_id", selected.id),
@@ -121,30 +129,52 @@ export function StoriesStudio() {
   async function generateTopics() {
     if (!user || subject.trim().length < 2) return;
     setBusy(true); setError(""); setMessage(""); setProgress(0); cancelRef.current = false;
-    const client = getSupabase();
-    if (!client) { setBusy(false); return; }
+    const normalizedSubject = subject.trim();
+    const known = new Set([...topics.filter(t => t.subject === normalizedSubject).map(t => t.title.toLowerCase()),
+      ...draftTopics.filter(t => t.subject === normalizedSubject).map(t => t.title.toLowerCase())]);
+    const excluded = [...known];
+    let total = 0;
     try {
-      const known = new Set(topics.filter(t => t.subject === subject.trim()).map(t => t.title.toLowerCase()));
-      let total = 0;
-      const initial = [...known];
       while (total < requested && !cancelRef.current) {
         const count = Math.min(25, requested - total);
-        const result = await invokeStory("topics", { subject: subject.trim(), genre, count, excludedTitles: initial.slice(-80) }) as { topics: { title: string; genre: string; synopsis: string }[] };
-        const fresh = result.topics.filter(t => !known.has(t.title.toLowerCase()));
-        if (!fresh.length) throw new Error("O Gemini repetiu os temas anteriores. Tente outro assunto ou gênero.");
-        const rows = fresh.map(t => ({ user_id: user.id, subject: subject.trim(), title: t.title, synopsis: t.synopsis, genre: t.genre, saved: false }));
-        const { error: dbError } = await client.from("mv_story_topics").upsert(rows, { onConflict: "user_id,subject,title", ignoreDuplicates: true });
-        if (dbError) throw new Error("Falha ao salvar os temas no banco.");
-        fresh.forEach(t => known.add(t.title.toLowerCase()));
-        initial.push(...fresh.map(t => t.title));
-        total += fresh.length;
+        const result = await invokeStory("topics", { subject: normalizedSubject, genre, count, excludedTitles: excluded.slice(-80) }) as {
+          topics: { title: string; genre: string; synopsis: string }[]
+        };
+        if (!Array.isArray(result.topics)) throw new Error("O Gemini não retornou uma lista válida.");
+        const fresh = result.topics.filter(t => t.title && !known.has(t.title.toLowerCase()));
+        if (!fresh.length) throw new Error("O Gemini repetiu os temas. Tente outro assunto ou gênero.");
+        const batch = fresh.map(t => ({
+          localId: crypto.randomUUID(), subject: normalizedSubject, title: t.title, synopsis: t.synopsis, genre: t.genre,
+        }));
+        setDraftTopics(previous => [...previous, ...batch]);
+        batch.forEach(t => { known.add(t.title.toLowerCase()); excluded.push(t.title); });
+        total += batch.length;
         setProgress(total);
-        if (fresh.length < Math.max(1, count / 2)) break;
+        if (batch.length < Math.max(1, count / 2)) break;
       }
-      setMessage((cancelRef.current ? "Geração interrompida. " : "") + "Temas novos salvos: " + total + ". Você pode continuar depois.");
-      await loadTopics();
-    } catch (e) { setError(plainError(e)); await loadTopics(); }
+      setMessage((cancelRef.current ? "Geração interrompida. " : "") + total + " temas na caixa de revisão. Salve os que desejar.");
+    } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
+  }
+  async function saveDraftTopics(items: TopicDraft[]) {
+    if (!user || !items.length) return;
+    const client = getSupabase(); if (!client) return;
+    setSavingTopic(items.length === 1 ? items[0].localId : "all"); setError("");
+    try {
+      const rows = items.map(t => ({ user_id: user.id, subject: t.subject, title: t.title,
+        synopsis: t.synopsis, genre: t.genre, saved: true }));
+      // Divide também a gravação para evitar limites de tamanho de uma única requisição.
+      for (let i = 0; i < rows.length; i += 50) {
+        const { error: dbError } = await client.from("mv_story_topics").upsert(rows.slice(i, i + 50),
+          { onConflict: "user_id,subject,title", ignoreDuplicates: true });
+        if (dbError) throw new Error("Não foi possível salvar todos os temas; os lotes anteriores foram mantidos.");
+      }
+      const ids = new Set(items.map(t => t.localId));
+      setDraftTopics(previous => previous.filter(t => !ids.has(t.localId)));
+      await loadTopics();
+      setMessage(items.length + " tema(s) enviado(s) à biblioteca.");
+    } catch (e) { setError(plainError(e)); await loadTopics(); }
+    finally { setSavingTopic(null); }
   }
   async function toggleSaved(topic: Topic) {
     const client = getSupabase(); if (!client || !user) return;
@@ -165,10 +195,15 @@ export function StoriesStudio() {
         .select("id,user_id,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível salvar o roteiro.");
       setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]);
+      setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
       void loadProjects();
       setMessage("Roteiro criado. Revise e aprove as cenas antes de gerar prompts.");
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
+  }
+  function updateCharacter(index: number, changes: Partial<Character>) {
+    if (!project || project.status !== "draft") return;
+    setProject({ ...project, characters: project.characters.map((char, i) => i === index ? { ...char, ...changes } : char) });
   }
   function updateScene(index: number, changes: Partial<Scene>) {
     if (!project || project.status !== "draft") return;
@@ -178,6 +213,12 @@ export function StoriesStudio() {
     if (!project || !user) return;
     if (project.scenes.length !== 12 || project.scenes.some((s, i) => s.number !== i + 1 || !s.action.trim() || !s.setting.trim()))
       return setError("Cada uma das 12 cenas precisa ter ação, cenário e numeração correta.");
+    const characterNames = new Set(project.characters.map(ch => ch.name.toLowerCase()));
+    if (project.characters.some(ch => !ch.name.trim() || !ch.role.trim() || !ch.visual.trim() || !ch.voice.trim()))
+      return setError("Preencha nome, função, aparência e voz de todos os personagens.");
+    if (project.scenes.some(s => s.characters.some(ch => !characterNames.has(ch.toLowerCase())) ||
+      s.dialogue.some(d => d.speaker.toLowerCase() !== "narrador" && !characterNames.has(d.speaker.toLowerCase()))))
+      return setError("Um personagem mencionado na cena não existe na Bíblia de Personagens.");
     if (project.scenes.some(s => s.dialogue.reduce((n, d) => n + d.text.trim().split(/\s+/).filter(Boolean).length, 0) > 26))
       return setError("Uma das cenas ultrapassa 26 palavras de fala. Reduza a fala para caber nos 10 segundos.");
     const client = getSupabase(); if (!client) return;
@@ -210,6 +251,45 @@ export function StoriesStudio() {
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
+  async function loadPlatformPrompts(selected: Platform) {
+    if (!user || !project) return;
+    const client = getSupabase(); if (!client) return;
+    const { data, error: dbError } = await client.from("mv_story_prompts")
+      .select("scene_number,prompt,platform").eq("user_id", user.id).eq("project_id", project.id)
+      .eq("platform", selected).order("scene_number");
+    if (dbError) { setError("Não foi possível carregar os prompts salvos."); return; }
+    setPrompts((data || []).map(p => ({ scene: p.scene_number as number, text: p.prompt as string, platform: p.platform as Platform })));
+  }
+  async function saveEditedPrompt(scene: number) {
+    if (!user || !project) return;
+    const current = prompts.find(p => p.scene === scene && p.platform === platform);
+    if (!current || !current.text.trim()) return setError("O prompt não pode ficar vazio.");
+    const maximum = platformOptions.find(p => p.value === platform)?.maximum;
+    if (maximum && Array.from(current.text).length > maximum) return setError("O prompt excede o limite desta plataforma.");
+    const client = getSupabase(); if (!client) return;
+    const { error: dbError } = await client.from("mv_story_prompts").upsert({
+      user_id: user.id, project_id: project.id, scene_number: scene, platform, prompt: current.text.trim(),
+    }, { onConflict: "project_id,scene_number,platform" });
+    if (dbError) return setError("Não foi possível salvar a versão editada.");
+    setMessage("Prompt da cena " + scene + " salvo.");
+  }
+  async function approveClip(sceneNumber: number, approved: boolean) {
+    if (!user || !project) return;
+    const clip = clips.find(c => c.scene_number === sceneNumber); if (!clip) return;
+    const client = getSupabase(); if (!client) return;
+    const { error: dbError } = await client.from("mv_story_clips").update({ approved })
+      .eq("id", clip.id).eq("project_id", project.id).eq("user_id", user.id);
+    if (dbError) return setError("Não foi possível atualizar a aprovação do clipe.");
+    setClips(old => old.map(c => c.id === clip.id ? { ...c, approved } : c));
+  }
+  async function previewClip(sceneNumber: number) {
+    const clip = clips.find(c => c.scene_number === sceneNumber);
+    const client = getSupabase(); if (!clip || !client) return;
+    const { data, error: storageError } = await client.storage.from("mv-story-clips")
+      .createSignedUrl(clip.storage_path, 90);
+    if (storageError || !data?.signedUrl) return setError("Não foi possível abrir este clipe privado.");
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
   async function uploadClip(sceneNumber: number, file?: File) {
     if (!file || !user || !project) return;
     if (file.type !== "video/mp4" || file.size > 100 * 1024 * 1024) return setError("Use um MP4 com até 100 MB.");
@@ -228,14 +308,16 @@ export function StoriesStudio() {
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
-  const visibleTopics = topics.filter(t => user && t.user_id === user.id && (!onlySaved || t.saved) && (genre === "geral" || t.genre === genre)
-    && (!query || (t.title + " " + t.subject).toLowerCase().includes(query.toLowerCase())));
+  const visibleTopics = topics.filter(t => user && t.user_id === user.id && (!onlySaved || t.saved) &&
+    (!subjectFilter || t.subject === subjectFilter) && (genreFilter === "geral" || t.genre === genreFilter) &&
+    (!query || (t.title + " " + t.subject).toLowerCase().includes(query.toLowerCase())));
+  const subjects = Array.from(new Set(topics.filter(t => user && t.user_id === user.id).map(t => t.subject))).sort();
   const maxPrompt = platformOptions.find(p => p.value === platform)?.maximum;
 
   return <div className="space-y-6">
     <section className={panel}>
       <h2 className="text-lg font-semibold">1. Assuntos e temas</h2>
-      <p className="text-sm text-muted">Use Gemini Text para criar temas originais. Até 1.000 por solicitação, em lotes de 25 com salvamento progressivo.</p>
+      <p className="text-sm text-muted">Use Gemini Text para gerar até 1.000 ideias, em lotes de 25. Revise os resultados na próxima caixa e salve somente os temas desejados.</p>
       <label className="block text-sm font-medium">Assunto principal
         <input className={field + " mt-1"} value={subject} maxLength={160} onChange={e => setSubject(e.target.value)}
           placeholder="Ex.: manutenção de fábrica" />
@@ -263,10 +345,36 @@ export function StoriesStudio() {
     </section>
 
     <section className={panel}>
-      <h2 className="text-lg font-semibold">2. Biblioteca de temas <span className="text-sm text-muted">({visibleTopics.length})</span></h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">2. Temas gerados — revisão ({draftTopics.length})</h2>
+        <button className={button} disabled={!draftTopics.length || !!savingTopic || busy}
+          onClick={() => void saveDraftTopics(draftTopics)}>Salvar todos os temas</button>
+      </div>
+      <p className="text-sm text-muted">Esta caixa contém os resultados ainda não salvos. Você decide o que manter na biblioteca.</p>
+      <div className="max-h-80 space-y-2 overflow-y-auto" aria-live="polite">
+        {draftTopics.map(t => <article key={t.localId} className="flex flex-col gap-2 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0"><p className="font-medium">{t.title}</p><p className="text-sm text-muted">{t.synopsis}</p>
+            <p className="text-xs text-muted">{t.subject} · {t.genre}</p></div>
+          <div className="flex shrink-0 gap-2">
+            <button className={button} disabled={busy || !!savingTopic} onClick={() => void saveDraftTopics([t])}>Salvar</button>
+            <button className={button} disabled={busy || !!savingTopic}
+              onClick={() => setDraftTopics(previous => previous.filter(item => item.localId !== t.localId))}>Descartar</button>
+          </div>
+        </article>)}
+        {!draftTopics.length && <p className="text-sm text-muted">Os temas gerados aparecerão aqui antes de serem salvos.</p>}
+      </div>
+    </section>
+    <section className={panel}>
+      <h2 className="text-lg font-semibold">3. Biblioteca de temas <span className="text-sm text-muted">({visibleTopics.length})</span></h2>
       <div className="flex flex-wrap gap-3">
         <input className={field + " max-w-sm"} value={query} onChange={e => setQuery(e.target.value)} placeholder="Filtrar temas e assuntos" />
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={onlySaved} onChange={e => setOnlySaved(e.target.checked)}/> Somente salvos</label>
+        <select className={field + " max-w-xs"} value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)} aria-label="Filtrar por assunto">
+          <option value="">Todos os assuntos</option>{subjects.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select className={field + " max-w-xs"} value={genreFilter} onChange={e => setGenreFilter(e.target.value as Genre)} aria-label="Filtrar por gênero">
+          {genres.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+        </select>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={onlySaved} onChange={e => setOnlySaved(e.target.checked)}/> Somente favoritos</label>
       </div>
       <div className="max-h-96 space-y-2 overflow-y-auto">
         {visibleTopics.map(t => <div key={t.id} className="flex flex-col gap-2 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
