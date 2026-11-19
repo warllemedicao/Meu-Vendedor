@@ -3,16 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
-import { STORY_STAGES, PLATFORM_GUIDES, makeEmptyStoryScenes, makeLocalPromptDrafts, countStoryWords, type StoryStage } from "@/lib/stories/workflow";
+import { STORY_STAGES, PLATFORM_GUIDES, makeEmptyStoryScenes, makeLocalPromptDrafts, countStoryWords, STORY_CHARACTER_STYLES, type StoryCharacterStyle, type StoryStage } from "@/lib/stories/workflow";
 
 type Genre = "geral" | "comedia" | "suspense" | "educativo" | "aventura" | "drama";
 type Platform = "youtube-create" | "google-flow" | "dreamina";
-type Topic = { id: string; user_id: string; subject: string; title: string; synopsis: string; genre: string; saved: boolean };
-type TopicDraft = Pick<Topic, "subject" | "title" | "synopsis" | "genre"> & { localId: string };
+type Topic = { id: string; user_id: string; subject: string; title: string; synopsis: string; genre: string; character_style: StoryCharacterStyle; saved: boolean };
+type TopicDraft = Pick<Topic, "subject" | "title" | "synopsis" | "genre" | "character_style"> & { localId: string };
 type Character = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string; referenceImagePrompt?: string };
 type Dialogue = { speaker: string; text: string };
 type Scene = { number: number; durationSeconds: 10; title: string; setting: string; action: string; characters: string[]; dialogue: Dialogue[]; transition: string };
-type Project = { id: string; user_id: string; title: string; status: string; genre?: string; topic_id?: string | null; characters: Character[]; scenes: Scene[] };
+type Project = { id: string; user_id: string; title: string; status: string; genre?: string; topic_id?: string | null; character_style: StoryCharacterStyle; characters: Character[]; scenes: Scene[] };
 type Prompt = { scene: number; text: string; platform: Platform };
 type Clip = { id: string; scene_number: number; storage_path: string; approved: boolean };
 type LibraryCharacter = { id: string; user_id: string; name: string; description: string; voice: string; image_prompt: string; storage_path: string };
@@ -92,6 +92,7 @@ export function StoriesStudio() {
   const [manualTitle, setManualTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [genre, setGenre] = useState<Genre>("geral");
+  const [characterStyle, setCharacterStyle] = useState<Exclude<StoryCharacterStyle, "nao_definido">>("frutinhas");
   const [requested, setRequested] = useState(5);
   const [query, setQuery] = useState("");
   const [onlySaved, setOnlySaved] = useState(false);
@@ -139,7 +140,7 @@ export function StoriesStudio() {
   const loadProjects = useCallback(async () => {
     if (!user) { setProjects([]); return; }
     const client = getSupabase(); if (!client) return;
-    const { data } = await client.from("mv_story_projects").select("id,user_id,topic_id,genre,title,status,characters,scenes")
+    const { data } = await client.from("mv_story_projects").select("id,user_id,topic_id,genre,character_style,title,status,characters,scenes")
       .eq("user_id", user.id).order("updated_at", { ascending: false }).limit(100);
     setProjects((data || []) as Project[]);
   }, [user]);
@@ -282,9 +283,9 @@ export function StoriesStudio() {
       }
       const draft = useGemini
         ? (await invokeStory("prompt_scene", {
-          platform: provider, sceneNumber, scene, characters: project.characters,
+          platform: provider, sceneNumber, scene, characterStyle: project.character_style || "nao_definido", characters: project.characters,
         }) as { prompt: Prompt }).prompt?.text
-        : makeLocalPromptDrafts(provider, project.characters, [scene])[0]?.text;
+        : makeLocalPromptDrafts(provider, project.characters, [scene], project.character_style || "nao_definido")[0]?.text;
       if (!draft) throw new Error("O prompt não foi preparado.");
       setScenePromptDrafts(old => ({ ...old, [key]: draft }));
       setSceneWorkbenchStep("prompt");
@@ -374,7 +375,7 @@ export function StoriesStudio() {
     ]);
     if (selected.topic_id) {
       const { data: sourceTopic } = await client.from("mv_story_topics")
-        .select("id,user_id,subject,title,synopsis,genre,saved")
+        .select("id,user_id,subject,title,synopsis,genre,character_style,saved")
         .eq("id", selected.topic_id).eq("user_id", user.id).maybeSingle();
       if (sourceTopic) { setActiveTopic(sourceTopic as Topic); setPublishDescription(sourceTopic.synopsis); }
     }
@@ -480,12 +481,12 @@ export function StoriesStudio() {
     if (!user || subject.trim().length < 2) return;
     setBusy(true); setError(""); setMessage(""); setProgress(0);
     const normalizedSubject = subject.trim();
-    const known = new Set([...topics.filter(t => t.subject === normalizedSubject).map(t => t.title.toLowerCase()),
-      ...draftTopics.filter(t => t.subject === normalizedSubject).map(t => t.title.toLowerCase())]);
+    const known = new Set([...topics.filter(t => t.subject === normalizedSubject && t.character_style === characterStyle).map(t => t.title.toLowerCase()),
+      ...draftTopics.filter(t => t.subject === normalizedSubject && t.character_style === characterStyle).map(t => t.title.toLowerCase())]);
     try {
       // One click = one Gemini request. Never automatically repeat a partial/failed generation.
       const result = await invokeStory("topics", {
-        subject: normalizedSubject, genre, count: requested,
+        subject: normalizedSubject, genre, characterStyle, count: requested,
         excludedTitles: [...known].slice(-30),
       }) as { topics: { title: string; genre: string; synopsis: string }[] };
       if (!Array.isArray(result.topics)) throw new Error("O Gemini não retornou uma lista válida.");
@@ -493,7 +494,7 @@ export function StoriesStudio() {
       if (!fresh.length) throw new Error("O Gemini repetiu os temas. Tente outro assunto ou gênero.");
       const batch = fresh.map(t => ({
         localId: crypto.randomUUID(), subject: normalizedSubject, title: t.title,
-        synopsis: t.synopsis, genre: t.genre,
+        synopsis: t.synopsis, genre: t.genre, character_style: characterStyle,
       }));
       setDraftTopics(previous => [...previous, ...batch]);
       setProgress(batch.length);
@@ -509,11 +510,11 @@ export function StoriesStudio() {
     setSavingTopic(items.length === 1 ? items[0].localId : "all"); setError("");
     try {
       const rows = items.map(t => ({ user_id: user.id, subject: t.subject, title: t.title,
-        synopsis: t.synopsis, genre: t.genre, saved: true }));
+        synopsis: t.synopsis, genre: t.genre, character_style: t.character_style, saved: true }));
       // Divide também a gravação para evitar limites de tamanho de uma única requisição.
       for (let i = 0; i < rows.length; i += 50) {
         const { error: dbError } = await client.from("mv_story_topics").upsert(rows.slice(i, i + 50),
-          { onConflict: "user_id,subject,title", ignoreDuplicates: true });
+          { onConflict: "user_id,subject,title,character_style", ignoreDuplicates: true });
         if (dbError) throw new Error("Não foi possível salvar todos os temas; os lotes anteriores foram mantidos.");
       }
       const ids = new Set(items.map(t => t.localId));
@@ -537,8 +538,9 @@ export function StoriesStudio() {
       // Persist before inference so a provider 503 never destroys the new story.
       const { data, error: dbError } = await client.from("mv_story_projects").insert({
         user_id: user.id, topic_id: topic.id, title: topic.title, genre: topic.genre,
+        character_style: topic.character_style || "nao_definido",
         characters: [], scenes: makeEmptyStoryScenes(), status: "draft",
-      }).select("id,user_id,topic_id,genre,title,status,characters,scenes").single();
+      }).select("id,user_id,topic_id,genre,character_style,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível iniciar o rascunho retomável.");
       setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
       setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
@@ -562,7 +564,7 @@ export function StoriesStudio() {
     setSceneProgress("Gerando cena " + sceneNumber + " de 12");
     const result = await invokeStory("script_scene", {
       title: working.title, synopsis: synopsisOverride ?? activeTopic?.synopsis ?? publishDescription,
-      genre: working.genre || activeTopic?.genre || "geral", sceneNumber,
+      genre: working.genre || activeTopic?.genre || "geral", characterStyle: working.character_style || "nao_definido", sceneNumber,
       characters: working.characters, previousScenes: working.scenes.slice(0, nextIndex), scriptModel,
     }) as { characters: Character[]; scene: Scene };
     if (!Array.isArray(result.characters) || !result.characters.length ||
@@ -628,8 +630,8 @@ export function StoriesStudio() {
         visual: "Definir aparência e roupas", voice: "Definir voz" }];
       const { data, error: dbError } = await client.from("mv_story_projects").insert({
         user_id: user.id, ...(topic ? { topic_id: topic.id } : {}), title: title.trim(),
-        genre: topic?.genre || genre, characters, scenes, status: "draft",
-      }).select("id,user_id,title,status,characters,scenes").single();
+        genre: topic?.genre || genre, character_style: topic?.character_style || characterStyle, characters, scenes, status: "draft",
+      }).select("id,user_id,title,status,character_style,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível criar o roteiro manual.");
       setActiveTopic(topic || null); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setSceneWorkbenchStep("roteiro");
       setPublishTitle(title.trim()); setPublishDescription(topic?.synopsis || ""); setStage("roteiro");
@@ -642,7 +644,7 @@ export function StoriesStudio() {
     if (!project || project.status === "draft") return;
     setError("");
     try {
-      setPrompts(makeLocalPromptDrafts(platform, project.characters, project.scenes));
+      setPrompts(makeLocalPromptDrafts(platform, project.characters, project.scenes, project.character_style || "nao_definido"));
       setStage("prompts");
       setMessage("Rascunhos locais montados sem Gemini, respeitando o limite de cada plataforma.");
     } catch (e) { setError(plainError(e)); }
@@ -651,6 +653,7 @@ export function StoriesStudio() {
     if (!project) return;
     const data = { format: "Plano editorial — nenhum vídeo gerado",
       title: project.title, aspectRatio: "9:16", targetSeconds: 120,
+      characterStyle: project.character_style || "nao_definido",
       generator: platform, characters: project.characters.map(({ referenceImagePath, ...rest }) => ({
         ...rest, referenceImage: referenceImagePath ? "Referência privada vinculada" : "Não enviada",
       })), scenes: project.scenes,
@@ -839,6 +842,19 @@ export function StoriesStudio() {
     <section className={panel} hidden={stage !== "temas"}>
       <h2 className="text-lg font-semibold">1. Assuntos e temas</h2>
       <p className="text-sm text-muted">Selecione de 5 a 20 temas por geração. O padrão é 5 temas. Revise os resultados antes de salvar.</p>
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-semibold">Tipo de personagem</legend>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {STORY_CHARACTER_STYLES.map(option => <button key={option.value} type="button"
+            aria-pressed={characterStyle === option.value}
+            className={"rounded-xl border px-3 py-3 text-left transition-colors " +
+              (characterStyle === option.value ? "border-primary bg-primary/10" : "border-border bg-surface")}
+            onClick={() => setCharacterStyle(option.value)}>
+            <span className="block text-sm font-semibold">{option.label}</span>
+            <span className="block text-xs text-muted mt-1">{option.description}</span>
+          </button>)}
+        </div>
+      </fieldset>
       <label className="block text-sm font-medium">Assunto principal
         <input className={field + " mt-1"} value={subject} maxLength={160} onChange={e => setSubject(e.target.value)}
           placeholder="Ex.: manutenção de fábrica" />
@@ -888,7 +904,7 @@ export function StoriesStudio() {
       <div className="max-h-80 space-y-2 overflow-y-auto" aria-live="polite">
         {draftTopics.map(t => <article key={t.localId} className="flex flex-col gap-2 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0"><p className="font-medium">{t.title}</p><p className="text-sm text-muted">{t.synopsis}</p>
-            <p className="text-xs text-muted">{t.subject} · {t.genre}</p></div>
+            <p className="text-xs text-muted">{t.subject} · {t.genre} · {STORY_CHARACTER_STYLES.find(s => s.value === t.character_style)?.label || "Estilo não definido"}</p></div>
           <div className="flex shrink-0 gap-2">
             <button className={button} disabled={busy || !!savingTopic} onClick={() => void saveDraftTopics([t])}>Salvar</button>
             <button className={button} disabled={busy || !!savingTopic}
@@ -913,7 +929,7 @@ export function StoriesStudio() {
       <div className="max-h-96 space-y-2 overflow-y-auto">
         {visibleTopics.map(t => <div key={t.id} className="flex flex-col gap-2 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
           <div><p className="font-semibold">{t.title}</p><p className="text-sm text-muted">{t.synopsis}</p>
-            <p className="text-xs text-muted">{t.subject} · {t.genre}</p></div>
+            <p className="text-xs text-muted">{t.subject} · {t.genre} · {STORY_CHARACTER_STYLES.find(s => s.value === t.character_style)?.label || "Estilo não definido"}</p></div>
           <div className="flex shrink-0 gap-2">
             <button className={button} disabled={busy} onClick={() => void toggleSaved(t)}>{t.saved ? "Salvo ✓" : "Salvar"}</button>
             <button className={button} disabled={busy} onClick={() => void generateScript(t)}>Criar roteiro e gerar cena 1</button>
