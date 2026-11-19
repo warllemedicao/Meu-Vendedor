@@ -395,12 +395,17 @@ export function StoriesStudio() {
   }
   async function generatePrompts() {
     if (!project || project.status === "draft" || !user || busy) return;
-    const existing = new Set(prompts.filter(p => p.platform === platform).map(p => p.scene));
-    const scene = project.scenes.find(s => !existing.has(s.number));
-    if (!scene) return setMessage("Os 12 prompts desta plataforma já estão salvos.");
     const client = getSupabase(); if (!client) return;
-    setBusy(true); setError(""); setSceneProgress("Gerando prompt " + scene.number + " de 12");
+    setBusy(true); setError(""); setSceneProgress("Verificando prompts já salvos...");
     try {
+      // DB, not unsaved local previews, is the source of truth for paid generation.
+      const { data: saved, error: readError } = await client.from("mv_story_prompts")
+        .select("scene_number").eq("project_id", project.id).eq("user_id", user.id).eq("platform", platform);
+      if (readError) throw new Error("Não foi possível consultar os prompts salvos.");
+      const existing = new Set((saved || []).map(p => p.scene_number as number));
+      const scene = project.scenes.find(s => !existing.has(s.number));
+      if (!scene) { setMessage("Os 12 prompts desta plataforma já estão salvos."); return; }
+      setSceneProgress("Gerando prompt " + scene.number + " de 12");
       const result = await invokeStory("prompt_scene", {
         platform, sceneNumber: scene.number, scene, characters: project.characters,
       }) as { prompt: Prompt };
