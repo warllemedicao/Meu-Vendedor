@@ -73,9 +73,15 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
   async function chooseGenerator(next: CampaignGenerator) {
     if (busy) return;
     setGenerator(next); setGeneratorChosen(true); setSceneIndex(0); setFlowPromptEdit(null);
-    setAnalysis(null); setNarrated(null); setFlowConnectionNotice("");
+    setAnalysis(null); setSource(null); setNarrated(null); setFlowConnectionNotice("");
+    if (next === "google-flow" && seconds > 8) {
+      setSeconds(8);
+      setFlowConnectionNotice("Duração ajustada para 8 segundos, conforme o estúdio do Flow treinado.");
+    }
     if (next === "google-flow") {
-      setFlowConnectionNotice("Preparando o Chrome do Flow sem exibir o navegador...");
+      setFlowConnectionNotice(seconds > 8
+        ? "Duração ajustada para 8 segundos. Preparando Chrome do Flow em segundo plano..."
+        : "Preparando o Chrome do Flow sem exibir o navegador...");
       try {
         await prepareFlowBrowser();
         setFlowConnectionNotice("Chrome do Flow preparado em segundo plano.");
@@ -151,7 +157,7 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
           <label className="block text-sm">Seu link de divulgação<input type="url" value={affiliateUrl} onChange={e => setLinkEdit({ source: initialAffiliateUrl, value: e.target.value })} placeholder="Gere seu link no botão abaixo ou cole seu link HTTPS" className={field} /></label>
           {product.owned && product.platform === "Shopee" && <button type="button" disabled={busy || !user} onClick={() => void generateLink()} className={`${button} w-full border-primary text-primary`}>{busy ? "Aguarde…" : "Gerar meu link de divulgação"}</button>}
           <label className="block text-sm">Outra foto para a IA analisar (opcional)<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e => { setPhoto(e.target.files?.[0]); setAnalysis(null); setSpeech(""); setNarrated(null); }} className="mt-2 block w-full text-sm" /></label>
-          <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Duração do vídeo curto<select value={seconds} onChange={e => setSeconds(Number(e.target.value))} className={field}><option value={6}>6 segundos</option><option value={7}>7 segundos</option><option value={8}>8 segundos</option><option value={10}>10 segundos</option></select></label><label className="text-sm">Detalhes confirmados (opcional)<input maxLength={1500} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex.: modelo, variante, tamanho" className={field} /></label></div>
+          <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Duração do vídeo curto<select value={seconds} onChange={e => setSeconds(Number(e.target.value))} className={field}><option value={6}>6 segundos</option><option value={7}>7 segundos</option><option value={8}>8 segundos</option>{generator !== "google-flow" && <option value={10}>10 segundos</option>}</select></label><label className="text-sm">Detalhes confirmados (opcional)<input maxLength={1500} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex.: modelo, variante, tamanho" className={field} /></label></div>
           <fieldset className="space-y-3 rounded-xl border border-border p-4"><legend className="px-2 text-sm font-semibold">Como será a divulgação?</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3 text-sm"><input type="radio" name="campaign-presentation" checked={presentation === "presenter"} onChange={() => { setPresentation("presenter"); setNarrated(null); }} />Pessoa usando ou mostrando o produto e falando</label>
