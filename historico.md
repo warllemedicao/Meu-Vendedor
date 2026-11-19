@@ -1,3 +1,12 @@
+## 2026-11-19 — Início do novo Histórias (branch de desenvolvimento, não publicado)
+
+- Responsável autorizou substituir a interface antiga Vídeos IA por Histórias, com **arquivos novos e independentes**, preservando integralmente o robô Google Flow e arquivos IMAGEM1/2/3. Documentação antiga de Vídeos IA pode ser limpa após auditoria de dependências.
+- Criada branch `feat/historias-gemini-studio`; a rota `/videos` utiliza agora novo componente `StoriesStudio`, sem importar `VideoWorkspace`.
+- Criados serviço Supabase `story-studio` para Gemini Text (temas em lotes de 25, roteiros de 12 cenas de 10s e prompts) e agentes independentes YouTube Create/Flow/Dreamina. Teto de 900 caracteres do YouTube Create é validado no backend, conforme limite informado pelo responsável; demais tetos são internos.
+- Criada migração para quatro tabelas com RLS de usuário e buckets privados de imagens/clipes; interface oferece temas, favoritos, roteiros editáveis, retomada, aprovação, prompts e upload de MP4.
+- **Não concluído:** montagem FFmpeg de 120s, publicação em redes, testes reais Gemini, testes de build, migração remota, deploy Supabase e Cloudflare, limpeza de arquivos históricos comprovadamente sem dependentes. Nenhuma geração ou publicação real realizada.
+- A branch ainda precisa de validação de CI e revisão das pendências de banco anteriores. Não modificar o executor Flow nem inferir que commit = deploy.
+
 
 
 ## 17/11/2026 — Marco: o robô aprendeu a enviar imagens e ajustar configurações
