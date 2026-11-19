@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const edge = read("supabase/functions/story-studio/index.ts");
 const studio = read("src/components/stories/StoriesStudio.tsx");
-const schema = read("supabase/migrations/20261119010000_stories_studio.sql");
+const schema = read("supabase/migrations/20261119061633_stories_studio.sql");
 const page = read("src/app/videos/page.tsx");
 
 test("Histórias uses a new isolated component instead of old VideoWorkspace", () => {
