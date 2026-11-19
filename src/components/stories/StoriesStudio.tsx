@@ -27,6 +27,12 @@ const platformOptions: { value: Platform; label: string; maximum: number | null 
   { value: "google-flow", label: "Google Flow", maximum: 1600 },
   { value: "dreamina", label: "Dreamina", maximum: 1200 },
 ];
+const starterCharacterPresets = [
+  { name: "Limão Eletricista", prompt: "Personagem original de limão verde-claro antropomórfico, óculos redondos pretos, capacete branco, camisa verde-clara, calça azul e botas de segurança. Animação 3D estilizada, corpo inteiro, mesma roupa e traços em todas as cenas." },
+  { name: "Maçã Mecânica", prompt: "Personagem original de maçã vermelha antropomórfica, sobrancelhas expressivas, capacete branco, macacão industrial azul com faixas refletivas e botas pretas. Animação 3D estilizada, corpo inteiro, identidade consistente." },
+  { name: "Banana Aventureira", prompt: "Personagem original de banana amarela antropomórfica, óculos pequenos escuros e colete jeans azul, expressão confiante e divertida. Animação 3D estilizada, corpo inteiro, roupas e cores consistentes." },
+  { name: "Beterraba Inventora", prompt: "Personagem original de beterraba vermelha antropomórfica, faixa branca na cabeça, uniforme de trabalho cinza e luvas azuis, expressão curiosa. Animação 3D estilizada, corpo inteiro, identidade visual fixa." },
+] as const;
 const button = "rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold disabled:opacity-40";
 const field = "w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm";
 const panel = "rounded-2xl border border-border bg-surface p-4 space-y-4";
@@ -63,6 +69,8 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
     if (scope && (code === "gemini_service_unavailable" || code === "gemini_timeout")) {
       geminiCooldowns.set(scope, Date.now() + (code === "gemini_timeout" ? 120_000 : 90_000));
     }
+    if (code === "image_api_not_configured") throw new Error("A chave exclusiva do Nano Banana ainda não foi configurada no Supabase. Use o envio manual por enquanto.");
+    if (code === "image_generation_failed") throw new Error("Nano Banana não retornou uma imagem válida; não repita sem consultar a cota.");
     if (code === "gemini_billing_required") {
       throw new Error("A API Gemini retornou HTTP 402: saldo ou configuração de cobrança necessária. Não foi possível gerar temas com esta chave. Você pode criar um roteiro manual enquanto verifica sua franquia no Google AI Studio.");
     }
@@ -867,6 +875,14 @@ export function StoriesStudio() {
                 <button className={button + " w-full !text-xs !px-1 !py-1"}
                   onClick={() => { const name = window.prompt("Novo nome na biblioteca", entry.name); if(name) void renameLibraryCharacter(entry,name); }}>Renomear</button>
               </div>)}
+            </div>
+            <p className="text-xs font-semibold">Ideias iniciais de personagens (prompts prontos; imagens ainda precisam ser geradas ou enviadas)</p>
+            <div className="flex flex-wrap gap-2">
+              {starterCharacterPresets.map(preset => <button key={preset.name} className={button + " !text-xs"}
+                disabled={busy} onClick={() => {
+                  setImageNames(old => ({ ...old, [ci]: preset.name }));
+                  setImagePrompts(old => ({ ...old, [ci]: preset.prompt }));
+                }}>{preset.name}</button>)}
             </div>
             <p className="text-xs font-semibold">Criar nova referência com Nano Banana 2 Lite</p>
             <label className="block text-xs">Nome da nova imagem
