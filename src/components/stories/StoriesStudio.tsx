@@ -50,6 +50,7 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
       throw new Error("A API Gemini retornou HTTP 402: saldo ou configuração de cobrança necessária. Não foi possível gerar temas com esta chave. Você pode criar um roteiro manual enquanto verifica sua franquia no Google AI Studio.");
     }
     if (code === "gemini_service_unavailable") throw new Error("Google Gemini retornou HTTP 503: indisponibilidade temporária. Nenhuma tentativa automática foi feita; consulte o status do serviço antes de tentar novamente.");
+    if (code === "gemini_output_truncated") throw new Error("O Gemini atingiu o limite de saída antes de concluir o JSON. O conteúdo não foi salvo; não repita agora sem analisar o consumo.");
     if (code === "gemini_timeout") throw new Error("O Google Gemini não respondeu em até 60 segundos. Não repita a geração agora; consulte os registros antes de uma nova tentativa.");
     if (code === "gemini_network_error") throw new Error("Falha de comunicação entre Supabase e Google Gemini. Consulte os registros antes de tentar novamente.");
     if (code === "gemini_quota_exceeded") {
@@ -138,17 +139,20 @@ export function StoriesStudio() {
     finally { setBusy(false); }
   }
 
-  async function checkGeminiConnection() {
+  async function checkGeminiConnection(purpose: "topics" | "script" = "topics") {
     if (!user || checkingGemini || busy) return;
     setCheckingGemini(true); setError(""); setMessage("");
     try {
-      const result = await invokeStory("diagnose_topics", {}) as {
+      const action = purpose === "topics" ? "diagnose_topics" : "diagnose_script";
+      const result = await invokeStory(action, {}) as {
         ok: boolean; model: string; elapsedMs: number; supportsGeneration: boolean;
       };
       if (!result.ok) throw new Error("A consulta de metadados do modelo não foi concluída.");
       setMessage(result.supportsGeneration
-        ? "Conexão com Gemini confirmada: " + result.model + " (" + result.elapsedMs + " ms). Não foram gerados temas. A disponibilidade de geração ainda não foi testada."
-        : "A chave respondeu, mas o modelo não declarou suporte a generateContent: " + result.model + ". Nenhum tema foi gerado.");
+        ? "Conexão de " + (purpose === "topics" ? "temas" : "roteiros") + " confirmada: " + result.model +
+          " (" + result.elapsedMs + " ms). Somente metadados consultados; geração não testada."
+        : "A chave respondeu, mas o modelo não declarou suporte a generateContent: " + result.model +
+          ". Nenhum conteúdo foi gerado.");
     } catch (e) { setError(plainError(e)); }
     finally { setCheckingGemini(false); }
   }
@@ -440,6 +444,7 @@ export function StoriesStudio() {
           {busy ? "Gerando..." : "Gerar temas com Gemini"}
         </button>
         <button className={button} disabled={busy || checkingGemini || !user} onClick={() => void checkGeminiConnection()}>{checkingGemini ? "Verificando conexão..." : "Verificar Gemini sem gerar temas"}</button>
+        <button className={button} disabled={busy || checkingGemini || !user} onClick={() => void checkGeminiConnection("script")}>Verificar API de roteiros sem gerar</button>
         {busy && <span className="text-sm" role="status">{progress}/{requested} temas novos</span>}
         {error && <p role="alert" className="w-full rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
         {message && <p role="status" className="w-full rounded-xl border border-border p-3 text-sm">{message}</p>}
