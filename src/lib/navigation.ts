@@ -94,9 +94,9 @@ export const navItems: NavItem[] = [
   },
   {
     href: "/videos",
-    label: "Vídeos IA",
+    label: "Histórias",
     icon: Clapperboard,
-    titulo: "Vídeos IA",
+    titulo: "Histórias",
     descricao: "Análise de vídeos de referência e criação de roteiros e vídeos originais.",
     recursosPlanejados: ["Análise de estrutura de vídeos em alta", "Roteiros promocionais", "Geração de vídeos originais"],
     dependencias: ["Modelos de IA de texto e vídeo", "Capacidade de processamento (GPU)"],
