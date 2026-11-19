@@ -217,7 +217,7 @@ Fala exata substitui as anteriores / Replace earlier dialogue and speak exactly 
           {generator === "google-flow" && !generatorIssue && <FlowProductGenerator
             key={product.id + "-" + selectedPrompt}
             prompt={approvedPrompt}
-            productImageUrl={product.imageUrl}
+            productImageUrl={product.imageUrl ?? undefined}
             photo={photo}
             presenterImageUrl={presentation === "presenter" ? (presenter.image ?? undefined) : undefined}
             presenterMode={presentation === "presenter"}
