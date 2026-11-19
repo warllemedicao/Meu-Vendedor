@@ -209,3 +209,26 @@ test("one platform prompt per inference, without overwriting approved prompts", 
   assert.match(studio, /Gerar próximo prompt com Gemini/);
   assert.doesNotMatch(studio, /invokeStory\("prompts", \{ platform, script:/);
 });
+
+test("dedicated optional Nano Banana model cannot borrow topic or script secrets", () => {
+  const imageBlock = edge.split("async function generateCharacterImage(prompt: string)")[1]
+    ?.split("function normalizeScene(")[0] || "";
+  assert.match(edge, /const IMAGE_MODEL = "gemini-3\.1-flash-lite-image"/);
+  assert.match(imageBlock, /Deno\.env\.get\("HIST_IMAGEM_GEMINI_API_KEY"\)/);
+  assert.doesNotMatch(imageBlock, /HIST_TEMA_GEMINI_API_KEY|HIST_ROTEIRO_GEMINI_API_KEY/);
+  assert.match(imageBlock, /responseModalities: \["TEXT", "IMAGE"\]/);
+  assert.match(edge, /body\.action === "image_config"/);
+  assert.match(edge, /body\.action === "image_character"/);
+  assert.match(edge, /image_api_not_configured/);
+  assert.match(edge, /authenticated\(request\)/);
+});
+
+test("prompt scene receives reference-presence metadata, not private image paths", () => {
+  assert.match(edge, /referenceImageAttached: Boolean\(item\.referenceImagePath\)/);
+  assert.match(edge, /imageReferencePrompt: clean\(item\.referenceImagePrompt, 1200\)/);
+  assert.match(edge, /Nunca exponha endereços privados do Supabase/);
+  const schema = read("supabase/migrations/20261119183000_story_character_library.sql");
+  assert.match(schema, /mv_story_characters enable row level security/);
+  assert.match(schema, /user_id = \(select auth\.uid\(\)\)/);
+  assert.match(schema, /split_part\(storage_path, '\/', 1\)/);
+});
