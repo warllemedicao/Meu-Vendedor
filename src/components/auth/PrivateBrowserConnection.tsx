@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 import { createVideoAssetUrl, uploadVideoResult, MAX_VIDEO_RESULT_BYTES } from "@/lib/video-assets";
 
@@ -210,6 +210,13 @@ export function PrivateBrowserConnection() {
       setMessage(error instanceof Error ? error.message : "Não foi possível consultar as contas.");
     }
   }
+
+  useEffect(() => {
+    // Account metadata contains labels and IDs only; no Google credentials.
+    void refreshFlowAccounts();
+    // Load once on entry to the page, then refresh after account changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function selectFlowAccount(accountId: string) {
     if (busy || videoBusy) return;
