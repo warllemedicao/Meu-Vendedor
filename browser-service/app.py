@@ -77,60 +77,6 @@ def selected_chrome_profile():
     return str(PROFILE_ROOT / "flow-accounts" / selected)
 
 
-@app.get("/session/accounts")
-async def list_flow_accounts(request: Request):
-    authorize(request)
-    data = read_flow_accounts()
-    return {**data, "browserRunning": chrome_running()}
-
-
-@app.post("/session/accounts/create")
-async def create_flow_account(request: Request):
-    authorize(request)
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(400, "invalid_account")
-    label = data.get("label") if isinstance(data, dict) else None
-    if not isinstance(label, str) or not 1 <= len(label.strip()) <= 48 or any(
-        ord(c) < 32 for c in label):
-        raise HTTPException(400, "invalid_account")
-    async with lock:
-        if chrome_running():
-            raise HTTPException(409, "browser_must_be_stopped")
-        config = read_flow_accounts()
-        if len(config["accounts"]) >= MAX_FLOW_ACCOUNTS:
-            raise HTTPException(409, "account_limit_reached")
-        identifier = "account-" + secrets.token_hex(8)
-        profile = PROFILE_ROOT / "flow-accounts" / identifier
-        profile.mkdir(mode=0o700, parents=True, exist_ok=False)
-        config["accounts"].append({"id": identifier, "label": label.strip()})
-        config["selected"] = identifier
-        save_flow_accounts(config)
-        return {**config, "browserRunning": False}
-
-
-@app.post("/session/accounts/select")
-async def select_flow_account(request: Request):
-    authorize(request)
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(400, "invalid_account")
-    identifier = data.get("accountId") if isinstance(data, dict) else None
-    async with lock:
-        if chrome_running():
-            raise HTTPException(409, "browser_must_be_stopped")
-        config = read_flow_accounts()
-        if not isinstance(identifier, str) or identifier not in {
-            item["id"] for item in config["accounts"]
-        }:
-            raise HTTPException(400, "invalid_account")
-        config["selected"] = identifier
-        save_flow_accounts(config)
-        return {**config, "browserRunning": False}
-
-
 MAX_MANUAL_VIDEO_BYTES = 100 * 1024 * 1024
 
 
@@ -372,6 +318,62 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 app.mount('/novnc', StaticFiles(directory='/usr/share/novnc', check_dir=False), name='novnc')
+
+@app.get("/session/accounts")
+async def list_flow_accounts(request: Request):
+    authorize(request)
+    data = read_flow_accounts()
+    return {**data, "browserRunning": chrome_running()}
+
+
+@app.post("/session/accounts/create")
+async def create_flow_account(request: Request):
+    authorize(request)
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(400, "invalid_account")
+    label = data.get("label") if isinstance(data, dict) else None
+    if not isinstance(label, str) or not 1 <= len(label.strip()) <= 48 or any(
+        ord(c) < 32 for c in label):
+        raise HTTPException(400, "invalid_account")
+    async with lock:
+        if chrome_running():
+            raise HTTPException(409, "browser_must_be_stopped")
+        config = read_flow_accounts()
+        if len(config["accounts"]) >= MAX_FLOW_ACCOUNTS:
+            raise HTTPException(409, "account_limit_reached")
+        identifier = "account-" + secrets.token_hex(8)
+        profile = PROFILE_ROOT / "flow-accounts" / identifier
+        profile.mkdir(mode=0o700, parents=True, exist_ok=False)
+        config["accounts"].append({"id": identifier, "label": label.strip()})
+        config["selected"] = identifier
+        save_flow_accounts(config)
+        return {**config, "browserRunning": False}
+
+
+@app.post("/session/accounts/select")
+async def select_flow_account(request: Request):
+    authorize(request)
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(400, "invalid_account")
+    identifier = data.get("accountId") if isinstance(data, dict) else None
+    async with lock:
+        if chrome_running():
+            raise HTTPException(409, "browser_must_be_stopped")
+        config = read_flow_accounts()
+        if not isinstance(identifier, str) or identifier not in {
+            item["id"] for item in config["accounts"]
+        }:
+            raise HTTPException(400, "invalid_account")
+        config["selected"] = identifier
+        save_flow_accounts(config)
+        return {**config, "browserRunning": False}
+
+
+
 
 def chrome_running():
     return chrome_process is not None and chrome_process.poll() is None
