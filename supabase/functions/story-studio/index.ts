@@ -120,7 +120,7 @@ function normalizePrompts(result: unknown, platform: keyof typeof RULES) {
 Deno.serve(async (request) => {
   const origin = allowedOrigin(request);
   if (!origin) return new Response(null, { status: 403 });
-  if (request.method === "OPTIONS") return json({}, 204, origin);
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Headers": "authorization,apikey,content-type", "Access-Control-Allow-Methods": "POST,OPTIONS", "Access-Control-Max-Age": "600", Vary: "Origin" } });
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, origin);
   if (!await authenticated(request)) return json({ error: "unauthorized" }, 401, origin);
   try {
