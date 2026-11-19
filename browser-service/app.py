@@ -76,6 +76,32 @@ def classify_browser_error(value):
     return "unclassified"
 
 
+def classify_network_failure(value):
+    """Allowlisted Chromium failure classes; never log the raw failure string."""
+    raw = str(value or "").upper()
+    patterns = (
+        ("ERR_ABORTED", "request_cancelled"),
+        ("ERR_TIMED_OUT", "connection_timeout"),
+        ("ERR_CONNECTION_RESET", "connection_reset"),
+        ("ERR_CONNECTION_CLOSED", "connection_closed"),
+        ("ERR_CONNECTION_REFUSED", "connection_refused"),
+        ("ERR_CONNECTION_FAILED", "connection_failed"),
+        ("ERR_NAME_NOT_RESOLVED", "dns_failure"),
+        ("ERR_DNS", "dns_failure"),
+        ("ERR_INTERNET_DISCONNECTED", "offline"),
+        ("ERR_NETWORK_CHANGED", "network_changed"),
+        ("ERR_SSL", "tls_error"),
+        ("ERR_CERT", "certificate_error"),
+        ("ERR_HTTP2_PROTOCOL_ERROR", "http2_protocol_error"),
+        ("ERR_QUIC_PROTOCOL_ERROR", "quic_protocol_error"),
+        ("ERR_BLOCKED_BY_CLIENT", "client_blocked"),
+        ("ERR_BLOCKED_BY_RESPONSE", "response_blocked"),
+        ("ERR_FAILED", "generic_network_failed"),
+    )
+    return next((category for pattern, category in patterns if pattern in raw),
+                "other_network_error")
+
+
 def flow_host_group(raw_url):
     host = (urlsplit(raw_url).hostname or "").lower()
     if host == "flow.google.com":
@@ -136,13 +162,34 @@ async def observe_chrome_errors():
                     if host:
                         log_flow_browser_issue("http_error", status=response.status,
                             resource=response.request.resource_type, host=host)
+                        watch = generation_watch
+                        if watch.get("active") and response.request.resource_type in ("xhr", "fetch"):
+                            print("mv_generation_network_probe " + __import__("json").dumps({
+                                "signal": "http_error", "status": response.status,
+                                "method": response.request.method if response.request.method in ("GET", "POST", "PUT", "PATCH", "DELETE") else "other",
+                                "host": host,
+                                "msSinceGenerate": max(0, int((time.monotonic() - watch["startedAt"]) * 1000))
+                            }), flush=True)
 
                 def on_requestfailed(request):
                     host = flow_host_group(request.url)
                     if host:
+                        failure_code = classify_network_failure(request.failure)
                         log_flow_browser_issue("request_failed",
                             category=classify_browser_error(request.failure),
                             resource=request.resource_type, host=host)
+                        watch = generation_watch
+                        if watch.get("active") and request.resource_type in ("xhr", "fetch"):
+                            # Safe correlation only: no URL, query, cookies, body,
+                            # headers, request text or raw failure strings.
+                            print("mv_generation_network_probe " + __import__("json").dumps({
+                                "signal": "request_failed",
+                                "reason": failure_code,
+                                "method": request.method if request.method in ("GET", "POST", "PUT", "PATCH", "DELETE") else "other",
+                                "host": host,
+                                "msSinceGenerate": max(0, int((time.monotonic() - watch["startedAt"]) * 1000)),
+                                "retryScreenConfirmed": watch.get("failed") is True
+                            }), flush=True)
 
                 page.on("console", on_console)
                 page.on("pageerror", on_pageerror)
