@@ -1,3 +1,11 @@
+## 19/11/2026 — Histórias passa a usar exclusivamente Gemini 3.5
+
+- Solicitação: remover Gemini 3.8 do módulo independente Histórias. Temas, títulos, ideias e sinopses passam a `gemini-3.5-flash-lite`; roteiro de 12 cenas e prompts passam a `gemini-3.5-flash`.
+- A função `supabase/functions/story-studio/index.ts` agora usa seleção por finalidade (`topics` versus `script/prompts`), e `diagnose_topics` consulta metadados do modelo Flash-Lite. Foi removido o fallback/configuração `MV_STORIES_GEMINI_MODEL` nesse módulo para impedir seleção acidental do 3.8.
+- Código enviado à `main` e teste de contrato ajustado para as duas variantes. Publicada função `story-studio` **ACTIVE v17**, com `verify_jwt: true`. Leitura posterior do código implantado confirmou ambos os modelos e ausência de `gemini-3.8-flash` no módulo.
+- Nenhuma inferência Gemini foi executada nesta etapa; as cotas, a permissão e a resposta real de geração para os modelos 3.5 ainda precisam de validação autenticada. Nenhuma publicação Cloudflare necessária porque a troca ocorre apenas no backend Supabase.
+- Não alterados Produtos, Campanhas, robô Flow, OAuth, Modal, IMAGEM1, IMAGEM2 ou IMAGEM3.
+
 ## 19/11/2026 — Sincronização de diagnose_topics em produção (Supabase v16)
 
 - Confirmada divergência: `main` continha a ação autenticada `diagnose_topics` e o botão `Verificar Gemini sem gerar temas`, mas a Edge Function `story-studio` publicada na versão 15 não continha essa ação.
