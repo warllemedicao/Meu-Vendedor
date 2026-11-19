@@ -89,7 +89,7 @@ export function StoriesStudio() {
       .eq("user_id", user.id).order("updated_at", { ascending: false }).limit(100);
     setProjects((data || []) as Project[]);
   }, [user]);
-  useEffect(() => { void loadTopics(); void loadProjects(); }, [loadTopics, loadProjects]);
+  useEffect(() => { void Promise.resolve().then(() => Promise.all([loadTopics(), loadProjects()])); }, [loadTopics, loadProjects]);
   async function openProject(selected: Project) {
     if (!user) return;
     setError(""); setProject(selected); setActiveTopic(null);
