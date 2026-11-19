@@ -49,6 +49,8 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
     if (code === "gemini_billing_required") {
       throw new Error("A API Gemini retornou HTTP 402: saldo ou configuração de cobrança necessária. Não foi possível gerar temas com esta chave. Você pode criar um roteiro manual enquanto verifica sua franquia no Google AI Studio.");
     }
+    if (code === "gemini_timeout") throw new Error("O Google Gemini não respondeu em até 60 segundos. Não repita a geração agora; consulte os registros antes de uma nova tentativa.");
+    if (code === "gemini_network_error") throw new Error("Falha de comunicação entre Supabase e Google Gemini. Consulte os registros antes de tentar novamente.");
     if (code === "gemini_quota_exceeded") {
       throw new Error("O limite de requisições da API Gemini foi atingido. Verifique as cotas no Google AI Studio antes de tentar novamente.");
     }
