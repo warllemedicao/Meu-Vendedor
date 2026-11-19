@@ -1,3 +1,10 @@
+## 19/11/2026 — Verificação Gemini de Histórias sem geração
+
+- O AI Studio mostrou uma resposta rápida para "OK", mas a captura exibiu no seletor `Gemini 4 Hydrogen` mesmo com `model=gemini-3.8-flash` no endereço. Portanto o teste isolado não prova que o modelo configurado no Meu Vendedor respondeu.
+- Acrescentada ação autenticada `diagnose_topics` em `story-studio` que faz apenas GET de metadados do modelo usando a chave `HIST_TEMA_GEMINI_API_KEY` em header `x-goog-api-key`, com timeout de 8 segundos, sem `generateContent` nem consumo de tokens de inferência. Exibe sucesso, latência e suporte declarado ao método; erros HTTP e transporte mantêm categorias seguras sem chaves ou mensagens brutas.
+- Adicionado botão `Verificar Gemini sem gerar temas` ao formulário, sem alterar quotas, OAuth, Modal, Google Flow, IMAGEM1/2/3 ou demais APIs. Os limites 5/10/15/20 temas permanecem intactos.
+- A verificação metadata-only não prova que a geração funcionará; continuar investigação só após observar resposta, sem novas chamadas de geração automáticas.
+
 ## 19/11/2026 — Histórias: diferenciar timeout da Gemini de falhas de autenticação
 
 - Usuário informou `generation_failed` após espera longa ao gerar 5 temas. Logs mostram POST da função `story-studio` concluído como HTTP 502 aproximadamente 60 segundos após o preflight, sem erro HTTP do Google registrado na tentativa. Isso é compatível com o abort de 60 segundos, mas não prova timeout sem o novo diagnóstico.
