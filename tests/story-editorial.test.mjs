@@ -31,7 +31,7 @@ test("scene clips can be previewed and approved without claiming publication", (
   assert.match(code, /approveClip/);
   assert.match(code, /createSignedUrl/);
   assert.match(code, /Retirar aprovação/);
-  assert.match(code, /Montagem automática e o envio direto às plataformas ainda não estão habilitados/);
+  assert.match(code, /montagem automática e o envio direto às plataformas ainda não estão habilitados/i);
 });
 test("social publication choices do not trigger social APIs", () => {
   for (const channel of ["youtube", "tiktok", "kwai"]) assert.ok(code.includes(channel));
