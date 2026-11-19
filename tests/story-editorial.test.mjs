@@ -123,3 +123,13 @@ test("multiple character images are accepted and preserved one by one", () => {
   assert.match(code, /Imagens dos personagens/);
   assert.match(code, /Gerar imagem com Nano Banana/);
 });
+
+test("general navigation header excludes roteiro without redundant narrowed stage comparisons", () => {
+  const start = code.indexOf('{stage !== "roteiro" && <header');
+  const end = code.indexOf('<section className={panel} hidden={stage !== "temas"}>', start);
+  assert.ok(start > 0 && end > start, "General header should be hidden in roteiro stage");
+  const header = code.slice(start, end);
+  assert.doesNotMatch(header, /stage === "roteiro"/);
+  assert.equal((header.match(/stage !== "roteiro"/g) || []).length, 1);
+  assert.match(header, /STORY_STAGES\.map/);
+});
