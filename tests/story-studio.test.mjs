@@ -49,3 +49,12 @@ test("CORS preflight returns a bodyless HTTP 204 with allowed headers", () => {
   assert.match(edge, /Access-Control-Allow-Methods/);
   assert.doesNotMatch(edge, /request\.method === "OPTIONS"\) return json\(\{\}, 204/);
 });
+
+test("Gemini provider errors remain safe while reporting the actual HTTP failure class", () => {
+  for (const code of ["gemini_quota_exceeded", "gemini_invalid_key", "gemini_permission_denied",
+    "gemini_model_unavailable", "gemini_request_rejected", "gemini_service_unavailable"]) {
+    assert.match(edge, new RegExp(code));
+  }
+  assert.match(edge, /status: response\.status, reason/);
+  assert.doesNotMatch(edge, /console\.error\([^\n]*(key|prompt|payload|response\.text\()/);
+});
