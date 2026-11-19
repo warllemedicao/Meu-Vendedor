@@ -372,7 +372,7 @@ Deno.serve(async (request) => {
         "; máximo absoluto: " + rule.maximum + ". " + rule.notes +
         " Para cada personagem com referenceImageAttached=true, mencione que a imagem correspondente deve ser anexada manualmente na plataforma e seguida como referência visual. Nunca exponha endereços privados do Supabase. Gere somente o prompt desta cena, sem incluir as outras cenas.",
         { platform, sceneNumber, scene, characters: roster.filter(ch => scene.characters.includes(ch.name)) },
-        platform === "youtube-create" ? 1200 : 1750, "script");
+        platform === "youtube-create" ? 2800 : 3200, "script");
       if (!record(result) || !string(result.text, rule.maximum)) throw new Error("prompt_limit_or_sequence_invalid");
       return json({ prompt: { scene: sceneNumber, platform, text: result.text.trim() } }, 200, origin);
     }
