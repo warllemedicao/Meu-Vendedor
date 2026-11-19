@@ -17,7 +17,7 @@ test("topic catalog has independent genre, subject, search and favorites filters
 test("editable characters and scenes preserve identity and chronology", () => {
   assert.match(code, /function updateCharacter/);
   assert.match(code, /previousName === nextName/);
-  assert.match(code, /Linha do tempo de 12 cenas/);
+  assert.match(code, /Cenas prontas para produzir/);
   assert.match(code, /Bíblia de personagens/);
   assert.match(code, /Transição e ligação com a próxima cena/);
 });
