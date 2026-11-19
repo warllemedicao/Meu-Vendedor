@@ -404,7 +404,7 @@ export function StoriesStudio() {
     const client = getSupabase(); if (!client) return;
     setBusy(true); setError(""); setMessage("");
     // Preserve previously linked images; associate new images with unassigned characters first.
-    let characters = [...project.characters];
+    const characters = [...project.characters];
     let completed = 0;
     try {
       for (const file of list) {
