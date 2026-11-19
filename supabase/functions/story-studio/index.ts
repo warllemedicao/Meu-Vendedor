@@ -1,3 +1,4 @@
+import { storyPromptAgents as RULES } from "./_shared/agents/index.ts";
 // Independent Gemini text service for Histórias. No Google Flow automation code is imported.
 const MODEL = Deno.env.get("MV_STORIES_GEMINI_MODEL") || "gemini-3.8-flash";
 const APP_ORIGIN = Deno.env.get("MV_APP_ORIGIN") || "https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev";
@@ -106,11 +107,6 @@ function normalizeTopics(result: unknown, count: number) {
   if (!topics.length) throw new Error("topics_empty");
   return topics.slice(0, count);
 }
-const RULES = {
-  "youtube-create": { target: 850, maximum: 900, duration: "10 segundos", name: "YouTube Create" },
-  "google-flow": { target: 2800, maximum: 4000, duration: "8 segundos quando for o limite do modelo", name: "Google Flow" },
-  dreamina: { target: 2800, maximum: 4000, duration: "conforme modo selecionado", name: "Dreamina" },
-} as const;
 function normalizePrompts(result: unknown, platform: keyof typeof RULES) {
   if (!record(result) || !Array.isArray(result.prompts) || result.prompts.length !== 12) throw new Error("prompts_invalid");
   const max = RULES[platform].maximum;
@@ -155,7 +151,7 @@ Deno.serve(async (request) => {
       const script = normalizeScript(body.script);
       const rule = RULES[platform];
       const result = await gemini(
-        "Você transforma roteiros APROVADOS em prompts de geração de vídeo, sem mudar o enredo, personagem ou fala. Responda APENAS JSON {prompts:[{scene:1,text:'...'}, ... {scene:12,text:'...'}]}. Um prompt por cena, mesma ordem. Preservar a ficha dos personagens em cada cena, voz, função e aparência. Indicar fala em português brasileiro. Alvo máximo de caracteres por prompt: " + rule.target + ". Limite absoluto: " + rule.maximum + ". Plataforma: " + rule.name + ". Duração: " + rule.duration + ". Não invente recursos incompatíveis.",
+        "Você transforma roteiros APROVADOS em prompts de geração de vídeo, sem mudar o enredo, personagem ou fala. Responda APENAS JSON {prompts:[{scene:1,text:'...'}, ... {scene:12,text:'...'}]}. Um prompt por cena, mesma ordem. Preservar a ficha dos personagens em cada cena, voz, função e aparência. Indicar fala em português brasileiro. Alvo máximo de caracteres por prompt: " + rule.target + ". Limite absoluto: " + rule.maximum + ". Plataforma: " + rule.name + ". Duração: " + rule.duration + ". " + rule.notes + " Não invente recursos incompatíveis.",
         { platform, script }, 14000);
       return json({ prompts: normalizePrompts(result, platform) }, 200, origin);
     }
