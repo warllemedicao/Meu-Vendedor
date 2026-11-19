@@ -227,7 +227,7 @@ test("prompt scene receives reference-presence metadata, not private image paths
   assert.match(edge, /referenceImageAttached: Boolean\(item\.referenceImagePath\)/);
   assert.match(edge, /imageReferencePrompt: clean\(item\.referenceImagePrompt, 1200\)/);
   assert.match(edge, /Nunca exponha endereços privados do Supabase/);
-  const schema = read("supabase/migrations/20261119183000_story_character_library.sql");
+  const schema = read("supabase/migrations/20261119183537_story_character_library.sql");
   assert.match(schema, /mv_story_characters enable row level security/);
   assert.match(schema, /user_id = \(select auth\.uid\(\)\)/);
   assert.match(schema, /split_part\(storage_path, '\/', 1\)/);
