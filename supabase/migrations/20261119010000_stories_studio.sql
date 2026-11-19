@@ -105,3 +105,21 @@ create policy "Story clips delete by owner" on storage.objects
   for delete to authenticated using (
     bucket_id = 'mv-story-clips' and (storage.foldername(name))[1] = (select auth.uid())::text
   );
+
+-- Referências visuais independentes dos clipes e privadas por usuário.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('mv-story-images', 'mv-story-images', false, 10485760,
+  array['image/png','image/jpeg','image/webp'])
+on conflict (id) do nothing;
+create policy "Story images upload by owner" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'mv-story-images' and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+create policy "Story images read by owner" on storage.objects
+  for select to authenticated using (
+    bucket_id = 'mv-story-images' and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+create policy "Story images delete by owner" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'mv-story-images' and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
