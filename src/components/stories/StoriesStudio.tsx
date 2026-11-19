@@ -812,28 +812,29 @@ export function StoriesStudio() {
   const approvedCount = clips.filter(clip => clip.approved).length;
   return <div className="space-y-6">
     {stage !== "roteiro" && <header className={panel}>
-      {stage !== "roteiro" && <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-xl font-bold">Estúdio de Histórias</h2>
           <p className="text-sm text-muted">Do primeiro tema à preparação da publicação, em sete etapas.</p></div>
         <div className="text-sm font-semibold">2 min · 12 cenas · 9:16</div>
-      </div>}
-      <details className="rounded-xl border border-border bg-surface p-2" open={stage !== "roteiro"}>
+      </div>
+      <details className="rounded-xl border border-border bg-surface p-2" open>
         <summary className="cursor-pointer px-2 py-1 text-xs font-semibold">Navegação geral do projeto (abrir outras etapas)</summary>
-      <nav aria-label="Etapas do gerador de histórias" className={stage === "roteiro" ? "flex flex-wrap gap-2" : "grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7"}>
-        {STORY_STAGES.map((item, i) => <button type="button" key={item.key} aria-current={stage === item.key ? "step" : undefined}
-          onClick={() => { setStage(item.key); setError(""); }}
-          className={(stage === "roteiro" ? "rounded-lg border px-3 py-2 text-left text-xs transition-colors " : "min-h-20 rounded-xl border p-3 text-left text-sm transition-colors ") +
-            (stage === item.key ? "border-primary bg-primary/10 font-semibold" : "border-border bg-surface hover:bg-surface-secondary")}>
-          {stage !== "roteiro" && <span className="mb-1 block text-xs text-muted">{String(i + 1).padStart(2, "0")} / 07</span>}
-          <span className="block font-semibold">{item.title}</span>
-          {stage !== "roteiro" && <span className="block text-xs text-muted">{item.description}</span>}
-        </button>)}
-      </nav>
+        <nav aria-label="Etapas do gerador de histórias" className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+          {STORY_STAGES.map((item, i) => <button type="button" key={item.key}
+            aria-current={stage === item.key ? "step" : undefined}
+            onClick={() => { setStage(item.key); setError(""); }}
+            className={"min-h-20 rounded-xl border p-3 text-left text-sm transition-colors " +
+              (stage === item.key ? "border-primary bg-primary/10 font-semibold" : "border-border bg-surface hover:bg-surface-secondary")}>
+            <span className="mb-1 block text-xs text-muted">{String(i + 1).padStart(2, "0")} / 07</span>
+            <span className="block font-semibold">{item.title}</span>
+            <span className="block text-xs text-muted">{item.description}</span>
+          </button>)}
+        </nav>
       </details>
-      {project && stage !== "roteiro" && <p className="rounded-xl border border-border p-3 text-sm">
+      {project && <p className="rounded-xl border border-border p-3 text-sm">
         <strong>História em edição:</strong> {project.title} · {project.status === "draft" ? "Roteiro em revisão" : "Roteiro aprovado"} · {approvedCount}/12 clipes aprovados
       </p>}
-      {stage !== "roteiro" && <p className="text-xs text-muted">A interface pode ser explorada mesmo com o Gemini indisponível. A criação manual fica identificada; nenhuma tela simula um vídeo gerado.</p>}
+      <p className="text-xs text-muted">A interface pode ser explorada mesmo com o Gemini indisponível. A criação manual fica identificada; nenhuma tela simula um vídeo gerado.</p>
     </header>}
     <section className={panel} hidden={stage !== "temas"}>
       <h2 className="text-lg font-semibold">1. Assuntos e temas</h2>
