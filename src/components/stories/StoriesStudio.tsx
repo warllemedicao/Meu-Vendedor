@@ -104,6 +104,7 @@ export function StoriesStudio() {
   const [checkingGemini, setCheckingGemini] = useState(false);
   const [progress, setProgress] = useState(0);
   const [sceneProgress, setSceneProgress] = useState("");
+  const [expandedScene, setExpandedScene] = useState(1);
   const stopSceneQueue = useRef(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -126,7 +127,7 @@ export function StoriesStudio() {
   useEffect(() => { void Promise.resolve().then(() => Promise.all([loadTopics(), loadProjects()])); }, [loadTopics, loadProjects]);
   async function openProject(selected: Project) {
     if (!user) return;
-    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setPublishDescription(""); setStage("roteiro");
+    setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setPublishDescription(""); setExpandedScene(Math.max(1, selected.scenes.findIndex(s => !s.action?.trim() || !s.setting?.trim()) + 1)); setStage("roteiro");
     const client = getSupabase(); if (!client) return;
     const [clipsResult, promptResult] = await Promise.all([
       client.from("mv_story_clips").select("id,scene_number,storage_path,approved").eq("user_id", user.id).eq("project_id", selected.id),
@@ -239,14 +240,16 @@ export function StoriesStudio() {
         characters: [], scenes: makeEmptyStoryScenes(), status: "draft",
       }).select("id,user_id,topic_id,genre,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível iniciar o rascunho retomável.");
-      setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setStage("roteiro");
+      setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setStage("roteiro");
       setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
       void loadProjects();
-      setMessage("Rascunho criado. Clique em Gerar próxima cena para gerar e salvar uma cena por vez, sem solicitações automáticas.");
+      setSceneProgress("Gerando a primeira cena do roteiro...");
+      await generateOneScene(data as Project, topic.synopsis);
+      setMessage("Primeira cena gerada e salva. Revise o conteúdo e continue com as demais cenas.");
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
-  async function generateOneScene(working: Project): Promise<Project> {
+  async function generateOneScene(working: Project, synopsisOverride?: string): Promise<Project> {
     if (!user || working.status !== "draft") throw new Error("Roteiro não está disponível para edição.");
     const nextIndex = working.scenes.findIndex(s => !s.action.trim() || !s.setting.trim());
     if (nextIndex < 0) return working;
@@ -258,7 +261,7 @@ export function StoriesStudio() {
     const sceneNumber = nextIndex + 1;
     setSceneProgress("Gerando cena " + sceneNumber + " de 12");
     const result = await invokeStory("script_scene", {
-      title: working.title, synopsis: activeTopic?.synopsis || publishDescription,
+      title: working.title, synopsis: synopsisOverride ?? activeTopic?.synopsis ?? publishDescription,
       genre: working.genre || activeTopic?.genre || "geral", sceneNumber,
       characters: working.characters, previousScenes: working.scenes.slice(0, nextIndex),
     }) as { characters: Character[]; scene: Scene };
@@ -273,6 +276,7 @@ export function StoriesStudio() {
     if (saveError) throw new Error("A cena foi gerada, mas não foi salva. Não repita a geração antes de verificar o projeto.");
     const updated = { ...working, scenes, characters };
     setProject(updated);
+    setExpandedScene(sceneNumber);
     setMessage("Cena " + sceneNumber + "/12 salva. " +
       (sceneNumber === 12 ? "Roteiro completo; revise e aprove." : "Você já pode gerar a próxima cena."));
     return updated;
@@ -317,7 +321,7 @@ export function StoriesStudio() {
         genre: topic?.genre || genre, characters, scenes, status: "draft",
       }).select("id,user_id,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível criar o roteiro manual.");
-      setActiveTopic(topic || null); setProject(data as Project); setPrompts([]); setClips([]);
+      setActiveTopic(topic || null); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1);
       setPublishTitle(title.trim()); setPublishDescription(topic?.synopsis || ""); setStage("roteiro");
       setMessage("Rascunho manual criado com 12 cenas vazias. Preencha e aprove antes de gerar prompts.");
       void loadProjects();
@@ -631,7 +635,7 @@ export function StoriesStudio() {
       </div>}
       <p className="text-sm text-muted">12 cenas × 10 segundos = 120 segundos. Os personagens e as vozes se mantêm iguais entre cenas.</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6" aria-label="Linha do tempo de 12 cenas">
-        {project.scenes.map(s => <a key={s.number} href={"#story-scene-" + s.number}
+        {project.scenes.map(s => <a key={s.number} href={"#story-scene-" + s.number} onClick={() => setExpandedScene(s.number)}
           className="rounded-xl border border-border bg-surface px-2 py-3 text-center text-sm hover:underline">
           <span className="block font-semibold">Cena {s.number}</span><span className="text-xs text-muted">10s · {clips.find(c => c.scene_number === s.number)?.approved ? "Aprovado" : clips.some(c => c.scene_number === s.number) ? "Enviado" : "Pendente"}</span>
         </a>)}
@@ -656,39 +660,59 @@ export function StoriesStudio() {
           </label>}
         </div>)}
       </div>
-      <div className="space-y-4">
-        {project.scenes.map((s, i) => <div key={s.number} id={"story-scene-" + s.number} className="rounded-xl border border-border p-3 space-y-3">
-          <h3 className="font-semibold">Cena {s.number} · 10 segundos</h3>
-          <label className="block text-sm">Título da cena
-            <input className={field + " mt-1"} maxLength={160} value={s.title} disabled={project.status !== "draft"}
-              onChange={e => updateScene(i, { title: e.target.value })}/>
-          </label>
-          <label className="block text-sm">Cenário
-            <textarea className={field + " mt-1"} rows={2} value={s.setting} disabled={project.status !== "draft"}
-              onChange={e => updateScene(i, { setting: e.target.value })}/>
-          </label>
-          <label className="block text-sm">Ação
-            <textarea className={field + " mt-1"} rows={3} value={s.action} disabled={project.status !== "draft"}
-              onChange={e => updateScene(i, { action: e.target.value })}/>
-          </label>
-          <label className="block text-sm">Falas (uma por linha, usando Nome: texto)
-            <textarea className={field + " mt-1"} rows={2}
-              value={s.dialogue.map(d => d.speaker + ": " + d.text).join("\n")} disabled={project.status !== "draft"}
-              onChange={e => updateScene(i, { dialogue: e.target.value.split("\n").map(line => {
-                const colon = line.indexOf(":");
-                return colon < 0 ? null : { speaker: line.slice(0, colon).trim(), text: line.slice(colon + 1).trim() };
-              }).filter((d): d is Dialogue => !!d && !!d.speaker && !!d.text) })}/>
-          </label>
-          <label className="block text-sm">Personagens presentes (nomes separados por vírgula)
-            <input className={field + " mt-1"} disabled={project.status !== "draft"} value={s.characters.join(", ")}
-              onChange={e => updateScene(i, { characters: e.target.value.split(",").map(n => n.trim()).filter(Boolean) })}/>
-          </label>
-          <label className="block text-sm">Transição e ligação com a próxima cena
-            <input className={field + " mt-1"} disabled={project.status !== "draft"} value={s.transition}
-              onChange={e => updateScene(i, { transition: e.target.value })}/>
-          </label>
-          <p className="text-xs text-muted">Fala aproximada: {countStoryWords(s)}/26 palavras · tempo-alvo: 10s</p>
-        </div>)}
+      <div className="space-y-2">
+        {project.scenes.map((s, i) => {
+          const filled = Boolean(s.setting.trim() && s.action.trim());
+          const expanded = expandedScene === s.number;
+          return <div key={s.number} id={"story-scene-" + s.number}
+            className="rounded-xl border border-border bg-surface overflow-hidden">
+            <button type="button" className="w-full px-3 py-2 text-left flex items-center justify-between gap-3"
+              aria-expanded={expanded} aria-controls={"story-fields-" + s.number}
+              onClick={() => setExpandedScene(expanded ? 0 : s.number)}>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">Cena {s.number} · {s.title} · 10s</span>
+                <span className="block truncate text-xs text-muted">
+                  {filled ? s.action : "Cena ainda não gerada — aguardando Gemini ou edição manual"}
+                </span>
+              </span>
+              <span className="shrink-0 text-xs text-muted">{filled ? "Preenchida" : "Pendente"} · {expanded ? "Recolher" : "Abrir"}</span>
+            </button>
+            {expanded && <div id={"story-fields-" + s.number} className="border-t border-border px-3 py-3 grid gap-2 sm:grid-cols-2">
+              <label className="text-xs font-semibold sm:col-span-2">Título
+                <input className={field + " mt-1 py-1.5"} maxLength={160} value={s.title}
+                  disabled={project.status !== "draft"} onChange={e => updateScene(i, { title: e.target.value })}/>
+              </label>
+              <label className="text-xs font-semibold">Cenário
+                <textarea className={field + " mt-1 min-h-12 resize-y py-1.5"} rows={2}
+                  value={s.setting} disabled={project.status !== "draft"}
+                  onChange={e => updateScene(i, { setting: e.target.value })}/>
+              </label>
+              <label className="text-xs font-semibold">Ação
+                <textarea className={field + " mt-1 min-h-12 resize-y py-1.5"} rows={2}
+                  value={s.action} disabled={project.status !== "draft"}
+                  onChange={e => updateScene(i, { action: e.target.value })}/>
+              </label>
+              <label className="text-xs font-semibold sm:col-span-2">Falas (Nome: texto)
+                <textarea className={field + " mt-1 min-h-10 resize-y py-1.5"} rows={2}
+                  value={s.dialogue.map(d => d.speaker + ": " + d.text).join("\n")} disabled={project.status !== "draft"}
+                  onChange={e => updateScene(i, { dialogue: e.target.value.split("\n").map(line => {
+                    const colon = line.indexOf(":");
+                    return colon < 0 ? null : { speaker: line.slice(0, colon).trim(), text: line.slice(colon + 1).trim() };
+                  }).filter((d): d is Dialogue => !!d && !!d.speaker && !!d.text) })}/>
+              </label>
+              <label className="text-xs font-semibold">Personagens presentes
+                <input className={field + " mt-1 py-1.5"} value={s.characters.join(", ")}
+                  disabled={project.status !== "draft"}
+                  onChange={e => updateScene(i, { characters: e.target.value.split(",").map(n => n.trim()).filter(Boolean) })}/>
+              </label>
+              <label className="text-xs font-semibold">Transição para próxima cena
+                <input className={field + " mt-1 py-1.5"} value={s.transition}
+                  disabled={project.status !== "draft"} onChange={e => updateScene(i, { transition: e.target.value })}/>
+              </label>
+              <p className="text-xs text-muted sm:col-span-2">Fala: {countStoryWords(s)}/26 palavras · 10 segundos</p>
+            </div>}
+          </div>;
+        })}
       </div>
       {project.status === "draft" ? <div className="flex flex-wrap gap-2">
         <button className={button} disabled={busy} onClick={() => void saveScript(false)}>Salvar alterações</button>
