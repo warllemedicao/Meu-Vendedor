@@ -394,6 +394,53 @@ export function StoriesStudio() {
     setClips((clipsResult.data || []) as Clip[]);
     setPrompts((promptResult.data || []).map(p => ({ scene: p.scene_number as number, text: p.prompt as string, platform: p.platform as Platform })));
   }
+  async function uploadCharacterBatch(files: FileList | null) {
+    if (!files?.length || !project || !user || busy || project.status !== "draft") return;
+    const list = Array.from(files);
+    if (list.length > 20) return setError("Envie no máximo 20 imagens por seleção.");
+    if (list.some(file => !["image/png","image/jpeg","image/webp"].includes(file.type) ||
+      file.size > 10 * 1024 * 1024))
+      return setError("Cada imagem precisa ser PNG, JPG ou WebP com até 10 MB.");
+    const client = getSupabase(); if (!client) return;
+    setBusy(true); setError(""); setMessage("");
+    // Preserve previously linked images; associate new images with unassigned characters first.
+    let characters = [...project.characters];
+    let completed = 0;
+    try {
+      for (const file of list) {
+        const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+        const path = user.id + "/library/" + crypto.randomUUID() + "." + ext;
+        const { error: upError } = await client.storage.from("mv-story-images")
+          .upload(path, file, { contentType: file.type, upsert: false });
+        if (upError) throw new Error("Falha ao enviar " + file.name + ".");
+        const emptyIndex = characters.findIndex(ch => !ch.referenceImagePath);
+        const basename = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 85);
+        const title = emptyIndex >= 0 ? characters[emptyIndex].name : basename || "Personagem";
+        const description = emptyIndex >= 0 ? characters[emptyIndex].visual : "";
+        const voice = emptyIndex >= 0 ? characters[emptyIndex].voice : "";
+        // A stable, unique library title avoids silently overwriting an existing image.
+        const libraryName = (title.slice(0, 78) + " " + crypto.randomUUID().slice(0, 6)).slice(0, 100);
+        const { error: libError } = await client.from("mv_story_characters").insert({
+          user_id: user.id, name: libraryName, description, voice,
+          image_prompt: description, storage_path: path,
+        });
+        if (libError) throw new Error("Imagem enviada, mas falhou ao registrar " + file.name + " na biblioteca.");
+        if (emptyIndex >= 0) {
+          characters[emptyIndex] = { ...characters[emptyIndex], referenceImagePath: path,
+            referenceImagePrompt: description };
+          const { error: saveError } = await client.from("mv_story_projects")
+            .update({ characters, updated_at: new Date().toISOString() })
+            .eq("id", project.id).eq("user_id", user.id);
+          if (saveError) throw new Error("Imagem salva, mas não foi possível vincular " + file.name + " ao roteiro.");
+          setProject(prev => prev?.id === project.id ? { ...prev, characters: [...characters] } : prev);
+        }
+        completed++;
+        setSceneProgress("Imagens salvas: " + completed + "/" + list.length);
+      }
+      setMessage(completed + " imagens enviadas. As primeiras foram vinculadas aos personagens sem referência; as demais estão na biblioteca.");
+    } catch(e) { setError(plainError(e) + " " + completed + " imagem(ns) já salva(s)."); }
+    finally { await loadCharacterLibrary(); setBusy(false); setSceneProgress(""); }
+  }
   async function uploadReference(characterIndex: number, file?: File) {
     if (!file || !user || !project || project.status !== "draft") return;
     if (!["image/jpeg","image/png","image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024)
@@ -954,8 +1001,21 @@ export function StoriesStudio() {
         {busy && sceneProgress && <p role="status" className="rounded-xl border border-border p-2 text-sm">{sceneProgress}</p>}
       </div>
       {sceneWorkbenchStep === "personagens" &&       <div className="rounded-xl border border-border p-3 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Bíblia de personagens — identidade e continuidade</h3><button className={button} disabled={busy} onClick={() => void loadCharacterLibrary()}>Atualizar imagens</button></div>
-        {project.characters.map((char, ci) => <details key={ci} className="rounded-xl border border-border p-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Imagens dos personagens</h3><button className={button} disabled={busy} onClick={() => void loadCharacterLibrary()}>Atualizar biblioteca</button></div>
+        <p className="text-xs text-muted">Envie várias imagens juntas. O sistema liga cada imagem ao próximo personagem sem foto; as extras ficam na biblioteca, para usar depois.</p>
+        {project.status === "draft" && <label className="block rounded-xl border border-primary/40 bg-primary/5 p-3 text-sm font-semibold">
+          <span className="block mb-2">Enviar várias imagens de uma vez</span>
+          <input type="file" multiple accept="image/png,image/jpeg,image/webp" disabled={busy}
+            className="block w-full text-sm font-normal"
+            onChange={e => {const files=e.currentTarget.files; void uploadCharacterBatch(files); e.currentTarget.value="";}}/>
+          <span className="block mt-1 text-xs font-normal text-muted">PNG, JPG e WebP, até 10 MB por arquivo. Não substitui imagens já vinculadas.</span>
+        </label>}
+        <details className="rounded-xl border border-border p-2" open>
+          <summary className="cursor-pointer text-sm font-semibold">Criar imagem com Nano Banana</summary>
+          <p className="text-xs text-muted pt-2">Para gerar, abra a ficha do personagem abaixo. A descrição e o botão ficam dentro da ficha. Se a API não estiver configurada, use envio manual.</p>
+          {project.characters.length > 0 && <button className={button + " mt-2"} onClick={() => setMessage("Abra a ficha de um personagem abaixo para definir o nome e gerar a imagem.")}>Preparar personagem</button>}
+        </details>
+        {project.characters.map((char, ci) => <details key={ci} open={ci === 0 ? true : undefined} className="rounded-xl border border-border p-3 text-sm">
           <summary className="cursor-pointer flex items-center gap-3 font-semibold">
             {char.referenceImagePath && (characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]) &&
               <img src={characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]}
