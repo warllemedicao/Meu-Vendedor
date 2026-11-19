@@ -5,14 +5,19 @@ import { getSupabase } from "@/lib/supabase/client";
 import { createVideoAssetUrl, uploadVideoResult, MAX_VIDEO_RESULT_BYTES } from "@/lib/video-assets";
 
 type DownloadedVideo = { id: string; name: string; bytes: number; modifiedAt: number };
+type FlowAccount = { id: string; label: string };
 
 type DownloadDiagnostic = { stage?: string; reason?: string; flowProjectTabs?: number | null; videoCandidates?: number | null; toolbarCandidates?: number | null; resolutionCandidates?: number | null; previewClicked?: boolean; editorOpen?: boolean; downloadMenuClicked?: boolean; resolutionClicked?: boolean; frames?: { frame?: number | null; eligible?: number | null; raw?: number | null; visible?: number | null; rejectedSize?: number | null; rejectedPosition?: number | null }[] };
-type BrowserResponse = { diagnostic?: DownloadDiagnostic; video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; ready?: boolean; failed?: boolean; reason?: string; settingsApplied?: boolean };
+type BrowserResponse = { diagnostic?: DownloadDiagnostic; video?: DownloadedVideo; videos?: DownloadedVideo[]; downloadUrl?: string; bytes?: number; status?: string; viewUrl?: string; error?: string; promptStaged?: boolean; imagesSubmitted?: number; active?: boolean; recorded?: number; imageDirectory?: string; imagesAvailable?: number; events?: { kind?: string; role?: string; state?: Record<string,string>; attribute?: string; holdMs?: number | null }[]; projectOpen?: boolean; promptCandidates?: number; fileInputs?: number; uploadControls?: number; generationStarted?: boolean; ready?: boolean; failed?: boolean; reason?: string; settingsApplied?: boolean; accounts?: FlowAccount[]; selected?: string; browserRunning?: boolean };
 
 export function PrivateBrowserConnection() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [viewUrl, setViewUrl] = useState("");
+  const [flowAccounts, setFlowAccounts] = useState<FlowAccount[]>([]);
+  const [selectedFlowAccount, setSelectedFlowAccount] = useState("primary");
+  const [newAccountLabel, setNewAccountLabel] = useState("");
+
   const [videoBusy, setVideoBusy] = useState(false);
   const [savedVideoPath, setSavedVideoPath] = useState("");
   const [savedVideoUrl, setSavedVideoUrl] = useState("");
@@ -72,6 +77,10 @@ export function PrivateBrowserConnection() {
         ? (await (error.context as Response).clone().json().catch(() => null))?.error : null);
       const labels: Record<string, string> = {
         browser_not_running: "O Chrome não está iniciado. Clique em Chrome para abrir novamente.",
+        invalid_account: "O nome ou o identificador da conta é inválido.",
+        browser_must_be_stopped: "Feche o Chrome antes de cadastrar ou trocar de conta.",
+        account_limit_reached: "Limite de seis perfis Google Flow atingido.",
+
         flow_page_not_active: "Abra o Google Flow no Chrome antes de enviar.",
         flow_project_not_active: "O projeto do Google Flow não abriu. Confira a tela.",
         new_project_button_not_found: "O robô não encontrou o botão de novo projeto.",
@@ -191,6 +200,56 @@ export function PrivateBrowserConnection() {
     }
   }
 
+
+  async function refreshFlowAccounts() {
+    try {
+      const data = await invoke("accounts_list");
+      setFlowAccounts(data.accounts ?? []);
+      setSelectedFlowAccount(data.selected ?? "primary");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível consultar as contas.");
+    }
+  }
+
+  async function selectFlowAccount(accountId: string) {
+    if (busy || videoBusy) return;
+    setBusy(true);
+    try {
+      const data = await invoke("accounts_select", { accountId });
+      setSelectedFlowAccount(data.selected ?? accountId);
+      setFlowAccounts(data.accounts ?? []);
+      setMessage("Conta selecionada. Ao abrir o Chrome, o Meu Vendedor usará o perfil dessa conta. O login salvo será mantido.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível selecionar a conta.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addFlowAccount() {
+    const label = newAccountLabel.trim();
+    if (busy || videoBusy || !label || label.length > 48) return;
+    setBusy(true);
+    try {
+      const data = await invoke("accounts_create", { label });
+      setFlowAccounts(data.accounts ?? []);
+      setSelectedFlowAccount(data.selected ?? "primary");
+      setNewAccountLabel("");
+      await invoke("start");
+      const view = await invoke("view");
+      const url = new URL(view.viewUrl ?? "");
+      if (url.protocol !== "https:" || !url.pathname.endsWith("/viewer") || !url.searchParams.has("ticket")) {
+        throw new Error("Endereço de visualização inválido.");
+      }
+      setViewUrl(url.toString());
+      setMessage("Novo perfil aberto. Faça login diretamente na página do Google pelo Chrome. Quando terminar, clique em 'Encerrar Chrome e robô' para preservar a sessão.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha ao criar perfil. Consulte as contas antes de repetir.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function openChrome() {
     if (busy) return;
     setBusy(true);
@@ -203,6 +262,7 @@ export function PrivateBrowserConnection() {
         throw new Error("Endereço de visualização inválido.");
       }
       setViewUrl(url.toString());
+      await refreshFlowAccounts();
       setMessage("Chrome conectado. Use a sessão do Google Flow para os testes.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erro ao abrir o Chrome.");
@@ -345,7 +405,32 @@ export function PrivateBrowserConnection() {
 
   return <article className="space-y-4 rounded-xl border border-border bg-surface p-4 sm:col-span-2">
     <h3 className="font-semibold">Google Flow · Chrome próprio</h3>
-    <p className="text-sm text-muted">Abra seu Chrome no Modal usando a sessão persistente do Google Flow.</p>
+    <p className="text-sm text-muted">Contas Google com perfis Chrome independentes. O login ocorre apenas na página oficial do Google; o Meu Vendedor não recebe sua senha.</p>
+    <div className="space-y-2 rounded-lg border border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">Contas Google Flow</span>
+        <button type="button" onClick={() => void refreshFlowAccounts()} disabled={busy || videoBusy}
+          className="rounded-lg border border-border px-3 py-1 text-xs disabled:opacity-50">Atualizar contas</button>
+      </div>
+      <select aria-label="Conta Google Flow ativa" value={selectedFlowAccount}
+        disabled={busy || videoBusy || Boolean(viewUrl)}
+        onChange={(event) => void selectFlowAccount(event.target.value)}
+        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm disabled:opacity-50">
+        {(flowAccounts.length ? flowAccounts : [{ id: "primary", label: "Conta principal (atual)" }]).map((account) =>
+          <option key={account.id} value={account.id}>{account.label}</option>)}
+      </select>
+      <p className="text-xs text-muted">Para trocar de conta, feche o Chrome, escolha o perfil e abra novamente. Cada perfil preserva sua própria sessão Google.</p>
+      <div className="flex flex-wrap gap-2">
+        <input aria-label="Nome da nova conta" value={newAccountLabel}
+          onChange={(event) => setNewAccountLabel(event.target.value)} maxLength={48}
+          placeholder="Ex.: Minha segunda conta" disabled={busy || videoBusy || Boolean(viewUrl)}
+          className="min-w-[180px] flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm disabled:opacity-50" />
+        <button type="button" onClick={() => void addFlowAccount()}
+          disabled={busy || videoBusy || Boolean(viewUrl) || !newAccountLabel.trim()}
+          className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50">Adicionar conta e fazer login</button>
+      </div>
+      <p className="text-xs text-muted">Seu perfil principal já conectado será preservado. Após adicionar uma conta, entre diretamente no Google pelo navegador e depois feche-o normalmente.</p>
+    </div>
     <button type="button" disabled={busy} onClick={() => void openChrome()} className="rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">
       {busy ? "Abrindo..." : "Chrome"}
     </button>
