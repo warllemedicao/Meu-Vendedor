@@ -1,3 +1,10 @@
+## 19/11/2026 — Geração de temas: erro visível e testes com baixo consumo
+
+- Logs Supabase confirmaram respostas Google HTTP 503 `UNAVAILABLE` para `gemini-3.8-flash` na operação `topics`; nenhum tema foi entregue nessas tentativas. Não há evidência nesses registros de 429/cota esgotada.
+- O componente `StoriesStudio` exibia erros apenas no final da página longa, longe do botão. Agora mostra mensagem de erro/sucesso junto ao gerador de temas.
+- Quantidade padrão reduzida de 50 para 1 tema, com opção explícita de 5 temas; opções maiores permanecem disponíveis para uso deliberado. Testes não devem exceder 5 roteiros; nenhuma geração via Gemini foi executada por este ajuste.
+- Google Flow, Modal, OAuth, arquivo IMAGEM1/2/3 e chaves permanecem intocados.
+
 ## 19/11/2026 — Diagnóstico restrito dos erros Gemini em Histórias
 
 - `story-studio`: o erro HTTP Gemini agora registra status HTTP, finalidade (tema ou roteiro), modelo, status e código numérico do provedor, além de categoria técnica inferida por palavras-chave permitidas.
