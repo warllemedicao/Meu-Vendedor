@@ -1,3 +1,14 @@
+## 19/11/2026 — Redução de custos e diagnóstico de timeout no Histórias
+
+- Logs Supabase às 16:30 UTC confirmaram `story_studio_gemini_transport_error`, `purpose: script`, modelo `gemini-3.5-flash`, timeout de 60.000 ms e retorno HTTP 502. As tentativas de temas no `gemini-3.5-flash-lite` também registraram HTTP 503 do Google. Não há demonstração de falha do parser JSON nas tentativas com erro.
+- O módulo Histórias agora solicita texto mais conciso: temas com título até 65 caracteres e sinopse até 40 palavras/240 caracteres; roteiro com exatamente 12 cenas de 10 segundos, 1–4 personagens, ambiente até 180 caracteres, ação até 320, transição até 75 e até 22 palavras de diálogo por cena. As restrições editoriais são instruções ao modelo, não cortes automáticos de conteúdo aprovado.
+- Tetos de saída do Google: temas `min(3800, 1800 + count*100)` (5 temas = 2300; 20 = 3800), roteiro `7200` tokens, prompts `8500` tokens. Não representam consumo fixo ou garantia de saída completa; limites efetivos devem ser validados por retorno de inferência e `finishReason`.
+- Prompts do YouTube Create permanecem alvo 850/máximo 900 caracteres; Flow e Dreamina passam a alvo 1100/máximo 1600 caracteres internos. O arquivo de guias do frontend foi alinhado ao backend.
+- `story-studio` registra latência dos erros e, em respostas válidas do provedor, contagens de tokens de entrada, saída, pensamento e total e motivo de finalização, sem log de prompt, assunto, roteiro ou segredo. A chamada `generateContent` agora passa a chave via header `x-goog-api-key`, não na URL.
+- Backend Supabase `story-studio` publicado **ACTIVE v18**, `verify_jwt: true`; leitura pós-deploy confirmou constantes e telemetria. Nenhuma inferência Gemini real foi executada nesta intervenção.
+- Frontend em `main`: removido loop de geração adicional automático; uma ação do usuário faz no máximo uma chamada ao Gemini para temas. Resposta parcial é preservada. Removido controle de cancelamento anterior, que não tinha efeito em requisição única. Erro HTTP 503 agora recebe mensagem específica. **Publicação desse frontend no Cloudflare ainda não confirmada**; o Worker observado não foi redeployado por esta alteração.
+- Testes de contrato atualizados no GitHub; execução da suíte local/CI não confirmada neste ambiente. Nenhuma modificação em Flow, arquivos IMAGEM1/2/3, chaves ou configuração de Produto/Campanhas.
+
 ## 19/11/2026 — Histórias passa a usar exclusivamente Gemini 3.5
 
 - Solicitação: remover Gemini 3.8 do módulo independente Histórias. Temas, títulos, ideias e sinopses passam a `gemini-3.5-flash-lite`; roteiro de 12 cenas e prompts passam a `gemini-3.5-flash`.
