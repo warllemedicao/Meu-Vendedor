@@ -23,8 +23,8 @@ const genres: { value: Genre; label: string }[] = [
 ];
 const platformOptions: { value: Platform; label: string; maximum: number | null }[] = [
   { value: "youtube-create", label: "YouTube Create", maximum: 900 },
-  { value: "google-flow", label: "Google Flow", maximum: null },
-  { value: "dreamina", label: "Dreamina", maximum: null },
+  { value: "google-flow", label: "Google Flow", maximum: 1600 },
+  { value: "dreamina", label: "Dreamina", maximum: 1200 },
 ];
 const button = "rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold disabled:opacity-40";
 const field = "w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm";
@@ -638,12 +638,12 @@ export function StoriesStudio() {
             { ...x, text: e.target.value } : x))}/>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className={"text-xs " + (maxPrompt && Array.from(p.text).length > maxPrompt ? "text-red-600" : "text-muted")}>
-            {Array.from(p.text).length} caracteres {maxPrompt ? "/ " + maxPrompt : " (limite interno do agente)"}
+            {Array.from(p.text).length} caracteres / {maxPrompt}
           </p>
           <div className="flex gap-2">
             <button className={button} disabled={busy || !p.text.trim() || !!(maxPrompt && Array.from(p.text).length > maxPrompt)}
               onClick={() => void saveEditedPrompt(p.scene)}>Salvar edição</button>
-            <button className={button} disabled={!publishTitle.trim() && !publishDescription.trim()} onClick={() => void navigator.clipboard.writeText(p.text)}>Copiar prompt</button>
+            <button className={button} disabled={!p.text.trim()} onClick={() => void navigator.clipboard.writeText(p.text)}>Copiar prompt</button>
           </div>
         </div>
       </div>)}
