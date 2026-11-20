@@ -257,7 +257,7 @@ export function StoriesStudio() {
       const file = new File([imageBuffer], name + "." + extension, { type: result.mimeType });
       if (file.size > 10 * 1024 * 1024) throw new Error("A imagem excedeu 10 MB.");
       const client = getSupabase(); if (!client) throw new Error("Supabase indisponível.");
-      const path = user.id + "/library/" + crypto.randomUUID() + "." + extension;
+      const path = user.id + "/library/" + (project.character_style || "nao_definido") + "/" + crypto.randomUUID() + "." + extension;
       const { error: uploadError } = await client.storage.from("mv-story-images")
         .upload(path, file, { contentType: file.type, upsert: false });
       if (uploadError) throw new Error("A imagem foi gerada, mas falhou o armazenamento privado.");
@@ -415,7 +415,7 @@ export function StoriesStudio() {
     try {
       for (const file of list) {
         const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-        const path = user.id + "/library/" + crypto.randomUUID() + "." + ext;
+        const path = user.id + "/library/" + (project.character_style || "nao_definido") + "/" + crypto.randomUUID() + "." + ext;
         const { error: upError } = await client.storage.from("mv-story-images")
           .upload(path, file, { contentType: file.type, upsert: false });
         if (upError) throw new Error("Falha ao enviar " + file.name + ".");
@@ -455,7 +455,7 @@ export function StoriesStudio() {
     setBusy(true); setError("");
     try {
       const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-      const path = user.id + "/library/" + crypto.randomUUID() + "." + ext;
+      const path = user.id + "/library/" + (project.character_style || "nao_definido") + "/" + crypto.randomUUID() + "." + ext;
       const { error: uploadError } = await client.storage.from("mv-story-images")
         .upload(path, file, { contentType: file.type, upsert: false });
       if (uploadError) throw new Error("Falha ao enviar referência visual privada.");
@@ -1081,7 +1081,8 @@ export function StoriesStudio() {
                     {editing ? "Fechar" : "Editar"}</button>}
                 </div>
                 <div role="group" aria-label={"Escolher imagem para " + char.name} className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-7">
-                  {characterLibrary.map(entry => {
+                  {characterLibrary.filter(entry => entry.storage_path.includes("/library/" + project.character_style + "/") ||
+                    entry.storage_path === path).map(entry => {
                     const thumb = libraryImageUrls[entry.storage_path];
                     return <button key={entry.id} type="button" title={entry.name} aria-label={"Selecionar " + entry.name + " para " + char.name}
                       aria-pressed={path === entry.storage_path} disabled={busy || !thumb || project.status !== "draft"}
@@ -1096,7 +1097,26 @@ export function StoriesStudio() {
                     className="rounded-lg border border-dashed border-primary p-2 text-xs font-semibold"
                     aria-expanded={adding} onClick={() => {setAddingCharacterImageIndex(adding ? null : ci);setEditingCharacterIndex(null);}}>＋ Nova imagem</button>}
                 </div>
-                {characterLibrary.length === 0 && <p className="text-xs text-muted">Biblioteca vazia. Cadastre uma nova imagem.</p>}
+                {characterLibrary.every(entry => !entry.storage_path.includes("/library/" + project.character_style + "/")) &&
+                  <p className="text-xs text-muted">Ainda não há imagens cadastradas para este tipo de personagem.</p>}
+                {characterLibrary.some(entry => !entry.storage_path.includes("/library/" + project.character_style + "/") && entry.storage_path !== path) &&
+                  <details className="rounded-lg border border-border p-2">
+                    <summary className="cursor-pointer text-xs font-semibold">Ver imagens antigas ou de outros tipos</summary>
+                    <div className="grid grid-cols-3 gap-2 pt-2 sm:grid-cols-5 lg:grid-cols-7">
+                      {characterLibrary.filter(entry => !entry.storage_path.includes("/library/" + project.character_style + "/") &&
+                        entry.storage_path !== path).map(entry => {
+                        const thumb=libraryImageUrls[entry.storage_path];
+                        return <button key={entry.id} type="button" disabled={busy || !thumb || project.status !== "draft"}
+                          aria-label={"Selecionar imagem antiga " + entry.name + " para " + char.name}
+                          onClick={() => void chooseLibraryImage(ci,entry)}
+                          className="overflow-hidden rounded-lg border border-border p-1 text-left">
+                          {thumb ? <img src={thumb} alt="" className="aspect-square w-full rounded object-cover"/> :
+                            <div className="aspect-square bg-surface-secondary"/>}
+                          <span className="block truncate pt-1 text-[11px]">{entry.name}</span>
+                        </button>;
+                      })}
+                    </div>
+                  </details>}
                 {editing && project.status === "draft" && <div className="space-y-2 rounded-lg bg-surface-secondary p-3">
                   <p className="text-sm font-semibold">Editar ficha de {char.name}</p>
                   <label className="block text-xs">Nome<input className={field + " mt-1"} maxLength={100} value={char.name}
