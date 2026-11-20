@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { makeLocalPromptDrafts, makeStoryFlowAgentInstructions, countStoryPromptCharacters, PLATFORM_GUIDES } from "../src/lib/stories/workflow.ts";
+import { makeLocalPromptDrafts, makeStoryFlowAgentInstructions, countStoryPromptCharacters, parseStoryDialogueDraft, PLATFORM_GUIDES } from "../src/lib/stories/workflow.ts";
 
 const scene = {
   number: 2, durationSeconds: 10, title: "Máquina estranha",
@@ -15,6 +15,17 @@ const characters = [
   { name: "Limonada", role: "eletricista industrial especialista", visual: "Limão antropomórfico verde vivo, capacete branco, óculos redondos pretos, roupa verde, botas de segurança e luvas cinzas, animação 3D de personagem original.", voice: "Tom suave e claro, sotaque brasileiro e fala um pouco rápida.", referenceImagePath: "private-image-1" },
   { name: "Morcegão", role: "mecânico industrial experiente", visual: "Personagem original escuro, macacão azul escuro, capacete cinza e botas pretas, cabelo espetado e rosto expressivo, animação 3D consistente.", voice: "Tom grave e áspero, voz brasileira e fala desconfiada.", referenceImagePath: "private-image-2" },
 ];
+
+test("dialogue parser preserves speakers and full sentence while allowing temporary input gaps", () => {
+  const finished = parseStoryDialogueDraft('Maçã: Vamos começar o turno minha amiga, tu vai deixar eu trabalhar hoje né?\nLimão: Pode deixar.');
+  assert.deepEqual(finished.invalidLines, []);
+  assert.equal(finished.dialogue[0].speaker, "Maçã");
+  assert.equal(finished.dialogue[0].text, "Vamos começar o turno minha amiga, tu vai deixar eu trabalhar hoje né?");
+  assert.equal(finished.dialogue[1].text, "Pode deixar.");
+  assert.deepEqual(parseStoryDialogueDraft("Maçã: \nLimão: ok\nOutra linha").invalidLines, [1, 3]);
+  assert.deepEqual(parseStoryDialogueDraft("   \nLimão:  ok  \n").dialogue,
+    [{ speaker: "Limão", text: "ok" }]);
+});
 
 test("local prompts stay inside their provider cap and preserve every spoken line", () => {
   for (const provider of ["youtube-create", "google-flow", "dreamina"]) {
