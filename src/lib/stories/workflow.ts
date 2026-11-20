@@ -24,6 +24,22 @@ export const STORY_CHARACTER_STYLE_INSTRUCTIONS: Record<StoryCharacterStyle, str
 export type StoryPlatform = "youtube-create" | "google-flow" | "dreamina";
 export type StoryCharacter = { name: string; role: string; visual: string; voice: string; referenceImagePath?: string; referenceImagePrompt?: string };
 export type StoryDialogue = { speaker: string; text: string };
+/** Parse a free-form multiline dialogue without rewriting the textarea during typing.
+ * Incomplete lines are preserved in the editor and must be corrected before saving. */
+export function parseStoryDialogueDraft(raw: string): { dialogue: StoryDialogue[]; invalidLines: number[] } {
+  const dialogue: StoryDialogue[] = [];
+  const invalidLines: number[] = [];
+  raw.split("\n").forEach((line, index) => {
+    if (!line.trim()) return;
+    const colon = line.indexOf(":");
+    const speaker = colon >= 0 ? line.slice(0, colon).trim() : "";
+    const text = colon >= 0 ? line.slice(colon + 1).trim() : "";
+    if (!speaker || !text) { invalidLines.push(index + 1); return; }
+    dialogue.push({ speaker, text });
+  });
+  return { dialogue, invalidLines };
+}
+
 export type StoryScene = {
   number: number; durationSeconds: 10; title: string; setting: string;
   action: string; characters: string[]; dialogue: StoryDialogue[]; transition: string;
