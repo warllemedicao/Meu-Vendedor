@@ -793,7 +793,7 @@ export function StoriesStudio() {
     const current = prompts.find(p => p.scene === scene && p.platform === platform);
     if (!current || !current.text.trim()) return setError("O prompt não pode ficar vazio.");
     const maximum = platformOptions.find(p => p.value === platform)?.maximum;
-    if (maximum && Array.from(current.text).length > maximum) return setError("O prompt excede o limite desta plataforma.");
+    if (maximum && countStoryPromptCharacters(current.text) > maximum) return setError("O prompt excede o limite desta plataforma.");
     const client = getSupabase(); if (!client) return;
     const { error: dbError } = await client.from("mv_story_prompts").upsert({
       user_id: user.id, project_id: project.id, scene_number: scene, platform, prompt: current.text.trim(),
