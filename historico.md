@@ -1,3 +1,9 @@
+## 20/11/2026 — Correção de validação dos testes editoriais após simplificação do Prompt
+
+- Analisado log de `npm test` fornecido pelo usuário: **391 testes executados, 388 aprovados e 3 falhos** no arquivo `tests/story-editorial.test.mjs`. Falhas apontavam assertions antigas de `{expanded && ...}` e espaço obrigatório após a vírgula em `prepareScenePrompt(s.number, false/true)`.
+- Confirmado no componente `StoriesStudio.tsx` que a nova condição válida é `(expanded || sceneWorkbenchStep === "prompt")` e que os dois métodos existentes permanecem chamados com `false` e `true` respectivamente. Ajustadas apenas essas expressões regulares nos testes, permitindo espaço opcional, sem alterar a implementação ou consumir créditos Gemini.
+- Commit `8b5c456` na `main`. Verificações de correspondência entre as novas assertions e o código realizadas após o commit, mas a suíte completa, typecheck, lint e build devem ser reconfirmados no CI antes de publicar.
+
 ## 20/11/2026 — Histórias: Gerar prompt com seleção visual e tela compacta
 
 - Simplificado o topo da etapa **Prompt e download**: exibe somente **Cena N · título**, miniaturas das imagens de personagens presentes, seletor por cartões visuais de **YouTube Create**, **Google Flow** e **Dreamina**, seguido dos dois botões **Gerar prompt sem IA** e **Gerar prompt com Gemini**.
