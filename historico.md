@@ -1,3 +1,10 @@
+## 20/11/2026 — Correção do typecheck TS1003 após migração OpenAI
+
+- Log do GitHub Actions: `src/components/stories/StoriesStudio.tsx(1102,13): error TS1003: Identifier expected`.
+- Causa identificada: tag `<button>` incompleta na seção de opções avançadas, resquício da remoção do botão Flash-Lite; o JSX encontrava um `<span>` antes de completar a abertura da tag.
+- Removida somente a tag incompleta; a geração das cenas restantes permanece no comando existente no topo. Acrescentado teste de regressão em `tests/story-editorial.test.mjs` para impedir a reaparição do botão incompleto.
+- Commits `afd13fe4` e `78abcb4`. Publicação não executada. A correção foi conferida estaticamente; `npm run typecheck` ainda deve ser repetido no GitHub Actions.
+
 ## 20/11/2026 — Histórias: OpenAI substitui Gemini apenas em roteiros e prompts
 
 - Nova integração no `supabase/functions/story-studio/index.ts`: `HIST_ROTEIRO_OPENAI` exclusivamente para `script_scene`, `script`, `prompt_scene` e `prompts`, via endpoint oficial `/v1/chat/completions` usando modelo `gpt-5.4-mini-2026-03-17`, JSON, `store:false`, `reasoning_effort:none` e limite de saída por solicitação. Sem retentativas automáticas, nem registro de chaves, conteúdo de prompts ou falas nos logs. Contagens de entrada/saída/total da API são registradas sem conteúdo. `diagnose_script` passa a consultar somente metadados do modelo OpenAI por GET sem inferência.
