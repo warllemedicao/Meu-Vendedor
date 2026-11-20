@@ -73,16 +73,16 @@ test("Histórias topic generation uses only its dedicated server-side Gemini sec
   assert.match(edge, /Deno\.env\.get\("HIST_TEMA_GEMINI_API_KEY"\)/);
   assert.match(edge, /purpose === "topics"/);
   assert.match(edge, /TOPICS_MAX_TOKENS\(count\), "topics"\)/);
-  assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_GEMINI_API_KEY"\)/);
+  assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_OPENAI"\)/);
   assert.doesNotMatch(edge, /Deno\.env\.get\("GEMINI_API_KEY"\)|Deno\.env\.get\("GOOGLE_API_KEY"\)/);
   assert.doesNotMatch(studio, /HIST_TEMA_GEMINI_API_KEY/);
 });
 
 test("Scripts and prompts share only dedicated Histórias script secret", () => {
-  assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_GEMINI_API_KEY"\)/);
+  assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_OPENAI"\)/);
   assert.match(edge, /if \(body\.action === "script"\)/);
   assert.match(edge, /if \(body\.action === "prompts"\)/);
-  assert.doesNotMatch(studio, /HIST_ROTEIRO_GEMINI_API_KEY/);
+  assert.doesNotMatch(studio, /HIST_ROTEIRO_OPENAI/);
 });
 
 test("Gemini logs only allowlisted diagnostics, never raw Google error messages", () => {
@@ -128,19 +128,28 @@ test("Gemini metadata diagnostic never generates content or exposes credentials"
   assert.doesNotMatch(studio, /Verificar Gemini sem gerar temas/);
   assert.doesNotMatch(studio, /checkGeminiConnection/);
   assert.match(edge, /body\.action === "diagnose_script"/);
-  assert.match(check, /HIST_ROTEIRO_GEMINI_API_KEY/);
+  assert.match(check, /HIST_ROTEIRO_OPENAI/);
   assert.doesNotMatch(studio, /Verificar API de roteiros sem gerar/);
 });
 
 
-test("Histórias uses Gemini 3.5 Flash-Lite for topics and 3.5 Flash for scripts/prompts", () => {
+test("Histórias keeps Gemini for themes, OpenAI for scripts and video prompts", () => {
   assert.match(edge, /const TOPICS_MODEL = "gemini-3[.]5-flash-lite"/);
-  assert.match(edge, /const SCRIPT_MODEL = "gemini-3[.]5-flash"/);
-  assert.match(edge, /purpose === "topics" [?] TOPICS_MODEL : SCRIPT_MODEL/);
-  // Model names are selected by purpose before construction of the shared endpoint.
-  assert.ok(edge.includes('const model = purpose === "topics" ? TOPICS_MODEL : SCRIPT_MODEL'), "Model routing must use the requested purpose");
-  assert.match(edge, /encodeURIComponent[(]model[)]/);
-  assert.doesNotMatch(edge, /gemini-3[.]8-flash|MV_STORIES_GEMINI_MODEL/);
+  assert.match(edge, /const SCRIPT_MODEL = "gpt-5[.]4-mini-2026-03-17"/);
+  assert.match(edge, /if \(purpose === "script"\) return openaiStory\(systemInstruction, payload, maxTokens\)/);
+  assert.match(edge, /"https:\/\/api\.openai\.com\/v1\/chat\/completions"/);
+  assert.match(edge, /response_format: \{ type: "json_object" \}/);
+  assert.match(edge, /max_completion_tokens: maxTokens/);
+  assert.match(edge, /store: false/);
+  assert.doesNotMatch(edge, /HIST_ROTEIRO_GEMINI_API_KEY/);
+});
+
+test("OpenAI clips and dialogue use a stable suspense contract", () => {
+  assert.match(edge, /const SUSPENSE_RULE/);
+  assert.match(edge, /Cada cena termina em suspense natural/);
+  assert.match(edge, /Na cena 12, resolver o conflito principal/);
+  assert.match(edge, /" \+ SUSPENSE_RULE \+ "/);
+  assert.match(edge, /previousScenes, phase:/);
 });
 
 test("bounded model budgets maintain 12 scenes and log only token counts", () => {
@@ -151,7 +160,8 @@ test("bounded model budgets maintain 12 scenes and log only token counts", () =>
   assert.match(edge, /story_studio_gemini_usage/);
   assert.match(edge, /usage\.thoughtsTokenCount/);
   assert.doesNotMatch(edge, /generateContent\?key=/);
-  assert.match(studio, /One click = one Gemini request/);
+  assert.match(studio, /One click = one Gemini topics request/);
+  assert.match(edge, /story_studio_openai_usage/);
   assert.match(studio, /gemini_service_unavailable/);
 });
 
@@ -175,17 +185,18 @@ test("timeouts and truncated responses retain distinct diagnostic errors", () =>
   assert.match(edge, /first[.]finishReason === "MAX_TOKENS"/);
   assert.match(edge, /"gemini_output_truncated"/);
   assert.match(studio, /code === "gemini_output_truncated"/);
-  assert.match(edge, /code === "gemini_service_unavailable" [|][|] code === "gemini_timeout" [ ?] 503/);
+  assert.match(edge, /code === "openai_not_configured"/);
+  assert.match(edge, /openai_output_truncated/);
 });
 
 
 test("transient provider errors pause only the affected generation model", () => {
-  assert.match(studio, /const geminiCooldowns = new Map/);
+  assert.match(studio, /const modelCooldowns = new Map/);
   assert.match(studio, /action === "topics"/);
   assert.match(studio, /action === "script" [|][|] action === "prompts"/);
   assert.match(studio, /code === "gemini_service_unavailable" [|][|] code === "gemini_timeout"/);
-  assert.match(studio, /geminiCooldowns[.]set[(]scope/);
-  assert.match(studio, /geminiCooldowns[.]delete[(]scope[)]/);
+  assert.match(studio, /modelCooldowns[.]set[(]scope/);
+  assert.match(studio, /modelCooldowns[.]delete[(]scope[)]/);
   assert.match(studio, /a tentativa não foi enviada/);
 });
 
@@ -212,7 +223,7 @@ test("one platform prompt per inference, without overwriting approved prompts", 
   assert.match(studio, /invokeStory\("prompt_scene"/);
   assert.match(studio, /\.select\("scene_number"\)\.eq\("project_id", project\.id\)/);
   assert.match(studio, /\.upsert\(\{\s*user_id: user\.id, project_id: project\.id, scene_number: scene\.number/);
-  assert.match(studio, /Gerar próximo prompt com Gemini/);
+  assert.match(studio, /Gerar próximo prompt com OpenAI/);
   assert.doesNotMatch(studio, /invokeStory\("prompts", \{ platform, script:/);
 });
 
@@ -239,21 +250,17 @@ test("prompt scene receives reference-presence metadata, not private image paths
   assert.match(schema, /split_part\(storage_path, '\/', 1\)/);
 });
 
-test("optional Flash-Lite scene route uses the script key and does not borrow topic secret", () => {
-  const geminiClient = edge.split("async function gemini(")[1]?.split("async function generateCharacterImage(")[0] || "";
-  assert.match(geminiClient, /scriptModel: "primary" \| "flash-lite" = "primary"/);
-  assert.match(geminiClient, /purpose === "script" && scriptModel === "flash-lite"/);
-  assert.match(geminiClient, /Deno\.env\.get\("HIST_ROTEIRO_GEMINI_API_KEY"\)/);
-  assert.match(edge, /body\.scriptModel === "flash-lite" \? "flash-lite" : "primary"/);
-  assert.match(studio, /generateOneScene\(project, undefined, "flash-lite"\)/);
-  assert.match(studio, /Tentar cena pendente com Flash-Lite/);
-  assert.doesNotMatch(studio, /HIST_TEMA_GEMINI_API_KEY/);
+test("legacy Gemini Flash-Lite route is removed from script generation", () => {
+  assert.doesNotMatch(studio, /generateNextSceneLite|Tentar Flash-Lite/);
+  assert.doesNotMatch(edge, /body\.scriptModel/);
+  assert.match(edge, /HIST_ROTEIRO_OPENAI/);
+  assert.doesNotMatch(edge, /HIST_ROTEIRO_GEMINI_API_KEY/);
 });
 
 test("individual prompt budget reserves tokens for Gemini reasoning", () => {
   assert.match(edge, /platform === "youtube-create" \? 2800 : 3200, "script"/);
-  assert.match(edge, /first\.finishReason === "MAX_TOKENS"/);
-  assert.match(edge, /gemini_output_truncated/);
+  assert.match(edge, /choice\.finish_reason === "length"/);
+  assert.match(edge, /openai_output_truncated/);
 });
 
 test("character appearance category is sent consistently through Gemini topics, script and prompt actions", () => {
