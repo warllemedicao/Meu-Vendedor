@@ -86,7 +86,7 @@ test("compact script editor displays saved scene content and collapses others", 
   assert.match(code, /\{filled \? s\.action : "Cena ainda não gerada/);
   assert.match(code, /rows=\{2\}\s*value=\{s\.action\}/);
   assert.match(code, /value=\{s\.setting\}/);
-  assert.match(code, /value=\{s\.dialogue\.map/);
+  assert.match(code, /value=\{sceneDialogueDrafts\[project\.id/);
   assert.match(code, /value=\{s\.transition\}/);
 });
 
