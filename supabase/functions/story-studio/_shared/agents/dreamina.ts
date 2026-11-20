@@ -4,5 +4,5 @@ export const dreaminaAgent = {
   target: 650,
   maximum: 1200,
   duration: "conforme modo e duração realmente disponíveis no gerador",
-  notes: "Prompt direto, idealmente entre 30 e 100 palavras: personagem e referência visual (se anexada), uma ação concreta, câmera, ambiente e estilo, áudio/fala em português brasileiro somente se o modelo escolhido suportar. Se usar imagem de referência, concentre texto em movimento, sem redescrever detalhes já visíveis. Não presuma recursos ou duração de todos os modelos.",
+  notes: "Seguir ordem obrigatória: sujeito preciso + ação + ambiente + iluminação/tom de cor + movimento de câmera + estilo visual + qualidade/restrições. Se múltiplas referências estiverem anexadas, mapear as características estáticas de cada sujeito como Sujeito 1, Sujeito 2 e manter os rótulos em toda a ação; @Imagem 1 só se o arquivo for de fato anexado na plataforma. Evitar descrição textual de posições espaciais complexas. Preservar falas em português brasileiro e não presumir duração nem áudio quando o modelo não suportar.",
 } as const;
