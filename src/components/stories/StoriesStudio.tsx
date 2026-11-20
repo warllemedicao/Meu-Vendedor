@@ -853,11 +853,12 @@ export function StoriesStudio() {
     <section className={panel} hidden={stage !== "temas"}>
       <h2 className="text-lg font-semibold">Temas</h2>
       <fieldset className="space-y-2">
-        <legend className="text-sm font-semibold">Tipo de personagem — escolha antes de gerar</legend>
+        <legend className="text-sm font-semibold">Tipo de personagem</legend>
         <div className="grid grid-cols-3 gap-2">
           {STORY_CHARACTER_STYLES.map(option => <button key={option.value} type="button"
             aria-pressed={characterStyle === option.value}
             aria-label={"Tipo de personagem: " + option.label}
+            title={option.label}
             className={"overflow-hidden rounded-xl border text-center transition-colors " +
               (characterStyle === option.value ? "border-primary ring-2 ring-primary/40 bg-primary/10" : "border-border bg-surface")}
             onClick={() => setCharacterStyle(option.value)}>
@@ -865,7 +866,6 @@ export function StoriesStudio() {
               option.value === "infantil" ? "/stories/styles/infantil.svg" :
               "/stories/styles/pessoas-cabeca-fruta.svg"} alt="" aria-hidden="true"
               className="aspect-[4/3] w-full object-cover"/>
-            <span className="block px-1 py-2 text-xs font-semibold sm:text-sm">{option.label}</span>
           </button>)}
         </div>
       </fieldset>
@@ -896,7 +896,7 @@ export function StoriesStudio() {
       {!user && <p className="text-sm text-muted">Entre em Conta e conexões para salvar seu catálogo privado.</p>}
     </section>
 
-    <section className={panel} hidden={stage !== "temas"}>
+    <section className={panel} hidden={stage !== "temas" || draftTopics.length === 0}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">2. Temas gerados — revisão ({draftTopics.length})</h2>
         <button className={button} disabled={!draftTopics.length || !!savingTopic || busy}
