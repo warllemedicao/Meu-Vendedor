@@ -141,8 +141,8 @@ test("every completed scene supports separate video provider, prompt and downloa
 });
 
 test("save partial scene drafts without requiring all twelve scenes to be filled", () => {
-  assert.match(code, /if \(approve && project\.scenes\.some\(s => !s\.action\.trim\(\) \|\| !s\.setting\.trim\(\)\)\)/);
-  assert.match(code, /project\.scenes\.filter\(s => s\.action\.trim\(\) \|\| s\.setting\.trim\(\)\)/);
+  assert.match(code, /if \(approve && working\.scenes\.some\(s => !s\.action\.trim\(\) \|\| !s\.setting\.trim\(\)\)\)/);
+  assert.match(code, /working\.scenes\.filter\(s => s\.action\.trim\(\) \|\| s\.setting\.trim\(\)\)/);
   assert.match(code, /Rascunho salvo/);
   assert.match(code, /Aprovar roteiro e liberar prompts/);
 });
