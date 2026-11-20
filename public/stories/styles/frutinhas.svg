@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" role="img" aria-label="Duas frutas divertidas com braços e pernas">
+<defs><linearGradient id="b" x2="0" y2="1"><stop stop-color="#FFECC2"/><stop offset="1" stop-color="#FFCC8B"/></linearGradient><linearGradient id="a" x2="1" y2="1"><stop stop-color="#FDE88B"/><stop offset="1" stop-color="#F9A735"/></linearGradient></defs>
+<rect width="480" height="320" rx="24" fill="url(#b)"/><circle cx="391" cy="58" r="65" fill="#FFF5D7" opacity=".75"/><ellipse cx="240" cy="280" rx="160" ry="15" fill="#B97F4C" opacity=".17"/>
+<path d="M153 160Q114 175 98 221M269 163Q308 166 326 207" fill="none" stroke="#8B5437" stroke-width="13" stroke-linecap="round"/>
+<path d="M163 241L151 278M239 242L255 278" stroke="#8B5437" stroke-width="14" stroke-linecap="round"/>
+<path d="M144 278H173M246 278H275" stroke="#784B40" stroke-width="16" stroke-linecap="round"/>
+<path d="M202 60C151 64 128 96 128 160c0 68 40 98 78 98 53 0 79-38 79-104 0-63-23-94-83-94Z" fill="url(#a)" stroke="#C88330" stroke-width="5"/>
+<path d="M190 69q-14-32 2-45m7 42q16-30 47-28" fill="none" stroke="#648C47" stroke-width="12" stroke-linecap="round"/><ellipse cx="181" cy="146" rx="8" ry="11" fill="#54372D"/><ellipse cx="234" cy="146" rx="8" ry="11" fill="#54372D"/><path d="M185 177q22 24 46 0" fill="none" stroke="#9A4B4E" stroke-width="8" stroke-linecap="round"/>
+<circle cx="347" cy="179" r="69" fill="#D65B53" stroke="#A83F45" stroke-width="5"/><path d="M348 109q-1-22 20-30" fill="none" stroke="#566D3A" stroke-width="10" stroke-linecap="round"/><ellipse cx="326" cy="165" rx="7" ry="10" fill="#422B33"/><ellipse cx="369" cy="165" rx="7" ry="10" fill="#422B33"/><path d="M328 194q18 18 39 0" fill="none" stroke="#8B3436" stroke-width="7" stroke-linecap="round"/>
+<path d="M296 186l-23 16m135-17 23 16m-101 44-9 29m53-30 13 30" fill="none" stroke="#8B5437" stroke-width="10" stroke-linecap="round"/>
+</svg>
