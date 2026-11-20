@@ -46,6 +46,28 @@ test("script starts generating the first scene automatically after persisting dr
   assert.match(code, /selected\.scenes\.reduce\(\(last, s\)/);
 });
 
+test("Roteiro reopens existing saved topic before inserting or calling Gemini", () => {
+  const handler = code.slice(code.indexOf("  async function generateScript(topic: Topic"), code.indexOf("  async function generateOneScene(working:"));
+  assert.match(handler, /startingScriptRef\.current = true/);
+  assert.match(handler, /if \(!createNewVersion\)/);
+  assert.match(handler, /\.from\("mv_story_projects"\)/);
+  assert.match(handler, /\.eq\("user_id", user\.id\)\.eq\("topic_id", topic\.id\)/);
+  assert.match(handler, /\.limit\(1\)\.maybeSingle\(\)/);
+  assert.match(handler, /if \(lookupError\) throw new Error/);
+  assert.match(handler, /await openProject\(existing as Project\)/);
+  assert.match(handler, /setMessage\("Roteiro existente recuperado sem consumir tokens Gemini/);
+  assert.ok(handler.indexOf("if (!createNewVersion)") < handler.indexOf(".insert({"), "The saved-project lookup must precede insert");
+  assert.ok(handler.indexOf("await openProject(existing as Project)") < handler.indexOf("await generateOneScene(data as Project"), "Reuse must return before inference");
+  assert.match(handler, /finally \{ startingScriptRef\.current = false; setBusy\(false\)/);
+});
+
+test("creating an additional Gemini script requires a separate explicit confirmation", () => {
+  assert.match(code, /onClick=\{\(\) => void generateScript\(t\)\}>Roteiro<\/button>/);
+  assert.match(code, /window\.confirm\("Criar uma nova versão do roteiro\?/);
+  assert.match(code, /void generateScript\(t, true\)/);
+  assert.match(code, /Nova versão \(Gemini\)/);
+});
+
 test("compact script editor displays saved scene content and collapses others", () => {
   assert.match(code, /const expanded = expandedScene === s\.number/);
   assert.match(code, /aria-expanded=\{expanded\}/);
