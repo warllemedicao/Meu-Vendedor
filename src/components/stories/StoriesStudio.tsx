@@ -267,8 +267,19 @@ export function StoriesStudio() {
     } catch(e) { setError(plainError(e)); }
     finally { setBusy(false); setSceneProgress(""); }
   }
+  function invalidDialogueMessage(sceneNumber: number): string | null {
+    if (!project) return null;
+    const draft = sceneDialogueDrafts[project.id + ":" + sceneNumber];
+    if (draft === undefined) return null;
+    const invalid = parseStoryDialogueDraft(draft).invalidLines;
+    return invalid.length
+      ? "Corrija a(s) linha(s) " + invalid.join(", ") + " das falas da cena " + sceneNumber + ". Use Nome: texto antes de continuar."
+      : null;
+  }
   async function prepareScenePrompt(sceneNumber: number, useGemini: boolean) {
     if (!project || !user || busy) return;
+    const dialogueIssue = invalidDialogueMessage(sceneNumber);
+    if (dialogueIssue) return setError(dialogueIssue);
     const scene = project.scenes.find(s => s.number === sceneNumber);
     if (!scene?.setting.trim() || !scene.action.trim())
       return setError("Gere ou preencha esta cena antes de preparar o prompt.");
@@ -320,6 +331,8 @@ export function StoriesStudio() {
   }
   async function advanceToNextScene(sceneNumber: number) {
     if (!project || !user || busy || sceneNumber >= 12) return;
+    const dialogueIssue = invalidDialogueMessage(sceneNumber);
+    if (dialogueIssue) return setError(dialogueIssue);
     const current = project.scenes.find(s => s.number === sceneNumber);
     const next = project.scenes.find(s => s.number === sceneNumber + 1);
     if (!current?.action.trim() || !current.setting.trim() || !next) {
@@ -740,10 +753,8 @@ export function StoriesStudio() {
   async function saveScript(approve: boolean) {
     if (!project || !user) return;
     for (const scene of project.scenes) {
-      const raw = sceneDialogueDrafts[project.id + ":" + scene.number];
-      if (raw === undefined) continue;
-      const invalid = parseStoryDialogueDraft(raw).invalidLines;
-      if (invalid.length) return setError("Corrija a(s) linha(s) " + invalid.join(", ") + " das falas da cena " + scene.number + ". Use Nome: texto antes de salvar.");
+      const dialogueIssue = invalidDialogueMessage(scene.number);
+      if (dialogueIssue) return setError(dialogueIssue);
     }
     if (project.scenes.length !== 12 || project.scenes.some((s, i) => s.number !== i + 1))
       return setError("A numeração das 12 cenas precisa estar correta.");
