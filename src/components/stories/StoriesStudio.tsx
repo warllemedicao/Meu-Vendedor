@@ -204,10 +204,6 @@ export function StoriesStudio() {
     if (!character) throw new Error("Personagem não encontrado.");
     const characters = project.characters.map((entry, i) =>
       i === characterIndex ? { ...entry, referenceImagePath: storagePath, referenceImagePrompt: prompt.trim().slice(0,1200) } : entry);
-    const { error: saveError } = await client.from("mv_story_projects")
-      .update({ characters, updated_at: new Date().toISOString() })
-      .eq("id", project.id).eq("user_id", user.id);
-    if (saveError) throw new Error("Imagem enviada, mas não foi possível vinculá-la ao roteiro.");
     const name = (libraryName || character.name).trim();
     if (!name || name.length > 100) throw new Error("Informe um nome de até 100 caracteres para a imagem.");
     // New image uploads must not overwrite an existing library record with the same name.
@@ -216,12 +212,17 @@ export function StoriesStudio() {
       image_prompt: prompt.trim().slice(0,1600), storage_path: storagePath,
       updated_at: new Date().toISOString(),
     });
+    if (libraryError) throw new Error("Não foi possível salvar o nome da imagem. Verifique se outra imagem já utiliza esse nome.");
+    const { error: saveError } = await client.from("mv_story_projects")
+      .update({ characters, updated_at: new Date().toISOString() })
+      .eq("id", project.id).eq("user_id", user.id);
+    if (saveError) throw new Error("Imagem salva na biblioteca, mas não foi possível vinculá-la ao roteiro.");
     const { data: imageData } = await client.storage.from("mv-story-images").createSignedUrl(storagePath, 600);
     if (imageData?.signedUrl) setCharacterImageUrls(prev => ({ ...prev, [storagePath]: imageData.signedUrl }));
     setProject({ ...project, characters });
     await loadCharacterLibrary();
-    if (libraryError) setError("Imagem vinculada, mas o nome não foi salvo na biblioteca. Verifique se já existe outra imagem com esse nome.");
-    else { setImageNames(old => ({ ...old, [characterIndex]: name })); setMessage("Imagem associada e salva na biblioteca: " + name); }
+    setImageNames(old => ({ ...old, [characterIndex]: name }));
+    setMessage("Imagem associada e salva na biblioteca: " + name);
   }
   async function chooseLibraryImage(characterIndex: number, entry: LibraryCharacter) {
     if (!project || !user || project.status !== "draft") return;
@@ -258,6 +259,16 @@ export function StoriesStudio() {
     } catch (error) { setError(plainError(error)); }
     finally { setBusy(false); }
   }
+  async function checkImageNameAvailable(name: string) {
+    if (!user) throw new Error("Faça login para salvar uma imagem.");
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length > 100) throw new Error("Informe um nome de até 100 caracteres para a imagem.");
+    const client = getSupabase(); if (!client) throw new Error("Supabase indisponível.");
+    const { data, error } = await client.from("mv_story_characters")
+      .select("id").eq("user_id", user.id).eq("name", trimmed).limit(1).maybeSingle();
+    if (error) throw new Error("Não foi possível consultar os nomes salvos. Tente novamente antes de enviar.");
+    if (data) throw new Error("Já existe uma imagem com esse nome. Escolha outro nome antes de enviar.");
+  }
   async function generateCharacterReference(characterIndex: number) {
     if (!project || !user || busy) return;
     const character = project.characters[characterIndex];
@@ -267,6 +278,7 @@ export function StoriesStudio() {
     if (prompt.length < 15) return setError("Descreva o personagem com pelo menos 15 caracteres.");
     setBusy(true); setError(""); setSceneProgress("Solicitando uma imagem ao Nano Banana...");
     try {
+      await checkImageNameAvailable(name);
       const result = await invokeStory("image_character", { name, prompt }) as { data: string; mimeType: string };
       if (!result.data || !["image/png","image/jpeg","image/webp"].includes(result.mimeType))
         throw new Error("O gerador não retornou uma imagem válida.");
@@ -416,6 +428,7 @@ export function StoriesStudio() {
   async function openProject(selected: Project) {
     if (!user) return;
     setSceneDialogueDrafts({});
+    setCharacterNameDrafts({}); setImageNames({}); setImagePrompts({});
     setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setPublishDescription(""); setExpandedScene(Math.max(1, selected.scenes.reduce((last, s) => s.action?.trim() && s.setting?.trim() ? s.number : last, 1))); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
     const client = getSupabase(); if (!client) return;
     const [clipsResult, promptResult] = await Promise.all([
@@ -498,6 +511,7 @@ export function StoriesStudio() {
     const client = getSupabase(); if (!client) return;
     setBusy(true); setError("");
     try {
+      await checkImageNameAvailable(imageNames[characterIndex]?.trim() || project.characters[characterIndex].name);
       const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
       const path = user.id + "/library/" + (project.character_style || "nao_definido") + "/" + crypto.randomUUID() + "." + ext;
       const { error: uploadError } = await client.storage.from("mv-story-images")
@@ -626,7 +640,7 @@ export function StoriesStudio() {
         characters: [], scenes: makeEmptyStoryScenes(), status: "draft",
       }).select("id,user_id,topic_id,genre,character_style,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível iniciar o rascunho retomável.");
-      setSceneDialogueDrafts({});
+      setSceneDialogueDrafts({}); setCharacterNameDrafts({}); setImageNames({}); setImagePrompts({});
       setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
       setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
       void loadProjects();
@@ -710,7 +724,7 @@ export function StoriesStudio() {
         genre: topic?.genre || genre, character_style: topic?.character_style || characterStyle, characters, scenes, status: "draft",
       }).select("id,user_id,title,status,character_style,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível criar o roteiro manual.");
-      setSceneDialogueDrafts({});
+      setSceneDialogueDrafts({}); setCharacterNameDrafts({}); setImageNames({}); setImagePrompts({});
       setActiveTopic(topic || null); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setSceneWorkbenchStep("roteiro");
       setPublishTitle(title.trim()); setPublishDescription(topic?.synopsis || ""); setStage("roteiro");
       setMessage("Rascunho manual criado com 12 cenas vazias. Preencha e aprove antes de gerar prompts.");
