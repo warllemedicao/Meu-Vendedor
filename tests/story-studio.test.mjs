@@ -71,7 +71,7 @@ test("Gemini HTTP 402 is diagnosed without implying free quota or changing secre
 
 test("Histórias topic generation uses only its dedicated server-side Gemini secret", () => {
   assert.match(edge, /Deno\.env\.get\("HIST_TEMA_GEMINI_API_KEY"\)/);
-  assert.match(edge, /purpose === "topics"/);
+  assert.match(edge, /if \(purpose === "script"\) return openaiStory/);
   assert.match(edge, /TOPICS_MAX_TOKENS\(count\), "topics"\)/);
   assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_OPENAI"\)/);
   assert.doesNotMatch(edge, /Deno\.env\.get\("GEMINI_API_KEY"\)|Deno\.env\.get\("GOOGLE_API_KEY"\)/);
