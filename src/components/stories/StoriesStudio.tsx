@@ -1061,7 +1061,7 @@ export function StoriesStudio() {
       {sceneWorkbenchStep !== "prompt" && project.status === "draft" && project.scenes.some(s => !s.action.trim() || !s.setting.trim()) &&
         <div className="flex flex-wrap items-center gap-2">
           <button className={button + " !px-3 !py-1.5"} disabled={busy}
-            onClick={() => void generateRemainingScenes()}>Gerar cenas restantes</button>
+            onClick={() => { if (window.confirm("Gerar todas as cenas restantes com OpenAI? Cada cena fará uma chamada de API que pode consumir créditos.")) void generateRemainingScenes(); }}>Gerar cenas restantes</button>
           {busy && sceneProgress && <button className={button + " !px-3 !py-1.5"}
             onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
           <span className="text-xs text-muted">Uma por vez, sem repetição automática. Consome créditos OpenAI.</span>
