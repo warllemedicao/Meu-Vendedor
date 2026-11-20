@@ -115,7 +115,7 @@ export function makeLocalPromptDrafts(
     let notice: string | undefined;
     if (platform === "youtube-create") {
       // A single short action per generated clip, never silently mix successive scripted actions.
-      const segments = action.split(/(?<=[.!?;])\s+|\s+(?:depois|em seguida|na sequência|logo após)\s+/i).filter(Boolean);
+      const segments = action.split(/(?<=[.!?;])\s+|,\s*(?:enquanto|quando)\s+|\s+(?:depois|em seguida|na sequência|logo após)\s+/i).filter(Boolean);
       const oneAction = segments[0]?.trim() || action;
       if (segments.length > 1) notice = "YouTube Create: usada só a primeira microação. As demais ações do roteiro não foram alteradas; gere-as em outros clipes.";
       const subject = cast.map(ch => ch.name).join(", ") || "Scene subject";
@@ -155,6 +155,7 @@ export function makeLocalPromptDrafts(
           (visual ? ", " + visual : "");
       });
       const subjectLabels = cast.map((_,i) => "Sujeito " + (i + 1)).join(" e ") || "Sujeito principal";
+      const labeledAction = cast.reduce((value, ch, i) => value.replaceAll(ch.name, "Sujeito " + (i + 1)), action);
       const speechPart = speech ? "Falas exatas em pt-BR:\n" + speech : "";
       const variants = [
         bindings.join("\n"),
@@ -163,7 +164,7 @@ export function makeLocalPromptDrafts(
       ];
       text = pickStoryCandidate(platform, scene, variants.map(binding => [
         "Sujeito preciso: " + (binding || subjectLabels),
-        "Ação: " + action,
+        "Ação: " + labeledAction,
         "Ambiente: " + setting,
         "Iluminação e cor: manter a referência visual.",
         "Câmera: plano médio estável.",
