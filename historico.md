@@ -1,3 +1,10 @@
+## 20/11/2026 — Temas: fotos enviadas pelo usuário substituem miniaturas de estilos
+
+- Substituídas exclusivamente as três miniaturas SVG em `public/stories/styles/` por versões contendo as respectivas fotos enviadas, incorporadas como JPEG compactado (prévia visual), preservando os caminhos existentes usados pela interface.
+- Correspondências: `frutinhas.svg` = maçã falante de capacete (foto 1); `infantil.svg` = criança na banheira (foto 2); `pessoas-cabeca-fruta.svg` = cientista com cabeça de morango (foto 3).
+- A estrutura do seletor, valores internos `frutinhas`, `infantil` e `pessoas_cabeca_fruta`, banco Supabase e lógica de geração não foram modificados. Os três arquivos foram relidos no GitHub e contêm as imagens incorporadas.
+- Commits na `main`: `ee844b5`, `fa6675f`, `85e97b9`. Não foi executado build nem confirmado deploy Cloudflare nesta atualização.
+
 ## 20/11/2026 — Histórias: tela Temas minimalista e seleção visual de personagens
 
 - Solicitação: remover a caixa/cabeçalho "Estúdio de Histórias", transformar título "Assuntos e temas" em **Temas** sem instrução abaixo, renomear o campo **Assunto principal** para **Tema**, substituir descrições textuais dos tipos de personagem por imagens que expliquem visualmente o estilo e recolher a biblioteca de temas até o usuário abrir seu filtro.
