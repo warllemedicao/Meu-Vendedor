@@ -1,3 +1,11 @@
+## 20/11/2026 — Histórias: seleção de imagens dos personagens por miniaturas
+
+- Etapa **Imagens dos personagens** simplificada: exibe apenas os personagens citados na cena ativa (`scene.characters`), com nome, referência escolhida e grade de miniaturas clicáveis da biblioteca. O usuário escolhe com um clique, com indicação visual da seleção. Nenhuma ficha abre automaticamente.
+- O botão **Editar** abre sob demanda os campos nome, função, aparência e voz, com salvamento explícito do roteiro. O cartão **Nova imagem** abre nome, descrição e upload individual; a geração opcional Nano Banana fica em painel recolhido. Gerenciamento/renomeação e envio de várias imagens ficam em **Gerenciar biblioteca e envio em lote**, recolhido.
+- Novos uploads e imagens geradas são guardados no Storage privado sob `<user_id>/library/<character_style>/<uuid>.<ext>`, permitindo listar por tipo de personagem (`frutinhas`, `infantil`, `pessoas_cabeca_fruta`) sem migração de banco. Os registros anteriores, sem categoria no caminho, continuam disponíveis em **Ver imagens antigas ou de outros tipos**, recolhido, para evitar perda de acesso e atribuição errada de estilo.
+- Mantidos vínculo autenticado com projeto e RLS, função `chooseLibraryImage`, download de referência e upload seguro. Sem mudanças nas Edge Functions, Google Flow, IMAGEM1/IMAGEM2/IMAGEM3 ou chaves.
+- Commits `35046ef` (interface), `38599ee` (filtragem por estilo), `f521b28` (testes de contrato). A suíte completa npm/typecheck/lint/build e a publicação Cloudflare ainda precisam de validação no workflow; a gravação dos arquivos no GitHub não comprova publicação em produção.
+
 ## 20/11/2026 — Temas: fotos enviadas pelo usuário substituem miniaturas de estilos
 
 - Substituídas exclusivamente as três miniaturas SVG em `public/stories/styles/` por versões contendo as respectivas fotos enviadas, incorporadas como JPEG compactado (prévia visual), preservando os caminhos existentes usados pela interface.
