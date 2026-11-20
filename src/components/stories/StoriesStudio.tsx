@@ -37,7 +37,7 @@ const button = "rounded-xl border border-border bg-surface px-4 py-2 text-sm fon
 const field = "w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm";
 const panel = "rounded-2xl border border-border bg-surface p-4 space-y-4";
 const plainError = (error: unknown): string => error instanceof Error ? error.message : "Não foi possível concluir a operação.";
-const geminiCooldowns = new Map<"topics" | "script", number>();
+const modelCooldowns = new Map<"topics" | "script", number>();
 function generationScope(action: string): "topics" | "script" | null {
   if (action === "topics") return "topics";
   if (action === "script" || action === "prompts" || action === "script_scene" || action === "prompt_scene") return "script";
@@ -48,8 +48,8 @@ function generationScope(action: string): "topics" | "script" | null {
 async function invokeStory(action: string, payload: Record<string, unknown>) {
   const scope = generationScope(action);
   if (scope) {
-    const remaining = (geminiCooldowns.get(scope) || 0) - Date.now();
-    if (remaining > 0) throw new Error("O Gemini apresentou instabilidade nesta ferramenta. Aguarde " +
+    const remaining = (modelCooldowns.get(scope) || 0) - Date.now();
+    if (remaining > 0) throw new Error((scope === "topics" ? "Gemini" : "OpenAI") + " apresentou instabilidade nesta ferramenta. Aguarde " +
       Math.ceil(remaining / 1000) + " segundos antes de uma nova solicitação; a tentativa não foi enviada.");
   }
   const client = getSupabase();
@@ -66,9 +66,14 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
   const data: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
     const code = typeof data === "object" && data && "error" in data ? String(data.error) : String(res.status);
-    if (scope && (code === "gemini_service_unavailable" || code === "gemini_timeout")) {
-      geminiCooldowns.set(scope, Date.now() + (code === "gemini_timeout" ? 120_000 : 90_000));
+    if (scope && (code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "openai_service_unavailable" || code === "openai_timeout")) {
+      modelCooldowns.set(scope, Date.now() + (code.endsWith("_timeout") ? 120_000 : 90_000));
     }
+    if (code === "openai_not_configured") throw new Error("A chave HIST_ROTEIRO_OPENAI ainda não está cadastrada no Supabase.");
+    if (code === "openai_invalid_key") throw new Error("A API OpenAI rejeitou a chave de roteiros. Confira o Secret HIST_ROTEIRO_OPENAI.");
+    if (code === "openai_billing_required" || code === "openai_rate_limited") throw new Error("OpenAI recusou a geração por cobrança ou limite de requisições. Consulte o saldo e os limites antes de tentar novamente.");
+    if (code === "openai_service_unavailable" || code === "openai_timeout" || code === "openai_network_error") throw new Error("OpenAI indisponível ou sem resposta. O projeto salvo permanece intacto; não repita sem verificar o consumo.");
+    if (code === "openai_output_truncated" || code === "openai_invalid_json") throw new Error("OpenAI retornou um roteiro incompleto. Nenhum resultado parcial foi salvo; verifique o uso antes de solicitar novamente.");
     if (code === "image_api_not_configured") throw new Error("A chave exclusiva do Nano Banana ainda não foi configurada no Supabase. Use o envio manual por enquanto.");
     if (code === "image_generation_failed") throw new Error("Nano Banana não retornou uma imagem válida; não repita sem consultar a cota.");
     if (code === "gemini_billing_required") {
@@ -83,7 +88,7 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
     }
     throw new Error("Serviço de Histórias: " + code);
   }
-  if (scope) geminiCooldowns.delete(scope);
+  if (scope) modelCooldowns.delete(scope);
   return data;
 }
 export function StoriesStudio() {
@@ -291,7 +296,7 @@ export function StoriesStudio() {
       const { data: existing, error: readError } = await client.from("mv_story_prompts").select("prompt")
         .eq("project_id", project.id).eq("user_id", user.id)
         .eq("scene_number", sceneNumber).eq("platform", provider).maybeSingle();
-      if (readError) throw new Error("Falha ao consultar prompt anterior. Nenhum crédito Gemini foi utilizado.");
+      if (readError) throw new Error("Falha ao consultar prompt anterior. Nenhum crédito de IA foi utilizado.");
       if (existing?.prompt && useGemini) {
         setScenePromptDrafts(old => ({ ...old, [key]: existing.prompt }));
         setMessage("Prompt salvo carregado. Revise ou baixe antes de gerar outro.");
@@ -495,7 +500,7 @@ export function StoriesStudio() {
     const known = new Set([...topics.filter(t => t.subject === normalizedSubject && t.character_style === characterStyle).map(t => t.title.toLowerCase()),
       ...draftTopics.filter(t => t.subject === normalizedSubject && t.character_style === characterStyle).map(t => t.title.toLowerCase())]);
     try {
-      // One click = one Gemini request. Never automatically repeat a partial/failed generation.
+      // One click = one Gemini topics request. Script generation uses OpenAI separately.
       const result = await invokeStory("topics", {
         subject: normalizedSubject, genre, characterStyle, count: requested,
         excludedTitles: [...known].slice(-30),
@@ -593,7 +598,7 @@ export function StoriesStudio() {
         if (lookupError) throw new Error("Não foi possível verificar os roteiros salvos. Nenhum novo roteiro ou pedido Gemini foi criado.");
         if (existing) {
           await openProject(existing as Project);
-          setMessage("Roteiro existente recuperado sem consumir tokens Gemini. Para criar outra versão, use Mais → Nova versão.");
+          setMessage("Roteiro existente recuperado sem consumir tokens de IA. Para criar outra versão, use Mais → Nova versão.");
           return;
         }
       }
@@ -632,7 +637,7 @@ export function StoriesStudio() {
     }) as { characters: Character[]; scene: Scene };
     if (!Array.isArray(result.characters) || !result.characters.length ||
       !result.scene || result.scene.number !== sceneNumber || !result.scene.action || !result.scene.setting)
-      throw new Error("O Gemini não retornou uma cena válida.");
+      throw new Error("A OpenAI não retornou uma cena válida.");
     const scenes = working.scenes.map((scene, i) => i === nextIndex ? result.scene : scene);
     const characters = working.characters.length ? working.characters : result.characters;
     const { error: saveError } = await client.from("mv_story_projects")
@@ -654,15 +659,6 @@ export function StoriesStudio() {
     catch (e) { setError(plainError(e)); }
     finally { setBusy(false); setSceneProgress(""); }
   }
-  async function generateNextSceneLite() {
-    if (!project || !user || project.status !== "draft" || busy) return;
-    setBusy(true); setError(""); setSceneProgress("");
-    try {
-      await generateOneScene(project, undefined, "flash-lite");
-      void loadProjects();
-    } catch (e) { setError(plainError(e)); }
-    finally { setBusy(false); setSceneProgress(""); }
-  }
   async function generateRemainingScenes() {
     if (!project || !user || project.status !== "draft" || busy) return;
     stopSceneQueue.current = false;
@@ -673,7 +669,7 @@ export function StoriesStudio() {
         // Each success is committed to Supabase before the next paid request.
         working = await generateOneScene(working);
         if (!working.scenes.some(s => !s.action.trim() || !s.setting.trim()) || stopSceneQueue.current) break;
-        // Free-tier model quota observed: 5 RPM. Keep <= 4 requests per minute,
+        // Conservative pacing avoids rate limits and accidental rapid billing,
         // including fast responses. No retry on any HTTP 503, 429 or timeout.
         setSceneProgress("Cena salva. Intervalo de segurança de 16 segundos antes da próxima...");
         await new Promise(resolve => setTimeout(resolve, 16_000));
@@ -804,7 +800,7 @@ export function StoriesStudio() {
       }) as { prompt: Prompt };
       if (!result.prompt || result.prompt.scene !== scene.number ||
         result.prompt.platform !== platform || !result.prompt.text?.trim())
-        throw new Error("O Gemini não retornou o prompt da cena solicitada.");
+        throw new Error("A OpenAI não retornou o prompt da cena solicitada.");
       const { error: dbError } = await client.from("mv_story_prompts").upsert({
         user_id: user.id, project_id: project.id, scene_number: scene.number,
         platform, prompt: result.prompt.text,
@@ -1022,10 +1018,10 @@ export function StoriesStudio() {
                 onClick={() => void createManualScript(t.title, t)}>Roteiro manual</button>
               <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || deletingTopics}
                 onClick={() => {
-                  if (window.confirm("Criar uma nova versão do roteiro? Isso gera uma nova cena com Gemini e pode consumir tokens. O roteiro anterior continuará salvo.")) {
+                  if (window.confirm("Criar uma nova versão do roteiro? Isso gera uma nova cena com OpenAI e pode consumir créditos. O roteiro anterior continuará salvo.")) {
                     void generateScript(t, true);
                   }
-                }}>Nova versão (Gemini)</button>
+                }}>Nova versão (OpenAI)</button>
             </div>
           </details>
         </div>)}
@@ -1051,7 +1047,7 @@ export function StoriesStudio() {
 
     {stage === "roteiro" && !project && <section className={panel}>
       <h2 className="font-semibold">Roteiro ainda não iniciado</h2>
-      <p className="text-sm text-muted">Na etapa Temas, selecione Gerar roteiro Gemini ou Roteiro manual para abrir um editor com 12 cenas.</p>
+      <p className="text-sm text-muted">Na etapa Temas, selecione Roteiro ou Roteiro manual para abrir um editor com 12 cenas.</p>
       <button className={button} onClick={() => setStage("temas")}>Voltar aos temas</button>
     </section>}
     {stage === "roteiro" && project && user && project.user_id === user.id && <section className={panel}>
@@ -1068,7 +1064,7 @@ export function StoriesStudio() {
             onClick={() => void generateRemainingScenes()}>Gerar cenas restantes</button>
           {busy && sceneProgress && <button className={button + " !px-3 !py-1.5"}
             onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
-          <span className="text-xs text-muted">Uma por vez, sem repetir erros. Consome cota Gemini.</span>
+          <span className="text-xs text-muted">Uma por vez, sem repetição automática. Consome créditos OpenAI.</span>
         </div>}
       {error && <p role="alert" className="rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
       {message && <p role="status" className="rounded-xl border border-border p-2 text-xs">{message}</p>}
@@ -1239,7 +1235,7 @@ export function StoriesStudio() {
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold">Cena {s.number} · {s.title} · 10s</span>
                 <span className="block truncate text-xs text-muted">
-                  {filled ? s.action : "Cena ainda não gerada — aguardando Gemini ou edição manual"}
+                  {filled ? s.action : "Cena ainda não gerada — aguardando OpenAI ou edição manual"}
                 </span>
               </span>
               <span className="shrink-0 text-xs text-muted">{filled ? "Preenchida" : "Pendente"} · {expanded ? "Recolher" : "Abrir"}</span>
@@ -1283,8 +1279,8 @@ export function StoriesStudio() {
               </label>
               <p className="text-xs text-muted sm:col-span-2">Fala: {countStoryWords(s)}/26 palavras · 10 segundos</p>
               {!filled && project.status === "draft" && <div className="flex flex-wrap items-center gap-2">
-                <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy} onClick={() => void generateNextScene()}>Gerar cena {s.number} · Gemini Flash</button>
-                <button className={button} disabled={busy} onClick={() => void generateNextSceneLite()}>Tentar Flash-Lite</button>
+                <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy} onClick={() => void generateNextScene()}>Gerar cena {s.number} · OpenAI</button>
+
                 <span className="text-xs text-muted">Se houver erro 503, o Google está indisponível. A cena anterior continua salva. Nenhuma tentativa automática é feita.</span>
               </div>}
               <div className="flex flex-wrap gap-2">
@@ -1319,7 +1315,7 @@ export function StoriesStudio() {
                   <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy}
                     onClick={() => void prepareScenePrompt(s.number,false)}>Gerar prompt sem IA</button>
                   <button className={button} disabled={busy}
-                    onClick={() => void prepareScenePrompt(s.number,true)}>Gerar prompt com Gemini</button>
+                    onClick={() => void prepareScenePrompt(s.number,true)}>Gerar prompt com OpenAI</button>
                 </div>
                 {scenePromptText.trim() && <>
                 <label className="block text-xs font-semibold">Prompt completo — cena {s.number}
@@ -1437,13 +1433,13 @@ export function StoriesStudio() {
         </select>
       </label>
       <p className="text-sm text-muted">{PLATFORM_GUIDES[platform].workflow} {PLATFORM_GUIDES[platform].reminder}</p>
-      <p className="text-xs text-muted">Os prompts gerados via Gemini ficam no banco; os rascunhos locais são prévias editoriais até você salvar cada cena.</p>
+      <p className="text-xs text-muted">Os prompts gerados via OpenAI ficam no banco; os rascunhos locais são prévias editoriais até você salvar cada cena.</p>
       <div className="flex flex-wrap gap-2">
-        <button className={button} disabled={busy} onClick={() => void generatePrompts()}>{busy && sceneProgress ? sceneProgress : "Gerar próximo prompt com Gemini (1 por clique)"}</button>
+        <button className={button} disabled={busy} onClick={() => void generatePrompts()}>{busy && sceneProgress ? sceneProgress : "Gerar próximo prompt com OpenAI (1 por clique)"}</button>
         <button className={button} disabled={busy} onClick={previewLocalPrompts}>Montar rascunhos locais sem IA</button>
         <button className={button} disabled={busy} onClick={() => void loadPlatformPrompts(platform)}>Reabrir prompts salvos</button>
       </div>
-      {!prompts.length && <p className="rounded-xl border border-border p-3 text-sm text-muted">Nenhum prompt desta ferramenta foi carregado. Use o Gemini ou o gerador local de rascunhos para preencher as 12 cenas.</p>}
+      {!prompts.length && <p className="rounded-xl border border-border p-3 text-sm text-muted">Nenhum prompt desta ferramenta foi carregado. Use a OpenAI ou o gerador local de rascunhos para preencher as 12 cenas.</p>}
       {prompts.map(p => <div className="rounded-xl border border-border p-3 space-y-2" key={p.scene}>
         <h3 className="font-semibold">Prompt da cena {p.scene}</h3>
         <textarea aria-label={"Prompt da cena " + p.scene} className={field} rows={5} value={p.text}
