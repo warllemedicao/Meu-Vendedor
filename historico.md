@@ -1,3 +1,11 @@
+## 20/11/2026 — Histórias: proteção contra novos roteiros duplicados e consumo acidental de Gemini
+
+- O botão principal **Roteiro** agora pesquisa diretamente `mv_story_projects` pelo `user_id` autenticado e `topic_id` do tema, ordenando por `updated_at` e limitando a um projeto antes de qualquer `insert` ou `script_scene`. Ao encontrar um projeto, chama `openProject` para recuperar cenas, personagens, prompts, referências e clipes existentes e retorna **sem chamar Gemini**.
+- Se a consulta falhar, a ação é bloqueada com erro explícito: não cria projeto nem solicita créditos de IA sem confirmar que não há roteiro salvo. Um `useRef` controla cliques rápidos repetidos na mesma sessão e é liberado no `finally`.
+- A opção **Mais → Nova versão (Gemini)** é separada e pede confirmação de que pode consumir tokens; o usuário preserva o roteiro antigo e opta explicitamente por criar outro. Roteiros existentes duplicados não são apagados, e nenhum ajuste de banco/RLS foi realizado.
+- Testes de regressão em `tests/story-editorial.test.mjs` verificam consulta por proprietário e tema, reutilização antes da inferência, bloqueio de falhas de busca, trava de cliques e confirmação da nova versão.
+- Commits `0740483` (proteção) e `92ce1b7` (testes). Verificações estáticas locais sobre arquivos do GitHub aprovadas; suíte GitHub Actions, typecheck, lint, build e publicação ainda precisam ser confirmados.
+
 ## 20/11/2026 — Histórias: correção de prompts sem IA por plataforma
 
 - Revisão do gerador local `makeLocalPromptDrafts` em `src/lib/stories/workflow.ts`: formatos agora diferentes para **YouTube Create**, **Google Flow** e **Dreamina**, sem alterar ações Supabase/Gemini/Google Flow.
