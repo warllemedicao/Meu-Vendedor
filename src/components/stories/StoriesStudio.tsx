@@ -301,7 +301,7 @@ export function StoriesStudio() {
     const provider = selectedPlatformByScene[sceneNumber] || platform;
     const text = scenePromptDrafts[promptKey(sceneNumber, provider)]?.trim() || "";
     const maximum = platformOptions.find(p => p.value === provider)?.maximum || 900;
-    if (!text || Array.from(text).length > maximum) return setError("O prompt excede o teto de " + maximum + " caracteres. Use Montar prompt sem IA para uma versão enxuta, ou revise antes de salvar.");
+    if (!text || Array.from(text).length > maximum) return setError("O prompt excede o teto de " + maximum + " caracteres. Use Gerar prompt sem IA para uma versão enxuta, ou revise antes de salvar.");
     const client = getSupabase(); if (!client) return;
     const { error: dbError } = await client.from("mv_story_prompts").upsert({
       user_id: user.id, project_id: project.id, scene_number: sceneNumber,
@@ -1182,6 +1182,7 @@ export function StoriesStudio() {
           const scenePromptText = scenePromptDrafts[promptKey(s.number, chosenPlatform)] || "";
           return <div key={s.number} id={"story-scene-" + s.number}
             className="rounded-xl border border-border bg-surface overflow-hidden">
+            {sceneWorkbenchStep === "prompt" ? <h3 className="px-3 py-3 text-sm font-semibold">Cena {s.number} · {s.title}</h3> : <>
             <button type="button" className="w-full px-3 py-2 text-left flex items-center justify-between gap-3"
               aria-expanded={expanded} aria-controls={"story-fields-" + s.number}
               onClick={() => setSceneWorkbenchStep("roteiro")}>
@@ -1193,7 +1194,8 @@ export function StoriesStudio() {
               </span>
               <span className="shrink-0 text-xs text-muted">{filled ? "Preenchida" : "Pendente"} · {expanded ? "Recolher" : "Abrir"}</span>
             </button>
-            {expanded && <div id={"story-fields-" + s.number} className="border-t border-border px-3 py-3 grid gap-2 sm:grid-cols-2">
+            </>}
+            {(expanded || sceneWorkbenchStep === "prompt") && <div id={"story-fields-" + s.number} className="border-t border-border px-3 py-3 grid gap-2 sm:grid-cols-2">
               {sceneWorkbenchStep === "roteiro" && <>
               <label className="text-xs font-semibold sm:col-span-2">Título
                 <input className={field + " mt-1 py-1.5"} maxLength={160} value={s.title}
@@ -1239,34 +1241,34 @@ export function StoriesStudio() {
               </>}
               {sceneWorkbenchStep === "prompt" && !filled && <p className="sm:col-span-2 text-sm text-muted">Preencha e salve a cena antes de preparar o prompt.</p>}
               {filled && sceneWorkbenchStep === "prompt" && <div className="sm:col-span-2 rounded-xl border border-border p-3 space-y-3">
-                <h4 className="text-sm font-semibold">Preparar vídeo da cena {s.number}</h4>
-                <p className="text-xs text-muted">As imagens escolhidas são referências para baixar e anexar manualmente no gerador. O texto mantém os nomes, características e falas da cena.</p>
-                <div className="flex flex-wrap gap-2">
-                  {project.characters.filter(char => s.characters.includes(char.name)).map(char =>
-                    <div key={char.name} className="rounded-md border border-border p-2 w-32 space-y-1">
-                      {char.referenceImagePath && (characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]) &&
-                        <img src={characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]}
-                          alt={char.name} className="h-24 w-full object-cover rounded"/>}
-                      <p className="truncate text-xs font-semibold">{char.name}</p>
-                      {char.referenceImagePath
-                        ? <button className={button + " !text-xs !p-1 w-full"} onClick={() => void downloadReference(char.referenceImagePath!, char.name)}>Baixar imagem</button>
-                        : <p className="text-xs text-muted">Escolha a imagem na Bíblia acima</p>}
-                    </div>)}
+                <div className="flex flex-wrap gap-2" aria-label="Personagens desta cena">
+                  {project.characters.filter(char => s.characters.includes(char.name)).map(char => {
+                    const imagePath=char.referenceImagePath;
+                    const url=imagePath && (characterImageUrls[imagePath] || libraryImageUrls[imagePath]);
+                    return <div key={char.name} className="w-20 space-y-1 text-center">
+                      {url ? <img src={url} alt={"Imagem de " + char.name} className="aspect-square w-full rounded-lg object-cover"/> :
+                        <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted">Sem foto</div>}
+                      <p className="truncate text-xs font-medium" title={char.name}>{char.name}</p>
+                    </div>;
+                  })}
                 </div>
-                <label className="block text-xs font-semibold">Ferramenta para esta cena
-                  <select className={field + " mt-1"} value={chosenPlatform}
-                    onChange={e => {
-                      setSelectedPlatformByScene(old => ({ ...old, [s.number]: e.target.value as Platform }));
-                      setCopiedScenePrompt(null);
-                    }}>
-                    {platformOptions.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
-                  </select>
-                </label>
-                <p className="text-xs text-muted">{PLATFORM_GUIDES[chosenPlatform].workflow} Até {PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres.</p>
-                <div className="flex flex-wrap gap-2">
-                  <button className={button} disabled={busy} onClick={() => void prepareScenePrompt(s.number, false)}>{Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars ? "Corrigir para o limite sem IA" : "Montar prompt sem IA"}</button>
-                  <button className={button} disabled={busy} onClick={() => void prepareScenePrompt(s.number, true)}>Gerar prompt com Gemini</button>
+                <div role="group" aria-label="Ferramenta para gerar o prompt" className="grid grid-cols-3 gap-2">
+                  {platformOptions.map(item => <button type="button" key={item.value} disabled={busy}
+                    aria-label={"Selecionar " + item.label} aria-pressed={chosenPlatform === item.value}
+                    onClick={() => {setSelectedPlatformByScene(old => ({...old,[s.number]:item.value}));setCopiedScenePrompt(null);}}
+                    className={"min-w-0 rounded-xl border-2 p-2 text-center " +
+                      (chosenPlatform === item.value ? "border-primary bg-primary/10" : "border-border hover:border-primary/60")}>
+                    <img src={"/stories/tools/" + item.value + ".svg"} alt="" className="mx-auto h-14 w-full rounded-lg object-contain"/>
+                    <span className="block pt-1 text-xs font-semibold">{item.label}</span>
+                  </button>)}
                 </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy}
+                    onClick={() => void prepareScenePrompt(s.number,false)}>Gerar prompt sem IA</button>
+                  <button className={button} disabled={busy}
+                    onClick={() => void prepareScenePrompt(s.number,true)}>Gerar prompt com Gemini</button>
+                </div>
+                {scenePromptText.trim() && <>
                 <label className="block text-xs font-semibold">Prompt completo — cena {s.number}
                   <textarea className={field + " mt-1 resize-y"} rows={4} value={scenePromptText}
                     onChange={e => {
@@ -1304,6 +1306,16 @@ export function StoriesStudio() {
                   disabled={busy || !scenePromptText.trim() || Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
                   onClick={() => void advanceToNextScene(s.number)}>Concluir preparação · Ir para cena {s.number + 1}</button>}
                 {s.number === 12 && <p className="text-xs text-muted">Última cena. Revise todas as cenas e conclua a aprovação do roteiro quando estiver pronto.</p>}
+                </>}
+                <details className="rounded-lg border border-border p-2">
+                  <summary className="cursor-pointer text-xs font-semibold">Outras opções e imagens para baixar</summary>
+                  <div className="space-y-2 pt-2">
+                    <p className="text-xs text-muted">{PLATFORM_GUIDES[chosenPlatform].workflow} Até {PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres.</p>
+                    {project.characters.filter(char => s.characters.includes(char.name) && char.referenceImagePath).map(char =>
+                      <button key={char.name} className={button + " mr-2 !text-xs"}
+                        onClick={() => void downloadReference(char.referenceImagePath!,char.name)}>Baixar imagem de {char.name}</button>)}
+                  </div>
+                </details>
               </div>}
             </div>}
           </div>;
