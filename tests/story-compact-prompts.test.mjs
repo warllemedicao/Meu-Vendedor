@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { makeLocalPromptDrafts, PLATFORM_GUIDES } from "../src/lib/stories/workflow.ts";
+import { makeLocalPromptDrafts, makeStoryFlowAgentInstructions, countStoryPromptCharacters, PLATFORM_GUIDES } from "../src/lib/stories/workflow.ts";
 
 const scene = {
   number: 2, durationSeconds: 10, title: "Máquina estranha",
@@ -16,18 +16,39 @@ const characters = [
   { name: "Morcegão", role: "mecânico industrial experiente", visual: "Personagem original escuro, macacão azul escuro, capacete cinza e botas pretas, cabelo espetado e rosto expressivo, animação 3D consistente.", voice: "Tom grave e áspero, voz brasileira e fala desconfiada.", referenceImagePath: "private-image-2" },
 ];
 
-test("local prompts respect every selected provider cap and preserve exact dialogue and action", () => {
+test("local prompts stay inside their provider cap and preserve every spoken line", () => {
   for (const provider of ["youtube-create", "google-flow", "dreamina"]) {
     const [prompt] = makeLocalPromptDrafts(provider, characters, [scene]);
-    assert.ok(Array.from(prompt.text).length <= PLATFORM_GUIDES[provider].absoluteChars,
-      provider + " exceeded its editorial cap");
-    assert.ok(prompt.text.includes(scene.action), "The scene action must never be clipped");
+    assert.ok(countStoryPromptCharacters(prompt.text) <= PLATFORM_GUIDES[provider].absoluteChars);
     for (const line of scene.dialogue)
-      assert.ok(prompt.text.includes(line.speaker + ': "' + line.text + '"'),
-        "Character speech must be preserved exactly");
+      assert.ok(prompt.text.includes(line.speaker + ': "' + line.text + '"'));
     assert.ok(prompt.text.includes("Limonada") && prompt.text.includes("Morcegão"));
-    assert.ok(!prompt.text.includes("private-image"), "Never put private storage paths in prompts");
+    assert.ok(!prompt.text.includes("private-image"));
   }
+});
+
+test("YouTube Create emits only the first microaction and warns about subsequent actions", () => {
+  const [prompt] = makeLocalPromptDrafts("youtube-create", characters, [scene]);
+  assert.match(prompt.text, /Single action: O limão observa um ruído metálico/);
+  assert.doesNotMatch(prompt.text, /Ambos se assustam quando/);
+  assert.match(prompt.notice || "", /primeira microação/);
+  assert.ok(countStoryPromptCharacters(prompt.text) <= 900);
+  assert.match(prompt.text, /Camera: steady medium shot/);
+});
+
+test("YouTube counts whitespace and emoji conservatively", () => {
+  assert.equal(countStoryPromptCharacters("A  B\n🍋"), 7);
+  const longScene = { ...scene, action: "🍋".repeat(450) };
+  assert.throws(() => makeLocalPromptDrafts("youtube-create", characters, [longScene]), /excede 900 caracteres/);
+});
+
+test("Dreamina uses stable subject labels and references only when available", () => {
+  const [prompt] = makeLocalPromptDrafts("dreamina", characters, [scene], "frutinhas");
+  for (const heading of ["Sujeito preciso:", "Ação:", "Ambiente:", "Iluminação e cor:", "Câmera:", "Estilo visual:", "Qualidade/restrições:"])
+    assert.ok(prompt.text.includes(heading), "Missing " + heading);
+  assert.match(prompt.text, /Sujeito 1/);
+  assert.match(prompt.text, /@Imagem 1/);
+  assert.match(prompt.notice || "", /não carregam arquivos automaticamente/);
 });
 
 test("local prompt refuses a scene whose essential content alone exceeds provider cap", () => {
@@ -43,13 +64,14 @@ test("platform-specific target does not silently substitute Flow or Dreamina lim
   assert.equal(result.scene, 2);
 });
 
-test("local prompt keeps selected character visual identity and platform limits", () => {
-  for (const style of ["frutinhas", "infantil", "pessoas_cabeca_fruta"]) {
-    const [result] = makeLocalPromptDrafts("google-flow", characters, [scene], style);
-    assert.match(result.text, /Estilo visual:/);
-    assert.ok(Array.from(result.text).length <= PLATFORM_GUIDES["google-flow"].absoluteChars);
-  }
-  const [fruit] = makeLocalPromptDrafts("google-flow", characters, [scene], "frutinhas");
-  const [people] = makeLocalPromptDrafts("google-flow", characters, [scene], "pessoas_cabeca_fruta");
-  assert.notEqual(fruit.text, people.text);
+test("Flow puts persistent character identity in separate agent instructions", () => {
+  const [prompt] = makeLocalPromptDrafts("google-flow", characters, [scene], "frutinhas");
+  assert.match(prompt.text, /@Limonada/);
+  assert.match(prompt.text, /@Morcegao/);
+  assert.ok(countStoryPromptCharacters(prompt.text) <= PLATFORM_GUIDES["google-flow"].absoluteChars);
+  assert.match(prompt.notice || "", /não vinculam imagens automaticamente/);
+  const fruit = makeStoryFlowAgentInstructions(characters,"frutinhas");
+  const people = makeStoryFlowAgentInstructions(characters,"pessoas_cabeca_fruta");
+  assert.match(fruit, /Estilo visual:/);
+  assert.notEqual(fruit, people);
 });
