@@ -124,14 +124,11 @@ test("multiple character images are accepted and preserved one by one", () => {
   assert.match(code, /Gerar imagem com Nano Banana/);
 });
 
-test("general navigation header excludes roteiro without redundant narrowed stage comparisons", () => {
-  const start = code.indexOf('{stage !== "roteiro" && <header');
-  const end = code.indexOf('<section className={panel} hidden={stage !== "temas"}>', start);
-  assert.ok(start > 0 && end > start, "General header should be hidden in roteiro stage");
-  const header = code.slice(start, end);
-  assert.doesNotMatch(header, /stage === "roteiro"/);
-  assert.equal((header.match(/stage !== "roteiro"/g) || []).length, 1);
-  assert.match(header, /STORY_STAGES\.map/);
+test("compact project navigation stays hidden on Themes and Roteiro", () => {
+  assert.match(code, /stage !== "temas" && stage !== "roteiro" && <details/);
+  assert.match(code, /Etapas do projeto/);
+  assert.match(code, /STORY_STAGES\.map\(item/);
+  assert.doesNotMatch(code, /Estúdio de Histórias|1\. Assuntos e temas|Assunto principal/);
 });
 
 test("character style is explicitly selected before topic creation and persisted per topic and project", () => {
@@ -159,17 +156,18 @@ test("saved topics allow scoped individual and bulk deletion without deleting st
   assert.match(code, /Roteiros já criados permanecerão salvos/);
 });
 
-test("topic lists are compact and show the title without duplicate synopses", () => {
-  const start = code.indexOf('<h2 className="text-lg font-semibold">3. Biblioteca de temas');
+test("saved topics stay inside a closed-by-default filter and rows show only title", () => {
+  const start = code.indexOf('Filtrar e ver temas salvos');
   const end = code.indexOf('<section className={panel} hidden={stage !== "roteiro"}>', start);
   assert.ok(start >= 0 && end > start);
   const library = code.slice(start, end);
   assert.match(library, /truncate text-sm font-semibold/);
   assert.doesNotMatch(library, /\{t\.synopsis\}/);
+  assert.match(code.slice(start - 170, start), /<details className=/);
+  assert.match(library, /Selecionar todos os temas exibidos/);
   const draftStart = code.indexOf('Temas gerados — revisão');
-  const draftEnd = code.indexOf('3. Biblioteca de temas', draftStart);
-  assert.ok(draftStart >= 0 && draftEnd > draftStart);
-  assert.doesNotMatch(code.slice(draftStart, draftEnd), /\{t\.synopsis\}/);
+  assert.ok(draftStart >= 0 && start > draftStart);
+  assert.doesNotMatch(code.slice(draftStart, start), /\{t\.synopsis\}/);
 });
 
 test("legacy theme style filter limits bulk deletion to visible owner-scoped selections", () => {
@@ -192,4 +190,20 @@ test("compact theme draft list has a balanced JSX map expression", () => {
   const markup = code.slice(begin, end).trim();
   assert.match(markup, /<\/article>\)\}$/);
   assert.doesNotMatch(markup, /<\/article>\)\s*$/);
+});
+
+test("Themes has image-only style cards and hides empty results by default", () => {
+  assert.match(code, /<h2 className="text-lg font-semibold">Temas<\/h2>/);
+  assert.match(code, /<label className="block text-sm font-medium">Tema\n/);
+  for (const style of ["frutinhas", "infantil", "pessoas-cabeca-fruta"]) {
+    assert.ok(code.includes("/stories/styles/" + style + ".svg"), "Missing character thumbnail: " + style);
+    const svg = readFileSync(new URL("../public/stories/styles/" + style + ".svg", import.meta.url), "utf8");
+    assert.match(svg, /^<svg /);
+    assert.match(svg, /<\/svg>$/);
+  }
+  assert.match(code, /aria-label=\{"Tipo de personagem: " \+ option\.label\}/);
+  assert.match(code, /aria-pressed=\{characterStyle === option\.value\}/);
+  assert.doesNotMatch(code, /option\.description/);
+  assert.match(code, /hidden=\{stage !== "temas" \|\| draftTopics\.length === 0\}/);
+  assert.doesNotMatch(code, /Selecione de 5 a 20 temas por geração/);
 });
