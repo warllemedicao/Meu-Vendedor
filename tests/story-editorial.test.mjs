@@ -132,6 +132,14 @@ test("single scene studio keeps future scenes hidden and avoids duplicate next-s
   assert.match(code, /await generateOneScene\(project\)/);
 });
 
+test("advanced generation section contains no incomplete legacy Flash-Lite button", () => {
+  const section = code.split('Opções avançadas de geração (manual, pode consumir cota)')[1]
+    ?.split('Uma cena por chamada, sem retentativa após erro')[0] || "";
+  assert.match(section, /A geração de cenas restantes está disponível no topo do quadro/);
+  assert.doesNotMatch(section, /<button\b/);
+  assert.doesNotMatch(code, /generateNextSceneLite/);
+});
+
 test("saved prompts can be reused or explicitly regenerated with OpenAI", () => {
   assert.match(code, /if \(existing\?\.prompt && useGemini\)/);
   assert.match(code, /window\.confirm\("Já existe um prompt salvo nesta cena\. Gerar uma nova versão com OpenAI\?/);
