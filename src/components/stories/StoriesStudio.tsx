@@ -129,6 +129,7 @@ export function StoriesStudio() {
   const [sceneWorkbenchStep, setSceneWorkbenchStep] = useState<"roteiro"|"personagens"|"prompt">("roteiro");
   const [copiedScenePrompt, setCopiedScenePrompt] = useState<string | null>(null);
   const stopSceneQueue = useRef(false);
+  const startingScriptRef = useRef(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const loadTopics = useCallback(async () => {
@@ -560,11 +561,27 @@ export function StoriesStudio() {
       setDeletingTopics(false);
     }
   }
-  async function generateScript(topic: Topic) {
-    if (!user || busy) return;
+  async function generateScript(topic: Topic, createNewVersion = false) {
+    // Guard immediately: React state updates do not prevent very fast double clicks.
+    if (!user || busy || startingScriptRef.current) return;
     const client = getSupabase(); if (!client) return setError("Supabase indisponível.");
+    startingScriptRef.current = true;
     setBusy(true); setError(""); setMessage("");
     try {
+      if (!createNewVersion) {
+        // Always query Supabase, not the first 100 projects cached by the browser.
+        // Fail closed on read errors: never spend Gemini tokens if the lookup failed.
+        const { data: existing, error: lookupError } = await client.from("mv_story_projects")
+          .select("id,user_id,topic_id,genre,character_style,title,status,characters,scenes")
+          .eq("user_id", user.id).eq("topic_id", topic.id)
+          .order("updated_at", { ascending: false }).limit(1).maybeSingle();
+        if (lookupError) throw new Error("Não foi possível verificar os roteiros salvos. Nenhum novo roteiro ou pedido Gemini foi criado.");
+        if (existing) {
+          await openProject(existing as Project);
+          setMessage("Roteiro existente recuperado sem consumir tokens Gemini. Para criar outra versão, use Mais → Nova versão.");
+          return;
+        }
+      }
       // Persist before inference so a provider 503 never destroys the new story.
       const { data, error: dbError } = await client.from("mv_story_projects").insert({
         user_id: user.id, topic_id: topic.id, title: topic.title, genre: topic.genre,
@@ -579,7 +596,7 @@ export function StoriesStudio() {
       await generateOneScene(data as Project, topic.synopsis);
       setMessage("Primeira cena gerada e salva. Revise o conteúdo e continue com as demais cenas.");
     } catch (e) { setError(plainError(e)); }
-    finally { setBusy(false); }
+    finally { startingScriptRef.current = false; setBusy(false); setSceneProgress(""); }
   }
   async function generateOneScene(working: Project, synopsisOverride?: string, scriptModel: "primary" | "flash-lite" = "primary"): Promise<Project> {
     if (!user || working.status !== "draft") throw new Error("Roteiro não está disponível para edição.");
@@ -982,6 +999,12 @@ export function StoriesStudio() {
                 onClick={() => void toggleSaved(t)}>{t.saved ? "Remover favorito" : "Favoritar"}</button>
               <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || deletingTopics}
                 onClick={() => void createManualScript(t.title, t)}>Roteiro manual</button>
+              <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || deletingTopics}
+                onClick={() => {
+                  if (window.confirm("Criar uma nova versão do roteiro? Isso gera uma nova cena com Gemini e pode consumir tokens. O roteiro anterior continuará salvo.")) {
+                    void generateScript(t, true);
+                  }
+                }}>Nova versão (Gemini)</button>
             </div>
           </details>
         </div>)}
