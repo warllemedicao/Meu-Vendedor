@@ -62,40 +62,117 @@ export function countStoryWords(scene: StoryScene): number {
   return scene.dialogue.reduce((total, line) =>
     total + line.text.trim().split(/\s+/).filter(Boolean).length, 0);
 }
-/** A fallback for editorial preview only: prompts are manually reviewable, not Gemini output. */
-/** Compact platform prompts without silently truncating dialogue, action or character identity. */
+/** Browser-only editorial prompts. No automatic translation, model calls, or invented asset IDs. */
+export type LocalStoryPrompt = { scene: number; text: string; platform: StoryPlatform; notice?: string };
+
+/** Counts the submitted UTF-16 input conservatively; no invisible whitespace normalization. */
+export function countStoryPromptCharacters(text: string): number {
+  return text.length;
+}
+function cleanStoryText(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+function storyWords(value: string): number {
+  return cleanStoryText(value).split(/\s+/).filter(Boolean).length;
+}
+function storyAssetName(value: string): string {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48) || "Personagem";
+}
+function pickStoryCandidate(platform: StoryPlatform, scene: StoryScene, texts: string[]): string {
+  const cap = PLATFORM_GUIDES[platform].absoluteChars;
+  const result = texts.find(text => countStoryPromptCharacters(text) <= cap);
+  if (!result) throw new Error("O conteúdo essencial da cena " + scene.number +
+    " excede " + cap + " caracteres em " + PLATFORM_GUIDES[platform].name +
+    ". Divida a ação ou reduza as falas no roteiro; o gerador não apaga texto silenciosamente.");
+  return result;
+}
+
+/** Global visual identity belongs in the Flow Agent/project configuration, not repeated scene by scene. */
+export function makeStoryFlowAgentInstructions(
+  characters: StoryCharacter[], style: StoryCharacterStyle = "nao_definido",
+): string {
+  return [
+    STORY_CHARACTER_STYLE_INSTRUCTIONS[style],
+    ...characters.map(char => char.name + ": " + char.visual + (char.voice ? ". Voz: " + char.voice : "")),
+    "Manter roupas, vozes, identidade e continuidade entre cenas; não criar cortes nem sujeitos extras.",
+  ].filter(Boolean).join("\n");
+}
+
+/** One scene => one prompt. Essential dialogue remains verbatim. */
 export function makeLocalPromptDrafts(
   platform: StoryPlatform, characters: StoryCharacter[], scenes: StoryScene[],
   characterStyle: StoryCharacterStyle = "nao_definido",
-): { scene: number; text: string; platform: StoryPlatform }[] {
-  const guide = PLATFORM_GUIDES[platform];
+): LocalStoryPrompt[] {
   return scenes.map(scene => {
-    const cast = characters.filter(char => scene.characters.includes(char.name));
-    const dialogue = scene.dialogue.map(line => line.speaker + ': "' + line.text + '"').join("\n");
-    const attached = cast.some(char => char.referenceImagePath);
-    const base = [
-      "CENA " + scene.number + "/12 · vídeo 9:16 · 10s.",
-      STORY_CHARACTER_STYLE_INSTRUCTIONS[characterStyle],
-      "Cenário: " + scene.setting.trim(),
-      "Ação: " + scene.action.trim(),
-    ];
-    const ending = [
-      dialogue ? "Falas exatas em pt-BR:\n" + dialogue : "Sem fala.",
-      attached ? "Anexar imagens de referência; preservar identidade e roupas." : "",
-    ].filter(Boolean);
-    const castVariants = [
-      cast.map(ch => ch.name + " (" + ch.role + "): " + ch.visual + ". Voz: " + ch.voice).join("\n"),
-      cast.map(ch => ch.name + ": " + ch.visual + ". Voz: " + ch.voice).join("\n"),
-      cast.map(ch => ch.name + ": " + ch.visual).join("\n"),
-    ];
-    // Prefer the most complete reference that fits, without clipping essential scene or spoken text.
-    const candidates = castVariants.map(castText =>
-      [...base, castText ? "Personagens fixos:\n" + castText : "", ...ending]
-        .filter(Boolean).join("\n"));
-    const result = candidates.find(text => Array.from(text).length <= guide.absoluteChars);
-    if (!result) throw new Error(
-      "O conteúdo essencial da cena " + scene.number + " excede " + guide.absoluteChars +
-      " caracteres em " + guide.name + ". Revise a descrição dos personagens ou gere um prompt curto com Gemini. As falas não foram cortadas.");
-    return { scene: scene.number, platform, text: result };
+    const cast = characters.filter(ch => scene.characters.includes(ch.name));
+    const setting = cleanStoryText(scene.setting);
+    const action = cleanStoryText(scene.action);
+    const speech = scene.dialogue.map(line => line.speaker + ': "' + line.text + '"').join("\n");
+    const style = STORY_CHARACTER_STYLE_INSTRUCTIONS[characterStyle];
+    if (!setting || !action) throw new Error("A cena " + scene.number + " precisa de ambiente e ação.");
+
+    let text = "";
+    let notice: string | undefined;
+    if (platform === "youtube-create") {
+      // A single short action per generated clip, never silently mix successive scripted actions.
+      const segments = action.split(/(?<=[.!?;])\s+|\s+(?:depois|em seguida|na sequência|logo após)\s+/i).filter(Boolean);
+      const oneAction = segments[0]?.trim() || action;
+      if (segments.length > 1) notice = "YouTube Create: usada só a primeira microação. As demais ações do roteiro não foram alteradas; gere-as em outros clipes.";
+      const subject = cast.map(ch => ch.name).join(", ") || "Scene subject";
+      const dialogue = speech ? "Speech in Brazilian Portuguese, exact lines:\n" + speech : "";
+      const variants = [
+        cast.map(ch => ch.name + ": " + cleanStoryText(ch.visual)).join("; "),
+        cast.map(ch => ch.name + ": " + cleanStoryText(ch.role)).join("; "),
+        subject,
+      ];
+      const candidates = variants.map(identity => [
+        "Subject: " + identity,
+        "Single action: " + oneAction,
+        "Environment: " + setting,
+        "Camera: steady medium shot, one continuous take.",
+        dialogue,
+      ].filter(Boolean).join("\n"));
+      text = pickStoryCandidate(platform, scene, candidates);
+      if (countStoryPromptCharacters(text) > 850) {
+        notice = [notice, "O texto está próximo do limite de 900 caracteres; revise antes de colar no aplicativo."].filter(Boolean).join(" ");
+      }
+    } else if (platform === "google-flow") {
+      const mentions = cast.map(ch => "@" + storyAssetName(ch.name)).join(" ");
+      const subject = mentions || cast.map(ch => ch.name).join(", ");
+      const dialogue = speech ? "Speech (pt-BR):\n" + speech : "";
+      const variants = [
+        [subject, action, "Environment: " + setting, "Camera: steady medium shot.", dialogue].filter(Boolean).join("\n"),
+        [subject, action, "Camera: steady medium shot.", dialogue].filter(Boolean).join("\n"),
+      ];
+      text = pickStoryCandidate(platform, scene, variants);
+      notice = "No Flow, crie os personagens como Elementos/Ingredientes com os mesmos nomes das menções @. As menções não vinculam imagens automaticamente.";
+      if (storyWords(text) > 30) notice += " O prompt excede a meta editorial de 30 palavras porque mantém a ação e as falas; revise se desejar encurtar.";
+    } else {
+      const bindings = cast.map((ch,i) => {
+        const label = "Sujeito " + (i + 1);
+        const visual = cleanStoryText(ch.visual);
+        return label + ": " + ch.name + (ch.referenceImagePath ? " (@Imagem " + (i + 1) + ")" : "") +
+          (visual ? ", " + visual : "");
+      });
+      const subjectLabels = cast.map((_,i) => "Sujeito " + (i + 1)).join(" e ") || "Sujeito principal";
+      const speechPart = speech ? "Falas exatas em pt-BR:\n" + speech : "";
+      const variants = [
+        bindings.join("\n"),
+        cast.map((ch,i) => "Sujeito " + (i + 1) + ": " + ch.name +
+          (ch.referenceImagePath ? " (@Imagem " + (i + 1) + ")" : "")).join("\n"),
+      ];
+      text = pickStoryCandidate(platform, scene, variants.map(binding => [
+        "Sujeito preciso: " + (binding || subjectLabels),
+        "Ação: " + action,
+        "Ambiente: " + setting,
+        "Iluminação e cor: manter a referência visual.",
+        "Câmera: plano médio estável.",
+        "Estilo visual: " + (style || "manter a identidade da imagem."),
+        "Qualidade/restrições: sem sujeitos ou cortes extras.",
+        speechPart,
+      ].filter(Boolean).join("\n")));
+      notice = "Dreamina: confira se @Imagem 1, @Imagem 2 etc. correspondem às imagens realmente anexadas. Os rótulos não carregam arquivos automaticamente.";
+    }
+    return { scene: scene.number, platform, text, ...(notice ? { notice } : {}) };
   });
 }
