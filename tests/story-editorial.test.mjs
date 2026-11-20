@@ -132,6 +132,13 @@ test("single scene studio keeps future scenes hidden and avoids duplicate next-s
   assert.match(code, /await generateOneScene\(project\)/);
 });
 
+test("saved prompts can be reused or explicitly regenerated with OpenAI", () => {
+  assert.match(code, /if \(existing\?\.prompt && useGemini\)/);
+  assert.match(code, /window\.confirm\("Já existe um prompt salvo nesta cena\. Gerar uma nova versão com OpenAI\?/);
+  assert.match(code, /Prompt salvo recuperado sem gastar créditos de IA/);
+  assert.match(code, /setSceneWorkbenchStep\("prompt"\)/);
+});
+
 test("story prompt download enforces platform cap and tells the user what to do after copying", () => {
   assert.match(code, /countStoryPromptCharacters\(scenePromptText\) > PLATFORM_GUIDES\[chosenPlatform\]\.absoluteChars/);
   assert.match(code, /copyScenePrompt\(s\.number, chosenPlatform, scenePromptText\)/);
