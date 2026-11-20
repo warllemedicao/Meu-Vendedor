@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
-import { STORY_STAGES, PLATFORM_GUIDES, makeEmptyStoryScenes, makeLocalPromptDrafts, countStoryWords, STORY_CHARACTER_STYLES, type StoryCharacterStyle, type StoryStage } from "@/lib/stories/workflow";
+import { STORY_STAGES, PLATFORM_GUIDES, makeEmptyStoryScenes, makeLocalPromptDrafts, makeStoryFlowAgentInstructions, countStoryPromptCharacters, countStoryWords, STORY_CHARACTER_STYLES, type StoryCharacterStyle, type StoryStage } from "@/lib/stories/workflow";
 
 type Genre = "geral" | "comedia" | "suspense" | "educativo" | "aventura" | "drama";
 type Platform = "youtube-create" | "google-flow" | "dreamina";
@@ -290,9 +290,15 @@ export function StoriesStudio() {
         }) as { prompt: Prompt }).prompt?.text
         : makeLocalPromptDrafts(provider, project.characters, [scene], project.character_style || "nao_definido")[0]?.text;
       if (!draft) throw new Error("O prompt não foi preparado.");
+      const limit = PLATFORM_GUIDES[provider].absoluteChars;
+      if (countStoryPromptCharacters(draft) > limit) throw new Error("A resposta excede " + limit +
+        " caracteres de " + PLATFORM_GUIDES[provider].name + ". Revise o prompt antes de usar.");
       setScenePromptDrafts(old => ({ ...old, [key]: draft }));
       setSceneWorkbenchStep("prompt");
-      setMessage(useGemini ? "Prompt gerado; revise e salve antes de baixar." : "Rascunho criado sem usar API. Revise e salve.");
+      const localNotice = !useGemini ? makeLocalPromptDrafts(provider, project.characters, [scene],
+        project.character_style || "nao_definido")[0]?.notice : undefined;
+      setMessage((useGemini ? "Prompt gerado; revise e salve antes de baixar." : "Rascunho criado sem usar API. Revise e salve.") +
+        (localNotice ? " " + localNotice : ""));
     } catch(e) { setError(plainError(e)); }
     finally { setBusy(false); setSceneProgress(""); }
   }
@@ -301,7 +307,7 @@ export function StoriesStudio() {
     const provider = selectedPlatformByScene[sceneNumber] || platform;
     const text = scenePromptDrafts[promptKey(sceneNumber, provider)]?.trim() || "";
     const maximum = platformOptions.find(p => p.value === provider)?.maximum || 900;
-    if (!text || Array.from(text).length > maximum) return setError("O prompt excede o teto de " + maximum + " caracteres. Use Gerar prompt sem IA para uma versão enxuta, ou revise antes de salvar.");
+    if (!text || countStoryPromptCharacters(text) > maximum) return setError("O prompt excede o teto de " + maximum + " caracteres. Use Gerar prompt sem IA para uma versão enxuta, ou revise antes de salvar.");
     const client = getSupabase(); if (!client) return;
     const { error: dbError } = await client.from("mv_story_prompts").upsert({
       user_id: user.id, project_id: project.id, scene_number: sceneNumber,
@@ -352,7 +358,7 @@ export function StoriesStudio() {
     finally { setBusy(false); setSceneProgress(""); void loadProjects(); }
   }
   async function copyScenePrompt(sceneNumber: number, provider: Platform, prompt: string) {
-    if (Array.from(prompt).length > PLATFORM_GUIDES[provider].absoluteChars) {
+    if (countStoryPromptCharacters(prompt) > PLATFORM_GUIDES[provider].absoluteChars) {
       setError("O prompt excede o limite de " + PLATFORM_GUIDES[provider].absoluteChars +
         " caracteres. Refaça a versão compacta antes de copiar."); return;
     }
@@ -1276,17 +1282,17 @@ export function StoriesStudio() {
                       setCopiedScenePrompt(null);
                     }} placeholder="O prompt desta cena aparecerá aqui para revisão e download."/>
                 </label>
-                <p className={"text-xs font-semibold " + (Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars ? "text-red-600" : "text-muted")}>
-                  {Array.from(scenePromptText).length}/{PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres
-                  {Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars ? " — acima do limite; refaça a versão compacta antes de copiar." : " — dentro do limite."}
+                <p className={"text-xs font-semibold " + (countStoryPromptCharacters(scenePromptText) > PLATFORM_GUIDES[chosenPlatform].absoluteChars ? "text-red-600" : "text-muted")}>
+                  {countStoryPromptCharacters(scenePromptText)}/{PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres
+                  {countStoryPromptCharacters(scenePromptText) > PLATFORM_GUIDES[chosenPlatform].absoluteChars ? " — acima do limite; refaça a versão compacta antes de copiar." : " — dentro do limite."}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <button className={button} disabled={!scenePromptText.trim() || busy || Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars} onClick={() => void saveScenePrompt(s.number)}>Salvar prompt</button>
-                  <button className={button} disabled={!scenePromptText.trim() || Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
+                  <button className={button} disabled={!scenePromptText.trim() || busy || countStoryPromptCharacters(scenePromptText) > PLATFORM_GUIDES[chosenPlatform].absoluteChars} onClick={() => void saveScenePrompt(s.number)}>Salvar prompt</button>
+                  <button className={button} disabled={!scenePromptText.trim() || countStoryPromptCharacters(scenePromptText) > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
                     onClick={() => downloadTextFile("cena-" + s.number + "-" + chosenPlatform + ".txt", scenePromptText)}>
                     Baixar prompt .txt
                   </button>
-                  <button className={button} disabled={!scenePromptText.trim() || Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
+                  <button className={button} disabled={!scenePromptText.trim() || countStoryPromptCharacters(scenePromptText) > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
                     onClick={() => void copyScenePrompt(s.number, chosenPlatform, scenePromptText)}>Copiar prompt</button>
                 </div>
                 {copiedScenePrompt === promptKey(s.number, chosenPlatform) && <p role="status" className="text-xs font-semibold text-green-700">Prompt copiado. Agora crie o vídeo na plataforma escolhida; depois avance para a próxima cena usando o botão abaixo.</p>}
@@ -1303,13 +1309,32 @@ export function StoriesStudio() {
                   <p className="text-xs text-muted">{clips.find(clip => clip.scene_number === s.number) ? "MP4 salvo no projeto. Você pode seguir para outra cena." : "Você pode avançar sem importar o vídeo agora e voltar depois."}</p>
                 </div>
                 {s.number < 12 && project.status === "draft" && <button className={button + " w-full !bg-primary !text-primary-foreground !border-primary"}
-                  disabled={busy || !scenePromptText.trim() || Array.from(scenePromptText).length > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
+                  disabled={busy || !scenePromptText.trim() || countStoryPromptCharacters(scenePromptText) > PLATFORM_GUIDES[chosenPlatform].absoluteChars}
                   onClick={() => void advanceToNextScene(s.number)}>Concluir preparação · Ir para cena {s.number + 1}</button>}
                 {s.number === 12 && <p className="text-xs text-muted">Última cena. Revise todas as cenas e conclua a aprovação do roteiro quando estiver pronto.</p>}
                 </>}
                 <details className="rounded-lg border border-border p-2">
                   <summary className="cursor-pointer text-xs font-semibold">Outras opções e imagens para baixar</summary>
                   <div className="space-y-2 pt-2">
+                    {chosenPlatform === "youtube-create" && <p className="text-xs text-muted">
+                      YouTube Create: máximo 900 caracteres (contagem conservadora, sem normalização). Uma microação por clipe.
+                      Escolha 9:16 e a iluminação no aplicativo; anexe até 3 referências, se disponíveis.
+                      Vídeos aceitam prompts em vários idiomas; falas em pt-BR devem ficar explícitas.
+                    </p>}
+                    {chosenPlatform === "google-flow" && <>
+                      <p className="text-xs text-muted">Flow: crie Elementos/Ingredientes com os mesmos nomes das menções @.
+                        O texto de identidade visual abaixo pode ser colocado nas instruções do agente do projeto.</p>
+                      <textarea className={field + " text-xs"} readOnly rows={4}
+                        value={makeStoryFlowAgentInstructions(project.characters,project.character_style || "nao_definido")}/>
+                      <button type="button" className={button + " !text-xs"}
+                        onClick={() => void navigator.clipboard.writeText(makeStoryFlowAgentInstructions(project.characters,
+                          project.character_style || "nao_definido")).then(() => setMessage("Instruções do agente copiadas."))}>
+                        Copiar instruções do agente</button>
+                    </>}
+                    {chosenPlatform === "dreamina" && <p className="text-xs text-muted">
+                      Dreamina: associe @Imagem 1, @Imagem 2 etc. aos arquivos carregados na plataforma.
+                      Use Sujeito 1, Sujeito 2 sem alternar rótulos entre ações. Os vínculos não são automáticos.
+                    </p>}
                     <button type="button" className={button + " mr-2 !text-xs"} onClick={() => setSceneWorkbenchStep("personagens")}>Voltar às imagens</button>
                     <button type="button" className={button + " !text-xs"} onClick={() => setSceneWorkbenchStep("roteiro")}>Voltar ao roteiro</button>
                     <p className="text-xs text-muted">{PLATFORM_GUIDES[chosenPlatform].workflow} Até {PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres.</p>
