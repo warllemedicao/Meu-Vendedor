@@ -121,6 +121,8 @@ export function StoriesStudio() {
   const [imageNames, setImageNames] = useState<Record<number,string>>({});
   const [imagePrompts, setImagePrompts] = useState<Record<number,string>>({});
   const [imageConfigured, setImageConfigured] = useState(false);
+  const [editingCharacterIndex, setEditingCharacterIndex] = useState<number | null>(null);
+  const [addingCharacterImageIndex, setAddingCharacterImageIndex] = useState<number | null>(null);
   const [selectedPlatformByScene, setSelectedPlatformByScene] = useState<Record<number,Platform>>({});
   const [scenePromptDrafts, setScenePromptDrafts] = useState<Record<string,string>>({});
   const [expandedScene, setExpandedScene] = useState(1);
@@ -363,6 +365,8 @@ export function StoriesStudio() {
   function selectWorkbenchScene(sceneNumber: number) {
     setExpandedScene(sceneNumber);
     setSceneWorkbenchStep("roteiro");
+    setEditingCharacterIndex(null);
+    setAddingCharacterImageIndex(null);
     setCopiedScenePrompt(null);
     setError("");
   }
@@ -1053,109 +1057,102 @@ export function StoriesStudio() {
         </details>}
         {busy && sceneProgress && <p role="status" className="rounded-xl border border-border p-2 text-sm">{sceneProgress}</p>}
       </div>
-      {sceneWorkbenchStep === "personagens" &&       <div className="rounded-xl border border-border p-3 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Imagens dos personagens</h3><button className={button} disabled={busy} onClick={() => void loadCharacterLibrary()}>Atualizar biblioteca</button></div>
-        <p className="text-xs text-muted">Envie várias imagens juntas. O sistema liga cada imagem ao próximo personagem sem foto; as extras ficam na biblioteca, para usar depois.</p>
-        {project.status === "draft" && <label className="block rounded-xl border border-primary/40 bg-primary/5 p-3 text-sm font-semibold">
-          <span className="block mb-2">Enviar várias imagens de uma vez</span>
-          <input type="file" multiple accept="image/png,image/jpeg,image/webp" disabled={busy}
-            className="block w-full text-sm font-normal"
-            onChange={e => {const files=e.currentTarget.files; void uploadCharacterBatch(files); e.currentTarget.value="";}}/>
-          <span className="block mt-1 text-xs font-normal text-muted">PNG, JPG e WebP, até 10 MB por arquivo. Não substitui imagens já vinculadas.</span>
-        </label>}
-        <p className="text-xs text-muted">Para gerar imagem, abra a ficha do personagem abaixo. O campo de descrição e o botão Nano Banana estarão lá.</p>
-        {project.characters.map((char, ci) => <details key={ci} open={ci === 0 ? true : undefined} className="rounded-xl border border-border p-3 text-sm">
-          <summary className="cursor-pointer flex items-center gap-3 font-semibold">
-            {char.referenceImagePath && (characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]) &&
-              <img src={characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]}
-                alt={char.name} className="h-12 w-12 rounded-lg object-cover"/>}
-            <span className="flex-1">{char.name} <span className="text-xs font-normal text-muted">· {char.referenceImagePath ? "Imagem pronta" : "Escolher imagem"}</span></span>
-            <span className="text-xs font-normal text-muted">Abrir ficha</span>
-          </summary>
-          <div className="space-y-2 pt-3">
-          <details className="rounded-lg border border-border p-2">
-            <summary className="cursor-pointer text-xs font-semibold">Editar ficha detalhada: nome, roupa e voz</summary>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 mt-2">
-            <label>Nome do personagem<input className={field + " mt-1"} maxLength={100} disabled={project.status !== "draft"}
-              value={char.name} onChange={e => updateCharacter(ci, { name: e.target.value })}/></label>
-            <label>Função na história<input className={field + " mt-1"} maxLength={180} disabled={project.status !== "draft"}
-              value={char.role} onChange={e => updateCharacter(ci, { role: e.target.value })}/></label>
+      {sceneWorkbenchStep === "personagens" && <div className="rounded-xl border border-border p-3 space-y-3">
+        <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Imagens dos personagens</h3>
+          <button className={button + " !text-xs !px-2 !py-1"} disabled={busy} onClick={() => void loadCharacterLibrary()}>Atualizar</button></div>
+        {project.scenes.filter(scene => scene.number === expandedScene).map(scene => {
+          const present = project.characters.map((character,index) => ({character,index}))
+            .filter(({character}) => scene.characters.includes(character.name));
+          return <div key={scene.number} className="space-y-3">
+            <p className="text-xs text-muted">Cena {scene.number}: escolha a imagem de cada personagem pelo retrato.</p>
+            {present.length === 0 && <p className="text-xs text-muted">Nenhum personagem indicado nesta cena. Revise os personagens no roteiro.</p>}
+            {present.map(({character:char,index:ci}) => {
+              const path = char.referenceImagePath;
+              const url = path && (characterImageUrls[path] || libraryImageUrls[path]);
+              const editing = editingCharacterIndex === ci;
+              const adding = addingCharacterImageIndex === ci;
+              return <div key={ci} className="rounded-xl border border-border p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  {url ? <img src={url} alt={char.name} className="h-12 w-12 rounded-lg object-cover"/> : <div className="h-12 w-12 rounded-lg bg-surface-secondary"/>}
+                  <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{char.name}</p>
+                    <p className="text-xs text-muted">{path ? "Imagem escolhida" : "Selecione uma miniatura"}</p></div>
+                  {project.status === "draft" && <button type="button" className={button + " !px-2 !py-1 !text-xs"}
+                    aria-expanded={editing} onClick={() => {setEditingCharacterIndex(editing ? null : ci);setAddingCharacterImageIndex(null);}}>
+                    {editing ? "Fechar" : "Editar"}</button>}
+                </div>
+                <div role="group" aria-label={"Escolher imagem para " + char.name} className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-7">
+                  {characterLibrary.map(entry => {
+                    const thumb = libraryImageUrls[entry.storage_path];
+                    return <button key={entry.id} type="button" title={entry.name} aria-label={"Selecionar " + entry.name + " para " + char.name}
+                      aria-pressed={path === entry.storage_path} disabled={busy || !thumb || project.status !== "draft"}
+                      onClick={() => void chooseLibraryImage(ci,entry)}
+                      className={"overflow-hidden rounded-lg border-2 p-1 text-left " +
+                        (path === entry.storage_path ? "border-primary bg-primary/10" : "border-border hover:border-primary/60")}>
+                      {thumb ? <img src={thumb} alt="" className="aspect-square w-full rounded object-cover"/> : <div className="aspect-square bg-surface-secondary"/>}
+                      <span className="block truncate pt-1 text-[11px]">{entry.name}</span>
+                    </button>;
+                  })}
+                  {project.status === "draft" && <button type="button"
+                    className="rounded-lg border border-dashed border-primary p-2 text-xs font-semibold"
+                    aria-expanded={adding} onClick={() => {setAddingCharacterImageIndex(adding ? null : ci);setEditingCharacterIndex(null);}}>＋ Nova imagem</button>}
+                </div>
+                {characterLibrary.length === 0 && <p className="text-xs text-muted">Biblioteca vazia. Cadastre uma nova imagem.</p>}
+                {editing && project.status === "draft" && <div className="space-y-2 rounded-lg bg-surface-secondary p-3">
+                  <p className="text-sm font-semibold">Editar ficha de {char.name}</p>
+                  <label className="block text-xs">Nome<input className={field + " mt-1"} maxLength={100} value={char.name}
+                    onChange={e => updateCharacter(ci,{name:e.target.value})}/></label>
+                  <label className="block text-xs">Função<input className={field + " mt-1"} maxLength={180} value={char.role}
+                    onChange={e => updateCharacter(ci,{role:e.target.value})}/></label>
+                  <label className="block text-xs">Aparência e roupas<textarea className={field + " mt-1"} rows={2} maxLength={1100} value={char.visual}
+                    onChange={e => updateCharacter(ci,{visual:e.target.value})}/></label>
+                  <label className="block text-xs">Voz<textarea className={field + " mt-1"} rows={2} maxLength={450} value={char.voice}
+                    onChange={e => updateCharacter(ci,{voice:e.target.value})}/></label>
+                  {path && <button className={button + " !text-xs"} onClick={() => void downloadReference(path,char.name)}>Baixar imagem</button>}
+                  <button className={button + " !text-xs"} disabled={busy} onClick={() => void saveScript(false)}>Salvar alterações</button>
+                </div>}
+                {adding && project.status === "draft" && <div className="space-y-2 rounded-lg bg-surface-secondary p-3">
+                  <p className="text-sm font-semibold">Nova imagem de {char.name}</p>
+                  <label className="block text-xs">Nome<input className={field + " mt-1"} maxLength={100}
+                    value={imageNames[ci] ?? ""} placeholder={char.name}
+                    onChange={e => setImageNames(old => ({...old,[ci]:e.target.value}))}/></label>
+                  <label className="block text-xs">Aparência e acessórios<textarea className={field + " mt-1"} rows={2} maxLength={1200}
+                    placeholder={char.visual} value={imagePrompts[ci] ?? ""}
+                    onChange={e => setImagePrompts(old => ({...old,[ci]:e.target.value}))}/></label>
+                  <label className="block text-xs">Enviar foto (PNG, JPG ou WebP, até 10 MB)
+                    <input type="file" className="mt-1 block w-full text-xs" accept="image/png,image/jpeg,image/webp" disabled={busy}
+                      onChange={e => {const file=e.currentTarget.files?.[0];void uploadReference(ci,file);e.currentTarget.value="";}}/>
+                  </label>
+                  <details className="rounded-lg border border-border p-2">
+                    <summary className="cursor-pointer text-xs font-semibold">Gerar com Nano Banana (opcional)</summary>
+                    <button className={button + " mt-2 !text-xs"} disabled={busy || !imageConfigured} onClick={() => void generateCharacterReference(ci)}>Gerar imagem</button>
+                    {!imageConfigured && <p className="mt-2 text-xs text-muted">HIST_IMAGEM_GEMINI_API_KEY não configurada. Envio manual disponível.</p>}
+                  </details>
+                </div>}
+              </div>;
+            })}
+          </div>;
+        })}
+        <details className="rounded-lg border border-border p-2">
+          <summary className="cursor-pointer text-xs font-semibold">Gerenciar biblioteca e envio em lote</summary>
+          <div className="space-y-2 pt-2">
+            {project.status === "draft" && <label className="block text-xs">Adicionar várias imagens
+              <input type="file" multiple accept="image/png,image/jpeg,image/webp" disabled={busy} className="block w-full"
+                onChange={e => {const files=e.currentTarget.files;void uploadCharacterBatch(files);e.currentTarget.value="";}}/>
+            </label>}
+            <p className="text-xs text-muted">Imagens em lote serão associadas primeiro aos personagens sem referência.</p>
+            {characterLibrary.map(entry => <div key={entry.id} className="flex items-center justify-between gap-2 text-xs">
+              <span className="truncate">{entry.name}</span>
+              <button className={button + " !text-xs !px-2 !py-1"} onClick={() => {
+                const name=window.prompt("Renomear personagem",entry.name);if(name)void renameLibraryCharacter(entry,name);
+              }}>Renomear</button>
+            </div>)}
           </div>
-          <label className="block">Aparência, roupas, cores e acessórios<textarea className={field + " mt-1"} rows={2} maxLength={1100}
-            disabled={project.status !== "draft"} value={char.visual} onChange={e => updateCharacter(ci, { visual: e.target.value })}/></label>
-          <label className="block">Voz, sotaque e modo de falar<textarea className={field + " mt-1"} rows={2} maxLength={450}
-            disabled={project.status !== "draft"} value={char.voice} onChange={e => updateCharacter(ci, { voice: e.target.value })}/></label>
-          </details>
-          <div className="flex flex-wrap items-start gap-3 rounded-lg bg-surface-secondary p-2">
-            {char.referenceImagePath && (characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]) &&
-              <img className="h-24 w-20 rounded-md object-cover" alt={"Referência de " + char.name}
-                src={characterImageUrls[char.referenceImagePath] || libraryImageUrls[char.referenceImagePath]}/>}
-            <div className="flex-1 min-w-48 space-y-2">
-              <p className="text-xs font-semibold">{char.referenceImagePath ? "Imagem vinculada: " + char.name : "Sem imagem vinculada a " + char.name}</p>
-              {char.referenceImagePath && <button className={button} onClick={() => void downloadReference(char.referenceImagePath!, char.name)}>Baixar imagem</button>}
-              {project.status === "draft" && <label className="block text-xs">Enviar imagem (PNG, JPG ou WebP)
-                <input className="mt-1 block w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy}
-                  onChange={e => {const file=e.currentTarget.files?.[0];void uploadReference(ci,file);e.currentTarget.value="";}}/>
-              </label>}
-            </div>
-          </div>
-          {project.status === "draft" && <div className="space-y-2 rounded-xl border border-border p-2">
-            <p className="text-xs font-semibold">Criar nova referência com Nano Banana 2 Lite</p>
-                        <label className="block text-xs">Nome da nova imagem
-                          <input className={field + " mt-1"} maxLength={100} value={imageNames[ci] ?? ""}
-                            placeholder={char.name}
-                            onChange={e => setImageNames(old => ({ ...old, [ci]: e.target.value }))}/>
-                        </label>
-                        <label className="block text-xs">Descreva a aparência (prompt da imagem)
-                          <textarea className={field + " mt-1"} rows={2} maxLength={1200}
-                            placeholder={char.visual} value={imagePrompts[ci] ?? ""}
-                            onChange={e => setImagePrompts(old => ({ ...old, [ci]: e.target.value }))}/>
-                        </label>
-                        <button className={button} disabled={busy || !imageConfigured} onClick={() => void generateCharacterReference(ci)}>
-                          Gerar imagem com Nano Banana
-                        </button>
-                        {!imageConfigured && <p className="text-xs text-muted">Para ativar a geração, configure o segredo exclusivo HIST_IMAGEM_GEMINI_API_KEY no Supabase. Envio e biblioteca funcionam sem essa API. A geração de imagem pode consumir cota.</p>}
-            <details className="border-t border-border pt-2">
-              <summary className="cursor-pointer text-sm font-semibold">Usar imagem já salva ou prompt pronto</summary>
-              <div className="pt-2 space-y-2">
-            <p className="text-xs font-semibold">Escolher personagem da biblioteca privada</p>
-            {characterLibrary.length === 0 && <p className="text-xs text-muted">A biblioteca começa vazia. Envie uma imagem ou gere a primeira referência.</p>}
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {characterLibrary.map(entry => <div key={entry.id} className="shrink-0 w-28 rounded-md border border-border p-1 space-y-1">
-                {libraryImageUrls[entry.storage_path] &&
-                  <img src={libraryImageUrls[entry.storage_path]} className="h-20 w-full object-cover rounded"
-                    alt={entry.name}/>}
-                <p className="text-xs font-semibold truncate" title={entry.name}>{entry.name}</p>
-                <details className="text-xs">
-                  <summary className="cursor-pointer">Prompt original</summary>
-                  <p className="break-words mt-1">{entry.image_prompt || entry.description || "Sem prompt cadastrado"}</p>
-                </details>
-                <button className={button + " w-full !text-xs !px-1 !py-1"} disabled={busy}
-                  onClick={() => void chooseLibraryImage(ci, entry)}>Usar imagem</button>
-                <button className={button + " w-full !text-xs !px-1 !py-1"}
-                  onClick={() => { const name = window.prompt("Novo nome na biblioteca", entry.name); if(name) void renameLibraryCharacter(entry,name); }}>Renomear</button>
-              </div>)}
-            </div>
-            <p className="text-xs font-semibold">Ideias iniciais de personagens (prompts prontos; imagens ainda precisam ser geradas ou enviadas)</p>
-            <div className="flex flex-wrap gap-2">
-              {starterCharacterPresets.map(preset => <button key={preset.name} className={button + " !text-xs"}
-                disabled={busy} onClick={() => {
-                  setImageNames(old => ({ ...old, [ci]: preset.name }));
-                  setImagePrompts(old => ({ ...old, [ci]: preset.prompt }));
-                }}>{preset.name}</button>)}
-            </div>
-              </div>
-            </details>
-          </div>}
-          </div>
-        </details>)}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-          <p className="text-xs text-muted">As imagens escolhidas serão usadas como referência visual no prompt. Você as baixará para anexar na plataforma.</p>
+        </details>
+        <div className="flex justify-end border-t border-border pt-3">
           <button className={button + " !bg-primary !text-primary-foreground !border-primary"}
             onClick={() => setSceneWorkbenchStep("prompt")}>Continuar: prompt e downloads</button>
         </div>
-      </div>
-      }
+      </div>}
       {sceneWorkbenchStep !== "personagens" && <div className="space-y-2">
         {project.scenes.filter(s => s.number === expandedScene).map(s => {
           const i = s.number - 1;
