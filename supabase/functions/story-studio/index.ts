@@ -1,5 +1,5 @@
 import { storyPromptAgents as RULES } from "./_shared/agents/index.ts";
-// Independent Gemini text service for Histórias. No Google Flow automation code is imported.
+// Histórias keeps Gemini for themes/images; OpenAI handles scripts and prompts.
 const TOPICS_MODEL = "gemini-3.5-flash-lite";
 const SCRIPT_MODEL = "gpt-5.4-mini-2026-03-17";
 // Nano Banana 2 Lite uses an independent key: never borrow topic/script quotas silently.
@@ -125,9 +125,28 @@ async function openaiStory(instruction: string, payload: unknown, maxTokens: num
   } finally { clearTimeout(timeout); }
 }
 async function diagnoseModelConnection(purpose: "topics" | "script") {
+  if (purpose === "script") {
+    const key = Deno.env.get("HIST_ROTEIRO_OPENAI");
+    if (!key) throw new Error("openai_not_configured");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch("https://api.openai.com/v1/models/" + encodeURIComponent(SCRIPT_MODEL), {
+        method: "GET", redirect: "error", signal: controller.signal,
+        headers: { Authorization: "Bearer " + key },
+      });
+      if (!response.ok) throw new Error(response.status === 401 ? "openai_invalid_key" :
+        response.status === 404 ? "openai_model_unavailable" : "openai_unavailable");
+      return { ok: true, model: SCRIPT_MODEL, note: "model_metadata_only" };
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error("openai_timeout");
+      if (error instanceof TypeError) throw new Error("openai_network_error");
+      throw error;
+    } finally { clearTimeout(timeout); }
+  }
   // Metadata lookup only: no generateContent, no inference tokens, and no secret in URL/logs.
-  const key = purpose === "topics" ? Deno.env.get("HIST_TEMA_GEMINI_API_KEY") : Deno.env.get("HIST_ROTEIRO_GEMINI_API_KEY");
-  const model = purpose === "topics" ? TOPICS_MODEL : SCRIPT_MODEL;
+  const key = Deno.env.get("HIST_TEMA_GEMINI_API_KEY");
+  const model = TOPICS_MODEL;
   if (!key) throw new Error("gemini_not_configured");
   const controller = new AbortController();
   const started = Date.now();
@@ -168,13 +187,10 @@ async function diagnoseModelConnection(purpose: "topics" | "script") {
   } finally { clearTimeout(timeout); }
 }
 async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8192, purpose: "topics" | "script" = "script", scriptModel: "primary" | "flash-lite" = "primary"): Promise<unknown> {
-  // Topics use HIST_TEMA; scripts and prompts use HIST_ROTEIRO, without cross-purpose fallback.
-  const key = purpose === "topics"
-    ? Deno.env.get("HIST_TEMA_GEMINI_API_KEY")
-    : Deno.env.get("HIST_ROTEIRO_GEMINI_API_KEY");
+  if (purpose === "script") return openaiStory(systemInstruction, payload, maxTokens);
+  const key = Deno.env.get("HIST_TEMA_GEMINI_API_KEY");
   if (!key) throw new Error("gemini_not_configured");
-  let model = purpose === "topics" ? TOPICS_MODEL : SCRIPT_MODEL;
-  if (purpose === "script" && scriptModel === "flash-lite") model = TOPICS_MODEL;
+  const model = TOPICS_MODEL;
   const started = Date.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
