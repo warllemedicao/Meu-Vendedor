@@ -915,7 +915,7 @@ export function StoriesStudio() {
     </section>
     <section hidden={stage !== "temas"}>
       <details className="rounded-xl border border-border bg-surface p-3">
-        <summary className="cursor-pointer text-sm font-semibold">Filtrar e ver temas salvos (${topics.length})</summary>
+        <summary className="cursor-pointer text-sm font-semibold">Filtrar e ver temas salvos ({topics.length})</summary>
         <div className="mt-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs text-muted">{visibleTopics.length} exibidos</span>
