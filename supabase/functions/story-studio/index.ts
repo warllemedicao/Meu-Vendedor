@@ -1,7 +1,7 @@
 import { storyPromptAgents as RULES } from "./_shared/agents/index.ts";
 // Independent Gemini text service for Histórias. No Google Flow automation code is imported.
 const TOPICS_MODEL = "gemini-3.5-flash-lite";
-const SCRIPT_MODEL = "gemini-3.5-flash";
+const SCRIPT_MODEL = "gpt-5.4-mini-2026-03-17";
 // Nano Banana 2 Lite uses an independent key: never borrow topic/script quotas silently.
 const IMAGE_MODEL = "gemini-3.1-flash-lite-image";
 const CHARACTER_STYLE_RULES = {
@@ -69,6 +69,60 @@ function safeGeminiError(responseBody: unknown) {
     : /service unavailable|overloaded|try again later/i.test(message) ? "provider_temporarily_unavailable"
     : "unclassified";
   return { googleStatus: status, googleCode: detail && typeof detail.code === "number" ? detail.code : null, googleCategory: category };
+}
+
+/** OpenAI script and prompt generation; no retries or user content in logs. */
+async function openaiStory(instruction: string, payload: unknown, maxTokens: number): Promise<unknown> {
+  const key = Deno.env.get("HIST_ROTEIRO_OPENAI");
+  if (!key) throw new Error("openai_not_configured");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000);
+  const started = Date.now();
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST", signal: controller.signal, redirect: "error",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+      body: JSON.stringify({
+        model: SCRIPT_MODEL, store: false, reasoning_effort: "none",
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: instruction + " Retorne apenas um objeto JSON válido." },
+          { role: "user", content: JSON.stringify(payload) },
+        ],
+        max_completion_tokens: maxTokens,
+      }),
+    });
+    if (!response.ok) {
+      const reason = response.status === 429 ? "openai_rate_limited" :
+        response.status === 401 ? "openai_invalid_key" :
+        response.status === 402 ? "openai_billing_required" :
+        response.status === 403 ? "openai_permission_denied" :
+        response.status === 404 ? "openai_model_unavailable" :
+        response.status === 400 ? "openai_request_rejected" :
+        response.status >= 500 ? "openai_service_unavailable" : "openai_unavailable";
+      console.error("story_studio_openai_error", { status: response.status, reason, model: SCRIPT_MODEL, elapsedMs: Date.now() - started });
+      throw new Error(reason);
+    }
+    const data: unknown = await response.json();
+    if (!record(data) || !Array.isArray(data.choices) || !data.choices.length) throw new Error("openai_invalid_response");
+    const choice = data.choices[0];
+    if (!record(choice) || choice.finish_reason === "length") throw new Error("openai_output_truncated");
+    if (!record(choice.message) || choice.message.refusal) throw new Error("openai_invalid_response");
+    const content = choice.message.content;
+    if (typeof content !== "string" || content.length === 0 || content.length > 180000) throw new Error("openai_invalid_response");
+    const usage = record(data.usage) ? data.usage : {};
+    const tokens = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+    console.info("story_studio_openai_usage", {
+      model: SCRIPT_MODEL, elapsedMs: Date.now() - started, maxCompletionTokens: maxTokens,
+      inputTokens: tokens(usage.prompt_tokens), outputTokens: tokens(usage.completion_tokens),
+      totalTokens: tokens(usage.total_tokens), finishReason: choice.finish_reason,
+    });
+    try { return JSON.parse(content); } catch { throw new Error("openai_invalid_json"); }
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("openai_timeout");
+    if (error instanceof TypeError) throw new Error("openai_network_error");
+    throw error;
+  } finally { clearTimeout(timeout); }
 }
 async function diagnoseModelConnection(purpose: "topics" | "script") {
   // Metadata lookup only: no generateContent, no inference tokens, and no secret in URL/logs.
