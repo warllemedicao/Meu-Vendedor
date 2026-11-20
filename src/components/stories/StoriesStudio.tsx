@@ -750,11 +750,11 @@ export function StoriesStudio() {
     if (previousName === nextName) return;
     setSceneDialogueDrafts(old => Object.fromEntries(Object.entries(old).map(([key, raw]) => {
       if (!key.startsWith(projectId + ":")) return [key, raw];
-      return [key, raw.split("\\n").map(line => {
+      return [key, raw.split("\n").map(line => {
         const colon = line.indexOf(":");
         if (colon < 0 || line.slice(0, colon).trim() !== previousName) return line;
         return nextName + line.slice(colon);
-      }).join("\\n")];
+      }).join("\n")];
     })));
   }
   function updateCharacter(index: number, changes: Partial<Character>) {
