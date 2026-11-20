@@ -595,7 +595,7 @@ export function StoriesStudio() {
           .select("id,user_id,topic_id,genre,character_style,title,status,characters,scenes")
           .eq("user_id", user.id).eq("topic_id", topic.id)
           .order("updated_at", { ascending: false }).limit(1).maybeSingle();
-        if (lookupError) throw new Error("Não foi possível verificar os roteiros salvos. Nenhum novo roteiro ou pedido Gemini foi criado.");
+        if (lookupError) throw new Error("Não foi possível verificar os roteiros salvos. Nenhum novo roteiro ou pedido de IA foi criado.");
         if (existing) {
           await openProject(existing as Project);
           setMessage("Roteiro existente recuperado sem consumir tokens de IA. Para criar outra versão, use Mais → Nova versão.");
@@ -619,7 +619,7 @@ export function StoriesStudio() {
     } catch (e) { setError(plainError(e)); }
     finally { startingScriptRef.current = false; setBusy(false); setSceneProgress(""); }
   }
-  async function generateOneScene(working: Project, synopsisOverride?: string, scriptModel: "primary" | "flash-lite" = "primary"): Promise<Project> {
+  async function generateOneScene(working: Project, synopsisOverride?: string): Promise<Project> {
     if (!user || working.status !== "draft") throw new Error("Roteiro não está disponível para edição.");
     const nextIndex = working.scenes.findIndex(s => !s.action.trim() || !s.setting.trim());
     if (nextIndex < 0) return working;
@@ -633,7 +633,7 @@ export function StoriesStudio() {
     const result = await invokeStory("script_scene", {
       title: working.title, synopsis: synopsisOverride ?? activeTopic?.synopsis ?? publishDescription,
       genre: working.genre || activeTopic?.genre || "geral", characterStyle: working.character_style || "nao_definido", sceneNumber,
-      characters: working.characters, previousScenes: working.scenes.slice(0, nextIndex), scriptModel,
+      characters: working.characters, previousScenes: working.scenes.slice(0, nextIndex),
     }) as { characters: Character[]; scene: Scene };
     if (!Array.isArray(result.characters) || !result.characters.length ||
       !result.scene || result.scene.number !== sceneNumber || !result.scene.action || !result.scene.setting)
@@ -707,7 +707,7 @@ export function StoriesStudio() {
     try {
       setPrompts(makeLocalPromptDrafts(platform, project.characters, project.scenes, project.character_style || "nao_definido"));
       setStage("prompts");
-      setMessage("Rascunhos locais montados sem Gemini, respeitando o limite de cada plataforma.");
+      setMessage("Rascunhos locais montados sem IA, respeitando o limite de cada plataforma.");
     } catch (e) { setError(plainError(e)); }
   }
   function downloadProductionPlan() {
