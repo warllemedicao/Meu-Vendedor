@@ -136,6 +136,24 @@ test("character image selection prioritizes the current scene, style and thumbna
   assert.match(code, /"\/library\/" \+ \(project\.character_style \|\| "nao_definido"\) \+ "\/"/);
 });
 
+test("prompt stage stays compact with visual providers and two explicit generation methods", () => {
+  assert.match(code, /sceneWorkbenchStep === "prompt" \? <h3/);
+  assert.match(code, /aria-label="Personagens desta cena"/);
+  assert.match(code, /aria-label="Ferramenta para gerar o prompt"/);
+  assert.match(code, /aria-pressed=\{chosenPlatform === item\.value\}/);
+  assert.match(code, /"\/stories\/tools\/" \+ item\.value \+ "\.svg"/);
+  assert.match(code, /Gerar prompt sem IA/);
+  assert.match(code, /Gerar prompt com Gemini/);
+  assert.match(code, /\{scenePromptText\.trim\(\) && <>/);
+  assert.match(code, /sceneWorkbenchStep !== "prompt" && <nav/);
+  assert.match(code, /Outras opções e imagens para baixar/);
+  for (const name of ["youtube-create", "google-flow", "dreamina"]) {
+    const svg = readFileSync(new URL("../public/stories/tools/" + name + ".svg", import.meta.url), "utf8");
+    assert.match(svg, /^<svg /);
+    assert.match(svg, /<\/svg>$/);
+  }
+});
+
 test("compact project navigation stays hidden on Themes and Roteiro", () => {
   assert.match(code, /stage !== "temas" && stage !== "roteiro" && <details/);
   assert.match(code, /Etapas do projeto/);
