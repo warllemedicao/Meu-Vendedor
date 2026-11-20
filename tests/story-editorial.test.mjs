@@ -121,7 +121,19 @@ test("multiple character images are accepted and preserved one by one", () => {
   assert.match(code, /characters\.findIndex\(ch => !ch\.referenceImagePath\)/);
   assert.match(code, /setProject\(prev => prev\?\.id === project\.id/);
   assert.match(code, /Imagens dos personagens/);
-  assert.match(code, /Gerar imagem com Nano Banana/);
+  assert.match(code, /Gerar com Nano Banana \(opcional\)/);
+});
+
+test("character image selection prioritizes the current scene, style and thumbnail choices", () => {
+  assert.match(code, /scene\.characters\.includes\(character\.name\)/);
+  assert.match(code, /role="group" aria-label=\{"Escolher imagem para " \+ char\.name\}/);
+  assert.match(code, /aria-pressed=\{path === entry\.storage_path\}/);
+  assert.match(code, /chooseLibraryImage\(ci,entry\)/);
+  assert.match(code, /editingCharacterIndex === ci/);
+  assert.match(code, /addingCharacterImageIndex === ci/);
+  assert.match(code, /Ver imagens antigas ou de outros tipos/);
+  assert.match(code, /entry\.storage_path\.includes\("\/library\/" \+ project\.character_style \+ "\/"\)/);
+  assert.match(code, /"\/library\/" \+ \(project\.character_style \|\| "nao_definido"\) \+ "\/"/);
 });
 
 test("compact project navigation stays hidden on Themes and Roteiro", () => {
