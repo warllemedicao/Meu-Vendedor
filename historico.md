@@ -1,3 +1,12 @@
+## 20/11/2026 — Histórias: tela Temas minimalista e seleção visual de personagens
+
+- Solicitação: remover a caixa/cabeçalho "Estúdio de Histórias", transformar título "Assuntos e temas" em **Temas** sem instrução abaixo, renomear o campo **Assunto principal** para **Tema**, substituir descrições textuais dos tipos de personagem por imagens que expliquem visualmente o estilo e recolher a biblioteca de temas até o usuário abrir seu filtro.
+- Tela `src/components/stories/StoriesStudio.tsx`: removido o cabeçalho grande; a navegação geral de etapas foi reduzida a menu pequeno fechado e não aparece nas telas `temas`/`roteiro`. Cabeçalho da primeira seção agora diz só `Temas`, sem parágrafo explicativo. Campo do assunto passou a ter rótulo `Tema` (nome do estado/API mantido para preservar compatibilidade).
+- Estilos com **três miniaturas SVG originais**, incluídas como arquivos do site em `public/stories/styles/frutinhas.svg`, `infantil.svg`, `pessoas-cabeca-fruta.svg`. Cartões exibem apenas a ilustração; nome do estilo permanece acessível via `aria-label`/`title` e seleção `aria-pressed` e destaque visual. Estilos são os três valores anteriores: `frutinhas`, `infantil`, `pessoas_cabeca_fruta`, sem mudanças no backend ou na persistência.
+- Os temas gerados ainda não salvos só aparecem se houver resultados, evitando painel de revisão vazio. A biblioteca de temas salvos fica dentro de `<details>` sem `open`, com resumo **Filtrar e ver temas salvos (N)**; usuário precisa expandir para exibir filtros, lista e operações. A seleção individual, selecionar todos os exibidos e exclusão com confirmação permanecem funcionando conforme a lógica anterior, sem deletar dados automaticamente.
+- Testes de contrato em `tests/story-editorial.test.mjs` ajustados ao novo menu compacto e à biblioteca recolhida, e novas verificações garantem os arquivos SVG, rótulos e ausência de descrição textual/introdução. **12 verificações estáticas pontuais aprovadas**. CI npm, typecheck, lint e build ainda não confirmados para estes commits; frontend precisa ser republicado no Cloudflare somente após validar `main`.
+- Supabase, geração Gemini, Google Flow, IMAGEM1/IMAGEM2/IMAGEM3 e dados existentes permanecem intactos.
+
 ## 19/11/2026 — Correção de TS1005 no JSX da lista compacta de temas
 
 - Analisado diretamente o run GitHub Actions `44639955209`, job `135968161534`. Logs: **387/387 testes passaram**, mas o `Typecheck frontend` falhou em `src/components/stories/StoriesStudio.tsx:924:9` com `TS1005: '}' expected`; Typecheck Edge, lint e build foram pulados.
