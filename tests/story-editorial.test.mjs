@@ -21,6 +21,34 @@ test("editable characters and scenes preserve identity and chronology", () => {
   assert.match(code, /Imagens dos personagens/);
   assert.match(code, /Transição e ligação com a próxima cena/);
 });
+test("character name editor preserves spaces until committed and persists the new name with scene references", () => {
+  assert.match(code, /const \[characterNameDrafts, setCharacterNameDrafts\] = useState/);
+  assert.match(code, /value=\{characterNameDrafts\[project\.id \+ ":" \+ ci\] \?\? char\.name\}/);
+  assert.match(code, /onChange=\{e => setCharacterNameDrafts/);
+  assert.match(code, /onBlur=\{\(\) => applyCharacterName\(ci\)\}/);
+  assert.match(code, /function applyCharacterName\(index: number\)/);
+  assert.match(code, /function syncDialogueSpeakerDrafts\(projectId: string/);
+  assert.match(code, /raw\.split\("\\n"\)/);
+  assert.match(code, /let working = project/);
+  assert.match(code, /const draftKeys = Object\.keys\(characterNameDrafts\)/);
+  assert.match(code, /\.update\(\{ scenes: working\.scenes, characters: working\.characters/);
+  assert.match(code, /setProject\(\{ \.\.\.working, status:/);
+  assert.doesNotMatch(code, /onChange=\{e => updateCharacter\(ci,\{name:e\.target\.value\}\)\}/);
+});
+
+test("new image names are saved without overwriting a previous image or exposing extra UI", () => {
+  assert.match(code, /async function checkImageNameAvailable\(name: string\)/);
+  assert.match(code, /await checkImageNameAvailable\(imageNames\[characterIndex\]/);
+  assert.match(code, /await checkImageNameAvailable\(name\)/);
+  const block = code.split("async function persistCharacterImage(")[1]?.split("async function chooseLibraryImage(")[0] || "";
+  assert.match(block, /\.from\("mv_story_characters"\)\.insert\(\{/);
+  assert.doesNotMatch(block, /upsert\(/);
+  assert.match(block, /if \(libraryError\) throw new Error/);
+  assert.match(code, /value=\{libraryNameDrafts\[entry\.id\] \?\? entry\.name\}/);
+  assert.match(code, /renameLibraryCharacter\(entry, libraryNameDrafts\[entry\.id\] \?\? entry\.name\)/);
+  assert.doesNotMatch(code, /window\.prompt\("Renomear personagem"/);
+});
+
 test("prompts can be edited, saved, copied and checked for YouTube Create limit", () => {
   assert.match(code, /saveEditedPrompt/);
   assert.match(code, /countStoryPromptCharacters\(current\.text\) > maximum/);
