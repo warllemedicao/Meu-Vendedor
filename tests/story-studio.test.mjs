@@ -26,7 +26,7 @@ test("Gemini secrets are server only and authenticated requests are mandatory", 
 test("story script validates exactly twelve ten-second scenes", () => {
   assert.match(edge, /result\.scenes\.length !== 12/);
   assert.match(edge, /durationSeconds: 10/);
-  assert.match(studio, /project\.scenes\.length !== 12/);
+  assert.match(studio, /working\.scenes\.length !== 12/);
 });
 test("isolated prompt agents include 900-character YouTube Create limit", () => {
   const youtube = read("supabase/functions/story-studio/_shared/agents/youtube-create.ts");
