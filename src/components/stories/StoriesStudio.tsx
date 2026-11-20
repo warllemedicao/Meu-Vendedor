@@ -780,35 +780,54 @@ export function StoriesStudio() {
   }
   async function saveScript(approve: boolean) {
     if (!project || !user) return;
-    if (Object.keys(characterNameDrafts).some(key => key.startsWith(project.id + ":")))
-      return setError("Confirme o nome do personagem antes de salvar o roteiro.");
-    for (const scene of project.scenes) {
+    let working = project;
+    const draftKeys = Object.keys(characterNameDrafts).filter(key => key.startsWith(project.id + ":"));
+    for (const key of draftKeys) {
+      const index = Number(key.slice(project.id.length + 1));
+      if (!Number.isInteger(index) || !working.characters[index]) continue;
+      const nextName = characterNameDrafts[key].trim();
+      if (!nextName || nextName.length > 100) return setError("O nome do personagem precisa ter de 1 a 100 caracteres.");
+      if (working.characters.some((ch, i) => i !== index && ch.name.toLowerCase() === nextName.toLowerCase()))
+        return setError("Já existe outro personagem com esse nome.");
+      const previousName = working.characters[index].name;
+      working = {
+        ...working,
+        characters: working.characters.map((ch, i) => i === index ? { ...ch, name: nextName } : ch),
+        scenes: working.scenes.map(scene => ({
+          ...scene,
+          characters: scene.characters.map(name => name === previousName ? nextName : name),
+          dialogue: scene.dialogue.map(line => line.speaker === previousName ? { ...line, speaker: nextName } : line),
+        })),
+      };
+    }
+    for (const scene of working.scenes) {
       const dialogueIssue = invalidDialogueMessage(scene.number);
       if (dialogueIssue) return setError(dialogueIssue);
     }
-    if (project.scenes.length !== 12 || project.scenes.some((s, i) => s.number !== i + 1))
+    if (working.scenes.length !== 12 || working.scenes.some((s, i) => s.number !== i + 1))
       return setError("A numeração das 12 cenas precisa estar correta.");
-    if (approve && project.scenes.some(s => !s.action.trim() || !s.setting.trim()))
+    if (approve && working.scenes.some(s => !s.action.trim() || !s.setting.trim()))
       return setError("Para aprovar o roteiro completo, todas as 12 cenas precisam de ação e cenário.");
-    const characterNames = new Set(project.characters.map(ch => ch.name.toLowerCase()));
-    if (project.characters.some(ch => !ch.name.trim() || !ch.role.trim() || !ch.visual.trim() || !ch.voice.trim()))
+    const characterNames = new Set(working.characters.map(ch => ch.name.toLowerCase()));
+    if (working.characters.some(ch => !ch.name.trim() || !ch.role.trim() || !ch.visual.trim() || !ch.voice.trim()))
       return setError("Preencha nome, função, aparência e voz de todos os personagens.");
     // Empty future scenes are deliberately ignored while saving an incremental draft.
-    if (project.scenes.filter(s => s.action.trim() || s.setting.trim()).some(s =>
+    if (working.scenes.filter(s => s.action.trim() || s.setting.trim()).some(s =>
       s.characters.some(ch => !characterNames.has(ch.toLowerCase())) ||
       s.dialogue.some(d => d.speaker.toLowerCase() !== "narrador" && !characterNames.has(d.speaker.toLowerCase()))))
       return setError("Um personagem mencionado em uma cena preenchida não existe na Bíblia de Personagens.");
-    if (project.scenes.some(s => s.dialogue.reduce((n, d) => n + d.text.trim().split(/\s+/).filter(Boolean).length, 0) > 26))
+    if (working.scenes.some(s => s.dialogue.reduce((n, d) => n + d.text.trim().split(/\s+/).filter(Boolean).length, 0) > 26))
       return setError("Uma das cenas ultrapassa 26 palavras de fala. Reduza a fala para caber nos 10 segundos.");
     const client = getSupabase(); if (!client) return;
     setBusy(true); setError("");
     try {
       const { error: dbError } = await client.from("mv_story_projects")
-        .update({ scenes: project.scenes, characters: project.characters, status: approve ? "approved" : "draft",
+        .update({ scenes: working.scenes, characters: working.characters, status: approve ? "approved" : "draft",
           approved_at: approve ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
-        .eq("id", project.id).eq("user_id", user.id);
+        .eq("id", working.id).eq("user_id", user.id);
       if (dbError) throw new Error("Não foi possível salvar o roteiro.");
-      setProject({ ...project, status: approve ? "approved" : "draft" });
+      setProject({ ...working, status: approve ? "approved" : "draft" });
+      if (draftKeys.length) setCharacterNameDrafts(old => { const next = { ...old }; for (const key of draftKeys) delete next[key]; return next; });
       if (approve) setStage("gerador");
       void loadProjects();
       setMessage(approve ? "Roteiro aprovado. Você já pode gerar os prompts." : "Rascunho salvo.");
