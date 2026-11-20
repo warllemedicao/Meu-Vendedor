@@ -23,7 +23,7 @@ test("editable characters and scenes preserve identity and chronology", () => {
 });
 test("prompts can be edited, saved, copied and checked for YouTube Create limit", () => {
   assert.match(code, /saveEditedPrompt/);
-  assert.match(code, /Array\.from\(current\.text\)\.length > maximum/);
+  assert.match(code, /countStoryPromptCharacters\(current\.text\) > maximum/);
   assert.match(code, /loadPlatformPrompts/);
   assert.match(code, /Salvar edição/);
 });
@@ -100,7 +100,7 @@ test("single scene studio keeps future scenes hidden and avoids duplicate next-s
 });
 
 test("story prompt download enforces platform cap and tells the user what to do after copying", () => {
-  assert.match(code, /Array\.from\(scenePromptText\)\.length > PLATFORM_GUIDES\[chosenPlatform\]\.absoluteChars/);
+  assert.match(code, /countStoryPromptCharacters\(scenePromptText\) > PLATFORM_GUIDES\[chosenPlatform\]\.absoluteChars/);
   assert.match(code, /copyScenePrompt\(s\.number, chosenPlatform, scenePromptText\)/);
   assert.match(code, /Prompt copiado\. Agora crie o vídeo/);
   assert.match(code, /Importar MP4 desta cena/);
