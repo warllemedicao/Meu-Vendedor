@@ -221,7 +221,7 @@ export function StoriesStudio() {
     if (imageData?.signedUrl) setCharacterImageUrls(prev => ({ ...prev, [storagePath]: imageData.signedUrl }));
     setProject({ ...project, characters });
     await loadCharacterLibrary();
-    setImageNames(old => ({ ...old, [characterIndex]: name }));
+    setImageNames(old => { const next = { ...old }; delete next[characterIndex]; return next; });
     setMessage("Imagem associada e salva na biblioteca: " + name);
   }
   async function chooseLibraryImage(characterIndex: number, entry: LibraryCharacter) {
