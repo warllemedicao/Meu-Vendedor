@@ -124,6 +124,9 @@ export function StoriesStudio() {
   const [libraryImageUrls, setLibraryImageUrls] = useState<Record<string,string>>({});
   const [characterImageUrls, setCharacterImageUrls] = useState<Record<string,string>>({});
   const [imageNames, setImageNames] = useState<Record<number,string>>({});
+  const [characterNameDrafts, setCharacterNameDrafts] = useState<Record<string,string>>({});
+  const [libraryNameDrafts, setLibraryNameDrafts] = useState<Record<string,string>>({});
+  const [renamingLibraryId, setRenamingLibraryId] = useState<string | null>(null);
   const [imagePrompts, setImagePrompts] = useState<Record<number,string>>({});
   const [imageConfigured, setImageConfigured] = useState(false);
   const [editingCharacterIndex, setEditingCharacterIndex] = useState<number | null>(null);
@@ -206,17 +209,19 @@ export function StoriesStudio() {
       .eq("id", project.id).eq("user_id", user.id);
     if (saveError) throw new Error("Imagem enviada, mas não foi possível vinculá-la ao roteiro.");
     const name = (libraryName || character.name).trim();
-    const { error: libraryError } = await client.from("mv_story_characters").upsert({
+    if (!name || name.length > 100) throw new Error("Informe um nome de até 100 caracteres para a imagem.");
+    // New image uploads must not overwrite an existing library record with the same name.
+    const { error: libraryError } = await client.from("mv_story_characters").insert({
       user_id: user.id, name, description: character.visual, voice: character.voice,
       image_prompt: prompt.trim().slice(0,1600), storage_path: storagePath,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id,name" });
+    });
     const { data: imageData } = await client.storage.from("mv-story-images").createSignedUrl(storagePath, 600);
     if (imageData?.signedUrl) setCharacterImageUrls(prev => ({ ...prev, [storagePath]: imageData.signedUrl }));
     setProject({ ...project, characters });
     await loadCharacterLibrary();
-    if (libraryError) setMessage("Imagem associada ao roteiro; não foi possível atualizar a biblioteca.");
-    else setMessage("Imagem associada e salva na biblioteca: " + name);
+    if (libraryError) setError("Imagem vinculada, mas o nome não foi salvo na biblioteca. Verifique se já existe outra imagem com esse nome.");
+    else { setImageNames(old => ({ ...old, [characterIndex]: name })); setMessage("Imagem associada e salva na biblioteca: " + name); }
   }
   async function chooseLibraryImage(characterIndex: number, entry: LibraryCharacter) {
     if (!project || !user || project.status !== "draft") return;
@@ -236,13 +241,22 @@ export function StoriesStudio() {
     } catch(e) { setError(plainError(e)); } finally { setBusy(false); }
   }
   async function renameLibraryCharacter(entry: LibraryCharacter, name: string) {
-    if (!user || !name.trim() || name.length > 100) return;
+    if (!user) return;
+    const nextName = name.trim();
+    if (!nextName || nextName.length > 100) return setError("Informe um nome de até 100 caracteres para a imagem.");
     const client = getSupabase(); if (!client) return;
-    const { error: dbError } = await client.from("mv_story_characters")
-      .update({ name: name.trim(), updated_at: new Date().toISOString() })
-      .eq("id", entry.id).eq("user_id", user.id);
-    if (dbError) return setError("Não foi possível renomear o personagem. Confira se o nome já existe.");
-    await loadCharacterLibrary();
+    setBusy(true); setError("");
+    try {
+      const { error: dbError } = await client.from("mv_story_characters")
+        .update({ name: nextName, updated_at: new Date().toISOString() })
+        .eq("id", entry.id).eq("user_id", user.id);
+      if (dbError) throw new Error("Não foi possível salvar o nome da imagem. Confira se já existe outra imagem com esse nome.");
+      await loadCharacterLibrary();
+      setRenamingLibraryId(null);
+      setLibraryNameDrafts(old => { const next = { ...old }; delete next[entry.id]; return next; });
+      setMessage("Nome da imagem salvo: " + nextName);
+    } catch (error) { setError(plainError(error)); }
+    finally { setBusy(false); }
   }
   async function generateCharacterReference(characterIndex: number) {
     if (!project || !user || busy) return;
@@ -734,16 +748,31 @@ export function StoriesStudio() {
   }
   function updateCharacter(index: number, changes: Partial<Character>) {
     if (!project || project.status !== "draft") return;
+    setProject(previous => previous && previous.status === "draft"
+      ? { ...previous, characters: previous.characters.map((char, i) => i === index ? { ...char, ...changes } : char) }
+      : previous);
+  }
+  function applyCharacterName(index: number) {
+    if (!project || project.status !== "draft") return;
+    const key = project.id + ":" + index;
+    const draft = characterNameDrafts[key];
+    if (draft === undefined) return;
+    const nextName = draft.trim();
+    if (!nextName || nextName.length > 100) return setError("O nome do personagem precisa ter de 1 a 100 caracteres.");
+    if (project.characters.some((ch, i) => i !== index && ch.name.toLowerCase() === nextName.toLowerCase()))
+      return setError("Já existe outro personagem com esse nome.");
     const previousName = project.characters[index].name;
-    const nextName = changes.name ?? previousName;
-    setProject({ ...project,
-      characters: project.characters.map((char, i) => i === index ? { ...char, ...changes } : char),
-      scenes: previousName === nextName ? project.scenes : project.scenes.map(scene => ({
+    setProject(previous => previous && previous.status === "draft" ? {
+      ...previous,
+      characters: previous.characters.map((char, i) => i === index ? { ...char, name: nextName } : char),
+      scenes: previous.scenes.map(scene => ({
         ...scene,
         characters: scene.characters.map(name => name === previousName ? nextName : name),
         dialogue: scene.dialogue.map(line => line.speaker === previousName ? { ...line, speaker: nextName } : line),
       })),
-    });
+    } : previous);
+    setCharacterNameDrafts(old => { const next = { ...old }; delete next[key]; return next; });
+    setError("");
   }
   function updateScene(index: number, changes: Partial<Scene>) {
     if (!project || project.status !== "draft") return;
@@ -751,6 +780,8 @@ export function StoriesStudio() {
   }
   async function saveScript(approve: boolean) {
     if (!project || !user) return;
+    if (Object.keys(characterNameDrafts).some(key => key.startsWith(project.id + ":")))
+      return setError("Confirme o nome do personagem antes de salvar o roteiro.");
     for (const scene of project.scenes) {
       const dialogueIssue = invalidDialogueMessage(scene.number);
       if (dialogueIssue) return setError(dialogueIssue);
@@ -1166,8 +1197,9 @@ export function StoriesStudio() {
                   </details>}
                 {editing && project.status === "draft" && <div className="space-y-2 rounded-lg bg-surface-secondary p-3">
                   <p className="text-sm font-semibold">Editar ficha de {char.name}</p>
-                  <label className="block text-xs">Nome<input className={field + " mt-1"} maxLength={100} value={char.name}
-                    onChange={e => updateCharacter(ci,{name:e.target.value})}/></label>
+                  <label className="block text-xs">Nome<input className={field + " mt-1"} maxLength={100} value={characterNameDrafts[project.id + ":" + ci] ?? char.name}
+                    onChange={e => setCharacterNameDrafts(old => ({ ...old, [project.id + ":" + ci]: e.target.value }))}
+                    onBlur={() => applyCharacterName(ci)}/></label>
                   <label className="block text-xs">Função<input className={field + " mt-1"} maxLength={180} value={char.role}
                     onChange={e => updateCharacter(ci,{role:e.target.value})}/></label>
                   <label className="block text-xs">Aparência e roupas<textarea className={field + " mt-1"} rows={2} maxLength={1100} value={char.visual}
@@ -1207,11 +1239,21 @@ export function StoriesStudio() {
                 onChange={e => {const files=e.currentTarget.files;void uploadCharacterBatch(files);e.currentTarget.value="";}}/>
             </label>}
             <p className="text-xs text-muted">Imagens em lote serão associadas primeiro aos personagens sem referência.</p>
-            {characterLibrary.map(entry => <div key={entry.id} className="flex items-center justify-between gap-2 text-xs">
-              <span className="truncate">{entry.name}</span>
-              <button className={button + " !text-xs !px-2 !py-1"} onClick={() => {
-                const name=window.prompt("Renomear personagem",entry.name);if(name)void renameLibraryCharacter(entry,name);
-              }}>Renomear</button>
+            {characterLibrary.map(entry => <div key={entry.id} className="space-y-1 border-b border-border py-2 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 flex-1 truncate" title={entry.name}>{entry.name}</span>
+                <button type="button" className={button + " !text-xs !px-2 !py-1"} disabled={busy}
+                  onClick={() => { setRenamingLibraryId(entry.id); setLibraryNameDrafts(old => ({ ...old, [entry.id]: entry.name })); }}>Renomear</button>
+              </div>
+              {renamingLibraryId === entry.id && <div className="flex flex-wrap items-center gap-2">
+                <input className={field + " min-w-0 flex-1"} aria-label={"Novo nome da imagem " + entry.name}
+                  maxLength={100} value={libraryNameDrafts[entry.id] ?? entry.name}
+                  onChange={e => setLibraryNameDrafts(old => ({ ...old, [entry.id]: e.target.value }))}/>
+                <button type="button" className={button + " !text-xs !px-2 !py-1"} disabled={busy}
+                  onClick={() => void renameLibraryCharacter(entry, libraryNameDrafts[entry.id] ?? entry.name)}>Salvar</button>
+                <button type="button" className={button + " !text-xs !px-2 !py-1"} disabled={busy}
+                  onClick={() => setRenamingLibraryId(null)}>Cancelar</button>
+              </div>}
             </div>)}
           </div>
         </details>
