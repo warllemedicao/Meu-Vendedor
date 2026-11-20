@@ -68,6 +68,17 @@ test("creating an additional Gemini script requires a separate explicit confirma
   assert.match(code, /Nova versão \(Gemini\)/);
 });
 
+test("dialogue editing retains raw whitespace and checks incomplete lines before saving", () => {
+  assert.match(code, /const \[sceneDialogueDrafts, setSceneDialogueDrafts\] = useState/);
+  assert.match(code, /value=\{sceneDialogueDrafts\[project\.id \+ ":" \+ s\.number\] \?\?/);
+  assert.match(code, /setSceneDialogueDrafts\(old => \(\{ \.\.\.old, \[project\.id \+ ":" \+ s\.number\]: raw \}\)\)/);
+  assert.match(code, /updateScene\(i, \{ dialogue: parseStoryDialogueDraft\(raw\)\.dialogue \}\)/);
+  assert.match(code, /function invalidDialogueMessage\(sceneNumber: number\)/);
+  assert.match(code, /if \(dialogueIssue\) return setError\(dialogueIssue\)/);
+  assert.match(code, /setSceneDialogueDrafts\(\{\}\)/);
+  assert.doesNotMatch(code, /value=\{s\.dialogue\.map\(d => d\.speaker \+ ": " \+ d\.text\)\.join\("\\n"\)\}/);
+});
+
 test("compact script editor displays saved scene content and collapses others", () => {
   assert.match(code, /const expanded = expandedScene === s\.number/);
   assert.match(code, /aria-expanded=\{expanded\}/);
