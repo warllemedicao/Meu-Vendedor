@@ -746,6 +746,17 @@ export function StoriesStudio() {
     anchor.href = url; anchor.download = "historia-" + project.id.slice(0, 8) + "-planejamento.json";
     anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 500);
   }
+  function syncDialogueSpeakerDrafts(projectId: string, previousName: string, nextName: string) {
+    if (previousName === nextName) return;
+    setSceneDialogueDrafts(old => Object.fromEntries(Object.entries(old).map(([key, raw]) => {
+      if (!key.startsWith(projectId + ":")) return [key, raw];
+      return [key, raw.split("\\n").map(line => {
+        const colon = line.indexOf(":");
+        if (colon < 0 || line.slice(0, colon).trim() !== previousName) return line;
+        return nextName + line.slice(colon);
+      }).join("\\n")];
+    })));
+  }
   function updateCharacter(index: number, changes: Partial<Character>) {
     if (!project || project.status !== "draft") return;
     setProject(previous => previous && previous.status === "draft"
@@ -762,6 +773,7 @@ export function StoriesStudio() {
     if (project.characters.some((ch, i) => i !== index && ch.name.toLowerCase() === nextName.toLowerCase()))
       return setError("Já existe outro personagem com esse nome.");
     const previousName = project.characters[index].name;
+    syncDialogueSpeakerDrafts(project.id, previousName, nextName);
     setProject(previous => previous && previous.status === "draft" ? {
       ...previous,
       characters: previous.characters.map((char, i) => i === index ? { ...char, name: nextName } : char),
@@ -827,7 +839,14 @@ export function StoriesStudio() {
         .eq("id", working.id).eq("user_id", user.id);
       if (dbError) throw new Error("Não foi possível salvar o roteiro.");
       setProject({ ...working, status: approve ? "approved" : "draft" });
-      if (draftKeys.length) setCharacterNameDrafts(old => { const next = { ...old }; for (const key of draftKeys) delete next[key]; return next; });
+      if (draftKeys.length) {
+        const before = project.characters;
+        for (const [i, character] of before.entries()) {
+          const changed = working.characters[i]?.name;
+          if (changed && changed !== character.name) syncDialogueSpeakerDrafts(project.id, character.name, changed);
+        }
+        setCharacterNameDrafts(old => { const next = { ...old }; for (const key of draftKeys) delete next[key]; return next; });
+      }
       if (approve) setStage("gerador");
       void loadProjects();
       setMessage(approve ? "Roteiro aprovado. Você já pode gerar os prompts." : "Rascunho salvo.");
