@@ -49,7 +49,7 @@ test("script starts generating the first scene automatically after persisting dr
 test("compact script editor displays saved scene content and collapses others", () => {
   assert.match(code, /const expanded = expandedScene === s\.number/);
   assert.match(code, /aria-expanded=\{expanded\}/);
-  assert.match(code, /\{expanded && <div id=\{"story-fields-" \+ s\.number\}/);
+  assert.match(code, /\{\(expanded \|\| sceneWorkbenchStep === "prompt"\) && <div id=\{"story-fields-" \+ s\.number\}/);
   assert.match(code, /\{filled \? s\.action : "Cena ainda não gerada/);
   assert.match(code, /rows=\{2\}\s*value=\{s\.action\}/);
   assert.match(code, /value=\{s\.setting\}/);
@@ -70,8 +70,8 @@ test("story character library can upload, reuse, rename, generate optionally and
 
 test("every completed scene supports separate video provider, prompt and downloads", () => {
   assert.match(code, /selectedPlatformByScene\[s\.number\]/);
-  assert.match(code, /prepareScenePrompt\(s\.number, false\)/);
-  assert.match(code, /prepareScenePrompt\(s\.number, true\)/);
+  assert.match(code, /prepareScenePrompt\(s\.number,\s*false\)/);
+  assert.match(code, /prepareScenePrompt\(s\.number,\s*true\)/);
   assert.match(code, /saveScenePrompt\(s\.number\)/);
   assert.match(code, /downloadTextFile\("cena-" \+ s\.number/);
   assert.match(code, /downloadReference\(char\.referenceImagePath!/);
@@ -104,7 +104,7 @@ test("story prompt download enforces platform cap and tells the user what to do 
   assert.match(code, /copyScenePrompt\(s\.number, chosenPlatform, scenePromptText\)/);
   assert.match(code, /Prompt copiado\. Agora crie o vídeo/);
   assert.match(code, /Importar MP4 desta cena/);
-  assert.match(code, /prepareScenePrompt\(s\.number, false\)/);
+  assert.match(code, /prepareScenePrompt\(s\.number,\s*false\)/);
 });
 
 test("single-scene mobile view avoids duplicate 12-scene grid", () => {
