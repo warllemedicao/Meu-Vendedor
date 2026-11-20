@@ -1,3 +1,11 @@
+## 20/11/2026 — Histórias: edição livre das falas sem perder espaços ou posição do cursor
+
+- Corrigido o campo **Falas (Nome: texto)** em `src/components/stories/StoriesStudio.tsx`. Antes a cada tecla ele transformava o texto em `dialogue[]` com `.trim()` e o reconstruía, descartando espaços finais e linhas temporariamente incompletas. Agora o `textarea` usa o rascunho bruto de edição `sceneDialogueDrafts`, isolado por projeto e cena, mantendo o texto digitado intacto e sem mover o cursor por reserialização.
+- A função `parseStoryDialogueDraft` em `src/lib/stories/workflow.ts` extrai os diálogos válidos para o roteiro e indica o número de linhas incompletas. Enquanto o usuário edita, pode inserir espaços, apagar e reescrever frases livremente. Ao **salvar roteiro**, **preparar prompt** ou **avançar**, linhas malformadas são comunicadas explicitamente e impedem perda silenciosa de falas.
+- Mantido o limite de **26 palavras somadas por cena** para salvar; não foi adicionado limite de caracteres na caixa. Ao abrir outro projeto ou criar novo, os rascunhos locais são reiniciados, e o conteúdo persistido continua vindo do Supabase. Nenhuma função Gemini/Supabase, robô Google Flow ou arquivos IMAGEM1/2/3 foi modificada.
+- Atualizados testes em `tests/story-editorial.test.mjs` (estado bruto e fluxo) e `tests/story-compact-prompts.test.mjs` (parser, espaços, linhas incompletas). Commits `d728521`, `f1e96b5`, `dfdcea0`, `dbe1234`, `640f9fb`, `d27ece1`.
+- Os commits foram gravados na `main`. Execução completa de testes, typecheck/lint/build e publicação em produção aguardam confirmação pelo GitHub Actions.
+
 ## 20/11/2026 — Histórias: proteção contra novos roteiros duplicados e consumo acidental de Gemini
 
 - O botão principal **Roteiro** agora pesquisa diretamente `mv_story_projects` pelo `user_id` autenticado e `topic_id` do tema, ordenando por `updated_at` e limitando a um projeto antes de qualquer `insert` ou `script_scene`. Ao encontrar um projeto, chama `openProject` para recuperar cenas, personagens, prompts, referências e clipes existentes e retorna **sem chamar Gemini**.
