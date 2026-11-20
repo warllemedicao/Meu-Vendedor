@@ -1,3 +1,13 @@
+## 20/11/2026 — Histórias: correção de prompts sem IA por plataforma
+
+- Revisão do gerador local `makeLocalPromptDrafts` em `src/lib/stories/workflow.ts`: formatos agora diferentes para **YouTube Create**, **Google Flow** e **Dreamina**, sem alterar ações Supabase/Gemini/Google Flow.
+- YouTube Create: limite exato de **900 caracteres** no projeto, com contagem conservadora de unidades UTF-16 incluindo espaços/quebras e emojis; a aplicação não presume normalização do serviço. O prompt usa **Sujeito + Microação + Ambiente + Câmera**, com fala pt-BR exata. A primeira microação é isolada por separadores explícitos de frase/tempo; caso existam outras, a UI mostra aviso, sem apagar o roteiro. Configuração de 9:16, iluminação e até 3 imagens depende do aplicativo YouTube Create. Documentação pública confirma 900 caracteres e que o modo de vídeo admite vários idiomas; a exigência inglês/hindi refere-se à geração de imagens Nano Banana.
+- Google Flow: prompt de cena conciso com `@Nome` normalizado, câmera e falas. Instruções visuais globais para o Agente são geradas separadamente e ficam copiáveis no painel recolhido. A meta de ~30 palavras é editorial, não limite oficial; menções e vozes dependem de ativos cadastrados no Flow, não são automaticamente vinculadas.
+- Dreamina: ordem fixa de assunto rotulado `Sujeito 1/2`, ação, ambiente, iluminação/tom, câmera, estilo, qualidade/restrições; `@Imagem N` só é mencionado quando o personagem possui referência no projeto, e precisa ser associado manualmente no editor Dreamina. Falas preservadas.
+- Geração local preserva diálogos, não inventa tradução automática e não recorta texto obrigatório para burlar limite. Caso não caiba, mostra erro explícito. Contagem de caracteres padronizada no preparo, salvamento, cópia, avanço de cena, editor geral e indicador visual. A resposta Gemini acima do limite é rejeitada no preparo sem ser marcada como válida.
+- Testes atualizados em `tests/story-compact-prompts.test.mjs` e `tests/story-editorial.test.mjs` (microações, limites, espaços/emoji, rotulagem Dreamina, menções e agente Flow).
+- Commits `2087751`, `5fa653a`, `d6eb174`, `e0b8ed6`, `9e2d440`, `d7dbc39`, `4bc7fc9`. Verificações estáticas no GitHub realizadas; não foi possível executar a suíte npm/typecheck/lint/build nem confirmar publicação do Cloudflare nesta sessão. Publicar somente após CI aprovado.
+
 ## 20/11/2026 — Correção de validação dos testes editoriais após simplificação do Prompt
 
 - Analisado log de `npm test` fornecido pelo usuário: **391 testes executados, 388 aprovados e 3 falhos** no arquivo `tests/story-editorial.test.mjs`. Falhas apontavam assertions antigas de `{expanded && ...}` e espaço obrigatório após a vírgula em `prepareScenePrompt(s.number, false/true)`.
