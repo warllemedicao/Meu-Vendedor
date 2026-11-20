@@ -299,8 +299,11 @@ export function StoriesStudio() {
       if (readError) throw new Error("Falha ao consultar prompt anterior. Nenhum crédito de IA foi utilizado.");
       if (existing?.prompt && useGemini) {
         setScenePromptDrafts(old => ({ ...old, [key]: existing.prompt }));
-        setMessage("Prompt salvo carregado. Revise ou baixe antes de gerar outro.");
-        return;
+        setSceneWorkbenchStep("prompt");
+        if (!window.confirm("Já existe um prompt salvo nesta cena. Gerar uma nova versão com OpenAI? Isso pode consumir créditos. O anterior continuará salvo até você aprovar e salvar o novo.")) {
+          setMessage("Prompt salvo recuperado sem gastar créditos de IA.");
+          return;
+        }
       }
       const draft = useGemini
         ? (await invokeStory("prompt_scene", {
