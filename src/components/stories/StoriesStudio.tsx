@@ -1005,14 +1005,14 @@ export function StoriesStudio() {
       <button className={button} onClick={() => setStage("temas")}>Voltar aos temas</button>
     </section>}
     {stage === "roteiro" && project && user && project.user_id === user.id && <section className={panel}>
-      <div className="flex items-center justify-between gap-2">
+      {sceneWorkbenchStep !== "prompt" && <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold truncate">{activeTopic?.title || project.title}</h2>
           <p className="text-xs text-muted">Cena {expandedScene}/12 · 10s por cena · {project.scenes.filter(s => s.action.trim() && s.setting.trim()).length} prontas</p>
         </div>
         <button type="button" className={button + " shrink-0 !px-2 !py-1 !text-xs"} onClick={() => setStage("temas")}>Temas</button>
-      </div>
-      {project.status === "draft" && project.scenes.some(s => !s.action.trim() || !s.setting.trim()) &&
+      </div>}
+      {sceneWorkbenchStep !== "prompt" && project.status === "draft" && project.scenes.some(s => !s.action.trim() || !s.setting.trim()) &&
         <div className="flex flex-wrap items-center gap-2">
           <button className={button + " !px-3 !py-1.5"} disabled={busy}
             onClick={() => void generateRemainingScenes()}>Gerar cenas restantes</button>
@@ -1022,10 +1022,10 @@ export function StoriesStudio() {
         </div>}
       {error && <p role="alert" className="rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
       {message && <p role="status" className="rounded-xl border border-border p-2 text-xs">{message}</p>}
-      <div className="h-1.5 overflow-hidden rounded-full bg-surface-secondary" aria-label="Progresso das cenas geradas">
+      {sceneWorkbenchStep !== "prompt" && <div className="h-1.5 overflow-hidden rounded-full bg-surface-secondary" aria-label="Progresso das cenas geradas">
         <div className="h-full rounded-full bg-primary" style={{ width: project.scenes.filter(s => s.action.trim() && s.setting.trim()).length / 12 * 100 + "%" }}/>
-      </div>
-      <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Cenas prontas para produzir">
+      </div>}
+      {sceneWorkbenchStep !== "prompt" && <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Cenas prontas para produzir">
         {project.scenes.filter(s => (s.action.trim() && s.setting.trim()) || s.number === expandedScene).map(s =>
           <button key={s.number} type="button" aria-current={expandedScene === s.number ? "step" : undefined}
             className={"shrink-0 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors " +
@@ -1033,8 +1033,8 @@ export function StoriesStudio() {
             onClick={() => selectWorkbenchScene(s.number)}>
             Cena {s.number} {s.action.trim() && s.setting.trim() ? "✓" : "· pendente"}
           </button>)}
-      </nav>
-      <div className="rounded-2xl border border-border bg-surface-secondary/30 p-3 space-y-3">
+      </nav>}
+      {sceneWorkbenchStep !== "prompt" && <div className="rounded-2xl border border-border bg-surface-secondary/30 p-3 space-y-3">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Etapas da cena selecionada">
           {([
             ["roteiro", "1 · Revisar roteiro"],
@@ -1056,7 +1056,7 @@ export function StoriesStudio() {
           <p className="text-xs text-muted pt-2">Uma cena por chamada, sem retentativa após erro. Se a IA falhar, você pode editar manualmente. Nenhuma chave de temas é reutilizada.</p>
         </details>}
         {busy && sceneProgress && <p role="status" className="rounded-xl border border-border p-2 text-sm">{sceneProgress}</p>}
-      </div>
+      </div>}
       {sceneWorkbenchStep === "personagens" && <div className="rounded-xl border border-border p-3 space-y-3">
         <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Imagens dos personagens</h3>
           <button className={button + " !text-xs !px-2 !py-1"} disabled={busy} onClick={() => void loadCharacterLibrary()}>Atualizar</button></div>
@@ -1310,6 +1310,8 @@ export function StoriesStudio() {
                 <details className="rounded-lg border border-border p-2">
                   <summary className="cursor-pointer text-xs font-semibold">Outras opções e imagens para baixar</summary>
                   <div className="space-y-2 pt-2">
+                    <button type="button" className={button + " mr-2 !text-xs"} onClick={() => setSceneWorkbenchStep("personagens")}>Voltar às imagens</button>
+                    <button type="button" className={button + " !text-xs"} onClick={() => setSceneWorkbenchStep("roteiro")}>Voltar ao roteiro</button>
                     <p className="text-xs text-muted">{PLATFORM_GUIDES[chosenPlatform].workflow} Até {PLATFORM_GUIDES[chosenPlatform].absoluteChars} caracteres.</p>
                     {project.characters.filter(char => s.characters.includes(char.name) && char.referenceImagePath).map(char =>
                       <button key={char.name} className={button + " mr-2 !text-xs"}
