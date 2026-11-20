@@ -1096,7 +1096,6 @@ export function StoriesStudio() {
           <summary className="cursor-pointer text-xs font-semibold">Opções avançadas de geração (manual, pode consumir cota)</summary>
           <div className="flex flex-wrap gap-2 pt-3">
             <button className={button} disabled={busy || !project.scenes.some(s => !s.action.trim() || !s.setting.trim())}
-              onClick={() => void generateNextSceneLite()}>Tentar cena pendente com Flash-Lite</button>
             <span className="text-xs text-muted">A geração de cenas restantes está disponível no topo do quadro.</span>
           </div>
           <p className="text-xs text-muted pt-2">Uma cena por chamada, sem retentativa após erro. Se a IA falhar, você pode editar manualmente. Nenhuma chave de temas é reutilizada.</p>
