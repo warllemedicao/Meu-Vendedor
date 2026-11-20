@@ -838,49 +838,38 @@ export function StoriesStudio() {
   const currentStage = STORY_STAGES.findIndex(item => item.key === stage);
   const approvedCount = clips.filter(clip => clip.approved).length;
   return <div className="space-y-6">
-    {stage !== "roteiro" && <header className={panel}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="text-xl font-bold">Estúdio de Histórias</h2>
-          <p className="text-sm text-muted">Do primeiro tema à preparação da publicação, em sete etapas.</p></div>
-        <div className="text-sm font-semibold">2 min · 12 cenas · 9:16</div>
-      </div>
-      <details className="rounded-xl border border-border bg-surface p-2" open>
-        <summary className="cursor-pointer px-2 py-1 text-xs font-semibold">Navegação geral do projeto (abrir outras etapas)</summary>
-        <nav aria-label="Etapas do gerador de histórias" className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-          {STORY_STAGES.map((item, i) => <button type="button" key={item.key}
-            aria-current={stage === item.key ? "step" : undefined}
-            onClick={() => { setStage(item.key); setError(""); }}
-            className={"min-h-20 rounded-xl border p-3 text-left text-sm transition-colors " +
-              (stage === item.key ? "border-primary bg-primary/10 font-semibold" : "border-border bg-surface hover:bg-surface-secondary")}>
-            <span className="mb-1 block text-xs text-muted">{String(i + 1).padStart(2, "0")} / 07</span>
-            <span className="block font-semibold">{item.title}</span>
-            <span className="block text-xs text-muted">{item.description}</span>
-          </button>)}
-        </nav>
-      </details>
-      {project && <p className="rounded-xl border border-border p-3 text-sm">
-        <strong>História em edição:</strong> {project.title} · {project.status === "draft" ? "Roteiro em revisão" : "Roteiro aprovado"} · {approvedCount}/12 clipes aprovados
-      </p>}
-      <p className="text-xs text-muted">A interface pode ser explorada mesmo com o Gemini indisponível. A criação manual fica identificada; nenhuma tela simula um vídeo gerado.</p>
-    </header>}
+    {stage !== "temas" && stage !== "roteiro" && <details className="rounded-lg border border-border p-2">
+      <summary className="cursor-pointer text-xs font-semibold">Etapas do projeto</summary>
+      <nav aria-label="Etapas do gerador de histórias" className="mt-2 flex flex-wrap gap-2">
+        {STORY_STAGES.map(item => <button type="button" key={item.key}
+          aria-current={stage === item.key ? "step" : undefined}
+          onClick={() => { setStage(item.key); setError(""); }}
+          className={"rounded-lg border px-3 py-1.5 text-xs " +
+            (stage === item.key ? "border-primary bg-primary/10 font-semibold" : "border-border bg-surface")}>
+          {item.title}
+        </button>)}
+      </nav>
+    </details>}
     <section className={panel} hidden={stage !== "temas"}>
-      <h2 className="text-lg font-semibold">1. Assuntos e temas</h2>
-      <p className="text-sm text-muted">Selecione de 5 a 20 temas por geração. O padrão é 5 temas. Revise os resultados antes de salvar.</p>
+      <h2 className="text-lg font-semibold">Temas</h2>
       <fieldset className="space-y-2">
         <legend className="text-sm font-semibold">Tipo de personagem — escolha antes de gerar</legend>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {STORY_CHARACTER_STYLES.map(option => <button key={option.value} type="button"
             aria-pressed={characterStyle === option.value}
-            className={"rounded-xl border px-3 py-3 text-left transition-colors " +
-              (characterStyle === option.value ? "border-primary bg-primary/10" : "border-border bg-surface")}
+            aria-label={"Tipo de personagem: " + option.label}
+            className={"overflow-hidden rounded-xl border text-center transition-colors " +
+              (characterStyle === option.value ? "border-primary ring-2 ring-primary/40 bg-primary/10" : "border-border bg-surface")}
             onClick={() => setCharacterStyle(option.value)}>
-            <span className="block text-sm font-semibold">{option.label}</span>
-            <span className="block text-xs text-muted mt-1">{option.description}</span>
+            <img src={option.value === "frutinhas" ? "/stories/styles/frutinhas.svg" :
+              option.value === "infantil" ? "/stories/styles/infantil.svg" :
+              "/stories/styles/pessoas-cabeca-fruta.svg"} alt="" aria-hidden="true"
+              className="aspect-[4/3] w-full object-cover"/>
+            <span className="block px-1 py-2 text-xs font-semibold sm:text-sm">{option.label}</span>
           </button>)}
         </div>
-        {!characterStyle && <p className="text-xs text-muted">Selecione um dos três estilos para liberar a geração de temas.</p>}
       </fieldset>
-      <label className="block text-sm font-medium">Assunto principal
+      <label className="block text-sm font-medium">Tema
         <input className={field + " mt-1"} value={subject} maxLength={160} onChange={e => setSubject(e.target.value)}
           placeholder="Ex.: manutenção de fábrica" />
       </label>
@@ -924,12 +913,15 @@ export function StoriesStudio() {
         {!draftTopics.length && <p className="text-sm text-muted">Os temas gerados aparecerão aqui antes de serem salvos.</p>}
       </div>
     </section>
-    <section className={panel} hidden={stage !== "temas"}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">3. Biblioteca de temas ({visibleTopics.length})</h2>
-        <button className={button + " !text-xs"} disabled={deletingTopics || busy || selectedVisibleCount === 0}
-          onClick={() => void deleteSelectedTopics()}>Excluir selecionados ({selectedVisibleCount})</button>
-      </div>
+    <section hidden={stage !== "temas"}>
+      <details className="rounded-xl border border-border bg-surface p-3">
+        <summary className="cursor-pointer text-sm font-semibold">Filtrar e ver temas salvos (${topics.length})</summary>
+        <div className="mt-3 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs text-muted">{visibleTopics.length} exibidos</span>
+          <button className={button + " !text-xs"} disabled={deletingTopics || busy || selectedVisibleCount === 0}
+            onClick={() => void deleteSelectedTopics()}>Excluir selecionados ({selectedVisibleCount})</button>
+        </div>
       <div className="flex flex-wrap gap-2">
         <input className={field + " min-w-36 flex-1"} value={query} onChange={e => setQuery(e.target.value)}
           placeholder="Buscar tema" aria-label="Buscar temas por título ou assunto"/>
@@ -985,6 +977,9 @@ export function StoriesStudio() {
         </div>)}
         {!visibleTopics.length && <p className="text-sm text-muted">Nenhum tema encontrado.</p>}
       </div>
+
+        </div>
+      </details>
     </section>
 
     <section className={panel} hidden={stage !== "roteiro"}>
