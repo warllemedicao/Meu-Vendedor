@@ -174,7 +174,7 @@ test("prompt character ceilings are consistent across frontend and agents", () =
   assert.match(studio, /label: "Dreamina", maximum: 1200/);
   assert.match(workflow, /"Google Flow", targetChars: 300, absoluteChars: 1600/);
   assert.match(workflow, /"Dreamina", targetChars: 650, absoluteChars: 1200/);
-  assert.match(flow, /target: 900/);
+  assert.match(flow, /target: 300/);
   assert.match(flow, /maximum: 1600/);
   assert.match(dreamina, /target: 650/);
   assert.match(dreamina, /maximum: 1200/);
