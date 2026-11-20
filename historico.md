@@ -1,3 +1,11 @@
+## 20/11/2026 — Histórias: nomes dos personagens e imagens editáveis sem saltos
+
+- Correção no editor de **Personagens e imagens** (`src/components/stories/StoriesStudio.tsx`): o campo `Nome` utiliza `characterNameDrafts` enquanto o usuário digita; não altera as referências de cenas nem desfaz espaços a cada caractere. A alteração é aplicada ao sair do campo e consolidada automaticamente ao **Salvar alterações**, atualizando o nome na ficha, personagens presentes, falas estruturadas e rascunhos de falas existentes. Validação impede nomes vazios, acima de 100 caracteres ou duplicados na ficha.
+- **Biblioteca de imagens:** botão **Renomear** agora revela um campo controlado com **Salvar/Cancelar** dentro do painel já recolhível `Gerenciar biblioteca e envio em lote`, em vez de janela `window.prompt`. O nome é persistido no registro da imagem `mv_story_characters` por `id` e `user_id`, com feedback de sucesso/erro. Mantida a interface enxuta fora do painel.
+- Para envio individual e geração opcional de novas referências, o nome escolhido no campo **Nova imagem** é verificado no Supabase **antes** do envio/consumo de IA, prevenindo sobrescrita acidental de outra imagem com o mesmo nome; registros novos usam `insert` em vez de `upsert` por nome. A associação ao roteiro só ocorre depois do registro na biblioteca. O campo é limpo após sucesso; imagens antigas preservadas. No envio múltiplo, os nomes únicos continuam automáticos e podem ser alterados na biblioteca depois.
+- Estados de nome são reiniciados ao abrir/criar projeto, e a mudança na ficha atualiza os prefixos `Nome:` das falas em edição mantendo as quebras de linha. Não foram alterados executores de robô, IMAGEM1, IMAGEM2, IMAGEM3, Gemini, OpenAI, esquema/RLS ou Edge Functions.
+- Atualizados testes `tests/story-editorial.test.mjs` e `tests/story-studio.test.mjs`. Conferência estática de 304 expectativas regex sem divergências. Ainda é necessário confirmar a suíte completa de testes, typecheck, lint e build no GitHub Actions; não houve deploy Cloudflare nem nova migração Supabase.
+
 ## 20/11/2026 — Correção do typecheck TS1003 após migração OpenAI
 
 - Log do GitHub Actions: `src/components/stories/StoriesStudio.tsx(1102,13): error TS1003: Identifier expected`.
