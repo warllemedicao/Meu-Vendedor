@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getSupabase } from "@/lib/supabase/client";
-import { STORY_STAGES, PLATFORM_GUIDES, makeEmptyStoryScenes, makeLocalPromptDrafts, makeStoryFlowAgentInstructions, countStoryPromptCharacters, countStoryWords, STORY_CHARACTER_STYLES, type StoryCharacterStyle, type StoryStage } from "@/lib/stories/workflow";
+import { STORY_STAGES, PLATFORM_GUIDES, makeEmptyStoryScenes, makeLocalPromptDrafts, makeStoryFlowAgentInstructions, countStoryPromptCharacters, countStoryWords, parseStoryDialogueDraft, STORY_CHARACTER_STYLES, type StoryCharacterStyle, type StoryStage } from "@/lib/stories/workflow";
 
 type Genre = "geral" | "comedia" | "suspense" | "educativo" | "aventura" | "drama";
 type Platform = "youtube-create" | "google-flow" | "dreamina";
@@ -125,6 +125,7 @@ export function StoriesStudio() {
   const [addingCharacterImageIndex, setAddingCharacterImageIndex] = useState<number | null>(null);
   const [selectedPlatformByScene, setSelectedPlatformByScene] = useState<Record<number,Platform>>({});
   const [scenePromptDrafts, setScenePromptDrafts] = useState<Record<string,string>>({});
+  const [sceneDialogueDrafts, setSceneDialogueDrafts] = useState<Record<string,string>>({});
   const [expandedScene, setExpandedScene] = useState(1);
   const [sceneWorkbenchStep, setSceneWorkbenchStep] = useState<"roteiro"|"personagens"|"prompt">("roteiro");
   const [copiedScenePrompt, setCopiedScenePrompt] = useState<string | null>(null);
@@ -379,6 +380,7 @@ export function StoriesStudio() {
   }
   async function openProject(selected: Project) {
     if (!user) return;
+    setSceneDialogueDrafts({});
     setError(""); setProject(selected); setActiveTopic(null); setPublishTitle(selected.title); setPublishDescription(""); setExpandedScene(Math.max(1, selected.scenes.reduce((last, s) => s.action?.trim() && s.setting?.trim() ? s.number : last, 1))); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
     const client = getSupabase(); if (!client) return;
     const [clipsResult, promptResult] = await Promise.all([
@@ -589,6 +591,7 @@ export function StoriesStudio() {
         characters: [], scenes: makeEmptyStoryScenes(), status: "draft",
       }).select("id,user_id,topic_id,genre,character_style,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível iniciar o rascunho retomável.");
+      setSceneDialogueDrafts({});
       setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
       setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
       void loadProjects();
@@ -681,6 +684,7 @@ export function StoriesStudio() {
         genre: topic?.genre || genre, character_style: topic?.character_style || characterStyle, characters, scenes, status: "draft",
       }).select("id,user_id,title,status,character_style,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível criar o roteiro manual.");
+      setSceneDialogueDrafts({});
       setActiveTopic(topic || null); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setSceneWorkbenchStep("roteiro");
       setPublishTitle(title.trim()); setPublishDescription(topic?.synopsis || ""); setStage("roteiro");
       setMessage("Rascunho manual criado com 12 cenas vazias. Preencha e aprove antes de gerar prompts.");
@@ -735,6 +739,12 @@ export function StoriesStudio() {
   }
   async function saveScript(approve: boolean) {
     if (!project || !user) return;
+    for (const scene of project.scenes) {
+      const raw = sceneDialogueDrafts[project.id + ":" + scene.number];
+      if (raw === undefined) continue;
+      const invalid = parseStoryDialogueDraft(raw).invalidLines;
+      if (invalid.length) return setError("Corrija a(s) linha(s) " + invalid.join(", ") + " das falas da cena " + scene.number + ". Use Nome: texto antes de salvar.");
+    }
     if (project.scenes.length !== 12 || project.scenes.some((s, i) => s.number !== i + 1))
       return setError("A numeração das 12 cenas precisa estar correta.");
     if (approve && project.scenes.some(s => !s.action.trim() || !s.setting.trim()))
@@ -1242,11 +1252,14 @@ export function StoriesStudio() {
               </label>
               <label className="text-xs font-semibold sm:col-span-2">Falas (Nome: texto)
                 <textarea className={field + " mt-1 min-h-10 resize-y py-1.5"} rows={2}
-                  value={s.dialogue.map(d => d.speaker + ": " + d.text).join("\n")} disabled={project.status !== "draft"}
-                  onChange={e => updateScene(i, { dialogue: e.target.value.split("\n").map(line => {
-                    const colon = line.indexOf(":");
-                    return colon < 0 ? null : { speaker: line.slice(0, colon).trim(), text: line.slice(colon + 1).trim() };
-                  }).filter((d): d is Dialogue => !!d && !!d.speaker && !!d.text) })}/>
+                  value={sceneDialogueDrafts[project.id + ":" + s.number] ?? s.dialogue.map(d => d.speaker + ": " + d.text).join("\n")}
+                  disabled={project.status !== "draft"}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    setSceneDialogueDrafts(old => ({ ...old, [project.id + ":" + s.number]: raw }));
+                    // Keep the exact typed value in the textarea; update parsed scene data separately.
+                    updateScene(i, { dialogue: parseStoryDialogueDraft(raw).dialogue });
+                  }}/>
               </label>
               <label className="text-xs font-semibold">Personagens presentes
                 <input className={field + " mt-1 py-1.5"} value={s.characters.join(", ")}
