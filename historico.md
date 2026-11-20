@@ -1,3 +1,11 @@
+## 20/11/2026 — Histórias: Gerar prompt com seleção visual e tela compacta
+
+- Simplificado o topo da etapa **Prompt e download**: exibe somente **Cena N · título**, miniaturas das imagens de personagens presentes, seletor por cartões visuais de **YouTube Create**, **Google Flow** e **Dreamina**, seguido dos dois botões **Gerar prompt sem IA** e **Gerar prompt com Gemini**.
+- Criados SVGs ilustrativos originais em `public/stories/tools/` (não logotipos oficiais), associados aos valores originais dos geradores, sem alterar a plataforma salva por cena nem limites de caracteres.
+- Ações de edição, salvar, copiar e baixar o prompt e importar MP4 surgem após haver texto de prompt para a ferramenta escolhida. Navegação entre cenas, resumo de progresso e cabeçalho do roteiro ficam ocultos no passo de prompt. A volta ao roteiro ou imagens e as instruções da plataforma estão no painel fechado **Outras opções e imagens para baixar**.
+- Sem IA: chama `makeLocalPromptDrafts` no navegador, sem chamada Gemini. Com Gemini: chama `prompt_scene` autenticada via Supabase, sujeita a cota; se já houver prompt persistido da mesma cena/plataforma, ele é recuperado sem nova geração. Nenhum endpoint, modelo de IA, chave, robô Flow ou arquivo IMAGEM1/IMAGEM2/IMAGEM3 foi alterado.
+- Commits `fb44d56`, `1ae1cc8`, `b0d65d1` (ícones), `7cb3618` (painel), `a5db0d6` (topo), `b452724` (testes de contrato). Gravação do código comprovada no GitHub, mas não foi executada suíte completa/typecheck/lint/build nem confirmada publicação Cloudflare.
+
 ## 20/11/2026 — Histórias: seleção de imagens dos personagens por miniaturas
 
 - Etapa **Imagens dos personagens** simplificada: exibe apenas os personagens citados na cena ativa (`scene.characters`), com nome, referência escolhida e grade de miniaturas clicáveis da biblioteca. O usuário escolhe com um clique, com indicação visual da seleção. Nenhuma ficha abre automaticamente.
