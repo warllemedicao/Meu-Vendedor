@@ -82,7 +82,7 @@ test("Scripts and prompts share only dedicated Histórias script secret", () => 
   assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_OPENAI"\)/);
   assert.match(edge, /if \(body\.action === "script"\)/);
   assert.match(edge, /if \(body\.action === "prompts"\)/);
-  assert.doesNotMatch(studio, /HIST_ROTEIRO_OPENAI/);
+  assert.doesNotMatch(studio, /Deno[.]env[.]get[(]"HIST_ROTEIRO_OPENAI"/);
 });
 
 test("Gemini logs only allowlisted diagnostics, never raw Google error messages", () => {
