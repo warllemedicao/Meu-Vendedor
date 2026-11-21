@@ -1,3 +1,11 @@
+## 21/11/2026 — Selecionar personagens salvos ANTES de gerar histórias
+
+- Histórias → Temas passa a oferecer **Personagens da história**: seleção visual de 1 a 4 personagens existentes na biblioteca privada, com nome, imagem e prompt próprios. Também foi incluído **Cadastrar personagem com imagem e prompt próprios** antes de gerar o primeiro roteiro, com upload seguro para `mv-story-images`.
+- Antes da primeira chamada Gemini, o projeto grava as fichas escolhidas; o primeiro bloco passa a receber o elenco ao invés de solicitar criação automática de personagens. O backend mantém esse elenco como autoritativo em todos os blocos (1–4, 5–8 e 9–12) e valida nomes nas falas.
+- O prompt salvo do personagem é reaproveitado como identidade visual, incluindo a imagem de referência privada; a geração de prompts YouTube Create/Flow/Dreamina continua usando as fichas do projeto. Nenhuma migração destrutiva, nem modificações no robô Flow/Modal e em Produtos/Campanhas.
+- Documentação nova: `docs/historias/SELECAO_PERSONAGENS_ANTES_ROTEIRO.md` e `docs/historias/GERACAO_IMAGENS_PERSONAGENS.md`. Testes do módulo foram atualizados.
+- Pendências de confirmação: CI completo, deploy do frontend Cloudflare, versão do backend Supabase e geração autenticada real; não afirmar publicação até verificar cada ambiente.
+
 ## 21/11/2026 — Histórias: interface simples de imagem por personagem e proteção de custos
 
 - Em Histórias → Personagens e imagens, cada personagem apresenta por padrão apenas a descrição (texto livre), o botão **Gerar e salvar imagem** e a miniatura da referência já salva. Biblioteca, edição, seleção de referências e envio manual ficam recolhidos em **Outras opções**; gestão da biblioteca em painel avançado.
