@@ -77,6 +77,7 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
       throw new Error("Gemini indisponível. Blocos anteriores continuam salvos; não repita sem verificar os registros.");
     if (code === "gemini_output_truncated") throw new Error("Gemini atingiu o limite de saída antes de concluir o bloco. As cenas anteriores permanecem salvas.");
     if (code === "gemini_invalid_json") throw new Error("Gemini retornou JSON inválido. O bloco não foi salvo; confira o diagnóstico.");
+    if (code === "image_paid_api_not_authorized") throw new Error("Geração de imagem bloqueada: a API do Nano Banana pode cobrar. É necessária autorização explícita da geração paga no backend.");
     if (code === "image_api_not_configured") throw new Error("A chave exclusiva do Nano Banana ainda não foi configurada no Supabase. Use o envio manual por enquanto.");
     if (code === "image_generation_failed") throw new Error("Nano Banana não retornou uma imagem válida; não repita sem consultar a cota.");
     if (code === "gemini_quota_exceeded") {
@@ -1284,7 +1285,7 @@ export function StoriesStudio() {
                     onClick={() => void generateCharacterReference(ci)}>
                     {busy ? "Gerando imagem..." : "Gerar e salvar imagem"}
                   </button>
-                  {!imageConfigured && <p className="text-xs text-muted">Geração de imagens indisponível: configure HIST_IMAGEM_GEMINI_API_KEY no Supabase. Nenhuma cobrança será iniciada por este botão.</p>}
+                  {!imageConfigured && <p className="text-xs text-muted">Geração pela API desativada para evitar cobrança: o Nano Banana não tem faixa gratuita na API. Você ainda pode enviar uma imagem criada no Google AI Studio em Outras opções.</p>}
                 </div>}
                 <details className="rounded-lg border border-border p-2">
                   <summary className="cursor-pointer text-xs font-semibold">Outras opções: imagens salvas, edição e envio manual</summary>
