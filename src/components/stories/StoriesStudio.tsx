@@ -119,6 +119,9 @@ export function StoriesStudio() {
   const [sceneProgress, setSceneProgress] = useState("");
   const [characterLibrary, setCharacterLibrary] = useState<LibraryCharacter[]>([]);
   const [selectedCastIds, setSelectedCastIds] = useState<string[]>([]);
+  const [newCastName, setNewCastName] = useState("");
+  const [newCastDescription, setNewCastDescription] = useState("");
+  const [newCastFile, setNewCastFile] = useState<File | null>(null);
   const [libraryImageUrls, setLibraryImageUrls] = useState<Record<string,string>>({});
   const [characterImageUrls, setCharacterImageUrls] = useState<Record<string,string>>({});
   const [imageNames, setImageNames] = useState<Record<number,string>>({});
@@ -610,6 +613,36 @@ export function StoriesStudio() {
       await Promise.all([loadTopics(), loadProjects()]);
       setDeletingTopics(false);
     }
+  }
+  async function savePreScriptCharacter() {
+    if (!user || busy) return;
+    const name = newCastName.trim();
+    const prompt = newCastDescription.trim();
+    if (!characterStyle) return setError("Escolha primeiro o tipo de personagem.");
+    if (!name || name.length > 100 || prompt.length < 15 || !newCastFile)
+      return setError("Informe nome, descrição de pelo menos 15 caracteres e uma imagem do personagem.");
+    if (!["image/jpeg","image/png","image/webp"].includes(newCastFile.type) || newCastFile.size > 10 * 1024 * 1024)
+      return setError("Use uma imagem PNG, JPG ou WebP de até 10 MB.");
+    const client = getSupabase(); if (!client) return;
+    setBusy(true); setError("");
+    try {
+      await checkImageNameAvailable(name);
+      const ext = newCastFile.type === "image/png" ? "png" : newCastFile.type === "image/webp" ? "webp" : "jpg";
+      const path = user.id + "/library/" + characterStyle + "/" + crypto.randomUUID() + "." + ext;
+      const { error: uploadError } = await client.storage.from("mv-story-images")
+        .upload(path, newCastFile, { contentType: newCastFile.type, upsert: false });
+      if (uploadError) throw new Error("Falha ao salvar a imagem privada.");
+      const { data, error: dbError } = await client.from("mv_story_characters").insert({
+        user_id: user.id, name, description: prompt, voice: "",
+        image_prompt: prompt, storage_path: path,
+      }).select("id").single();
+      if (dbError || !data) throw new Error("A imagem foi enviada, mas não foi possível registrar o personagem.");
+      setSelectedCastIds(current => current.length < 4 ? [...current, data.id as string] : current);
+      setNewCastName(""); setNewCastDescription(""); setNewCastFile(null);
+      await loadCharacterLibrary();
+      setMessage("Personagem " + name + " salvo na biblioteca e selecionado para o roteiro.");
+    } catch (error) { setError(plainError(error)); }
+    finally { setBusy(false); }
   }
   function selectedCastForStyle(style: StoryCharacterStyle): Character[] {
     const chosen = selectedCastIds.map(id => characterLibrary.find(entry => entry.id === id)).filter(
@@ -1146,6 +1179,27 @@ export function StoriesStudio() {
         {!characterLibrary.length && <p className="col-span-2 text-xs text-muted">Nenhuma imagem de personagem salva. Cadastre personagens na biblioteca antes de gerar um roteiro.</p>}
       </div>
       <p className="text-xs text-muted">{selectedCastIds.length}/4 selecionados</p>
+      <details className="rounded-lg border border-border p-3">
+        <summary className="cursor-pointer text-xs font-semibold">Cadastrar personagem com imagem e prompt próprios</summary>
+        <div className="space-y-2 pt-3">
+          <label className="block text-xs">Nome do personagem
+            <input className={field + " mt-1"} maxLength={100} value={newCastName}
+              placeholder="Ex.: Limão Eletricista" onChange={e => setNewCastName(e.target.value)}/>
+          </label>
+          <label className="block text-xs">Descrição visual e prompt do personagem
+            <textarea className={field + " mt-1"} rows={3} maxLength={1200} value={newCastDescription}
+              placeholder="Aparência, roupas, acessórios, estilo e personalidade"
+              onChange={e => setNewCastDescription(e.target.value)}/>
+          </label>
+          <label className="block text-xs">Imagem de referência (PNG, JPG ou WebP)
+            <input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy}
+              className="mt-1 block w-full text-xs"
+              onChange={e => setNewCastFile(e.currentTarget.files?.[0] || null)}/>
+          </label>
+          <button type="button" className={button} disabled={busy || !characterStyle || !newCastFile}
+            onClick={() => void savePreScriptCharacter()}>Salvar personagem</button>
+        </div>
+      </details>
     </section>
     <section hidden={stage !== "temas"}>
       <details className="rounded-xl border border-border bg-surface p-3">
