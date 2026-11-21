@@ -69,25 +69,16 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
     if (scope && (code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "gemini_service_unavailable" || code === "gemini_timeout")) {
       modelCooldowns.set(scope, Date.now() + (code.endsWith("_timeout") ? 120_000 : 90_000));
     }
-    if (code === "gemini_not_configured") throw new Error("Cadastre o Secret HIST_ROTEIRO__OPENROUTER no Supabase antes de gerar roteiros.");
-    if (code === "gemini_paid_model_blocked") throw new Error("Modelo pago bloqueado. Configure HIST_OPENROUTER_MODEL como gemini/free ou um identificador terminado em :free.");
-    if (code === "gemini_invalid_key") throw new Error("O Gemini rejeitou a chave de roteiros. Confira HIST_ROTEIRO__OPENROUTER.");
-    if (code === "gemini_provider_rate_limited") throw new Error("O provedor do modelo gratuito está temporariamente sem capacidade (HTTP 429). Sua chave foi reconhecida; esta falha não indica cobrança. Nenhuma repetição automática foi feita.");
-    if (code === "gemini_account_rate_limited") throw new Error("A cota gratuita da conta Gemini atingiu um limite de uso (HTTP 429). Consulte o painel antes de outra solicitação.");
-    if (code === "gemini_rate_limited") throw new Error("Gemini retornou HTTP 429. Não foi possível identificar se o limite é da conta ou do provedor; consulte os logs antes de repetir.");
-    if (code === "gemini_billing_required") throw new Error("Gemini retornou HTTP 402: requisito de saldo/cobrança. Nenhuma tentativa automática foi feita.");
-    if (code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "gemini_network_error") throw new Error("Gemini indisponível ou sem resposta. Confira os registros antes de tentar novamente.");
-    if (code === "gemini_output_truncated") throw new Error("Gemini interrompeu a resposta por limite de saída. Nada foi salvo; confira o limite do modelo antes de tentar novamente.");
-    if (code === "gemini_invalid_json") throw new Error("O modelo gratuito concluiu a geração, mas devolveu um JSON inválido. Nada foi salvo; não repita antes de verificar o diagnóstico.");
+    if (code === "gemini_not_configured") throw new Error("Cadastre HIST_ROTEIRO_GEMINI_API_KEY para roteiros e HIST_TEMA_GEMINI_API_KEY para temas no Supabase.");
+    if (code === "gemini_invalid_key") throw new Error("A chave Gemini foi rejeitada. Confira a chave exclusiva da função no Supabase.");
+    if (code === "gemini_quota_exceeded") throw new Error("Cota gratuita do Gemini atingida. Blocos anteriores permanecem salvos; confira os limites no Google AI Studio.");
+    if (code === "gemini_billing_required") throw new Error("O Gemini exigiu cobrança. Nenhuma repetição foi feita.");
+    if (code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "gemini_network_error")
+      throw new Error("Gemini indisponível. Blocos anteriores continuam salvos; não repita sem verificar os registros.");
+    if (code === "gemini_output_truncated") throw new Error("Gemini atingiu o limite de saída antes de concluir o bloco. As cenas anteriores permanecem salvas.");
+    if (code === "gemini_invalid_json") throw new Error("Gemini retornou JSON inválido. O bloco não foi salvo; confira o diagnóstico.");
     if (code === "image_api_not_configured") throw new Error("A chave exclusiva do Nano Banana ainda não foi configurada no Supabase. Use o envio manual por enquanto.");
     if (code === "image_generation_failed") throw new Error("Nano Banana não retornou uma imagem válida; não repita sem consultar a cota.");
-    if (code === "gemini_billing_required") {
-      throw new Error("A API Gemini retornou HTTP 402: saldo ou configuração de cobrança necessária. Não foi possível gerar temas com esta chave. Você pode criar um roteiro manual enquanto verifica sua franquia no Google AI Studio.");
-    }
-    if (code === "gemini_service_unavailable") throw new Error("Google Gemini retornou HTTP 503: indisponibilidade temporária. Nenhuma tentativa automática foi feita; consulte o status do serviço antes de tentar novamente.");
-    if (code === "gemini_output_truncated") throw new Error("O Gemini atingiu o limite de saída antes de concluir o JSON. O conteúdo não foi salvo; não repita agora sem analisar o consumo.");
-    if (code === "gemini_timeout") throw new Error("O Google Gemini não respondeu em até 60 segundos. Não repita a geração agora; consulte os registros antes de uma nova tentativa.");
-    if (code === "gemini_network_error") throw new Error("Falha de comunicação entre Supabase e Google Gemini. Consulte os registros antes de tentar novamente.");
     if (code === "gemini_quota_exceeded") {
       throw new Error("O limite de requisições da API Gemini foi atingido. Verifique as cotas no Google AI Studio antes de tentar novamente.");
     }
@@ -650,8 +641,10 @@ export function StoriesStudio() {
       setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
       void loadProjects();
       setSceneProgress("Gerando roteiro Gemini em três blocos de quatro cenas...");
-      await generateFullScript(data as Project, topic.synopsis);
-      setMessage("Blocos Gemini gerados. Revise as 12 cenas antes de aprovar.");
+      const finalScript = await generateFullScript(data as Project, topic.synopsis);
+      setMessage(finalScript.scenes.every(s => s.action.trim() && s.setting.trim())
+        ? "12 cenas geradas e salvas com Gemini. Revise antes de aprovar."
+        : "Blocos concluídos salvos. Continue os restantes quando desejar.");
     } catch (e) { setError(plainError(e)); }
     finally { startingScriptRef.current = false; setBusy(false); setSceneProgress(""); }
   }
