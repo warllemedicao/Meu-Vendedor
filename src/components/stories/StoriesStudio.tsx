@@ -49,7 +49,7 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
   const scope = generationScope(action);
   if (scope) {
     const remaining = (modelCooldowns.get(scope) || 0) - Date.now();
-    if (remaining > 0) throw new Error((scope === "topics" ? "Gemini" : "OpenAI") + " apresentou instabilidade nesta ferramenta. Aguarde " +
+    if (remaining > 0) throw new Error((scope === "topics" ? "Gemini" : "OpenRouter") + " apresentou instabilidade nesta ferramenta. Aguarde " +
       Math.ceil(remaining / 1000) + " segundos antes de uma nova solicitação; a tentativa não foi enviada.");
   }
   const client = getSupabase();
@@ -66,14 +66,15 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
   const data: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
     const code = typeof data === "object" && data && "error" in data ? String(data.error) : String(res.status);
-    if (scope && (code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "openai_service_unavailable" || code === "openai_timeout")) {
+    if (scope && (code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "openrouter_service_unavailable" || code === "openrouter_timeout")) {
       modelCooldowns.set(scope, Date.now() + (code.endsWith("_timeout") ? 120_000 : 90_000));
     }
-    if (code === "openai_not_configured") throw new Error("A chave HIST_ROTEIRO_OPENAI ainda não está cadastrada no Supabase.");
-    if (code === "openai_invalid_key") throw new Error("A API OpenAI rejeitou a chave de roteiros. Confira o Secret HIST_ROTEIRO_OPENAI.");
-    if (code === "openai_billing_required" || code === "openai_rate_limited") throw new Error("OpenAI recusou a geração por cobrança ou limite de requisições. Consulte o saldo e os limites antes de tentar novamente.");
-    if (code === "openai_service_unavailable" || code === "openai_timeout" || code === "openai_network_error") throw new Error("OpenAI indisponível ou sem resposta. O projeto salvo permanece intacto; não repita sem verificar o consumo.");
-    if (code === "openai_output_truncated" || code === "openai_invalid_json") throw new Error("OpenAI retornou um roteiro incompleto. Nenhum resultado parcial foi salvo; verifique o uso antes de solicitar novamente.");
+    if (code === "openrouter_not_configured") throw new Error("Cadastre o Secret HIST_ROTEIRO__OPENROUTER no Supabase antes de gerar roteiros.");
+    if (code === "openrouter_paid_model_blocked") throw new Error("Modelo pago bloqueado. Configure HIST_OPENROUTER_MODEL como openrouter/free ou um identificador terminado em :free.");
+    if (code === "openrouter_invalid_key") throw new Error("O OpenRouter rejeitou a chave de roteiros. Confira HIST_ROTEIRO__OPENROUTER.");
+    if (code === "openrouter_billing_required" || code === "openrouter_rate_limited") throw new Error("O OpenRouter recusou a solicitação por cota, limite ou cobrança. Confira os limites gratuitos da conta; nenhuma repetição automática foi feita.");
+    if (code === "openrouter_service_unavailable" || code === "openrouter_timeout" || code === "openrouter_network_error") throw new Error("OpenRouter indisponível ou sem resposta. Confira os registros antes de tentar novamente.");
+    if (code === "openrouter_output_truncated" || code === "openrouter_invalid_json") throw new Error("OpenRouter retornou uma resposta incompleta. Nenhum resultado parcial foi salvo.");
     if (code === "image_api_not_configured") throw new Error("A chave exclusiva do Nano Banana ainda não foi configurada no Supabase. Use o envio manual por enquanto.");
     if (code === "image_generation_failed") throw new Error("Nano Banana não retornou uma imagem válida; não repita sem consultar a cota.");
     if (code === "gemini_billing_required") {
@@ -326,7 +327,7 @@ export function StoriesStudio() {
       if (existing?.prompt && useGemini) {
         setScenePromptDrafts(old => ({ ...old, [key]: existing.prompt }));
         setSceneWorkbenchStep("prompt");
-        if (!window.confirm("Já existe um prompt salvo nesta cena. Gerar uma nova versão com OpenAI? Isso pode consumir créditos. O anterior continuará salvo até você aprovar e salvar o novo.")) {
+        if (!window.confirm("Já existe um prompt salvo nesta cena. Gerar uma nova versão com OpenRouter? Isso pode consumir créditos. O anterior continuará salvo até você aprovar e salvar o novo.")) {
           setMessage("Prompt salvo recuperado sem gastar créditos de IA.");
           return;
         }
@@ -531,7 +532,7 @@ export function StoriesStudio() {
     const known = new Set([...topics.filter(t => t.subject === normalizedSubject && t.character_style === characterStyle).map(t => t.title.toLowerCase()),
       ...draftTopics.filter(t => t.subject === normalizedSubject && t.character_style === characterStyle).map(t => t.title.toLowerCase())]);
     try {
-      // One click = one Gemini topics request. Script generation uses OpenAI separately.
+      // One click = one Gemini topics request. Script generation uses OpenRouter separately.
       const result = await invokeStory("topics", {
         subject: normalizedSubject, genre, characterStyle, count: requested,
         excludedTitles: [...known].slice(-30),
@@ -644,11 +645,37 @@ export function StoriesStudio() {
       setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
       setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
       void loadProjects();
-      setSceneProgress("Gerando a primeira cena do roteiro...");
-      await generateOneScene(data as Project, topic.synopsis);
-      setMessage("Primeira cena gerada e salva. Revise o conteúdo e continue com as demais cenas.");
+      setSceneProgress("Gerando o roteiro completo de 12 cenas em uma solicitação...");
+      await generateFullScript(data as Project, topic.synopsis);
+      setMessage("Roteiro completo salvo. Revise as 12 cenas antes de aprovar.");
     } catch (e) { setError(plainError(e)); }
     finally { startingScriptRef.current = false; setBusy(false); setSceneProgress(""); }
+  }
+  async function generateFullScript(working: Project, synopsisOverride?: string): Promise<Project> {
+    if (!user || working.status !== "draft") throw new Error("Roteiro indisponível para edição.");
+    if (working.scenes.some(s => s.action.trim() || s.setting.trim())) {
+      throw new Error("Já existem cenas neste projeto. Preserve o que está salvo e edite manualmente.");
+    }
+    const client = getSupabase();
+    if (!client) throw new Error("Supabase indisponível.");
+    setSceneProgress("Gerando roteiro completo de 12 cenas com OpenRouter...");
+    const response = await invokeStory("script", {
+      title: working.title, synopsis: synopsisOverride ?? activeTopic?.synopsis ?? publishDescription,
+      genre: working.genre || activeTopic?.genre || "geral",
+      characterStyle: working.character_style || "nao_definido",
+    }) as { characters: Character[]; scenes: Scene[] };
+    if (!Array.isArray(response.characters) || response.characters.length < 1 ||
+        !Array.isArray(response.scenes) || response.scenes.length !== 12 ||
+        response.scenes.some((scene,i) => scene.number !== i + 1 || !scene.action?.trim() || !scene.setting?.trim())) {
+      throw new Error("O OpenRouter não retornou exatamente 12 cenas válidas.");
+    }
+    const { error: saveError } = await client.from("mv_story_projects")
+      .update({ characters: response.characters, scenes: response.scenes, updated_at: new Date().toISOString() })
+      .eq("id", working.id).eq("user_id", user.id);
+    if (saveError) throw new Error("Roteiro recebido, mas não foi possível salvar. Verifique o projeto antes de gerar novamente.");
+    const updated = { ...working, characters: response.characters, scenes: response.scenes };
+    setProject(updated); setExpandedScene(1); setSceneWorkbenchStep("roteiro");
+    return updated;
   }
   async function generateOneScene(working: Project, synopsisOverride?: string): Promise<Project> {
     if (!user || working.status !== "draft") throw new Error("Roteiro não está disponível para edição.");
@@ -668,7 +695,7 @@ export function StoriesStudio() {
     }) as { characters: Character[]; scene: Scene };
     if (!Array.isArray(result.characters) || !result.characters.length ||
       !result.scene || result.scene.number !== sceneNumber || !result.scene.action || !result.scene.setting)
-      throw new Error("A OpenAI não retornou uma cena válida.");
+      throw new Error("A OpenRouter não retornou uma cena válida.");
     const scenes = working.scenes.map((scene, i) => i === nextIndex ? result.scene : scene);
     const characters = working.characters.length ? working.characters : result.characters;
     const { error: saveError } = await client.from("mv_story_projects")
@@ -871,31 +898,37 @@ export function StoriesStudio() {
   async function generatePrompts() {
     if (!project || project.status === "draft" || !user || busy) return;
     const client = getSupabase(); if (!client) return;
-    setBusy(true); setError(""); setSceneProgress("Verificando prompts já salvos...");
+    setBusy(true); setError(""); setSceneProgress("Verificando os prompts já salvos...");
     try {
-      // DB, not unsaved local previews, is the source of truth for paid generation.
       const { data: saved, error: readError } = await client.from("mv_story_prompts")
-        .select("scene_number").eq("project_id", project.id).eq("user_id", user.id).eq("platform", platform);
+        .select("scene_number,prompt,platform").eq("project_id", project.id).eq("user_id", user.id).eq("platform", platform);
       if (readError) throw new Error("Não foi possível consultar os prompts salvos.");
       const existing = new Set((saved || []).map(p => p.scene_number as number));
-      const scene = project.scenes.find(s => !existing.has(s.number));
-      if (!scene) { setMessage("Os 12 prompts desta plataforma já estão salvos."); return; }
-      setSceneProgress("Gerando prompt " + scene.number + " de 12");
-      const result = await invokeStory("prompt_scene", {
-        platform, sceneNumber: scene.number, scene, characterStyle: project.character_style || "nao_definido", characters: project.characters,
-      }) as { prompt: Prompt };
-      if (!result.prompt || result.prompt.scene !== scene.number ||
-        result.prompt.platform !== platform || !result.prompt.text?.trim())
-        throw new Error("A OpenAI não retornou o prompt da cena solicitada.");
-      const { error: dbError } = await client.from("mv_story_prompts").upsert({
-        user_id: user.id, project_id: project.id, scene_number: scene.number,
-        platform, prompt: result.prompt.text,
-      }, { onConflict: "project_id,scene_number,platform" });
-      if (dbError) throw new Error("O prompt foi gerado, mas não foi salvo. Confira o projeto antes de repetir.");
-      setPrompts(previous => [...previous.filter(p => !(p.platform === platform && p.scene === scene.number)), result.prompt]
-        .sort((a,b) => a.scene - b.scene));
+      if (existing.size === 12) {
+        setMessage("Os 12 prompts desta plataforma já estão salvos. Nenhum token foi consumido.");
+        await loadPlatformPrompts(platform);
+        return;
+      }
+      if (project.scenes.length !== 12 || project.scenes.some(s => !s.action?.trim() || !s.setting?.trim())) {
+        throw new Error("Aprove primeiro um roteiro completo de 12 cenas.");
+      }
+      setSceneProgress("Gerando 12 prompts de " + platform + " em uma solicitação...");
+      const result = await invokeStory("prompts", {
+        platform, characterStyle: project.character_style || "nao_definido",
+        script: { characters: project.characters, scenes: project.scenes },
+      }) as { prompts: Prompt[] };
+      if (!Array.isArray(result.prompts) || result.prompts.length !== 12 ||
+          result.prompts.some((p,i) => p.scene !== i + 1 || p.platform !== platform || !p.text?.trim()))
+        throw new Error("O OpenRouter não retornou os 12 prompts válidos.");
+      const pending = result.prompts.filter(p => !existing.has(p.scene));
+      if (!pending.length) return;
+      const { error: dbError } = await client.from("mv_story_prompts").upsert(pending.map(p => ({
+        user_id: user.id, project_id: project.id, scene_number: p.scene, platform, prompt: p.text,
+      })), { onConflict: "project_id,scene_number,platform" });
+      if (dbError) throw new Error("Os prompts foram gerados, mas não foram salvos. Confira o banco antes de repetir.");
+      await loadPlatformPrompts(platform);
       setStage("prompts");
-      setMessage("Prompt " + scene.number + "/12 salvo para " + platform + ". Prossiga quando desejar.");
+      setMessage(pending.length + " prompts novos salvos. Prompts anteriores foram preservados.");
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); setSceneProgress(""); }
   }
@@ -1104,10 +1137,10 @@ export function StoriesStudio() {
                 onClick={() => void createManualScript(t.title, t)}>Roteiro manual</button>
               <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || deletingTopics}
                 onClick={() => {
-                  if (window.confirm("Criar uma nova versão do roteiro? Isso gera uma nova cena com OpenAI e pode consumir créditos. O roteiro anterior continuará salvo.")) {
+                  if (window.confirm("Criar uma nova versão do roteiro? Isso gera um roteiro completo com OpenRouter e consome uma solicitação gratuita. O roteiro anterior continuará salvo.")) {
                     void generateScript(t, true);
                   }
-                }}>Nova versão (OpenAI)</button>
+                }}>Nova versão (OpenRouter)</button>
             </div>
           </details>
         </div>)}
@@ -1147,10 +1180,10 @@ export function StoriesStudio() {
       {sceneWorkbenchStep !== "prompt" && project.status === "draft" && project.scenes.some(s => !s.action.trim() || !s.setting.trim()) &&
         <div className="flex flex-wrap items-center gap-2">
           <button className={button + " !px-3 !py-1.5"} disabled={busy}
-            onClick={() => { if (window.confirm("Gerar todas as cenas restantes com OpenAI? Cada cena fará uma chamada de API que pode consumir créditos.")) void generateRemainingScenes(); }}>Gerar cenas restantes</button>
+            onClick={() => { if (window.confirm("Preencher as cenas restantes com OpenRouter? Para economizar solicitações, prefira um novo roteiro completo.")) void generateRemainingScenes(); }}>Gerar cenas restantes</button>
           {busy && sceneProgress && <button className={button + " !px-3 !py-1.5"}
             onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
-          <span className="text-xs text-muted">Uma por vez, sem repetição automática. Consome créditos OpenAI.</span>
+          <span className="text-xs text-muted">Recuperação de projetos antigos com cenas parciais. O roteiro novo é gerado em uma única chamada.</span>
         </div>}
       {error && <p role="alert" className="rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
       {message && <p role="status" className="rounded-xl border border-border p-2 text-xs">{message}</p>}
@@ -1330,7 +1363,7 @@ export function StoriesStudio() {
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold">Cena {s.number} · {s.title} · 10s</span>
                 <span className="block truncate text-xs text-muted">
-                  {filled ? s.action : "Cena ainda não gerada — aguardando OpenAI ou edição manual"}
+                  {filled ? s.action : "Cena ainda não gerada — aguardando OpenRouter ou edição manual"}
                 </span>
               </span>
               <span className="shrink-0 text-xs text-muted">{filled ? "Preenchida" : "Pendente"} · {expanded ? "Recolher" : "Abrir"}</span>
@@ -1374,7 +1407,7 @@ export function StoriesStudio() {
               </label>
               <p className="text-xs text-muted sm:col-span-2">Fala: {countStoryWords(s)}/26 palavras · 10 segundos</p>
               {!filled && project.status === "draft" && <div className="flex flex-wrap items-center gap-2">
-                <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy} onClick={() => void generateNextScene()}>Gerar cena {s.number} · OpenAI</button>
+                <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy} onClick={() => void generateNextScene()}>Gerar cena {s.number} · OpenRouter</button>
 
                 <span className="text-xs text-muted">Se houver erro 503, o Google está indisponível. A cena anterior continua salva. Nenhuma tentativa automática é feita.</span>
               </div>}
@@ -1410,7 +1443,7 @@ export function StoriesStudio() {
                   <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy}
                     onClick={() => void prepareScenePrompt(s.number,false)}>Gerar prompt sem IA</button>
                   <button className={button} disabled={busy}
-                    onClick={() => void prepareScenePrompt(s.number,true)}>Gerar prompt com OpenAI</button>
+                    onClick={() => void prepareScenePrompt(s.number,true)}>Gerar prompt com OpenRouter</button>
                 </div>
                 {scenePromptText.trim() && <>
                 <label className="block text-xs font-semibold">Prompt completo — cena {s.number}
@@ -1528,13 +1561,13 @@ export function StoriesStudio() {
         </select>
       </label>
       <p className="text-sm text-muted">{PLATFORM_GUIDES[platform].workflow} {PLATFORM_GUIDES[platform].reminder}</p>
-      <p className="text-xs text-muted">Os prompts gerados via OpenAI ficam no banco; os rascunhos locais são prévias editoriais até você salvar cada cena.</p>
+      <p className="text-xs text-muted">Os 12 prompts são gerados juntos e salvos no banco; rascunhos locais não utilizam API.</p>
       <div className="flex flex-wrap gap-2">
-        <button className={button} disabled={busy} onClick={() => void generatePrompts()}>{busy && sceneProgress ? sceneProgress : "Gerar próximo prompt com OpenAI (1 por clique)"}</button>
+        <button className={button} disabled={busy} onClick={() => void generatePrompts()}>{busy && sceneProgress ? sceneProgress : "Gerar os 12 prompts com OpenRouter (1 chamada)"}</button>
         <button className={button} disabled={busy} onClick={previewLocalPrompts}>Montar rascunhos locais sem IA</button>
         <button className={button} disabled={busy} onClick={() => void loadPlatformPrompts(platform)}>Reabrir prompts salvos</button>
       </div>
-      {!prompts.length && <p className="rounded-xl border border-border p-3 text-sm text-muted">Nenhum prompt desta ferramenta foi carregado. Use a OpenAI ou o gerador local de rascunhos para preencher as 12 cenas.</p>}
+      {!prompts.length && <p className="rounded-xl border border-border p-3 text-sm text-muted">Nenhum prompt desta ferramenta foi carregado. Use a OpenRouter ou o gerador local de rascunhos para preencher as 12 cenas.</p>}
       {prompts.map(p => <div className="rounded-xl border border-border p-3 space-y-2" key={p.scene}>
         <h3 className="font-semibold">Prompt da cena {p.scene}</h3>
         <textarea aria-label={"Prompt da cena " + p.scene} className={field} rows={5} value={p.text}
