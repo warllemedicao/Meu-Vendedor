@@ -108,7 +108,16 @@ async function openrouterStory(instruction: string, payload: unknown, maxTokens:
       }),
     });
     if (!response.ok) {
-      const reason = response.status === 429 ? "openrouter_rate_limited" :
+      // Parse only the provider's allowlisted limit source. Never log provider text, headers, keys or prompts.
+      const failure: unknown = response.status === 429 ? await response.json().catch(() => null) : null;
+      const errorInfo = record(failure) && record(failure.error) ? failure.error : null;
+      const metadata = errorInfo && record(errorInfo.metadata) ? errorInfo.metadata : null;
+      const limitSource = metadata && typeof metadata.limit_source === "string" ? metadata.limit_source : "";
+      const rateReason = limitSource === "upstream_provider_shared_pool"
+        ? "openrouter_provider_rate_limited" :
+        limitSource.startsWith("openrouter_free_tier")
+        ? "openrouter_account_rate_limited" : "openrouter_rate_limited";
+      const reason = response.status === 429 ? rateReason :
         response.status === 401 ? "openrouter_invalid_key" :
         response.status === 402 ? "openrouter_billing_required" :
         response.status === 403 ? "openrouter_permission_denied" :
@@ -534,7 +543,7 @@ Deno.serve(async (request) => {
     return json({ error: "unknown_action" }, 400, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown_error";
-    const acceptable = new Set(["image_api_not_configured","image_generation_failed","invalid_image_input","scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_timeout","gemini_network_error","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","gemini_output_truncated","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid","openrouter_not_configured","openrouter_preset_invalid","openrouter_paid_model_blocked","openrouter_invalid_key","openrouter_billing_required","openrouter_permission_denied","openrouter_rate_limited","openrouter_model_unavailable","openrouter_request_rejected","openrouter_service_unavailable","openrouter_unavailable","openrouter_timeout","openrouter_network_error","openrouter_invalid_response","openrouter_invalid_json","openrouter_output_truncated"]);
+    const acceptable = new Set(["image_api_not_configured","image_generation_failed","invalid_image_input","scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_timeout","gemini_network_error","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","gemini_output_truncated","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid","openrouter_not_configured","openrouter_preset_invalid","openrouter_paid_model_blocked","openrouter_invalid_key","openrouter_billing_required","openrouter_permission_denied","openrouter_rate_limited","openrouter_provider_rate_limited","openrouter_account_rate_limited","openrouter_model_unavailable","openrouter_request_rejected","openrouter_service_unavailable","openrouter_unavailable","openrouter_timeout","openrouter_network_error","openrouter_invalid_response","openrouter_invalid_json","openrouter_output_truncated"]);
     return json({ error: acceptable.has(code) ? code : "generation_failed" }, code === "gemini_not_configured" || code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "openrouter_not_configured" || code === "openrouter_service_unavailable" || code === "openrouter_timeout" ? 503 : 502, origin);
   }
 });
