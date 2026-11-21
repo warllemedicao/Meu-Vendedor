@@ -133,8 +133,18 @@ async function openrouterStory(instruction: string, payload: unknown, maxTokens:
       return JSON.parse(content.trim().replace(/^\x60\x60\x60(?:json)?\s*/i, "").replace(/\s*\x60\x60\x60$/, ""));
     } catch { throw new Error("openrouter_invalid_json"); }
   } catch (error) {
-    if (controller.signal.aborted) throw new Error("openrouter_timeout");
-    if (error instanceof TypeError) throw new Error("openrouter_network_error");
+    if (controller.signal.aborted) {
+      console.error("story_studio_openrouter_transport_error", {
+        reason: "openrouter_timeout", elapsedMs: Date.now() - started, timeoutMs: 90000,
+      });
+      throw new Error("openrouter_timeout");
+    }
+    if (error instanceof TypeError) {
+      console.error("story_studio_openrouter_transport_error", {
+        reason: "openrouter_network_error", elapsedMs: Date.now() - started,
+      });
+      throw new Error("openrouter_network_error");
+    }
     throw error;
   } finally { clearTimeout(timeout); }
 }
