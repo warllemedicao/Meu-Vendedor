@@ -71,18 +71,18 @@ test("Gemini HTTP 402 is diagnosed without implying free quota or changing secre
 
 test("Histórias topic generation uses only its dedicated server-side Gemini secret", () => {
   assert.match(edge, /Deno\.env\.get\("HIST_TEMA_GEMINI_API_KEY"\)/);
-  assert.match(edge, /if \(purpose === "script"\) return openaiStory/);
+  assert.match(edge, /if \(purpose === "script"\) return openrouterStory/);
   assert.match(edge, /TOPICS_MAX_TOKENS\(count\), "topics"\)/);
-  assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_OPENAI"\)/);
+  assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO__OPENROUTER"\)/);
   assert.doesNotMatch(edge, /Deno\.env\.get\("GEMINI_API_KEY"\)|Deno\.env\.get\("GOOGLE_API_KEY"\)/);
   assert.doesNotMatch(studio, /HIST_TEMA_GEMINI_API_KEY/);
 });
 
 test("Scripts and prompts share only dedicated Histórias script secret", () => {
-  assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO_OPENAI"\)/);
+  assert.match(edge, /Deno\.env\.get\("HIST_ROTEIRO__OPENROUTER"\)/);
   assert.match(edge, /if \(body\.action === "script"\)/);
   assert.match(edge, /if \(body\.action === "prompts"\)/);
-  assert.doesNotMatch(studio, /Deno[.]env[.]get[(]"HIST_ROTEIRO_OPENAI"/);
+  assert.doesNotMatch(studio, /Deno[.]env[.]get[(]"HIST_ROTEIRO__OPENROUTER"/);
 });
 
 test("Gemini logs only allowlisted diagnostics, never raw Google error messages", () => {
@@ -128,23 +128,23 @@ test("Gemini metadata diagnostic never generates content or exposes credentials"
   assert.doesNotMatch(studio, /Verificar Gemini sem gerar temas/);
   assert.doesNotMatch(studio, /checkGeminiConnection/);
   assert.match(edge, /body\.action === "diagnose_script"/);
-  assert.match(check, /HIST_ROTEIRO_OPENAI/);
+  assert.match(check, /HIST_ROTEIRO__OPENROUTER/);
   assert.doesNotMatch(studio, /Verificar API de roteiros sem gerar/);
 });
 
 
-test("Histórias keeps Gemini for themes, OpenAI for scripts and video prompts", () => {
+test("Histórias keeps Gemini for themes, OpenRouter for scripts and video prompts", () => {
   assert.match(edge, /const TOPICS_MODEL = "gemini-3[.]5-flash-lite"/);
-  assert.match(edge, /const SCRIPT_MODEL = "gpt-5[.]4-mini-2026-03-17"/);
-  assert.match(edge, /if \(purpose === "script"\) return openaiStory\(systemInstruction, payload, maxTokens\)/);
-  assert.match(edge, /"https:\/\/api\.openai\.com\/v1\/chat\/completions"/);
-  assert.match(edge, /response_format: \{ type: "json_object" \}/);
+  assert.match(edge, /const SCRIPT_MODEL = "openrouter/free"/);
+  assert.match(edge, /if \(purpose === "script"\) return openrouterStory\(systemInstruction, payload, maxTokens\)/);
+  assert.match(edge, /"https:\/\/openrouter\.ai\/api\/v1\/chat\/completions"/);
+  assert.match(edge, /Retorne exclusivamente JSON válido/);
   assert.match(edge, /max_completion_tokens: maxTokens/);
-  assert.match(edge, /store: false/);
+  assert.match(edge, /configuredModel\.endsWith\(":free"\)/);
   assert.doesNotMatch(edge, /HIST_ROTEIRO_GEMINI_API_KEY/);
 });
 
-test("OpenAI clips and dialogue use a stable suspense contract", () => {
+test("OpenRouter clips and dialogue use a stable suspense contract", () => {
   assert.match(edge, /const SUSPENSE_RULE/);
   assert.match(edge, /Cada cena termina em suspense natural/);
   assert.match(edge, /Na cena 12, resolver o conflito principal/);
@@ -153,7 +153,7 @@ test("OpenAI clips and dialogue use a stable suspense contract", () => {
 });
 
 test("bounded model budgets maintain 12 scenes and log only token counts", () => {
-  assert.match(edge, /const SCRIPT_MAX_TOKENS = 7200/);
+  assert.match(edge, /const SCRIPT_MAX_TOKENS = 8000/);
   assert.match(edge, /const PROMPTS_MAX_TOKENS = 8500/);
   assert.match(edge, /TOPICS_MAX_TOKENS\(count\)/);
   assert.match(edge, /maxOutputTokens: maxTokens/);
@@ -161,7 +161,7 @@ test("bounded model budgets maintain 12 scenes and log only token counts", () =>
   assert.match(edge, /usage\.thoughtsTokenCount/);
   assert.doesNotMatch(edge, /generateContent\?key=/);
   assert.match(studio, /One click = one Gemini topics request/);
-  assert.match(edge, /story_studio_openai_usage/);
+  assert.match(edge, /story_studio_openrouter_usage/);
   assert.match(studio, /gemini_service_unavailable/);
 });
 
@@ -185,8 +185,8 @@ test("timeouts and truncated responses retain distinct diagnostic errors", () =>
   assert.match(edge, /first[.]finishReason === "MAX_TOKENS"/);
   assert.match(edge, /"gemini_output_truncated"/);
   assert.match(studio, /code === "gemini_output_truncated"/);
-  assert.match(edge, /code === "openai_not_configured"/);
-  assert.match(edge, /openai_output_truncated/);
+  assert.match(edge, /code === "openrouter_not_configured"/);
+  assert.match(edge, /openrouter_output_truncated/);
 });
 
 
@@ -201,32 +201,25 @@ test("transient provider errors pause only the affected generation model", () =>
 });
 
 
-test("one scene per script inference with owner-scoped persistence and manual resume", () => {
-  assert.match(edge, /body\.action === "script_scene"/);
-  assert.match(edge, /previous\.length !== sceneNumber - 1/);
-  assert.match(edge, /first \? 2600 : 1800/);
-  assert.match(edge, /return json\(\{ characters: cast, scene \}, 200, origin\)/);
-  assert.match(studio, /invokeStory\("script_scene"/);
-  assert.match(studio, /async function generateOneScene/);
-  assert.match(studio, /await generateOneScene\(working\)/);
-  assert.match(studio, /\.update\(\{ characters, scenes, updated_at:/);
+test("full twelve-scene story uses one OpenRouter call with scoped persistence", () => {
+  assert.match(edge, /body\.action === "script"/);
+  assert.match(edge, /normalizeScript\(result\)/);
+  assert.match(studio, /async function generateFullScript/);
+  assert.match(studio, /await generateFullScript\(data as Project, topic\.synopsis\)/);
+  assert.match(studio, /invokeStory\("script",/);
+  assert.match(studio, /response\.scenes\.length !== 12/);
   assert.match(studio, /\.eq\("id", working\.id\)\.eq\("user_id", user\.id\)/);
-  assert.match(studio, /Gerar cenas restantes/);
-  assert.match(studio, /16_000/);
-  assert.match(studio, /stopSceneQueue\.current/);
-  assert.doesNotMatch(studio, /invokeStory\("script", \{ title: topic\.title/);
 });
 
-test("one platform prompt per inference, without overwriting approved prompts", () => {
-  assert.match(edge, /body\.action === "prompt_scene"/);
-  assert.match(edge, /Gere somente o prompt desta cena/);
-  assert.match(studio, /invokeStory\("prompt_scene"/);
-  assert.match(studio, /\.select\("scene_number"\)\.eq\("project_id", project\.id\)/);
-  assert.match(studio, /\.upsert\(\{\s*user_id: user\.id, project_id: project\.id, scene_number: scene\.number/);
-  assert.match(studio, /Gerar próximo prompt com OpenAI/);
-  assert.doesNotMatch(studio, /invokeStory\("prompts", \{ platform, script:/);
+test("batched prompts preserve existing approved entries", () => {
+  assert.match(edge, /body\.action === "prompts"/);
+  assert.match(edge, /normalizePrompts\(result, platform\)/);
+  assert.match(studio, /invokeStory\("prompts",/);
+  assert.match(studio, /existing\.size === 12/);
+  assert.match(studio, /result\.prompts\.filter\(p => !existing\.has\(p\.scene\)\)/);
+  assert.match(studio, /\.upsert\(pending\.map/);
+  assert.match(studio, /Gerar os 12 prompts com OpenRouter/);
 });
-
 test("dedicated optional Nano Banana model cannot borrow topic or script secrets", () => {
   const imageBlock = edge.split("async function generateCharacterImage(prompt: string)")[1]
     ?.split("function normalizeScene(")[0] || "";
@@ -253,14 +246,14 @@ test("prompt scene receives reference-presence metadata, not private image paths
 test("legacy Gemini Flash-Lite route is removed from script generation", () => {
   assert.doesNotMatch(studio, /generateNextSceneLite|Tentar Flash-Lite/);
   assert.doesNotMatch(edge, /body\.scriptModel/);
-  assert.match(edge, /HIST_ROTEIRO_OPENAI/);
+  assert.match(edge, /HIST_ROTEIRO__OPENROUTER/);
   assert.doesNotMatch(edge, /HIST_ROTEIRO_GEMINI_API_KEY/);
 });
 
-test("individual prompt budget reserves tokens for Gemini reasoning", () => {
+test("legacy per-scene prompt handling remains bounded for recovery", () => {
   assert.match(edge, /platform === "youtube-create" \? 2800 : 3200, "script"/);
   assert.match(edge, /choice\.finish_reason === "length"/);
-  assert.match(edge, /openai_output_truncated/);
+  assert.match(edge, /openrouter_output_truncated/);
 });
 
 test("character appearance category is sent consistently through Gemini topics, script and prompt actions", () => {
