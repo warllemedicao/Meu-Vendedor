@@ -1290,6 +1290,8 @@ export function StoriesStudio() {
                 <details className="rounded-lg border border-border p-2">
                   <summary className="cursor-pointer text-xs font-semibold">Outras opções: imagens salvas, edição e envio manual</summary>
                   <div className="space-y-3 pt-3">
+                    <a className="text-xs underline" href="https://aistudio.google.com/prompts/new_chat?model=gemini-3.1-flash-lite-image"
+                      target="_blank" rel="noopener noreferrer">Abrir Google AI Studio para criar imagem e importar depois</a>
                   {project.status === "draft" && <button type="button" className={button + " !px-2 !py-1 !text-xs"}
                     aria-expanded={editing} onClick={() => {setEditingCharacterIndex(editing ? null : ci);setAddingCharacterImageIndex(null);}}>
                     {editing ? "Fechar edição" : "Editar ficha"}
