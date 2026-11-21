@@ -115,8 +115,14 @@ async function openrouterStory(instruction: string, payload: unknown, maxTokens:
     if (!record(data) || !Array.isArray(data.choices) || data.choices.length < 1)
       throw new Error("openrouter_invalid_response");
     const choice = data.choices[0];
-    if (!record(choice) || choice.finish_reason === "length")
+    if (!record(choice)) throw new Error("openrouter_invalid_response");
+    if (choice.finish_reason === "length") {
+      console.error("story_studio_openrouter_output_error", {
+        reason: "openrouter_output_truncated", model: configuredModel,
+        elapsedMs: Date.now() - started, maxCompletionTokens: maxTokens,
+      });
       throw new Error("openrouter_output_truncated");
+    }
     if (!record(choice.message) || choice.message.refusal)
       throw new Error("openrouter_invalid_response");
     const content = choice.message.content;
@@ -129,9 +135,28 @@ async function openrouterStory(instruction: string, payload: unknown, maxTokens:
       inputTokens: tokens(usage.prompt_tokens), outputTokens: tokens(usage.completion_tokens),
       totalTokens: tokens(usage.total_tokens), finishReason: choice.finish_reason,
     });
+    const trimmed = content.trim().replace(/^\\uFEFF/, "")
+      .replace(/^\x60\x60\x60(?:json)?\s*/i, "").replace(/\s*\x60\x60\x60$/, "").trim();
     try {
-      return JSON.parse(content.trim().replace(/^\x60\x60\x60(?:json)?\s*/i, "").replace(/\s*\x60\x60\x60$/, ""));
-    } catch { throw new Error("openrouter_invalid_json"); }
+      return JSON.parse(trimmed);
+    } catch {
+      // OpenRouter's free model routing can occasionally return commentary or code fences
+      // around an otherwise complete JSON object. Only recover one unambiguous object.
+      const first = trimmed.indexOf("{");
+      const last = trimmed.lastIndexOf("}");
+      if (first >= 0 && last > first && last - first <= 180000) {
+        try {
+          const parsed = JSON.parse(trimmed.slice(first, last + 1));
+          if (record(parsed)) return parsed;
+        } catch { /* invalid payload: report safely without logging model content */ }
+      }
+      console.error("story_studio_openrouter_output_error", {
+        reason: "openrouter_invalid_json", model: configuredModel, elapsedMs: Date.now() - started,
+        outputChars: content.length, maxCompletionTokens: maxTokens,
+        finishReason: choice.finish_reason,
+      });
+      throw new Error("openrouter_invalid_json");
+    }
   } catch (error) {
     if (controller.signal.aborted) {
       console.error("story_studio_openrouter_transport_error", {
