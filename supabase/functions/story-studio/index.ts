@@ -362,15 +362,15 @@ Deno.serve(async (request) => {
       if (!record(result) || !Array.isArray(result.scenes) || result.scenes.length !== 4 ||
           !Array.isArray(result.characters) || result.characters.length < 1 || result.characters.length > 4)
         throw new Error("script_invalid");
-      const roster = result.characters.map(item => {
+      // Later blocks may paraphrase character descriptions: preserve the approved originals.
+      // The model still must refer to the same character names in scenes and dialogue.
+      const roster = startScene > 1 ? characters : result.characters.map(item => {
         if (!record(item)) throw new Error("character_invalid");
         const name = clean(item.name, 100), role = clean(item.role, 180);
         const visual = clean(item.visual, 1100), voice = clean(item.voice, 450);
         if (!name || !role || !visual || !voice) throw new Error("character_incomplete");
         return { name, role, visual, voice };
       });
-      if (startScene > 1 && JSON.stringify(roster) !== JSON.stringify(characters))
-        throw new Error("character_incomplete");
       const names = new Set(roster.map(ch => ch.name.toLowerCase()));
       const scenes = result.scenes.map((item, i) => normalizeScene(item, startScene - 1 + i));
       if (scenes.some(scene => !scene.setting || !scene.action ||
