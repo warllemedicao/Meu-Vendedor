@@ -49,7 +49,7 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
   const scope = generationScope(action);
   if (scope) {
     const remaining = (modelCooldowns.get(scope) || 0) - Date.now();
-    if (remaining > 0) throw new Error((scope === "topics" ? "Gemini" : "OpenRouter") + " apresentou instabilidade nesta ferramenta. Aguarde " +
+    if (remaining > 0) throw new Error((scope === "topics" ? "Gemini" : "Gemini") + " apresentou instabilidade nesta ferramenta. Aguarde " +
       Math.ceil(remaining / 1000) + " segundos antes de uma nova solicitação; a tentativa não foi enviada.");
   }
   const client = getSupabase();
@@ -66,19 +66,19 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
   const data: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
     const code = typeof data === "object" && data && "error" in data ? String(data.error) : String(res.status);
-    if (scope && (code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "openrouter_service_unavailable" || code === "openrouter_timeout")) {
+    if (scope && (code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "gemini_service_unavailable" || code === "gemini_timeout")) {
       modelCooldowns.set(scope, Date.now() + (code.endsWith("_timeout") ? 120_000 : 90_000));
     }
-    if (code === "openrouter_not_configured") throw new Error("Cadastre o Secret HIST_ROTEIRO__OPENROUTER no Supabase antes de gerar roteiros.");
-    if (code === "openrouter_paid_model_blocked") throw new Error("Modelo pago bloqueado. Configure HIST_OPENROUTER_MODEL como openrouter/free ou um identificador terminado em :free.");
-    if (code === "openrouter_invalid_key") throw new Error("O OpenRouter rejeitou a chave de roteiros. Confira HIST_ROTEIRO__OPENROUTER.");
-    if (code === "openrouter_provider_rate_limited") throw new Error("O provedor do modelo gratuito está temporariamente sem capacidade (HTTP 429). Sua chave foi reconhecida; esta falha não indica cobrança. Nenhuma repetição automática foi feita.");
-    if (code === "openrouter_account_rate_limited") throw new Error("A cota gratuita da conta OpenRouter atingiu um limite de uso (HTTP 429). Consulte o painel antes de outra solicitação.");
-    if (code === "openrouter_rate_limited") throw new Error("OpenRouter retornou HTTP 429. Não foi possível identificar se o limite é da conta ou do provedor; consulte os logs antes de repetir.");
-    if (code === "openrouter_billing_required") throw new Error("OpenRouter retornou HTTP 402: requisito de saldo/cobrança. Nenhuma tentativa automática foi feita.");
-    if (code === "openrouter_service_unavailable" || code === "openrouter_timeout" || code === "openrouter_network_error") throw new Error("OpenRouter indisponível ou sem resposta. Confira os registros antes de tentar novamente.");
-    if (code === "openrouter_output_truncated") throw new Error("OpenRouter interrompeu a resposta por limite de saída. Nada foi salvo; confira o limite do modelo antes de tentar novamente.");
-    if (code === "openrouter_invalid_json") throw new Error("O modelo gratuito concluiu a geração, mas devolveu um JSON inválido. Nada foi salvo; não repita antes de verificar o diagnóstico.");
+    if (code === "gemini_not_configured") throw new Error("Cadastre o Secret HIST_ROTEIRO__OPENROUTER no Supabase antes de gerar roteiros.");
+    if (code === "gemini_paid_model_blocked") throw new Error("Modelo pago bloqueado. Configure HIST_OPENROUTER_MODEL como gemini/free ou um identificador terminado em :free.");
+    if (code === "gemini_invalid_key") throw new Error("O Gemini rejeitou a chave de roteiros. Confira HIST_ROTEIRO__OPENROUTER.");
+    if (code === "gemini_provider_rate_limited") throw new Error("O provedor do modelo gratuito está temporariamente sem capacidade (HTTP 429). Sua chave foi reconhecida; esta falha não indica cobrança. Nenhuma repetição automática foi feita.");
+    if (code === "gemini_account_rate_limited") throw new Error("A cota gratuita da conta Gemini atingiu um limite de uso (HTTP 429). Consulte o painel antes de outra solicitação.");
+    if (code === "gemini_rate_limited") throw new Error("Gemini retornou HTTP 429. Não foi possível identificar se o limite é da conta ou do provedor; consulte os logs antes de repetir.");
+    if (code === "gemini_billing_required") throw new Error("Gemini retornou HTTP 402: requisito de saldo/cobrança. Nenhuma tentativa automática foi feita.");
+    if (code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "gemini_network_error") throw new Error("Gemini indisponível ou sem resposta. Confira os registros antes de tentar novamente.");
+    if (code === "gemini_output_truncated") throw new Error("Gemini interrompeu a resposta por limite de saída. Nada foi salvo; confira o limite do modelo antes de tentar novamente.");
+    if (code === "gemini_invalid_json") throw new Error("O modelo gratuito concluiu a geração, mas devolveu um JSON inválido. Nada foi salvo; não repita antes de verificar o diagnóstico.");
     if (code === "image_api_not_configured") throw new Error("A chave exclusiva do Nano Banana ainda não foi configurada no Supabase. Use o envio manual por enquanto.");
     if (code === "image_generation_failed") throw new Error("Nano Banana não retornou uma imagem válida; não repita sem consultar a cota.");
     if (code === "gemini_billing_required") {
@@ -331,7 +331,7 @@ export function StoriesStudio() {
       if (existing?.prompt && useGemini) {
         setScenePromptDrafts(old => ({ ...old, [key]: existing.prompt }));
         setSceneWorkbenchStep("prompt");
-        if (!window.confirm("Já existe um prompt salvo nesta cena. Gerar uma nova versão com OpenRouter? Isso pode consumir créditos. O anterior continuará salvo até você aprovar e salvar o novo.")) {
+        if (!window.confirm("Já existe um prompt salvo nesta cena. Gerar uma nova versão com Gemini? Isso pode consumir créditos. O anterior continuará salvo até você aprovar e salvar o novo.")) {
           setMessage("Prompt salvo recuperado sem gastar créditos de IA.");
           return;
         }
@@ -536,7 +536,7 @@ export function StoriesStudio() {
     const known = new Set([...topics.filter(t => t.subject === normalizedSubject && t.character_style === characterStyle).map(t => t.title.toLowerCase()),
       ...draftTopics.filter(t => t.subject === normalizedSubject && t.character_style === characterStyle).map(t => t.title.toLowerCase())]);
     try {
-      // One click = one Gemini topics request. Script generation uses OpenRouter separately.
+      // One click = one Gemini topics request. Script generation uses Gemini separately.
       const result = await invokeStory("topics", {
         subject: normalizedSubject, genre, characterStyle, count: requested,
         excludedTitles: [...known].slice(-30),
@@ -649,88 +649,90 @@ export function StoriesStudio() {
       setActiveTopic(topic); setProject(data as Project); setPrompts([]); setClips([]); setExpandedScene(1); setSceneWorkbenchStep("roteiro"); setStage("roteiro");
       setPublishTitle(topic.title); setPublishDescription(topic.synopsis);
       void loadProjects();
-      setSceneProgress("Gerando o roteiro completo de 12 cenas em uma solicitação...");
+      setSceneProgress("Gerando roteiro Gemini em três blocos de quatro cenas...");
       await generateFullScript(data as Project, topic.synopsis);
-      setMessage("Roteiro completo salvo. Revise as 12 cenas antes de aprovar.");
+      setMessage("Blocos Gemini gerados. Revise as 12 cenas antes de aprovar.");
     } catch (e) { setError(plainError(e)); }
     finally { startingScriptRef.current = false; setBusy(false); setSceneProgress(""); }
   }
   async function generateFullScript(working: Project, synopsisOverride?: string): Promise<Project> {
     if (!user || working.status !== "draft") throw new Error("Roteiro indisponível para edição.");
-    if (working.scenes.some(s => s.action.trim() || s.setting.trim())) {
-      throw new Error("Já existem cenas neste projeto. Preserve o que está salvo e edite manualmente.");
+    if (working.scenes.some(s => s.action.trim() || s.setting.trim()))
+      throw new Error("Já existem cenas neste projeto. Continue a partir das cenas salvas.");
+    stopSceneQueue.current = false;
+    let current = working;
+    while (current.scenes.some(s => !s.action.trim() || !s.setting.trim()) && !stopSceneQueue.current) {
+      current = await generateOneBlock(current, synopsisOverride);
+      if (current.scenes.every(s => s.action.trim() && s.setting.trim()) || stopSceneQueue.current) break;
+      setSceneProgress("Bloco salvo. Intervalo de segurança antes do próximo...");
+      await new Promise(resolve => setTimeout(resolve, 16_000));
     }
-    const client = getSupabase();
-    if (!client) throw new Error("Supabase indisponível.");
-    setSceneProgress("Gerando roteiro completo de 12 cenas com OpenRouter...");
-    const response = await invokeStory("script", {
-      title: working.title, synopsis: synopsisOverride ?? activeTopic?.synopsis ?? publishDescription,
-      genre: working.genre || activeTopic?.genre || "geral",
-      characterStyle: working.character_style || "nao_definido",
-    }) as { characters: Character[]; scenes: Scene[] };
-    if (!Array.isArray(response.characters) || response.characters.length < 1 ||
-        !Array.isArray(response.scenes) || response.scenes.length !== 12 ||
-        response.scenes.some((scene,i) => scene.number !== i + 1 || !scene.action?.trim() || !scene.setting?.trim())) {
-      throw new Error("O OpenRouter não retornou exatamente 12 cenas válidas.");
-    }
-    const { error: saveError } = await client.from("mv_story_projects")
-      .update({ characters: response.characters, scenes: response.scenes, updated_at: new Date().toISOString() })
-      .eq("id", working.id).eq("user_id", user.id);
-    if (saveError) throw new Error("Roteiro recebido, mas não foi possível salvar. Verifique o projeto antes de gerar novamente.");
-    const updated = { ...working, characters: response.characters, scenes: response.scenes };
-    setProject(updated); setExpandedScene(1); setSceneWorkbenchStep("roteiro");
-    return updated;
+    return current;
   }
   async function resumeFullScript() {
     if (!project || !user || busy || project.status !== "draft") return;
-    if (project.scenes.some(s => s.action.trim() || s.setting.trim())) {
-      return setError("Este roteiro já contém cenas. Para preservar o trabalho, continue a edição existente.");
-    }
     setBusy(true); setError(""); setSceneProgress("");
     try {
-      await generateFullScript(project);
+      const complete = project.scenes.every(s => !s.action.trim() && !s.setting.trim());
+      const current = complete ? await generateFullScript(project) : await generateRemainingBlocks(project);
       void loadProjects();
-      setMessage("Roteiro completo recuperado e salvo. Revise as 12 cenas antes de aprovar.");
-    } catch (e) { setError(plainError(e)); }
-    finally { setBusy(false); setSceneProgress(""); }
+      if (current.scenes.every(s => s.action.trim() && s.setting.trim()))
+        setMessage("12 cenas geradas com Gemini e salvas. Revise antes de aprovar.");
+      else setMessage("Blocos já gerados foram salvos; você pode continuar depois.");
+    } catch (e) { setError(plainError(e)); void loadProjects(); }
+    finally { setBusy(false); setSceneProgress(""); stopSceneQueue.current = false; }
   }
-  async function generateOneScene(working: Project, synopsisOverride?: string): Promise<Project> {
+  async function generateOneBlock(working: Project, synopsisOverride?: string): Promise<Project> {
     if (!user || working.status !== "draft") throw new Error("Roteiro não está disponível para edição.");
     const nextIndex = working.scenes.findIndex(s => !s.action.trim() || !s.setting.trim());
     if (nextIndex < 0) return working;
-    if (nextIndex > 0 && (!working.characters.length ||
-      working.scenes.slice(0, nextIndex).some(s => !s.action.trim() || !s.setting.trim())))
-      throw new Error("Complete as cenas anteriores e a ficha dos personagens antes de continuar.");
-    const client = getSupabase();
-    if (!client) throw new Error("Supabase indisponível.");
-    const sceneNumber = nextIndex + 1;
-    setSceneProgress("Gerando cena " + sceneNumber + " de 12");
-    const result = await invokeStory("script_scene", {
+    if (nextIndex % 4 !== 0)
+      throw new Error("Projeto antigo com cenas parciais: conclua este bloco manualmente antes de gerar o seguinte.");
+    if (working.scenes.slice(0, nextIndex).some(s => !s.action.trim() || !s.setting.trim()))
+      throw new Error("Complete as cenas anteriores antes de continuar.");
+    if (nextIndex > 0 && !working.characters.length)
+      throw new Error("A ficha de personagens do primeiro bloco está incompleta.");
+    const client = getSupabase(); if (!client) throw new Error("Supabase indisponível.");
+    const startScene = nextIndex + 1;
+    setSceneProgress("Gemini: gerando cenas " + startScene + " a " + (startScene + 3) + " de 12...");
+    const result = await invokeStory("script_block", {
       title: working.title, synopsis: synopsisOverride ?? activeTopic?.synopsis ?? publishDescription,
-      genre: working.genre || activeTopic?.genre || "geral", characterStyle: working.character_style || "nao_definido", sceneNumber,
-      characters: working.characters, previousScenes: working.scenes.slice(0, nextIndex),
-    }) as { characters: Character[]; scene: Scene };
-    if (!Array.isArray(result.characters) || !result.characters.length ||
-      !result.scene || result.scene.number !== sceneNumber || !result.scene.action || !result.scene.setting)
-      throw new Error("A OpenRouter não retornou uma cena válida.");
-    const scenes = working.scenes.map((scene, i) => i === nextIndex ? result.scene : scene);
-    const characters = working.characters.length ? working.characters : result.characters;
+      genre: working.genre || activeTopic?.genre || "geral",
+      characterStyle: working.character_style || "nao_definido", startScene,
+      characters: nextIndex === 0 ? [] : working.characters,
+      previousScenes: working.scenes.slice(0, nextIndex),
+    }) as { characters: Character[]; scenes: Scene[] };
+    if (!Array.isArray(result.characters) || result.characters.length < 1 ||
+      !Array.isArray(result.scenes) || result.scenes.length !== 4 ||
+      result.scenes.some((scene,i) => scene.number !== startScene + i || !scene.action?.trim() || !scene.setting?.trim()))
+      throw new Error("O Gemini não retornou quatro cenas válidas.");
+    const scenes = working.scenes.map((scene, i) =>
+      i >= nextIndex && i < nextIndex + 4 ? result.scenes[i - nextIndex] : scene);
+    const characters = nextIndex ? working.characters : result.characters;
     const { error: saveError } = await client.from("mv_story_projects")
       .update({ characters, scenes, updated_at: new Date().toISOString() })
       .eq("id", working.id).eq("user_id", user.id);
-    if (saveError) throw new Error("A cena foi gerada, mas não foi salva. Não repita a geração antes de verificar o projeto.");
+    if (saveError) throw new Error("As cenas foram geradas, mas não foram salvas. Verifique o projeto antes de repetir.");
     const updated = { ...working, scenes, characters };
-    setProject(updated);
-    setExpandedScene(sceneNumber);
-    setSceneWorkbenchStep("roteiro");
-    setMessage("Cena " + sceneNumber + "/12 salva. " +
-      (sceneNumber === 12 ? "Roteiro completo; revise e aprove." : "Você já pode gerar a próxima cena."));
+    setProject(updated); setExpandedScene(startScene); setSceneWorkbenchStep("roteiro");
+    setMessage("Cenas " + startScene + "–" + (startScene + 3) + " salvas. " +
+      (startScene === 9 ? "Roteiro completo; revise e aprove." : "Próximo bloco disponível."));
     return updated;
+  }
+  async function generateRemainingBlocks(working: Project): Promise<Project> {
+    let current = working;
+    while (current.scenes.some(s => !s.action.trim() || !s.setting.trim()) && !stopSceneQueue.current) {
+      current = await generateOneBlock(current);
+      if (!current.scenes.some(s => !s.action.trim() || !s.setting.trim()) || stopSceneQueue.current) break;
+      setSceneProgress("Bloco salvo. Intervalo de segurança antes do próximo...");
+      await new Promise(resolve => setTimeout(resolve, 16_000));
+    }
+    return current;
   }
   async function generateNextScene() {
     if (!project || !user || project.status !== "draft" || busy) return;
     setBusy(true); setError(""); setSceneProgress("");
-    try { await generateOneScene(project); void loadProjects(); }
+    try { await generateOneBlock(project); void loadProjects(); }
     catch (e) { setError(plainError(e)); }
     finally { setBusy(false); setSceneProgress(""); }
   }
@@ -738,20 +740,8 @@ export function StoriesStudio() {
     if (!project || !user || project.status !== "draft" || busy) return;
     stopSceneQueue.current = false;
     setBusy(true); setError(""); setSceneProgress("");
-    let working = project;
-    try {
-      while (working.scenes.some(s => !s.action.trim() || !s.setting.trim()) && !stopSceneQueue.current) {
-        // Each success is committed to Supabase before the next paid request.
-        working = await generateOneScene(working);
-        if (!working.scenes.some(s => !s.action.trim() || !s.setting.trim()) || stopSceneQueue.current) break;
-        // Conservative pacing avoids rate limits and accidental rapid billing,
-        // including fast responses. No retry on any HTTP 503, 429 or timeout.
-        setSceneProgress("Cena salva. Intervalo de segurança de 16 segundos antes da próxima...");
-        await new Promise(resolve => setTimeout(resolve, 16_000));
-      }
-      void loadProjects();
-      if (stopSceneQueue.current) setMessage("Geração interrompida. Cenas já concluídas permanecem salvas.");
-    } catch (e) { setError(plainError(e)); void loadProjects(); }
+    try { await generateRemainingBlocks(project); void loadProjects(); }
+    catch (e) { setError(plainError(e)); void loadProjects(); }
     finally { setBusy(false); setSceneProgress(""); stopSceneQueue.current = false; }
   }
   async function createManualScript(title: string, topic?: Topic) {
@@ -961,7 +951,7 @@ export function StoriesStudio() {
       }) as { prompts: Prompt[] };
       if (!Array.isArray(result.prompts) || result.prompts.length !== 12 ||
           result.prompts.some((p,i) => p.scene !== i + 1 || p.platform !== platform || !p.text?.trim()))
-        throw new Error("O OpenRouter não retornou os 12 prompts válidos.");
+        throw new Error("O Gemini não retornou os 12 prompts válidos.");
       const pending = result.prompts.filter(p => !existing.has(p.scene));
       if (!pending.length) return;
       const { error: dbError } = await client.from("mv_story_prompts").upsert(pending.map(p => ({
@@ -1179,10 +1169,10 @@ export function StoriesStudio() {
                 onClick={() => void createManualScript(t.title, t)}>Roteiro manual</button>
               <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || deletingTopics}
                 onClick={() => {
-                  if (window.confirm("Criar uma nova versão do roteiro? Isso gera um roteiro completo com OpenRouter e consome uma solicitação gratuita. O roteiro anterior continuará salvo.")) {
+                  if (window.confirm("Criar uma nova versão do roteiro? Isso gera um roteiro completo com Gemini e consome uma solicitação gratuita. O roteiro anterior continuará salvo.")) {
                     void generateScript(t, true);
                   }
-                }}>Nova versão (OpenRouter)</button>
+                }}>Nova versão (Gemini)</button>
             </div>
           </details>
         </div>)}
@@ -1225,13 +1215,13 @@ export function StoriesStudio() {
             onClick={() => {
               if (project.scenes.every(s => !s.action.trim() && !s.setting.trim())) {
                 void resumeFullScript();
-              } else if (window.confirm("Este projeto possui cenas parciais. Gerar as restantes individualmente com OpenRouter? Cada cena utiliza uma chamada.")) {
+              } else if (window.confirm("Este projeto possui cenas parciais. Gerar as restantes individualmente com Gemini? Cada bloco de quatro cenas utiliza uma chamada.")) {
                 void generateRemainingScenes();
               }
-            }}>{project.scenes.every(s => !s.action.trim() && !s.setting.trim()) ? "Gerar roteiro completo · OpenRouter" : "Gerar cenas restantes"}</button>
+            }}>{project.scenes.every(s => !s.action.trim() && !s.setting.trim()) ? "Gerar roteiro completo · Gemini" : "Gerar blocos restantes"}</button>
           {busy && sceneProgress && <button className={button + " !px-3 !py-1.5"}
             onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
-          <span className="text-xs text-muted">Recuperação de projetos antigos com cenas parciais. O roteiro novo é gerado em uma única chamada.</span>
+          <span className="text-xs text-muted">Recuperação de projetos antigos com cenas parciais. O roteiro novo é gerado em até três blocos de quatro cenas; cada bloco é salvo antes do próximo.</span>
         </div>}
       {error && <p role="alert" className="rounded-xl border border-red-500 p-3 text-sm text-red-600">{error}</p>}
       {message && <p role="status" className="rounded-xl border border-border p-2 text-xs">{message}</p>}
@@ -1264,7 +1254,7 @@ export function StoriesStudio() {
           <div className="flex flex-wrap gap-2 pt-3">
             <span className="text-xs text-muted">A geração de cenas restantes está disponível no topo do quadro.</span>
           </div>
-          <p className="text-xs text-muted pt-2">Uma cena por chamada, sem retentativa após erro. Se a IA falhar, você pode editar manualmente. Nenhuma chave de temas é reutilizada.</p>
+          <p className="text-xs text-muted pt-2">Quatro cenas por chamada, sem retentativa após erro. Se a IA falhar, você pode editar manualmente. Nenhuma chave de temas é reutilizada.</p>
         </details>}
         {busy && sceneProgress && <p role="status" className="rounded-xl border border-border p-2 text-sm">{sceneProgress}</p>}
       </div>}
@@ -1411,7 +1401,7 @@ export function StoriesStudio() {
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold">Cena {s.number} · {s.title} · 10s</span>
                 <span className="block truncate text-xs text-muted">
-                  {filled ? s.action : "Cena ainda não gerada — aguardando OpenRouter ou edição manual"}
+                  {filled ? s.action : "Cena ainda não gerada — aguardando Gemini ou edição manual"}
                 </span>
               </span>
               <span className="shrink-0 text-xs text-muted">{filled ? "Preenchida" : "Pendente"} · {expanded ? "Recolher" : "Abrir"}</span>
@@ -1455,7 +1445,7 @@ export function StoriesStudio() {
               </label>
               <p className="text-xs text-muted sm:col-span-2">Fala: {countStoryWords(s)}/26 palavras · 10 segundos</p>
               {!filled && project.status === "draft" && <div className="flex flex-wrap items-center gap-2">
-                <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy} onClick={() => void generateNextScene()}>Gerar cena {s.number} · OpenRouter</button>
+                <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy} onClick={() => void generateNextScene()}>Gerar bloco a partir da cena {s.number} · Gemini</button>
 
                 <span className="text-xs text-muted">Se houver erro 503, o Google está indisponível. A cena anterior continua salva. Nenhuma tentativa automática é feita.</span>
               </div>}
@@ -1491,7 +1481,7 @@ export function StoriesStudio() {
                   <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy}
                     onClick={() => void prepareScenePrompt(s.number,false)}>Gerar prompt sem IA</button>
                   <button className={button} disabled={busy}
-                    onClick={() => void prepareScenePrompt(s.number,true)}>Gerar prompt com OpenRouter</button>
+                    onClick={() => void prepareScenePrompt(s.number,true)}>Gerar prompt com Gemini</button>
                 </div>
                 {scenePromptText.trim() && <>
                 <label className="block text-xs font-semibold">Prompt completo — cena {s.number}
@@ -1616,9 +1606,9 @@ export function StoriesStudio() {
       </div>
       <details className="rounded-xl border border-border p-2">
         <summary className="cursor-pointer text-xs font-semibold">Opção avançada: gerar prompts com IA</summary>
-        <button className={button + " mt-2"} disabled={busy} onClick={() => void generatePrompts()}>{busy && sceneProgress ? sceneProgress : "Gerar os 12 prompts com OpenRouter (1 chamada)"}</button>
+        <button className={button + " mt-2"} disabled={busy} onClick={() => void generatePrompts()}>{busy && sceneProgress ? sceneProgress : "Gerar os 12 prompts com Gemini (1 chamada)"}</button>
       </details>
-      {!prompts.length && <p className="rounded-xl border border-border p-3 text-sm text-muted">Nenhum prompt desta ferramenta foi carregado. Use a OpenRouter ou o gerador local de rascunhos para preencher as 12 cenas.</p>}
+      {!prompts.length && <p className="rounded-xl border border-border p-3 text-sm text-muted">Nenhum prompt desta ferramenta foi carregado. Use a Gemini ou o gerador local de rascunhos para preencher as 12 cenas.</p>}
       {prompts.map(p => <div className="rounded-xl border border-border p-3 space-y-2" key={p.scene}>
         <h3 className="font-semibold">Prompt da cena {p.scene}</h3>
         <textarea aria-label={"Prompt da cena " + p.scene} className={field} rows={5} value={p.text}
