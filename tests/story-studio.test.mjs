@@ -131,7 +131,8 @@ test("saved character picker and registration appear before scripts", () => {
   assert.match(studio, /async function savePreScriptCharacters/);
   assert.match(studio, /multiple accept="image\/png,image\/jpeg,image\/webp"/);
   assert.match(studio, /Nome do personagem de/);
-  assert.match(studio, /h-20 w-20 rounded-md object-cover/);
+  assert.match(studio, /h-16 w-16 rounded-md object-cover/);
+  assert.match(studio, /name[.]replace\(\/ \[0-9a-f\]\{6,8\}\$\/i/);
   assert.match(studio, /async function deleteLibraryCharacter/);
   assert.match(studio, /Imagem usada por um roteiro salvo/);
   assert.match(studio, /onClick=\{\(\) => void renameLibraryCharacter\(entry/);
