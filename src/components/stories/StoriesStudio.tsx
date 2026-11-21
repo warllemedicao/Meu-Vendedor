@@ -644,6 +644,8 @@ export function StoriesStudio() {
     } catch (error) { setError(plainError(error)); }
     finally { setBusy(false); }
   }
+  // Generated image variants carry an 8-character storage suffix, not part of the story character name.
+  const castDisplayName = (name: string) => name.replace(/ [0-9a-f]{8}$/i, "").trim();
   function selectedCastForStyle(style: StoryCharacterStyle): Character[] {
     const chosen = selectedCastIds.map(id => characterLibrary.find(entry => entry.id === id)).filter(
       (entry): entry is LibraryCharacter => Boolean(entry));
@@ -651,10 +653,10 @@ export function StoriesStudio() {
       throw new Error("Selecione de 1 a 4 personagens salvos antes de gerar o roteiro.");
     if (chosen.some(entry => !entry.storage_path.includes("/library/" + style + "/")))
       throw new Error("Selecione personagens do mesmo tipo visual deste tema.");
-    if (new Set(chosen.map(entry => entry.name.trim().toLocaleLowerCase("pt-BR"))).size !== chosen.length)
+    if (new Set(chosen.map(entry => castDisplayName(entry.name).toLocaleLowerCase("pt-BR"))).size !== chosen.length)
       throw new Error("Os personagens selecionados precisam ter nomes diferentes.");
     return chosen.map(entry => ({
-      name: entry.name, role: "Personagem da história",
+      name: castDisplayName(entry.name), role: "Personagem da história",
       visual: (entry.image_prompt.trim() || entry.description.trim()).slice(0, 1100),
       voice: entry.voice.trim() || "Voz expressiva em português brasileiro",
       referenceImagePath: entry.storage_path,
@@ -1172,7 +1174,7 @@ export function StoriesStudio() {
             onClick={() => toggleCastMember(entry.id)}>
             {thumb ? <img src={thumb} alt={entry.name} className="mb-2 aspect-square w-full rounded-lg object-cover"/> :
               <div className="mb-2 aspect-square rounded-lg bg-surface-secondary"/>}
-            <span className="block truncate font-semibold">{entry.name}</span>
+            <span className="block truncate font-semibold">{castDisplayName(entry.name)}</span>
             <span className="text-muted">{chosen ? "Selecionado" : "Selecionar"}</span>
           </button>;
         })}
