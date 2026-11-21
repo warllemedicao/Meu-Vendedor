@@ -323,7 +323,7 @@ Deno.serve(async (request) => {
       if (previousScenes.some(scene => !scene.setting || !scene.action))
         return json({ error: "scene_incomplete" }, 400, origin);
       const rawCharacters = Array.isArray(body.characters) ? body.characters : [];
-      if (startScene > 1 && (rawCharacters.length < 1 || rawCharacters.length > 4))
+      if (rawCharacters.length < 1 || rawCharacters.length > 4)
         return json({ error: "character_incomplete" }, 400, origin);
       const characters = rawCharacters.map(item => {
         if (!record(item)) throw new Error("character_invalid");
@@ -332,6 +332,8 @@ Deno.serve(async (request) => {
         if (!name || !role || !visual || !voice) throw new Error("character_incomplete");
         return { name, role, visual, voice };
       });
+      if (new Set(characters.map(ch => ch.name.toLocaleLowerCase("pt-BR"))).size !== characters.length)
+        return json({ error: "character_invalid" }, 400, origin);
       const objectProps = (properties: AnyRecord, required: string[]) =>
         ({ type: "object", properties, required });
       const characterSchema = objectProps({
@@ -353,7 +355,7 @@ Deno.serve(async (request) => {
         "Não exagere no realismo técnico: histórias de frutinhas são ficção. Evite retratar improvisos perigosos como procedimentos recomendados.",
         "Identidade, roupas, voz, objetos e personagens das cenas anteriores devem permanecer iguais. Falas naturais em português brasileiro, sem repetição mecânica.",
         "Use campos EXATOS characters:[{name,role,visual,voice}], scenes:[{title,setting,action,characters,dialogue:[{speaker,text}],transition}]. Não acrescente campos extras. Responda só JSON.",
-        "Para as cenas 1 a 4, crie fichas dos personagens. Para as cenas 5 a 12, reproduza as fichas fornecidas sem alterá-las. Não repita cenas anteriores.",
+        "Os personagens foram ESCOLHIDOS PELO USUÁRIO antes de iniciar a história. Nas 12 cenas use SOMENTE os nomes exatos, descrições visuais e vozes fornecidos. Não renomeie, substitua ou invente personagens; não repita cenas anteriores.",
         "Este bloco contém somente cenas " + startScene + " a " + (startScene + 3) + " de 12. " +
           (startScene === 1 ? "Abra com conflito e pistas concretas." : startScene === 5 ? "Desenvolva as pistas anteriores e aumente o conflito." : "Conclua o mistério, atinja o clímax e resolva a história na cena 12."),
         "Estilo visual obrigatório: " + styleRule,
@@ -365,15 +367,9 @@ Deno.serve(async (request) => {
       if (!record(result) || !Array.isArray(result.scenes) || result.scenes.length !== 4 ||
           !Array.isArray(result.characters) || result.characters.length < 1 || result.characters.length > 4)
         throw new Error("script_invalid");
-      // Later blocks may paraphrase character descriptions: preserve the approved originals.
-      // The model still must refer to the same character names in scenes and dialogue.
-      const roster = startScene > 1 ? characters : result.characters.map(item => {
-        if (!record(item)) throw new Error("character_invalid");
-        const name = clean(item.name, 100), role = clean(item.role, 180);
-        const visual = clean(item.visual, 1100), voice = clean(item.voice, 450);
-        if (!name || !role || !visual || !voice) throw new Error("character_incomplete");
-        return { name, role, visual, voice };
-      });
+      // Characters selected before generation are authoritative, including for the first block.
+      // A generative model cannot rename the chosen cast or overwrite their character bible.
+      const roster = characters;
       const names = new Set(roster.map(ch => ch.name.toLowerCase()));
       const scenes = result.scenes.map((item, i) => normalizeScene(item, startScene - 1 + i));
       if (scenes.some(scene => !scene.setting || !scene.action ||
