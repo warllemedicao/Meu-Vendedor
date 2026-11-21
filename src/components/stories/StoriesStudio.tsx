@@ -119,9 +119,7 @@ export function StoriesStudio() {
   const [sceneProgress, setSceneProgress] = useState("");
   const [characterLibrary, setCharacterLibrary] = useState<LibraryCharacter[]>([]);
   const [selectedCastIds, setSelectedCastIds] = useState<string[]>([]);
-  const [newCastName, setNewCastName] = useState("");
-  const [newCastDescription, setNewCastDescription] = useState("");
-  const [newCastFile, setNewCastFile] = useState<File | null>(null);
+  const [castUploadQueue, setCastUploadQueue] = useState<{id: string; file: File; name: string}[]>([]);
   const [libraryImageUrls, setLibraryImageUrls] = useState<Record<string,string>>({});
   const [characterImageUrls, setCharacterImageUrls] = useState<Record<string,string>>({});
   const [imageNames, setImageNames] = useState<Record<number,string>>({});
@@ -614,34 +612,77 @@ export function StoriesStudio() {
       setDeletingTopics(false);
     }
   }
-  async function savePreScriptCharacter() {
-    if (!user || busy) return;
-    const name = newCastName.trim();
-    const prompt = newCastDescription.trim();
+
+  function queueCastImages(files: FileList | null) {
+    if (!files) return;
+    setCastUploadQueue(current => [...current, ...Array.from(files).map(file => ({
+      id: crypto.randomUUID(), file,
+      name: file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 100),
+    }))]);
+  }
+  async function savePreScriptCharacters() {
+    if (!user || busy || !castUploadQueue.length) return;
     if (!characterStyle) return setError("Escolha primeiro o tipo de personagem.");
-    if (!name || name.length > 100 || prompt.length < 15 || !newCastFile)
-      return setError("Informe nome, descrição de pelo menos 15 caracteres e uma imagem do personagem.");
-    if (!["image/jpeg","image/png","image/webp"].includes(newCastFile.type) || newCastFile.size > 10 * 1024 * 1024)
-      return setError("Use uma imagem PNG, JPG ou WebP de até 10 MB.");
+    const names = castUploadQueue.map(item => item.name.trim());
+    if (names.some(name => !name || name.length > 100) ||
+      new Set(names.map(name => name.toLocaleLowerCase("pt-BR"))).size !== names.length)
+      return setError("Informe nomes diferentes para todas as imagens.");
+    if (castUploadQueue.some(({file}) => !["image/jpeg","image/png","image/webp"].includes(file.type) ||
+        file.size > 10 * 1024 * 1024))
+      return setError("Use imagens PNG, JPG ou WebP de até 10 MB.");
+    const client = getSupabase(); if (!client) return;
+    setBusy(true); setError(""); let saved = 0;
+    try {
+      for (const item of castUploadQueue) {
+        await checkImageNameAvailable(item.name);
+        const ext = item.file.type === "image/png" ? "png" : item.file.type === "image/webp" ? "webp" : "jpg";
+        const path = user.id + "/library/" + characterStyle + "/" + crypto.randomUUID() + "." + ext;
+        const { error: uploadError } = await client.storage.from("mv-story-images")
+          .upload(path, item.file, { contentType: item.file.type, upsert: false });
+        if (uploadError) throw new Error("Falha ao enviar " + item.name + ".");
+        const { data, error: dbError } = await client.from("mv_story_characters").insert({
+          user_id: user.id, name: item.name, description: "", voice: "",
+          image_prompt: "", storage_path: path,
+        }).select("id").single();
+        if (dbError || !data) {
+          await client.storage.from("mv-story-images").remove([path]);
+          throw new Error("A imagem de " + item.name + " foi enviada, mas o cadastro falhou.");
+        }
+        saved++;
+        setCastUploadQueue(queue => queue.filter(p => p.id !== item.id));
+        setSelectedCastIds(current => current.length < 4 ? [...current, data.id as string] : current);
+      }
+      await loadCharacterLibrary();
+      setMessage(saved + " imagem(ns) salva(s) na biblioteca.");
+    } catch(e) {
+      await loadCharacterLibrary();
+      setError(plainError(e) + " " + saved + " imagem(ns) já salva(s).");
+    } finally { setBusy(false); }
+  }
+  async function deleteLibraryCharacter(entry: LibraryCharacter) {
+    if (!user || busy) return;
+    if (!window.confirm("Excluir a imagem de " + entry.name + " da biblioteca?")) return;
     const client = getSupabase(); if (!client) return;
     setBusy(true); setError("");
     try {
-      await checkImageNameAvailable(name);
-      const ext = newCastFile.type === "image/png" ? "png" : newCastFile.type === "image/webp" ? "webp" : "jpg";
-      const path = user.id + "/library/" + characterStyle + "/" + crypto.randomUUID() + "." + ext;
-      const { error: uploadError } = await client.storage.from("mv-story-images")
-        .upload(path, newCastFile, { contentType: newCastFile.type, upsert: false });
-      if (uploadError) throw new Error("Falha ao salvar a imagem privada.");
-      const { data, error: dbError } = await client.from("mv_story_characters").insert({
-        user_id: user.id, name, description: prompt, voice: "",
-        image_prompt: prompt, storage_path: path,
-      }).select("id").single();
-      if (dbError || !data) throw new Error("A imagem foi enviada, mas não foi possível registrar o personagem.");
-      setSelectedCastIds(current => current.length < 4 ? [...current, data.id as string] : current);
-      setNewCastName(""); setNewCastDescription(""); setNewCastFile(null);
+      const { data: projects, error: projectError } = await client.from("mv_story_projects")
+        .select("id,characters").eq("user_id", user.id);
+      if (projectError) throw new Error("Não foi possível verificar os roteiros existentes. Imagem preservada.");
+      if ((projects || []).some(row => Array.isArray(row.characters) &&
+          row.characters.some((ch: Character) => ch.referenceImagePath === entry.storage_path)))
+        throw new Error("Imagem usada por um roteiro salvo. Troque a referência no roteiro antes de excluir.");
+      if (!entry.storage_path.startsWith(user.id + "/library/"))
+        throw new Error("Caminho privado inválido; imagem preservada.");
+      const { data: removed, error: deleteError } = await client.from("mv_story_characters")
+        .delete().eq("id", entry.id).eq("user_id", user.id).select("id");
+      if (deleteError || !removed?.length) throw new Error("Não foi possível excluir a imagem.");
+      setSelectedCastIds(current => current.filter(id => id !== entry.id));
       await loadCharacterLibrary();
-      setMessage("Personagem " + name + " salvo na biblioteca e selecionado para o roteiro.");
-    } catch (error) { setError(plainError(error)); }
+      const { error: storageError } = await client.storage.from("mv-story-images").remove([entry.storage_path]);
+      setMessage(storageError
+        ? "Imagem removida da biblioteca, mas o arquivo privado ainda precisa ser limpo."
+        : "Imagem excluída.");
+    } catch(e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
   // Generated image variants carry an 8-character storage suffix, not part of the story character name.
@@ -1161,47 +1202,63 @@ export function StoriesStudio() {
         {!draftTopics.length && <p className="text-sm text-muted">Os temas gerados aparecerão aqui antes de serem salvos.</p>}
       </div>
     </section>
+
     <section className={panel} hidden={stage !== "temas"}>
       <h2 className="text-sm font-semibold">Personagens da história</h2>
-      <p className="text-xs text-muted">Selecione de 1 a 4 personagens da sua biblioteca antes de gerar um roteiro. Seus nomes, aparência, imagem e prompt serão preservados nas 12 cenas.</p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Escolher personagens salvos para o roteiro">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Escolher personagens salvos para o roteiro">
         {characterLibrary.filter(entry => !characterStyle || entry.storage_path.includes("/library/" + characterStyle + "/")).map(entry => {
           const chosen = selectedCastIds.includes(entry.id);
           const thumb = libraryImageUrls[entry.storage_path];
-          return <button type="button" key={entry.id} aria-pressed={chosen}
-            disabled={busy || (!chosen && selectedCastIds.length >= 4)}
-            className={"rounded-xl border-2 p-2 text-left text-xs " + (chosen ? "border-primary bg-primary/10" : "border-border")}
-            onClick={() => toggleCastMember(entry.id)}>
-            {thumb ? <img src={thumb} alt={entry.name} className="mb-2 aspect-square w-full rounded-lg object-cover"/> :
-              <div className="mb-2 aspect-square rounded-lg bg-surface-secondary"/>}
-            <span className="block truncate font-semibold">{castDisplayName(entry.name)}</span>
-            <span className="text-muted">{chosen ? "Selecionado" : "Selecionar"}</span>
-          </button>;
+          return <div key={entry.id} className={"w-28 rounded-lg border p-1.5 sm:w-32 " +
+            (chosen ? "border-primary bg-primary/10" : "border-border")}>
+            <button type="button" aria-pressed={chosen} disabled={busy || (!chosen && selectedCastIds.length >= 4)}
+              className="w-full text-left text-xs" onClick={() => toggleCastMember(entry.id)}>
+              {thumb ? <img src={thumb} alt={entry.name} className="mx-auto h-20 w-20 rounded-md object-cover"/> :
+                <div className="mx-auto h-20 w-20 rounded-md bg-surface-secondary"/>}
+              <span className="mt-1 block truncate font-semibold">{castDisplayName(entry.name)}</span>
+              <span className="text-muted">{chosen ? "Selecionado" : "Selecionar"}</span>
+            </button>
+            <div className="mt-1 flex gap-1">
+              <button type="button" className="rounded border border-border px-1.5 py-1 text-[11px]" disabled={busy}
+                onClick={() => {setRenamingLibraryId(entry.id);setLibraryNameDrafts(old => ({...old,[entry.id]:castDisplayName(entry.name)}));}}>
+                Renomear</button>
+              <button type="button" className="rounded border border-border px-1.5 py-1 text-[11px]" disabled={busy}
+                onClick={() => void deleteLibraryCharacter(entry)}>Excluir</button>
+            </div>
+            {renamingLibraryId === entry.id && <div className="mt-2 space-y-1">
+              <input className={field + " !px-1 !py-1 !text-xs"} aria-label={"Novo nome de " + entry.name}
+                maxLength={100} value={libraryNameDrafts[entry.id] ?? castDisplayName(entry.name)}
+                onChange={e => setLibraryNameDrafts(old => ({...old,[entry.id]:e.target.value}))}/>
+              <button type="button" className={button + " !px-1 !py-1 !text-xs"} disabled={busy}
+                onClick={() => void renameLibraryCharacter(entry, libraryNameDrafts[entry.id] ?? entry.name)}>Salvar</button>
+              <button type="button" className={button + " !px-1 !py-1 !text-xs"} disabled={busy}
+                onClick={() => setRenamingLibraryId(null)}>Cancelar</button>
+            </div>}
+          </div>;
         })}
-        {!characterLibrary.length && <p className="col-span-2 text-xs text-muted">Nenhuma imagem de personagem salva. Cadastre personagens na biblioteca antes de gerar um roteiro.</p>}
       </div>
       <p className="text-xs text-muted">{selectedCastIds.length}/4 selecionados</p>
-      <details className="rounded-lg border border-border p-3">
-        <summary className="cursor-pointer text-xs font-semibold">Cadastrar personagem com imagem e prompt próprios</summary>
-        <div className="space-y-2 pt-3">
-          <label className="block text-xs">Nome do personagem
-            <input className={field + " mt-1"} maxLength={100} value={newCastName}
-              placeholder="Ex.: Limão Eletricista" onChange={e => setNewCastName(e.target.value)}/>
-          </label>
-          <label className="block text-xs">Descrição visual e prompt do personagem
-            <textarea className={field + " mt-1"} rows={3} maxLength={1200} value={newCastDescription}
-              placeholder="Aparência, roupas, acessórios, estilo e personalidade"
-              onChange={e => setNewCastDescription(e.target.value)}/>
-          </label>
-          <label className="block text-xs">Imagem de referência (PNG, JPG ou WebP)
-            <input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy}
-              className="mt-1 block w-full text-xs"
-              onChange={e => setNewCastFile(e.currentTarget.files?.[0] || null)}/>
-          </label>
-          <button type="button" className={button} disabled={busy || !characterStyle || !newCastFile}
-            onClick={() => void savePreScriptCharacter()}>Salvar personagem</button>
-        </div>
-      </details>
+      <label className={button + " inline-flex cursor-pointer items-center gap-2"}>
+        <span>Enviar imagens</span>
+        <input type="file" multiple accept="image/png,image/jpeg,image/webp"
+          className="sr-only" disabled={busy || !characterStyle}
+          aria-label="Enviar uma ou várias imagens de personagens"
+          onChange={e => {queueCastImages(e.currentTarget.files);e.currentTarget.value="";}}/>
+      </label>
+      {castUploadQueue.length > 0 && <div className="space-y-2">
+        {castUploadQueue.map(item => <div key={item.id} className="flex items-center gap-2">
+          <span className="min-w-0 flex-1 text-xs">
+            <span className="block truncate">{item.file.name}</span>
+            <input className={field + " mt-1"} maxLength={100} aria-label={"Nome do personagem de " + item.file.name}
+              value={item.name}
+              onChange={e => setCastUploadQueue(queue => queue.map(p => p.id === item.id ? {...p,name:e.target.value} : p))}/>
+          </span>
+          <button type="button" className={button + " !px-2 !py-1 !text-xs"} disabled={busy}
+            onClick={() => setCastUploadQueue(queue => queue.filter(p => p.id !== item.id))}>Retirar</button>
+        </div>)}
+        <button type="button" className={button + " !bg-primary !text-primary-foreground"} disabled={busy}
+          onClick={() => void savePreScriptCharacters()}>Salvar {castUploadQueue.length} imagem(ns)</button>
+      </div>}
     </section>
     <section hidden={stage !== "temas"}>
       <details className="rounded-xl border border-border bg-surface p-3">
