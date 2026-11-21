@@ -74,7 +74,8 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
     if (code === "openrouter_invalid_key") throw new Error("O OpenRouter rejeitou a chave de roteiros. Confira HIST_ROTEIRO__OPENROUTER.");
     if (code === "openrouter_billing_required" || code === "openrouter_rate_limited") throw new Error("O OpenRouter recusou a solicitação por cota, limite ou cobrança. Confira os limites gratuitos da conta; nenhuma repetição automática foi feita.");
     if (code === "openrouter_service_unavailable" || code === "openrouter_timeout" || code === "openrouter_network_error") throw new Error("OpenRouter indisponível ou sem resposta. Confira os registros antes de tentar novamente.");
-    if (code === "openrouter_output_truncated" || code === "openrouter_invalid_json") throw new Error("OpenRouter retornou uma resposta incompleta. Nenhum resultado parcial foi salvo.");
+    if (code === "openrouter_output_truncated") throw new Error("OpenRouter interrompeu a resposta por limite de saída. Nada foi salvo; confira o limite do modelo antes de tentar novamente.");
+    if (code === "openrouter_invalid_json") throw new Error("O modelo gratuito concluiu a geração, mas devolveu um JSON inválido. Nada foi salvo; não repita antes de verificar o diagnóstico.");
     if (code === "image_api_not_configured") throw new Error("A chave exclusiva do Nano Banana ainda não foi configurada no Supabase. Use o envio manual por enquanto.");
     if (code === "image_generation_failed") throw new Error("Nano Banana não retornou uma imagem válida; não repita sem consultar a cota.");
     if (code === "gemini_billing_required") {
