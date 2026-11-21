@@ -118,6 +118,7 @@ export function StoriesStudio() {
   const [progress, setProgress] = useState(0);
   const [sceneProgress, setSceneProgress] = useState("");
   const [characterLibrary, setCharacterLibrary] = useState<LibraryCharacter[]>([]);
+  const [selectedCastIds, setSelectedCastIds] = useState<string[]>([]);
   const [libraryImageUrls, setLibraryImageUrls] = useState<Record<string,string>>({});
   const [characterImageUrls, setCharacterImageUrls] = useState<Record<string,string>>({});
   const [imageNames, setImageNames] = useState<Record<number,string>>({});
@@ -610,6 +611,28 @@ export function StoriesStudio() {
       setDeletingTopics(false);
     }
   }
+  function selectedCastForStyle(style: StoryCharacterStyle): Character[] {
+    const chosen = selectedCastIds.map(id => characterLibrary.find(entry => entry.id === id)).filter(
+      (entry): entry is LibraryCharacter => Boolean(entry));
+    if (chosen.length < 1 || chosen.length > 4)
+      throw new Error("Selecione de 1 a 4 personagens salvos antes de gerar o roteiro.");
+    if (chosen.some(entry => !entry.storage_path.includes("/library/" + style + "/")))
+      throw new Error("Selecione personagens do mesmo tipo visual deste tema.");
+    if (new Set(chosen.map(entry => entry.name.trim().toLocaleLowerCase("pt-BR"))).size !== chosen.length)
+      throw new Error("Os personagens selecionados precisam ter nomes diferentes.");
+    return chosen.map(entry => ({
+      name: entry.name, role: "Personagem da história",
+      visual: (entry.description.trim() || entry.image_prompt.trim()).slice(0, 1100),
+      voice: entry.voice.trim() || "Voz expressiva em português brasileiro",
+      referenceImagePath: entry.storage_path,
+      referenceImagePrompt: (entry.image_prompt.trim() || entry.description.trim()).slice(0, 1200),
+    }));
+  }
+  function toggleCastMember(id: string) {
+    setSelectedCastIds(current => current.includes(id)
+      ? current.filter(value => value !== id)
+      : current.length < 4 ? [...current, id] : current);
+  }
   async function generateScript(topic: Topic, createNewVersion = false) {
     // Guard immediately: React state updates do not prevent very fast double clicks.
     if (!user || busy || startingScriptRef.current) return;
@@ -631,11 +654,12 @@ export function StoriesStudio() {
           return;
         }
       }
-      // Persist before inference so a provider 503 never destroys the new story.
+      const selectedCharacters = selectedCastForStyle(topic.character_style || "nao_definido");
+      // Persist the selected cast BEFORE inference so a provider failure keeps names and image references.
       const { data, error: dbError } = await client.from("mv_story_projects").insert({
         user_id: user.id, topic_id: topic.id, title: topic.title, genre: topic.genre,
         character_style: topic.character_style || "nao_definido",
-        characters: [], scenes: makeEmptyStoryScenes(), status: "draft",
+        characters: selectedCharacters, scenes: makeEmptyStoryScenes(), status: "draft",
       }).select("id,user_id,topic_id,genre,character_style,title,status,characters,scenes").single();
       if (dbError || !data) throw new Error("Não foi possível iniciar o rascunho retomável.");
       setSceneDialogueDrafts({}); setCharacterNameDrafts({}); setImageNames({}); setImagePrompts({});
@@ -694,7 +718,7 @@ export function StoriesStudio() {
       title: working.title, synopsis: synopsisOverride ?? activeTopic?.synopsis ?? publishDescription,
       genre: working.genre || activeTopic?.genre || "geral",
       characterStyle: working.character_style || "nao_definido", startScene,
-      characters: nextIndex === 0 ? [] : working.characters,
+      characters: working.characters,
       previousScenes: working.scenes.slice(0, nextIndex),
     }) as { characters: Character[]; scenes: Scene[] };
     if (!Array.isArray(result.characters) || result.characters.length < 1 ||
@@ -703,7 +727,7 @@ export function StoriesStudio() {
       throw new Error("O Gemini não retornou quatro cenas válidas.");
     const scenes = working.scenes.map((scene, i) =>
       i >= nextIndex && i < nextIndex + 4 ? result.scenes[i - nextIndex] : scene);
-    const characters = nextIndex ? working.characters : result.characters;
+    const characters = working.characters.length ? working.characters : result.characters;
     const { error: saveError } = await client.from("mv_story_projects")
       .update({ characters, scenes, updated_at: new Date().toISOString() })
       .eq("id", working.id).eq("user_id", user.id);
@@ -746,8 +770,7 @@ export function StoriesStudio() {
     setBusy(true); setError("");
     try {
       const scenes = makeEmptyStoryScenes();
-      const characters: Character[] = [{ name: "Personagem 1", role: "Definir função",
-        visual: "Definir aparência e roupas", voice: "Definir voz" }];
+      const characters = selectedCastForStyle(topic?.character_style || characterStyle || "nao_definido");
       const { data, error: dbError } = await client.from("mv_story_projects").insert({
         user_id: user.id, ...(topic ? { topic_id: topic.id } : {}), title: title.trim(),
         genre: topic?.genre || genre, character_style: topic?.character_style || characterStyle, characters, scenes, status: "draft",
@@ -1102,6 +1125,27 @@ export function StoriesStudio() {
         </article>)}
         {!draftTopics.length && <p className="text-sm text-muted">Os temas gerados aparecerão aqui antes de serem salvos.</p>}
       </div>
+    </section>
+    <section className={panel} hidden={stage !== "temas"}>
+      <h2 className="text-sm font-semibold">Personagens da história</h2>
+      <p className="text-xs text-muted">Selecione de 1 a 4 personagens da sua biblioteca antes de gerar um roteiro. Seus nomes, aparência, imagem e prompt serão preservados nas 12 cenas.</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Escolher personagens salvos para o roteiro">
+        {characterLibrary.filter(entry => !characterStyle || entry.storage_path.includes("/library/" + characterStyle + "/")).map(entry => {
+          const chosen = selectedCastIds.includes(entry.id);
+          const thumb = libraryImageUrls[entry.storage_path];
+          return <button type="button" key={entry.id} aria-pressed={chosen}
+            disabled={busy || (!chosen && selectedCastIds.length >= 4)}
+            className={"rounded-xl border-2 p-2 text-left text-xs " + (chosen ? "border-primary bg-primary/10" : "border-border")}
+            onClick={() => toggleCastMember(entry.id)}>
+            {thumb ? <img src={thumb} alt={entry.name} className="mb-2 aspect-square w-full rounded-lg object-cover"/> :
+              <div className="mb-2 aspect-square rounded-lg bg-surface-secondary"/>}
+            <span className="block truncate font-semibold">{entry.name}</span>
+            <span className="text-muted">{chosen ? "Selecionado" : "Selecionar"}</span>
+          </button>;
+        })}
+        {!characterLibrary.length && <p className="col-span-2 text-xs text-muted">Nenhuma imagem de personagem salva. Cadastre personagens na biblioteca antes de gerar um roteiro.</p>}
+      </div>
+      <p className="text-xs text-muted">{selectedCastIds.length}/4 selecionados</p>
     </section>
     <section hidden={stage !== "temas"}>
       <details className="rounded-xl border border-border bg-surface p-3">
