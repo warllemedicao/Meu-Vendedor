@@ -1,3 +1,9 @@
+## 21/11/2026 — Ajuste após captura de tela da aba Personagens da história
+
+- Captura móvel às 10:33 mostrava a versão antiga: texto descritivo, cartões grandes, sufixos técnicos de nomes e cadastro com prompt obrigatório. A versão corrigida já estava no código da `main`, mas o deploy Worker consultado ainda não a apresentava.
+- Aperfeiçoados os cartões para aproximadamente 100 px de largura e miniaturas de 64 × 64 px; o nome exibido oculta sufixos hexadecimais legados de 6 dígitos e atuais de 8 dígitos. Seleção destacada e botões Renomear/Excluir preservados.
+- Mantido apenas botão de upload múltiplo com nome individual por arquivo; não exigir prompt. Testes estáticos atualizados. **Não afirmar que o site foi atualizado até confirmar a publicação Cloudflare do commit posterior à correção.**
+
 ## 21/11/2026 — Miniaturas compactas, renomear/excluir e upload múltiplo de personagens
 
 - Em **Histórias → Temas → Personagens da história**, removido o texto explicativo; imagens reduzidas para 80 × 80 px e cartões estreitos.
