@@ -1,3 +1,13 @@
+## 20/11/2026 — Histórias: roteirista profissional e motor local de 12 prompts
+
+- Roteirista OpenRouter: instrução do roteiro completo de 12 cenas aprimorada para arco causal, ganchos reais, comédia/suspense/drama adequados ao gênero, falas sequenciais em PT-BR, geometria física de obstáculos e personagens consistentes. Uma chamada de roteiro continua sendo a meta, com revisão antes de aprovar.
+- **Preset OpenRouter opcional:** regras versionadas em `docs/openrouter/roteirista-12-cenas.md`, slug `meu-vendedor-roteirista`. O secret `HIST_OPENROUTER_PRESET` ativa o preset após o responsável criá-lo no painel; a chave `HIST_ROTEIRO__OPENROUTER` permanece independente. A requisição ainda fixa o modelo gratuito `openrouter/free`; não usar fallbacks pagos nem ferramentas extras no Preset. Regras armazenadas também consomem tokens de entrada durante inferência.
+- **Motor de direção interna:** `makeLocalPromptDrafts()` ampliado para orientar movimentos fisicamente coerentes e falas por turnos, com aviso sobre atravessar cordas, barreiras etc. sem indicar passagem por cima/baixo/ao redor. Nenhuma IA é chamada para compor prompts.
+- **Fluxo após aprovação:** botão principal **Gerar e salvar 12 prompts sem IA** monta e valida o lote completo para a plataforma escolhida, verifica RLS por usuário e salva apenas prompts ainda inexistentes, com `ignoreDuplicates: true` para não sobrescrever versões aprovadas. Geração com OpenRouter permanece dentro de opções avançadas.
+- Restrições preservadas: YouTube Create 900 caracteres, Flow teto editorial 1600, Dreamina 1200; falas literais e links privados não expostos. Os comandos de direção são orientações, não garantias de comportamento do gerador de vídeo.
+- Testes de direção, áudio sequencial, roteamento gratuito e UI atualizados; execução de CI e publicação Cloudflare dependem de resultado aprovado. Não tocar robô Flow/Modal, IMAGEM1/2/3, produtos ou campanhas. Sem inferência externa de testes nesta implementação.
+- **4K:** roteiro e prompt são somente texto; qualidade/resolução de MP4 dependem do gerador de vídeo e eventual pós-processamento, não do OpenRouter.
+
 ## 20/11/2026 — Histórias: diagnóstico HTTP 503 do OpenRouter e retomada do roteiro
 
 - Teste de produção: `story-studio` retornou **HTTP 503** em 21/11/2026 às 01:33:29 UTC, após sucesso na geração dos temas com Gemini. O diagnóstico anterior não registrava se o erro de transporte era timeout ou rede; **a causa exata daquele pedido não foi comprovada**.
