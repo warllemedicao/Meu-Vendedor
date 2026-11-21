@@ -98,7 +98,7 @@ async function openrouterStory(instruction: string, payload: unknown, maxTokens:
       },
       body: JSON.stringify({
         model: configuredModel,
-        ...(presetSlug && maxTokens === SCRIPT_MAX_TOKENS ? { preset: presetSlug } : {}),
+        ...(presetSlug && maxTokens === SCRIPT_MAX_TOKENS ? { preset: "@preset/" + presetSlug } : {}),
         messages: [
           { role: "system", content: instruction + " Retorne exclusivamente JSON válido, sem Markdown." },
           { role: "user", content: JSON.stringify(payload) },
