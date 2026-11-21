@@ -1,3 +1,10 @@
+## 20/11/2026 — Histórias: diagnóstico HTTP 503 do OpenRouter e retomada do roteiro
+
+- Teste de produção: `story-studio` retornou **HTTP 503** em 21/11/2026 às 01:33:29 UTC, após sucesso na geração dos temas com Gemini. O diagnóstico anterior não registrava se o erro de transporte era timeout ou rede; **a causa exata daquele pedido não foi comprovada**.
+- `story-studio` atualizado para registrar categorias seguras `openrouter_timeout` e `openrouter_network_error` com latência, sem armazenar chave, prompt ou respostas; **Supabase v32 ACTIVE**, JWT preservado.
+- Ao falhar uma primeira geração, o rascunho vazio permanece salvo. Agora o botão **Gerar roteiro completo · OpenRouter** permite retomá-lo usando **uma solicitação** de 12 cenas, sem criar outro projeto. Os projetos com cenas já preenchidas preservam o fluxo antigo sem sobrescrever cenas.
+- Corrigidos os testes de contrato relacionados ao diagnóstico e à retomada. Frontend sujeito ao workflow de validação e deploy da `main`; nenhuma nova chamada externa de inferência foi realizada pela correção.
+
 ## 20/11/2026 — Histórias: migração para OpenRouter gratuito e geração em lotes
 
 - Secret dedicado ao Supabase: **`HIST_ROTEIRO__OPENROUTER`** (dois sublinhados antes de OPENROUTER). Nenhum valor sensível versionado; sem secret cadastrado, a função responde `openrouter_not_configured`.
