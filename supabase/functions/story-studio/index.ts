@@ -1,7 +1,7 @@
 import { storyPromptAgents as RULES } from "./_shared/agents/index.ts";
 // Histórias keeps Gemini for themes/images; OpenRouter free models handle scripts and prompts.
 const TOPICS_MODEL = "gemini-3.5-flash-lite";
-const SCRIPT_MODEL = "openrouter/free";
+const SCRIPT_MODEL = "google/gemma-4-31b-it:free";
 // Nano Banana 2 Lite uses an independent key: never borrow topic/script quotas silently.
 const IMAGE_MODEL = "gemini-3.1-flash-lite-image";
 const CHARACTER_STYLE_RULES = {
@@ -75,7 +75,10 @@ function safeGeminiError(responseBody: unknown) {
 async function openrouterStory(instruction: string, payload: unknown, maxTokens: number): Promise<unknown> {
   const key = Deno.env.get("HIST_ROTEIRO__OPENROUTER");
   if (!key) throw new Error("openrouter_not_configured");
-  const configuredModel = Deno.env.get("HIST_OPENROUTER_MODEL")?.trim() || "openrouter/free";
+  // Never send scripts to the random free router: a tiny/slow model can consume 90s without completing 12 scenes.
+  // Respect explicitly configured free models; normalize legacy openrouter/free to the reviewed Gemma model.
+  const requestedModel = Deno.env.get("HIST_OPENROUTER_MODEL")?.trim() || SCRIPT_MODEL;
+  const configuredModel = requestedModel === "openrouter/free" ? SCRIPT_MODEL : requestedModel;
   // The caller explicitly supplies a free model even when a dashboard preset is selected.
   // An optional preset supplies editorial instructions, NEVER the ability to use a paid model.
   const presetSlug = Deno.env.get("HIST_OPENROUTER_PRESET")?.trim() || "";
@@ -166,7 +169,8 @@ async function openrouterStory(instruction: string, payload: unknown, maxTokens:
   } catch (error) {
     if (controller.signal.aborted) {
       console.error("story_studio_openrouter_transport_error", {
-        reason: "openrouter_timeout", elapsedMs: Date.now() - started, timeoutMs: 90000,
+        reason: "openrouter_timeout", model: configuredModel, presetEnabled: Boolean(presetSlug),
+        elapsedMs: Date.now() - started, timeoutMs: 90000,
       });
       throw new Error("openrouter_timeout");
     }
