@@ -136,7 +136,7 @@ test("every completed scene supports separate video provider, prompt and downloa
   assert.match(code, /saveScenePrompt\(s\.number\)/);
   assert.match(code, /downloadTextFile\("cena-" \+ s\.number/);
   assert.match(code, /downloadReference\(char\.referenceImagePath!/);
-  assert.match(code, /Gerar cena \{s\.number\} · Gemini/);
+  assert.match(code, /Gerar bloco a partir da cena \{s\.number\} · Gemini/);
   assert.match(code, /Falha ao consultar prompt anterior. Nenhum crédito de IA foi utilizado/);
 });
 
