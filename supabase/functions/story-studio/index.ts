@@ -179,6 +179,9 @@ async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8
   } finally { clearTimeout(timeout); }
 }
 async function generateCharacterImage(prompt: string): Promise<{ mimeType: string; data: string; model: string }> {
+  // Google lists no free API tier for this image model. Never incur charges by key presence alone.
+  if (Deno.env.get("HIST_IMAGEM_API_PAGA_AUTORIZADA") !== "true")
+    throw new Error("image_paid_api_not_authorized");
   const key = Deno.env.get("HIST_IMAGEM_GEMINI_API_KEY");
   if (!key) throw new Error("image_api_not_configured");
   const controller = new AbortController();
@@ -289,7 +292,7 @@ Deno.serve(async (request) => {
     if (body.action === "diagnose_topics") return json(await diagnoseModelConnection("topics"), 200, origin);
     if (body.action === "diagnose_script") return json(await diagnoseModelConnection("script"), 200, origin);
     if (body.action === "image_config")
-      return json({ configured: Boolean(Deno.env.get("HIST_IMAGEM_GEMINI_API_KEY")), model: IMAGE_MODEL }, 200, origin);
+      return json({ configured: Boolean(Deno.env.get("HIST_IMAGEM_GEMINI_API_KEY")) && Deno.env.get("HIST_IMAGEM_API_PAGA_AUTORIZADA") === "true", paidAuthorizationRequired: Deno.env.get("HIST_IMAGEM_API_PAGA_AUTORIZADA") !== "true", model: IMAGE_MODEL }, 200, origin);
     if (body.action === "image_character") {
       const name = clean(body.name, 100), prompt = clean(body.prompt, 1200);
       if (!name || prompt.length < 15) return json({ error: "invalid_image_input" }, 400, origin);
@@ -429,7 +432,7 @@ Deno.serve(async (request) => {
     return json({ error: "unknown_action" }, 400, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown_error";
-    const acceptable = new Set(["image_api_not_configured","image_generation_failed","invalid_image_input","scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_timeout","gemini_network_error","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","gemini_output_truncated","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid"]);
+    const acceptable = new Set(["image_api_not_configured","image_paid_api_not_authorized","image_generation_failed","invalid_image_input","scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_timeout","gemini_network_error","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","gemini_output_truncated","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid"]);
     return json({ error: acceptable.has(code) ? code : "generation_failed" }, code === "gemini_not_configured" || code === "gemini_service_unavailable" || code === "gemini_timeout" ? 503 : 502, origin);
   }
 });
