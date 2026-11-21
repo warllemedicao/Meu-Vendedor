@@ -7,6 +7,7 @@
 - Validações no backend: JSON, exatamente 12 cenas/12 prompts, personagens e falas em português, suspense, limites de 26 palavras de diálogo por cena, limites por plataforma, continuidade e estilo visual; resposta truncada é recusada, sem repetição automática. Logs limitados a status/modelo/contagem de tokens/tempo.
 - Teto de saída solicitado: **8.000 tokens no roteiro** e **8.500 nos 12 prompts**; os modelos gratuitos têm restrições próprias e a capacidade real precisa de teste com uma chave válida. A estimativa de 2 chamadas por história não é garantia de aprovação do provedor.
 - Testes de contrato migrados em `tests/story-studio.test.mjs` e `tests/story-editorial.test.mjs`. Publicação Cloudflare e execução real condicionadas à validação do frontend; nenhuma inferência gratuita será consumida sem autorização do usuário.
+- **Supabase publicado e confirmado:** Edge Function `story-studio` versão **29**, status **ACTIVE**, JWT obrigatório e 5 arquivos. Secrets não podem ser lidos pelo deploy: o uso efetivo depende de cadastrar a chave no painel. CI frontend ainda não comprovado e Cloudflare não republicado nesta etapa.
 
 ## 20/11/2026 — Histórias: nomes dos personagens e imagens editáveis sem saltos
 
