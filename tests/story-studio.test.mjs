@@ -198,6 +198,15 @@ test("timeouts and truncated responses retain distinct diagnostic errors", () =>
 });
 
 
+test("OpenRouter 429 errors distinguish upstream provider from account quota without logging secrets", () => {
+  assert.match(edge, /upstream_provider_shared_pool/);
+  assert.match(edge, /openrouter_provider_rate_limited/);
+  assert.match(edge, /openrouter_account_rate_limited/);
+  assert.match(studio, /code === "openrouter_provider_rate_limited"/);
+  assert.match(studio, /code === "openrouter_account_rate_limited"/);
+  assert.match(studio, /code === "openrouter_billing_required"/);
+});
+
 test("transient provider errors pause only the affected generation model", () => {
   assert.match(studio, /const modelCooldowns = new Map/);
   assert.match(studio, /action === "topics"/);
