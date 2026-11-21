@@ -67,7 +67,7 @@ test("existing project lookup is checked before any new generation", () => {
 test("scripts validate cast and voices against scene references", () => {
   assert.match(edge, /scene[.]characters[.]some\(name => !names[.]has/);
   assert.match(edge, /scene[.]dialogue[.]some\(line =>/);
-  assert.match(edge, /JSON[.]stringify\(roster\) !== JSON[.]stringify\(characters\)/);
+  assert.match(edge, /const roster = startScene > 1 \? characters : result[.]characters[.]map/);
   assert.match(edge, /scene_dialogue_too_long/);
 });
 
