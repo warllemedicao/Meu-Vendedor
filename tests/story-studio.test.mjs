@@ -127,8 +127,14 @@ test("selected saved cast is passed intact through every Gemini block", () => {
 test("saved character picker and registration appear before scripts", () => {
   assert.match(studio, /Personagens da história/);
   assert.match(studio, /Escolher personagens salvos para o roteiro/);
-  assert.match(studio, /Cadastrar personagem com imagem e prompt próprios/);
-  assert.match(studio, /async function savePreScriptCharacter/);
+  assert.match(studio, /Enviar uma ou várias imagens de personagens/);
+  assert.match(studio, /async function savePreScriptCharacters/);
+  assert.match(studio, /multiple accept="image\/png,image\/jpeg,image\/webp"/);
+  assert.match(studio, /Nome do personagem de/);
+  assert.match(studio, /h-20 w-20 rounded-md object-cover/);
+  assert.match(studio, /async function deleteLibraryCharacter/);
+  assert.match(studio, /Imagem usada por um roteiro salvo/);
+  assert.match(studio, /onClick=\{\(\) => void renameLibraryCharacter\(entry/);
   assert.match(studio, /selectedCastIds[.]length >= 4/);
   assert.match(studio, /Selecion[e]? de 1 a 4 personagens salvos/);
 });
