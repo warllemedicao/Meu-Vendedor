@@ -40,7 +40,7 @@ const plainError = (error: unknown): string => error instanceof Error ? error.me
 const modelCooldowns = new Map<"topics" | "script", number>();
 function generationScope(action: string): "topics" | "script" | null {
   if (action === "topics") return "topics";
-  if (action === "script" || action === "prompts" || action === "script_scene" || action === "prompt_scene") return "script";
+  if (action === "script_block" || action === "prompts" || action === "prompt_scene") return "script";
   return null;
 }
 
@@ -49,7 +49,7 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
   const scope = generationScope(action);
   if (scope) {
     const remaining = (modelCooldowns.get(scope) || 0) - Date.now();
-    if (remaining > 0) throw new Error((scope === "topics" ? "Gemini" : "Gemini") + " apresentou instabilidade nesta ferramenta. Aguarde " +
+    if (remaining > 0) throw new Error("Gemini" + " apresentou instabilidade nesta ferramenta. Aguarde " +
       Math.ceil(remaining / 1000) + " segundos antes de uma nova solicitação; a tentativa não foi enviada.");
   }
   const client = getSupabase();
@@ -398,7 +398,7 @@ export function StoriesStudio() {
         setMessage("Os materiais foram salvos. Complete primeiro a cena " + (firstMissing + 1) + " para preservar a ordem.");
         return;
       }
-      await generateOneScene(project);
+      await generateOneBlock(project);
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); setSceneProgress(""); void loadProjects(); }
   }
@@ -1162,7 +1162,7 @@ export function StoriesStudio() {
                 onClick={() => void createManualScript(t.title, t)}>Roteiro manual</button>
               <button className={button + " !px-2 !py-1 !text-xs"} disabled={busy || deletingTopics}
                 onClick={() => {
-                  if (window.confirm("Criar uma nova versão do roteiro? Isso gera um roteiro completo com Gemini e consome uma solicitação gratuita. O roteiro anterior continuará salvo.")) {
+                  if (window.confirm("Criar uma nova versão do roteiro? Isso gera um roteiro completo com Gemini em até três chamadas gratuitas. O roteiro anterior continuará salvo.")) {
                     void generateScript(t, true);
                   }
                 }}>Nova versão (Gemini)</button>
@@ -1208,7 +1208,7 @@ export function StoriesStudio() {
             onClick={() => {
               if (project.scenes.every(s => !s.action.trim() && !s.setting.trim())) {
                 void resumeFullScript();
-              } else if (window.confirm("Este projeto possui cenas parciais. Gerar as restantes individualmente com Gemini? Cada bloco de quatro cenas utiliza uma chamada.")) {
+              } else if (window.confirm("Este projeto possui cenas parciais. Gerar os blocos restantes com Gemini? Cada bloco de quatro cenas utiliza uma chamada.")) {
                 void generateRemainingScenes();
               }
             }}>{project.scenes.every(s => !s.action.trim() && !s.setting.trim()) ? "Gerar roteiro completo · Gemini" : "Gerar blocos restantes"}</button>
