@@ -118,6 +118,8 @@ test("selected saved cast is passed intact through every Gemini block", () => {
   assert.match(studio, /characters: selectedCharacters, scenes: makeEmptyStoryScenes\(\)/);
   assert.match(studio, /characters: working[.]characters,/);
   assert.match(studio, /referenceImagePath: entry[.]storage_path/);
+  assert.match(studio, /name: castDisplayName\(entry[.]name\)/);
+  assert.match(studio, /style !== "nao_definido"/);
   assert.match(studio, /referenceImagePrompt:/);
   assert.match(edge, /Os personagens foram ESCOLHIDOS PELO USUÁRIO/);
   assert.match(edge, /const roster = characters/);
