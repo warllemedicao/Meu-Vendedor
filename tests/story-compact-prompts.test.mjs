@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { makeLocalPromptDrafts, makeStoryFlowAgentInstructions, countStoryPromptCharacters, parseStoryDialogueDraft, PLATFORM_GUIDES } from "../src/lib/stories/workflow.ts";
+import { makeLocalPromptDrafts, makeStoryFlowAgentInstructions, countStoryPromptCharacters, parseStoryDialogueDraft, reviewStoryScene, PLATFORM_GUIDES } from "../src/lib/stories/workflow.ts";
 
 const scene = {
   number: 2, durationSeconds: 10, title: "Máquina estranha",
@@ -85,4 +85,21 @@ test("Flow puts persistent character identity in separate agent instructions", (
   const people = makeStoryFlowAgentInstructions(characters,"pessoas_cabeca_fruta");
   assert.match(fruit, /Estilo visual:/);
   assert.notEqual(fruit, people);
+});
+
+test("local direction warns about ambiguous physical barriers without inventing movement", () => {
+  const ambiguous = { ...scene, action: "A personagem atravessa a corda esticada." };
+  const warnings = reviewStoryScene(ambiguous);
+  assert.match(warnings.join(" "), /por baixo, por cima ou ao redor/);
+  const [flow] = makeLocalPromptDrafts("google-flow", characters, [ambiguous]);
+  assert.match(flow.notice || "", /por baixo, por cima ou ao redor/);
+  assert.match(flow.text, /corda esticada/);
+});
+test("local prompts sequence speaker turns instead of overlapping speech", () => {
+  for (const provider of ["youtube-create", "google-flow", "dreamina"]) {
+    const [prompt] = makeLocalPromptDrafts(provider, characters, [scene]);
+    assert.match(prompt.text, /One character speaks at a time/);
+    assert.match(prompt.text, /Never overlap voices/);
+    assert.ok(prompt.text.indexOf('Limonada: "') < prompt.text.indexOf('Morcegão: "'));
+  }
 });
