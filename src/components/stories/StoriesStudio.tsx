@@ -269,7 +269,8 @@ export function StoriesStudio() {
     if (!project || !user || busy) return;
     const character = project.characters[characterIndex];
     if (!character || !imageConfigured) return setError("Configure HIST_IMAGEM_GEMINI_API_KEY antes de gerar imagens. O envio manual já está disponível.");
-    const name = imageNames[characterIndex]?.trim() || character.name;
+    // Every generated image is a new library entry; no extra name field is required.
+    const name = (character.name.slice(0, 87) + " " + crypto.randomUUID().slice(0, 8)).slice(0, 100);
     const prompt = imagePrompts[characterIndex]?.trim() || character.visual;
     if (prompt.length < 15) return setError("Descreva o personagem com pelo menos 15 caracteres.");
     setBusy(true); setError(""); setSceneProgress("Solicitando uma imagem ao Nano Banana...");
@@ -1269,11 +1270,29 @@ export function StoriesStudio() {
                 <div className="flex items-center gap-2">
                   {url ? <img src={url} alt={char.name} className="h-12 w-12 rounded-lg object-cover"/> : <div className="h-12 w-12 rounded-lg bg-surface-secondary"/>}
                   <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{char.name}</p>
-                    <p className="text-xs text-muted">{path ? "Imagem escolhida" : "Selecione uma miniatura"}</p></div>
+                    {path && <p className="text-xs text-muted">Imagem salva</p>}</div>
+                </div>
+                {project.status === "draft" && <div className="space-y-2">
+                  <label className="block text-xs font-semibold">Como você quer este personagem?
+                    <textarea className={field + " mt-1 min-h-24 resize-y"} rows={3} maxLength={1200}
+                      placeholder={char.visual || "Descreva aparência, roupas, expressão e estilo visual"}
+                      value={imagePrompts[ci] ?? ""}
+                      onChange={e => setImagePrompts(old => ({ ...old, [ci]: e.target.value }))}/>
+                  </label>
+                  <button type="button" className={button + " !bg-primary !text-primary-foreground !border-primary"}
+                    disabled={busy || !imageConfigured || !(imagePrompts[ci]?.trim() || char.visual.trim())}
+                    onClick={() => void generateCharacterReference(ci)}>
+                    {busy ? "Gerando imagem..." : "Gerar e salvar imagem"}
+                  </button>
+                  {!imageConfigured && <p className="text-xs text-muted">Geração de imagens indisponível: configure HIST_IMAGEM_GEMINI_API_KEY no Supabase. Nenhuma cobrança será iniciada por este botão.</p>}
+                </div>}
+                <details className="rounded-lg border border-border p-2">
+                  <summary className="cursor-pointer text-xs font-semibold">Outras opções: imagens salvas, edição e envio manual</summary>
+                  <div className="space-y-3 pt-3">
                   {project.status === "draft" && <button type="button" className={button + " !px-2 !py-1 !text-xs"}
                     aria-expanded={editing} onClick={() => {setEditingCharacterIndex(editing ? null : ci);setAddingCharacterImageIndex(null);}}>
-                    {editing ? "Fechar" : "Editar"}</button>}
-                </div>
+                    {editing ? "Fechar edição" : "Editar ficha"}
+                  </button>}
                 <div role="group" aria-label={"Escolher imagem para " + char.name} className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-7">
                   {characterLibrary.filter(entry => entry.storage_path.includes("/library/" + project.character_style + "/") ||
                     entry.storage_path === path).map(entry => {
@@ -1326,23 +1345,19 @@ export function StoriesStudio() {
                   <button className={button + " !text-xs"} disabled={busy} onClick={() => void saveScript(false)}>Salvar alterações</button>
                 </div>}
                 {adding && project.status === "draft" && <div className="space-y-2 rounded-lg bg-surface-secondary p-3">
-                  <p className="text-sm font-semibold">Nova imagem de {char.name}</p>
-                  <label className="block text-xs">Nome<input className={field + " mt-1"} maxLength={100}
-                    value={imageNames[ci] ?? ""} placeholder={char.name}
-                    onChange={e => setImageNames(old => ({...old,[ci]:e.target.value}))}/></label>
-                  <label className="block text-xs">Aparência e acessórios<textarea className={field + " mt-1"} rows={2} maxLength={1200}
-                    placeholder={char.visual} value={imagePrompts[ci] ?? ""}
-                    onChange={e => setImagePrompts(old => ({...old,[ci]:e.target.value}))}/></label>
+                  <p className="text-xs font-semibold">Enviar imagem existente de {char.name}</p>
+                  <label className="block text-xs">Nome da imagem
+                    <input className={field + " mt-1"} maxLength={100}
+                      value={imageNames[ci] ?? ""} placeholder={char.name}
+                      onChange={e => setImageNames(old => ({...old,[ci]:e.target.value}))}/>
+                  </label>
                   <label className="block text-xs">Enviar foto (PNG, JPG ou WebP, até 10 MB)
                     <input type="file" className="mt-1 block w-full text-xs" accept="image/png,image/jpeg,image/webp" disabled={busy}
                       onChange={e => {const file=e.currentTarget.files?.[0];void uploadReference(ci,file);e.currentTarget.value="";}}/>
                   </label>
-                  <details className="rounded-lg border border-border p-2">
-                    <summary className="cursor-pointer text-xs font-semibold">Gerar com Nano Banana (opcional)</summary>
-                    <button className={button + " mt-2 !text-xs"} disabled={busy || !imageConfigured} onClick={() => void generateCharacterReference(ci)}>Gerar imagem</button>
-                    {!imageConfigured && <p className="mt-2 text-xs text-muted">HIST_IMAGEM_GEMINI_API_KEY não configurada. Envio manual disponível.</p>}
-                  </details>
                 </div>}
+                  </div>
+                </details>
               </div>;
             })}
           </div>;
