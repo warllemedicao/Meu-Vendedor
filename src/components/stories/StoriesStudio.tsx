@@ -651,7 +651,7 @@ export function StoriesStudio() {
       (entry): entry is LibraryCharacter => Boolean(entry));
     if (chosen.length < 1 || chosen.length > 4)
       throw new Error("Selecione de 1 a 4 personagens salvos antes de gerar o roteiro.");
-    if (chosen.some(entry => !entry.storage_path.includes("/library/" + style + "/")))
+    if (style !== "nao_definido" && chosen.some(entry => !entry.storage_path.includes("/library/" + style + "/")))
       throw new Error("Selecione personagens do mesmo tipo visual deste tema.");
     if (new Set(chosen.map(entry => castDisplayName(entry.name).toLocaleLowerCase("pt-BR"))).size !== chosen.length)
       throw new Error("Os personagens selecionados precisam ter nomes diferentes.");
