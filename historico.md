@@ -1,3 +1,10 @@
+## 21/11/2026 — Histórias: interface simples de imagem por personagem e proteção de custos
+
+- Em Histórias → Personagens e imagens, cada personagem apresenta por padrão apenas a descrição (texto livre), o botão **Gerar e salvar imagem** e a miniatura da referência já salva. Biblioteca, edição, seleção de referências e envio manual ficam recolhidos em **Outras opções**; gestão da biblioteca em painel avançado.
+- A ação reutiliza `image_character` e, após o retorno válido, faz upload privado e associação automática ao personagem, registrando na biblioteca `mv_story_characters`. Cada imagem gerada recebe um sufixo único no nome, sem solicitar campos extras ou sobrescrever versões anteriores.
+- Segundo a página de preços oficial consultada em 21/11/2026, `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite) **não oferece faixa gratuita na API**. Por segurança, a Edge Function bloqueia toda inferência de imagem sem opt-in de backend `HIST_IMAGEM_API_PAGA_AUTORIZADA=true`, além da chave isolada `HIST_IMAGEM_GEMINI_API_KEY`. O aplicativo não habilita esse consentimento sozinho; geração permanece desativada enquanto não existir autorização explícita. O envio manual de imagens do Google AI Studio continua disponível.
+- Não foram integrados provedores Google adicionais sem comprovação de cota gratuita. Nenhuma alteração nos agentes do robô Flow ou nos módulos de Produtos/Campanhas. Deploy frontend Cloudflare e inferência real devem ser verificados separadamente.
+
 ## 21/11/2026 — Estado confirmado da migração Gemini Histórias
 
 - Supabase: Edge Function `story-studio` publicada como **v39 ACTIVE**, JWT obrigatório, com `script_block` (4 cenas/solicitação) e modelo `gemini-3.5-flash-lite`; o código não faz chamadas ao OpenRouter.
