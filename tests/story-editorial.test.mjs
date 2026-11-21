@@ -67,15 +67,15 @@ test("social publication choices do not trigger social APIs", () => {
 });
 
 
-test("script starts generating the first scene automatically after persisting draft", () => {
-  assert.match(code, /await generateOneScene\(data as Project, topic\.synopsis\)/);
+test("script generates all twelve scenes automatically after persisting draft", () => {
+  assert.match(code, /await generateFullScript\(data as Project, topic\.synopsis\)/);
   assert.match(code, /onClick=\{\(\) => void generateScript\(t\)\}>Roteiro<\/button>/);
   assert.match(code, /setExpandedScene\(sceneNumber\)/);
   assert.match(code, /selected\.scenes\.reduce\(\(last, s\)/);
 });
 
 test("Roteiro reopens existing saved topic before inserting or calling Gemini", () => {
-  const handler = code.slice(code.indexOf("  async function generateScript(topic: Topic"), code.indexOf("  async function generateOneScene(working:"));
+  const handler = code.slice(code.indexOf("  async function generateScript(topic: Topic"), code.indexOf("  async function generateFullScript(working:"));
   assert.match(handler, /startingScriptRef\.current = true/);
   assert.match(handler, /if \(!createNewVersion\)/);
   assert.match(handler, /\.from\("mv_story_projects"\)/);
@@ -85,15 +85,15 @@ test("Roteiro reopens existing saved topic before inserting or calling Gemini", 
   assert.match(handler, /await openProject\(existing as Project\)/);
   assert.match(handler, /setMessage\("Roteiro existente recuperado sem consumir tokens de IA/);
   assert.ok(handler.indexOf("if (!createNewVersion)") < handler.indexOf(".insert({"), "The saved-project lookup must precede insert");
-  assert.ok(handler.indexOf("await openProject(existing as Project)") < handler.indexOf("await generateOneScene(data as Project"), "Reuse must return before inference");
+  assert.ok(handler.indexOf("await openProject(existing as Project)") < handler.indexOf("await generateFullScript(data as Project"), "Reuse must return before inference");
   assert.match(handler, /finally \{ startingScriptRef\.current = false; setBusy\(false\)/);
 });
 
-test("creating an additional Gemini script requires a separate explicit confirmation", () => {
+test("creating an additional OpenRouter script requires a separate explicit confirmation", () => {
   assert.match(code, /onClick=\{\(\) => void generateScript\(t\)\}>Roteiro<\/button>/);
   assert.match(code, /window\.confirm\("Criar uma nova versão do roteiro\?/);
   assert.match(code, /void generateScript\(t, true\)/);
-  assert.match(code, /Nova versão \(OpenAI\)/);
+  assert.match(code, /Nova versão \(OpenRouter\)/);
 });
 
 test("dialogue editing retains raw whitespace and checks incomplete lines before saving", () => {
@@ -136,7 +136,7 @@ test("every completed scene supports separate video provider, prompt and downloa
   assert.match(code, /saveScenePrompt\(s\.number\)/);
   assert.match(code, /downloadTextFile\("cena-" \+ s\.number/);
   assert.match(code, /downloadReference\(char\.referenceImagePath!/);
-  assert.match(code, /Gerar cena \{s\.number\} · OpenAI/);
+  assert.match(code, /Gerar cena \{s\.number\} · OpenRouter/);
   assert.match(code, /Falha ao consultar prompt anterior. Nenhum crédito de IA foi utilizado/);
 });
 
@@ -168,9 +168,9 @@ test("advanced generation section contains no incomplete legacy Flash-Lite butto
   assert.doesNotMatch(code, /generateNextSceneLite/);
 });
 
-test("saved prompts can be reused or explicitly regenerated with OpenAI", () => {
+test("saved prompts can be reused or explicitly regenerated with OpenRouter", () => {
   assert.match(code, /if \(existing\?\.prompt && useGemini\)/);
-  assert.match(code, /window\.confirm\("Já existe um prompt salvo nesta cena\. Gerar uma nova versão com OpenAI\?/);
+  assert.match(code, /window\.confirm\("Já existe um prompt salvo nesta cena\. Gerar uma nova versão com OpenRouter\?/);
   assert.match(code, /Prompt salvo recuperado sem gastar créditos de IA/);
   assert.match(code, /setSceneWorkbenchStep\("prompt"\)/);
 });
@@ -219,7 +219,7 @@ test("prompt stage stays compact with visual providers and two explicit generati
   assert.match(code, /aria-pressed=\{chosenPlatform === item\.value\}/);
   assert.match(code, /"\/stories\/tools\/" \+ item\.value \+ "\.svg"/);
   assert.match(code, /Gerar prompt sem IA/);
-  assert.match(code, /Gerar prompt com OpenAI/);
+  assert.match(code, /Gerar prompt com OpenRouter/);
   assert.match(code, /\{scenePromptText\.trim\(\) && <>/);
   assert.match(code, /sceneWorkbenchStep !== "prompt" && <nav/);
   assert.match(code, /Outras opções e imagens para baixar/);
