@@ -1,3 +1,9 @@
+## Seleção e upload simplificados — 21/11/2026
+
+Na aba **Personagens da história**, as miniaturas existentes foram reduzidas, com opções por item para **Renomear** e **Excluir**. O cadastro visível usa um único botão **Enviar imagens**, com múltipla seleção de arquivos e um campo de nome para cada personagem antes da gravação. A descrição visual deixou de ser obrigatória para uploads manuais; não há necessidade de chamar qualquer API para registrar personagens.
+
+A exclusão é protegida: imagens usadas em roteiros salvos não são removidas até que sua referência seja desvinculada. Todo registro é isolado por `user_id`, e o caminho privado do Storage é conferido antes da limpeza. O histórico de roteiros não é reescrito quando imagens são renomeadas na biblioteca.
+
 # Histórias — geração, cadastro e reutilização de imagens
 
 Atualização: 21/11/2026.
