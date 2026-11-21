@@ -143,7 +143,7 @@ test("Histórias keeps Gemini for themes, OpenRouter for scripts and video promp
   assert.match(edge, /max_completion_tokens: maxTokens/);
   assert.match(edge, /configuredModel\.endsWith\(":free"\)/);
   assert.match(edge, /Deno\.env\.get\("HIST_OPENROUTER_PRESET"\)/);
-  assert.match(edge, /preset: presetSlug/);
+  assert.match(edge, /preset: "@preset\/" \+ presetSlug/);
   assert.match(edge, /openrouter_preset_invalid/);
   assert.doesNotMatch(edge, /HIST_ROTEIRO_GEMINI_API_KEY/);
 });
