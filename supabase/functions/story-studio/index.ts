@@ -1,7 +1,7 @@
 import { storyPromptAgents as RULES } from "./_shared/agents/index.ts";
-// Histórias keeps Gemini for themes/images; OpenAI handles scripts and prompts.
+// Histórias keeps Gemini for themes/images; OpenRouter free models handle scripts and prompts.
 const TOPICS_MODEL = "gemini-3.5-flash-lite";
-const SCRIPT_MODEL = "gpt-5.4-mini-2026-03-17";
+const SCRIPT_MODEL = "openrouter/free";
 // Nano Banana 2 Lite uses an independent key: never borrow topic/script quotas silently.
 const IMAGE_MODEL = "gemini-3.1-flash-lite-image";
 const CHARACTER_STYLE_RULES = {
@@ -18,7 +18,7 @@ function characterStyleRule(input: unknown): string {
 const APP_ORIGIN = Deno.env.get("MV_APP_ORIGIN") || "https://meu-vendedor.httpsgithubcomwarllemedicaosunshine-budget-guidegit.workers.dev";
 const MAX_REQUEST_BYTES = 50_000;
 const TOPICS_MAX_TOKENS = (count: number) => Math.min(3800, 1800 + count * 100);
-const SCRIPT_MAX_TOKENS = 7200;
+const SCRIPT_MAX_TOKENS = 8000;
 const PROMPTS_MAX_TOKENS = 8500;
 
 type AnyRecord = Record<string, unknown>;
@@ -71,78 +71,80 @@ function safeGeminiError(responseBody: unknown) {
   return { googleStatus: status, googleCode: detail && typeof detail.code === "number" ? detail.code : null, googleCategory: category };
 }
 
-/** OpenAI script and prompt generation; no retries or user content in logs. */
-async function openaiStory(instruction: string, payload: unknown, maxTokens: number): Promise<unknown> {
-  const key = Deno.env.get("HIST_ROTEIRO_OPENAI");
-  if (!key) throw new Error("openai_not_configured");
+/** OpenRouter free-model generation. No fallback to a paid model or automatic retries. */
+async function openrouterStory(instruction: string, payload: unknown, maxTokens: number): Promise<unknown> {
+  const key = Deno.env.get("HIST_ROTEIRO__OPENROUTER");
+  if (!key) throw new Error("openrouter_not_configured");
+  const configuredModel = Deno.env.get("HIST_OPENROUTER_MODEL")?.trim() || "openrouter/free";
+  if (configuredModel !== "openrouter/free" && !configuredModel.endsWith(":free"))
+    throw new Error("openrouter_paid_model_blocked");
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60000);
+  const timeout = setTimeout(() => controller.abort(), 90000);
   const started = Date.now();
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST", signal: controller.signal, redirect: "error",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+      headers: {
+        "Content-Type": "application/json", Authorization: "Bearer " + key,
+        "HTTP-Referer": APP_ORIGIN, "X-Title": "Meu Vendedor - Historias",
+      },
       body: JSON.stringify({
-        model: SCRIPT_MODEL, store: false, reasoning_effort: "none",
-        response_format: { type: "json_object" },
+        model: configuredModel,
         messages: [
-          { role: "system", content: instruction + " Retorne apenas um objeto JSON válido." },
+          { role: "system", content: instruction + " Retorne exclusivamente JSON válido, sem Markdown." },
           { role: "user", content: JSON.stringify(payload) },
         ],
         max_completion_tokens: maxTokens,
+        temperature: 0.65,
       }),
     });
     if (!response.ok) {
-      const reason = response.status === 429 ? "openai_rate_limited" :
-        response.status === 401 ? "openai_invalid_key" :
-        response.status === 402 ? "openai_billing_required" :
-        response.status === 403 ? "openai_permission_denied" :
-        response.status === 404 ? "openai_model_unavailable" :
-        response.status === 400 ? "openai_request_rejected" :
-        response.status >= 500 ? "openai_service_unavailable" : "openai_unavailable";
-      console.error("story_studio_openai_error", { status: response.status, reason, model: SCRIPT_MODEL, elapsedMs: Date.now() - started });
+      const reason = response.status === 429 ? "openrouter_rate_limited" :
+        response.status === 401 ? "openrouter_invalid_key" :
+        response.status === 402 ? "openrouter_billing_required" :
+        response.status === 403 ? "openrouter_permission_denied" :
+        response.status === 404 ? "openrouter_model_unavailable" :
+        response.status === 400 ? "openrouter_request_rejected" :
+        response.status >= 500 ? "openrouter_service_unavailable" : "openrouter_unavailable";
+      console.error("story_studio_openrouter_error", {
+        status: response.status, reason, model: configuredModel, elapsedMs: Date.now() - started,
+      });
       throw new Error(reason);
     }
     const data: unknown = await response.json();
-    if (!record(data) || !Array.isArray(data.choices) || !data.choices.length) throw new Error("openai_invalid_response");
+    if (!record(data) || !Array.isArray(data.choices) || data.choices.length < 1)
+      throw new Error("openrouter_invalid_response");
     const choice = data.choices[0];
-    if (!record(choice) || choice.finish_reason === "length") throw new Error("openai_output_truncated");
-    if (!record(choice.message) || choice.message.refusal) throw new Error("openai_invalid_response");
+    if (!record(choice) || choice.finish_reason === "length")
+      throw new Error("openrouter_output_truncated");
+    if (!record(choice.message) || choice.message.refusal)
+      throw new Error("openrouter_invalid_response");
     const content = choice.message.content;
-    if (typeof content !== "string" || content.length === 0 || content.length > 180000) throw new Error("openai_invalid_response");
+    if (typeof content !== "string" || !content.trim() || content.length > 180000)
+      throw new Error("openrouter_invalid_response");
     const usage = record(data.usage) ? data.usage : {};
     const tokens = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
-    console.info("story_studio_openai_usage", {
-      model: SCRIPT_MODEL, elapsedMs: Date.now() - started, maxCompletionTokens: maxTokens,
+    console.info("story_studio_openrouter_usage", {
+      model: configuredModel, elapsedMs: Date.now() - started, maxCompletionTokens: maxTokens,
       inputTokens: tokens(usage.prompt_tokens), outputTokens: tokens(usage.completion_tokens),
       totalTokens: tokens(usage.total_tokens), finishReason: choice.finish_reason,
     });
-    try { return JSON.parse(content); } catch { throw new Error("openai_invalid_json"); }
+    try {
+      return JSON.parse(content.trim().replace(/^\x60\x60\x60(?:json)?\s*/i, "").replace(/\s*\x60\x60\x60$/, ""));
+    } catch { throw new Error("openrouter_invalid_json"); }
   } catch (error) {
-    if (controller.signal.aborted) throw new Error("openai_timeout");
-    if (error instanceof TypeError) throw new Error("openai_network_error");
+    if (controller.signal.aborted) throw new Error("openrouter_timeout");
+    if (error instanceof TypeError) throw new Error("openrouter_network_error");
     throw error;
   } finally { clearTimeout(timeout); }
 }
 async function diagnoseModelConnection(purpose: "topics" | "script") {
   if (purpose === "script") {
-    const key = Deno.env.get("HIST_ROTEIRO_OPENAI");
-    if (!key) throw new Error("openai_not_configured");
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    try {
-      const response = await fetch("https://api.openai.com/v1/models/" + encodeURIComponent(SCRIPT_MODEL), {
-        method: "GET", redirect: "error", signal: controller.signal,
-        headers: { Authorization: "Bearer " + key },
-      });
-      if (!response.ok) throw new Error(response.status === 401 ? "openai_invalid_key" :
-        response.status === 404 ? "openai_model_unavailable" : "openai_unavailable");
-      return { ok: true, model: SCRIPT_MODEL, note: "model_metadata_only" };
-    } catch (error) {
-      if (controller.signal.aborted) throw new Error("openai_timeout");
-      if (error instanceof TypeError) throw new Error("openai_network_error");
-      throw error;
-    } finally { clearTimeout(timeout); }
+    const key = Deno.env.get("HIST_ROTEIRO__OPENROUTER");
+    if (!key) throw new Error("openrouter_not_configured");
+    const model = Deno.env.get("HIST_OPENROUTER_MODEL")?.trim() || "openrouter/free";
+    if (model !== "openrouter/free" && !model.endsWith(":free")) throw new Error("openrouter_paid_model_blocked");
+    return { ok: true, model, note: "configuration_only_no_api_request" };
   }
   // Metadata lookup only: no generateContent, no inference tokens, and no secret in URL/logs.
   const key = Deno.env.get("HIST_TEMA_GEMINI_API_KEY");
@@ -187,7 +189,7 @@ async function diagnoseModelConnection(purpose: "topics" | "script") {
   } finally { clearTimeout(timeout); }
 }
 async function gemini(systemInstruction: string, payload: unknown, maxTokens = 8192, purpose: "topics" | "script" = "script"): Promise<unknown> {
-  if (purpose === "script") return openaiStory(systemInstruction, payload, maxTokens);
+  if (purpose === "script") return openrouterStory(systemInstruction, payload, maxTokens);
   const key = Deno.env.get("HIST_TEMA_GEMINI_API_KEY");
   if (!key) throw new Error("gemini_not_configured");
   const model = TOPICS_MODEL;
@@ -483,7 +485,7 @@ Deno.serve(async (request) => {
     return json({ error: "unknown_action" }, 400, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown_error";
-    const acceptable = new Set(["image_api_not_configured","image_generation_failed","invalid_image_input","scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_timeout","gemini_network_error","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","gemini_output_truncated","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid","openai_not_configured","openai_invalid_key","openai_billing_required","openai_permission_denied","openai_rate_limited","openai_model_unavailable","openai_request_rejected","openai_service_unavailable","openai_unavailable","openai_timeout","openai_network_error","openai_invalid_response","openai_invalid_json","openai_output_truncated"]);
-    return json({ error: acceptable.has(code) ? code : "generation_failed" }, code === "gemini_not_configured" || code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "openai_not_configured" || code === "openai_service_unavailable" || code === "openai_timeout" ? 503 : 502, origin);
+    const acceptable = new Set(["image_api_not_configured","image_generation_failed","invalid_image_input","scene_dialogue_too_long","gemini_not_configured","gemini_unavailable","gemini_quota_exceeded","gemini_invalid_key","gemini_billing_required","gemini_permission_denied","gemini_model_unavailable","gemini_request_rejected","gemini_service_unavailable","gemini_timeout","gemini_network_error","gemini_invalid_response","gemini_invalid_json","gemini_response_too_large","gemini_output_truncated","script_invalid","character_invalid","character_incomplete","scene_invalid","scene_incomplete","topics_invalid","topics_empty","prompts_invalid","prompt_limit_or_sequence_invalid","openrouter_not_configured","openrouter_paid_model_blocked","openrouter_invalid_key","openrouter_billing_required","openrouter_permission_denied","openrouter_rate_limited","openrouter_model_unavailable","openrouter_request_rejected","openrouter_service_unavailable","openrouter_unavailable","openrouter_timeout","openrouter_network_error","openrouter_invalid_response","openrouter_invalid_json","openrouter_output_truncated"]);
+    return json({ error: acceptable.has(code) ? code : "generation_failed" }, code === "gemini_not_configured" || code === "gemini_service_unavailable" || code === "gemini_timeout" || code === "openrouter_not_configured" || code === "openrouter_service_unavailable" || code === "openrouter_timeout" ? 503 : 502, origin);
   }
 });
