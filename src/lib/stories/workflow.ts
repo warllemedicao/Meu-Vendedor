@@ -103,6 +103,25 @@ function pickStoryCandidate(platform: StoryPlatform, scene: StoryScene, texts: s
   return result;
 }
 
+/** Detect ambiguous physical actions; never invent a route through an obstacle. */
+export function reviewStoryScene(scene: StoryScene): string[] {
+  const issues: string[] = [];
+  if (/(atravess|passa|passou).{0,55}(corda|parede|grade|cerca|barreira|mesa|obstáculo)/i.test(scene.action) &&
+      !/(por baixo|por cima|ao redor|contorn|pela abertura|pela porta|salt|escal|desvi)/i.test(scene.action)) {
+    issues.push("Explique se o personagem passa por baixo, por cima ou ao redor do obstáculo.");
+  }
+  if (scene.dialogue.length > 1 && !/(depois|em seguida|responde|espera|termina|na sequência)/i.test(scene.action)) {
+    issues.push("Confira a ordem das falas para evitar vozes simultâneas.");
+  }
+  return issues;
+}
+function directedSpeech(scene: StoryScene): string {
+  if (!scene.dialogue.length) return "";
+  const turns = scene.dialogue.map((line, i) => (i + 1) + ". " + line.speaker + ': "' + line.text + '"').join("\n");
+  return "Exact dialogue in Brazilian Portuguese, in this order. One character speaks at a time; all others stay silent with mouths closed. Never overlap voices:\n" + turns;
+}
+const PHYSICAL_DIRECTION = "Continuous, physically coherent action: stable obstacles, no intersecting solid objects, no teleportation. Follow the specified path around, above or below obstacles.";
+
 /** Global visual identity belongs in the Flow Agent/project configuration, not repeated scene by scene. */
 export function makeStoryFlowAgentInstructions(
   characters: StoryCharacter[], style: StoryCharacterStyle = "nao_definido",
@@ -124,6 +143,8 @@ export function makeLocalPromptDrafts(
     const setting = cleanStoryText(scene.setting);
     const action = cleanStoryText(scene.action);
     const speech = scene.dialogue.map(line => line.speaker + ': "' + line.text + '"').join("\n");
+    const speechDirection = directedSpeech(scene);
+    const reviewNotes = reviewStoryScene(scene);
     const style = STORY_CHARACTER_STYLE_INSTRUCTIONS[characterStyle];
     if (!setting || !action) throw new Error("A cena " + scene.number + " precisa de ambiente e ação.");
 
@@ -135,7 +156,7 @@ export function makeLocalPromptDrafts(
       const oneAction = segments[0]?.trim() || action;
       if (segments.length > 1) notice = "YouTube Create: usada só a primeira microação. As demais ações do roteiro não foram alteradas; gere-as em outros clipes.";
       const subject = cast.map(ch => ch.name).join(", ") || "Scene subject";
-      const dialogue = speech ? "Speech in Brazilian Portuguese, exact lines:\n" + speech : "";
+      const dialogue = speech ? speechDirection : "";
       const variants = [
         cast.map(ch => ch.name + ": " + cleanStoryText(ch.visual)).join("; "),
         cast.map(ch => ch.name + ": " + cleanStoryText(ch.role)).join("; "),
@@ -145,7 +166,7 @@ export function makeLocalPromptDrafts(
         "Subject: " + identity,
         "Single action: " + oneAction,
         "Environment: " + setting,
-        "Camera: steady medium shot, one continuous take.",
+        "Camera: steady medium shot, one continuous take. No intersecting solid objects.",
         dialogue,
       ].filter(Boolean).join("\n"));
       text = pickStoryCandidate(platform, scene, candidates);
@@ -155,10 +176,10 @@ export function makeLocalPromptDrafts(
     } else if (platform === "google-flow") {
       const mentions = cast.map(ch => "@" + storyAssetName(ch.name)).join(" ");
       const subject = mentions || cast.map(ch => ch.name).join(", ");
-      const dialogue = speech ? "Speech (pt-BR):\n" + speech : "";
+      const dialogue = speech ? speechDirection : "";
       const variants = [
-        [subject, action, "Environment: " + setting, "Camera: steady medium shot.", dialogue].filter(Boolean).join("\n"),
-        [subject, action, "Camera: steady medium shot.", dialogue].filter(Boolean).join("\n"),
+        [subject, action, "Environment: " + setting, "Camera: steady medium shot.", PHYSICAL_DIRECTION, dialogue].filter(Boolean).join("\n"),
+        [subject, action, "Camera: steady medium shot, no object collisions.", dialogue].filter(Boolean).join("\n"),
       ];
       text = pickStoryCandidate(platform, scene, variants);
       notice = "No Flow, crie os personagens como Elementos/Ingredientes com os mesmos nomes das menções @. As menções não vinculam imagens automaticamente.";
@@ -172,7 +193,7 @@ export function makeLocalPromptDrafts(
       });
       const subjectLabels = cast.map((_,i) => "Sujeito " + (i + 1)).join(" e ") || "Sujeito principal";
       const labeledAction = cast.reduce((value, ch, i) => value.replaceAll(ch.name, "Sujeito " + (i + 1)), action);
-      const speechPart = speech ? "Falas exatas em pt-BR:\n" + speech : "";
+      const speechPart = speech ? speechDirection : "";
       const variants = [
         bindings.join("\n"),
         cast.map((ch,i) => "Sujeito " + (i + 1) + ": " + ch.name +
@@ -185,11 +206,12 @@ export function makeLocalPromptDrafts(
         "Iluminação e cor: manter a referência visual.",
         "Câmera: plano médio estável.",
         "Estilo visual: " + (style || "manter a identidade da imagem."),
-        "Qualidade/restrições: sem sujeitos ou cortes extras.",
+        "Qualidade/restrições: movimentos fisicamente coerentes, sem atravessar objetos, sem sujeitos ou cortes extras.",
         speechPart,
       ].filter(Boolean).join("\n")));
       notice = "Dreamina: confira se @Imagem 1, @Imagem 2 etc. correspondem às imagens realmente anexadas. Os rótulos não carregam arquivos automaticamente.";
     }
+    if (reviewNotes.length) notice = [notice, ...reviewNotes].filter(Boolean).join(" ");
     return { scene: scene.number, platform, text, ...(notice ? { notice } : {}) };
   });
 }
