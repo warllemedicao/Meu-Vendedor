@@ -1,3 +1,12 @@
+## Interface compacta e biblioteca — 21/11/2026
+
+- O painel **Personagens da história** não contém mais texto explicativo. Miniaturas reduzidas a 80 × 80 px, em cartões compactos, com seleção por clique.
+- Cada cartão possui **Renomear** e **Excluir**. Renomear altera o nome do registro privado na biblioteca; roteiros existentes preservam as fichas que já foram salvas.
+- Excluir consulta previamente todos os roteiros do proprietário e bloqueia remoção de referências ainda vinculadas; o usuário deve desvincular/trocar a imagem no roteiro antes de excluí-la. Após excluir o registro, a ferramenta tenta remover o arquivo privado do Storage e avisa se a limpeza falhar.
+- O cadastro foi simplificado para o botão **Enviar imagens**. O seletor aceita vários arquivos PNG/JPG/WebP, até 10 MB cada, e abre um campo de **nome do personagem por imagem** antes de salvar o lote.
+- Não é mais necessário preencher uma descrição ou prompt ao carregar imagens. Quando a ficha não possui descrição textual, o sistema usa o nome e a referência visual salva como base, sem inventar aparência.
+- Arquivos são registrados separadamente e nunca sobrescritos; sucesso parcial é mantido e informado. O usuário seleciona até quatro personagens para uma história, mas pode salvar várias imagens na biblioteca.
+
 # Histórias — seleção de personagens antes do roteiro
 
 Atualização: 21/11/2026.
