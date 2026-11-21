@@ -1,3 +1,9 @@
+## 21/11/2026 — Distinguir HTTP 429: provedor vs cota OpenRouter
+
+- Registro real: Google AI Studio (Gemma 4 31B free) rejeitou geração em 163 ms com HTTP 429; Supabase confirmou `story_studio_openrouter_error`, `model: google/gemma-4-31b-it:free`, `elapsedMs: 527`, erro `openrouter_rate_limited`. Roteamento para Gemma validado; esta ocorrência não confirma esgotamento de créditos.
+- Edge Function passou a ler apenas `error.metadata.limit_source` (sem registrar corpo da resposta/chave/prompt) e diferenciar `upstream_provider_shared_pool` (limitação do provedor), `openrouter_free_tier*` (limite gratuito da conta), e 429 indeterminado. O frontend apresenta mensagens específicas e separa HTTP 402 de 429.
+- Não realizar retries automáticos e não trocar para modelos pagos; tentativas malsucedidas também podem contar na cota diária gratuita. Validar via testes e workflow, publicar Supabase e Cloudflare.
+
 ## 21/11/2026 — Correção de roteamento OpenRouter gratuito e Preset
 
 - Logs reais: `story_studio_openrouter_transport_error` em 2026-11-21 03:14:17 UTC, `openrouter_timeout` após 90.001 ms; Edge Function respondeu HTTP 503. OpenRouter registrou modelo Liquid LFM3-1.7B gratuito, geração lenta e cancelada. Outra tentativa com NVIDIA terminou `length` por limite de saída.
