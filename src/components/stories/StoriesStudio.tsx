@@ -773,14 +773,39 @@ export function StoriesStudio() {
     } catch (e) { setError(plainError(e)); }
     finally { setBusy(false); }
   }
-  function previewLocalPrompts() {
-    if (!project || project.status === "draft") return;
-    setError("");
+  async function previewLocalPrompts() {
+    if (!project || !user || project.status === "draft" || busy) return;
+    const client = getSupabase(); if (!client) return;
+    setBusy(true); setError(""); setMessage("");
     try {
-      setPrompts(makeLocalPromptDrafts(platform, project.characters, project.scenes, project.character_style || "nao_definido"));
+      if (project.scenes.length !== 12 || project.scenes.some(scene => !scene.action.trim() || !scene.setting.trim()))
+        throw new Error("Aprove primeiro o roteiro completo com as 12 cenas.");
+      // Build and validate all prompts BEFORE inserting anything into the database.
+      const drafts = makeLocalPromptDrafts(platform, project.characters, project.scenes, project.character_style || "nao_definido");
+      if (drafts.length !== 12 || drafts.some((p, i) => p.scene !== i + 1 || !p.text.trim() ||
+          countStoryPromptCharacters(p.text) > PLATFORM_GUIDES[platform].absoluteChars)) {
+        throw new Error("O motor interno não produziu 12 prompts válidos para esta plataforma.");
+      }
+      const { data: saved, error: readError } = await client.from("mv_story_prompts")
+        .select("scene_number,prompt,platform").eq("project_id", project.id).eq("user_id", user.id).eq("platform", platform);
+      if (readError) throw new Error("Falha ao consultar prompts anteriores. Nada foi sobrescrito.");
+      const previous = new Set((saved || []).map(item => item.scene_number as number));
+      const pending = drafts.filter(item => !previous.has(item.scene));
+      if (pending.length) {
+        const { error: saveError } = await client.from("mv_story_prompts").upsert(pending.map(item => ({
+          user_id: user.id, project_id: project.id, scene_number: item.scene, platform, prompt: item.text,
+        })), { onConflict: "project_id,scene_number,platform", ignoreDuplicates: true });
+        if (saveError) throw new Error("Falha ao salvar os prompts locais. Verifique o banco antes de repetir.");
+      }
+      await loadPlatformPrompts(platform);
       setStage("prompts");
-      setMessage("Rascunhos locais montados sem IA, respeitando o limite de cada plataforma.");
+      const flagged = drafts.filter(item => item.notice?.includes("Explique se o personagem") ||
+        item.notice?.includes("Confira a ordem das falas")).map(item => item.scene);
+      setMessage(pending.length + " prompts novos criados sem IA. " +
+        (previous.size ? "Prompts já salvos preservados. " : "") +
+        (flagged.length ? "Revise movimento ou falas nas cenas " + flagged.join(", ") + "." : "Confira os prompts antes de produzir os vídeos."));
     } catch (e) { setError(plainError(e)); }
+    finally { setBusy(false); }
   }
   function downloadProductionPlan() {
     if (!project) return;
@@ -1581,12 +1606,15 @@ export function StoriesStudio() {
         </select>
       </label>
       <p className="text-sm text-muted">{PLATFORM_GUIDES[platform].workflow} {PLATFORM_GUIDES[platform].reminder}</p>
-      <p className="text-xs text-muted">Os 12 prompts são gerados juntos e salvos no banco; rascunhos locais não utilizam API.</p>
+      <p className="text-xs text-muted">Motor interno: gera e salva os 12 prompts sem API nem consumo de tokens. Os prompts já salvos não são sobrescritos.</p>
       <div className="flex flex-wrap gap-2">
-        <button className={button} disabled={busy} onClick={() => void generatePrompts()}>{busy && sceneProgress ? sceneProgress : "Gerar os 12 prompts com OpenRouter (1 chamada)"}</button>
-        <button className={button} disabled={busy} onClick={previewLocalPrompts}>Montar rascunhos locais sem IA</button>
+        <button className={button + " !bg-primary !text-primary-foreground !border-primary"} disabled={busy} onClick={() => void previewLocalPrompts()}>Gerar e salvar 12 prompts sem IA</button>
         <button className={button} disabled={busy} onClick={() => void loadPlatformPrompts(platform)}>Reabrir prompts salvos</button>
       </div>
+      <details className="rounded-xl border border-border p-2">
+        <summary className="cursor-pointer text-xs font-semibold">Opção avançada: gerar prompts com IA</summary>
+        <button className={button + " mt-2"} disabled={busy} onClick={() => void generatePrompts()}>{busy && sceneProgress ? sceneProgress : "Gerar os 12 prompts com OpenRouter (1 chamada)"}</button>
+      </details>
       {!prompts.length && <p className="rounded-xl border border-border p-3 text-sm text-muted">Nenhum prompt desta ferramenta foi carregado. Use a OpenRouter ou o gerador local de rascunhos para preencher as 12 cenas.</p>}
       {prompts.map(p => <div className="rounded-xl border border-border p-3 space-y-2" key={p.scene}>
         <h3 className="font-semibold">Prompt da cena {p.scene}</h3>
