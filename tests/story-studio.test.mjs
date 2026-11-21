@@ -107,5 +107,8 @@ test("image generation uses its dedicated key only", () => {
   const imageBlock = edge.split("async function generateCharacterImage(prompt: string)")[1]
     ?.split("function normalizeScene(")[0] || "";
   assert.match(imageBlock, /HIST_IMAGEM_GEMINI_API_KEY/);
+  assert.match(imageBlock, /HIST_IMAGEM_API_PAGA_AUTORIZADA/);
+  assert.match(edge, /image_paid_api_not_authorized/);
+  assert.match(edge, /paidAuthorizationRequired/);
   assert.doesNotMatch(imageBlock, /HIST_TEMA_GEMINI_API_KEY|HIST_ROTEIRO_GEMINI_API_KEY/);
 });
