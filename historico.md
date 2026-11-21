@@ -1,3 +1,10 @@
+## 21/11/2026 — Estado confirmado da migração Gemini Histórias
+
+- Supabase: Edge Function `story-studio` publicada como **v39 ACTIVE**, JWT obrigatório, com `script_block` (4 cenas/solicitação) e modelo `gemini-3.5-flash-lite`; o código não faz chamadas ao OpenRouter.
+- Frontend: alterações, testes de contrato e documentação commitados na `main`; workflow `ci-cd.yml` prevê testes e publicação Cloudflare em push. **Ainda sem confirmação do deploy frontend**; a última publicação consultada do Worker `meu-vendedor` era 21/11/2026 04:34:10 UTC, anterior aos commits de migração.
+- Validação concluída: implantação Supabase aceita e versão ativa. Pendente: resultado do CI, confirmação da nova publicação Cloudflare e inferência autenticada real usando `HIST_ROTEIRO_GEMINI_API_KEY`; a existência da credencial nas variáveis da Edge Function não foi confirmada.
+- O Secret legado do OpenRouter não é mais usado por Histórias, mas não foi excluído das configurações secretas (sem ação de exclusão nesta integração). Referências históricas antigas permanecem no histórico.
+
 ## 21/11/2026 — Histórias: migração de OpenRouter para Gemini único
 
 - Módulo Histórias passa a usar exclusivamente Google Gemini: `HIST_TEMA_GEMINI_API_KEY` nos temas e `HIST_ROTEIRO_GEMINI_API_KEY` nos roteiros e prompts de IA; o módulo de imagens continua com `HIST_IMAGEM_GEMINI_API_KEY`. Secret de Produtos `PROD_ROTEIRO_GEMINI_API_KEY` não foi alterado.
