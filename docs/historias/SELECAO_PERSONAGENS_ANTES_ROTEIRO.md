@@ -17,7 +17,8 @@ Permitir escolher personagens **salvos pelo próprio usuário** antes de criar u
 
 ## Regras implementadas
 
-- Seleção entre 1 e 4 personagens; nomes sem repetição, imagens do mesmo tipo visual do tema.
+- Seleção entre 1 e 4 personagens; nomes sem repetição, imagens do mesmo tipo visual do tema. Temas antigos sem estilo definido aceitam personagens existentes de qualquer estilo.
+- Versões de imagem gravadas com sufixo técnico hexadecimal de oito caracteres exibem e transmitem ao roteiro o nome original sem esse sufixo; a verificação de duplicatas usa o nome limpo.
 - A origem é `mv_story_characters`, protegida por RLS e arquivos privados em `mv-story-images`.
 - A ficha inclui `name`, `role`, `visual`, `voice`, `referenceImagePath` e `referenceImagePrompt`. Para perfis antigos sem papel ou voz, o projeto fornece valores neutros; não inventa identidade nova.
 - `image_prompt` salvo na biblioteca tem prioridade para `visual`; a descrição continua como alternativa.
