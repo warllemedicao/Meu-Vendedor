@@ -135,7 +135,8 @@ test("Gemini metadata diagnostic never generates content or exposes credentials"
 
 test("Histórias keeps Gemini for themes, OpenRouter for scripts and video prompts", () => {
   assert.match(edge, /const TOPICS_MODEL = "gemini-3[.]5-flash-lite"/);
-  assert.match(edge, /const SCRIPT_MODEL = "openrouter\/free"/);
+  assert.match(edge, /const SCRIPT_MODEL = "google\/gemma-4-31b-it:free"/);
+  assert.match(edge, /requestedModel === "openrouter\/free" \? SCRIPT_MODEL : requestedModel/);
   assert.match(edge, /if \(purpose === "script"\) return openrouterStory\(systemInstruction, payload, maxTokens\)/);
   assert.match(edge, /"https:\/\/openrouter\.ai\/api\/v1\/chat\/completions"/);
   assert.match(edge, /Retorne exclusivamente JSON válido/);
