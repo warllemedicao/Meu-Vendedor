@@ -686,7 +686,7 @@ export function StoriesStudio() {
     finally { setBusy(false); }
   }
   // Generated image variants carry an 8-character storage suffix, not part of the story character name.
-  const castDisplayName = (name: string) => name.replace(/ [0-9a-f]{8}$/i, "").trim();
+  const castDisplayName = (name: string) => name.replace(/ [0-9a-f]{6,8}$/i, "").trim();
   function selectedCastForStyle(style: StoryCharacterStyle): Character[] {
     const chosen = selectedCastIds.map(id => characterLibrary.find(entry => entry.id === id)).filter(
       (entry): entry is LibraryCharacter => Boolean(entry));
@@ -1209,16 +1209,16 @@ export function StoriesStudio() {
         {characterLibrary.filter(entry => !characterStyle || entry.storage_path.includes("/library/" + characterStyle + "/")).map(entry => {
           const chosen = selectedCastIds.includes(entry.id);
           const thumb = libraryImageUrls[entry.storage_path];
-          return <div key={entry.id} className={"w-28 rounded-lg border p-1.5 sm:w-32 " +
+          return <div key={entry.id} className={"w-[100px] rounded-lg border p-1.5 sm:w-28 " +
             (chosen ? "border-primary bg-primary/10" : "border-border")}>
             <button type="button" aria-pressed={chosen} disabled={busy || (!chosen && selectedCastIds.length >= 4)}
               className="w-full text-left text-xs" onClick={() => toggleCastMember(entry.id)}>
-              {thumb ? <img src={thumb} alt={entry.name} className="mx-auto h-20 w-20 rounded-md object-cover"/> :
-                <div className="mx-auto h-20 w-20 rounded-md bg-surface-secondary"/>}
-              <span className="mt-1 block truncate font-semibold">{castDisplayName(entry.name)}</span>
-              <span className="text-muted">{chosen ? "Selecionado" : "Selecionar"}</span>
+              {thumb ? <img src={thumb} alt={entry.name} className="mx-auto h-16 w-16 rounded-md object-cover"/> :
+                <div className="mx-auto h-16 w-16 rounded-md bg-surface-secondary"/>}
+              <span className="mt-1 block truncate font-semibold" title={castDisplayName(entry.name)}>{castDisplayName(entry.name)}</span>
+              <span className={chosen ? "font-semibold text-primary" : "text-muted"}>{chosen ? "✓ Selecionado" : "Selecionar"}</span>
             </button>
-            <div className="mt-1 flex gap-1">
+            <div className="mt-1 grid grid-cols-2 gap-1">
               <button type="button" className="rounded border border-border px-1.5 py-1 text-[11px]" disabled={busy}
                 onClick={() => {setRenamingLibraryId(entry.id);setLibraryNameDrafts(old => ({...old,[entry.id]:castDisplayName(entry.name)}));}}>
                 Renomear</button>
