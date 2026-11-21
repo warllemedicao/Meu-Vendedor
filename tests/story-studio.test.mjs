@@ -187,6 +187,10 @@ test("timeouts and truncated responses retain distinct diagnostic errors", () =>
   assert.match(studio, /code === "gemini_output_truncated"/);
   assert.match(edge, /code === "openrouter_not_configured"/);
   assert.match(edge, /openrouter_output_truncated/);
+  assert.match(edge, /story_studio_openrouter_output_error/);
+  assert.match(edge, /reason: "openrouter_invalid_json"/);
+  assert.match(studio, /code === "openrouter_invalid_json"/);
+  assert.match(studio, /JSON inválido/);
 });
 
 
