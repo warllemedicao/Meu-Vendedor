@@ -67,10 +67,10 @@ test("social publication choices do not trigger social APIs", () => {
 });
 
 
-test("script generates all twelve scenes automatically after persisting draft", () => {
+test("script generates twelve scenes in persisted Gemini blocks", () => {
   assert.match(code, /await generateFullScript\(data as Project, topic\.synopsis\)/);
   assert.match(code, /onClick=\{\(\) => void generateScript\(t\)\}>Roteiro<\/button>/);
-  assert.match(code, /setExpandedScene\(sceneNumber\)/);
+  assert.match(code, /setExpandedScene\(startScene\)/);
   assert.match(code, /selected\.scenes\.reduce\(\(last, s\)/);
 });
 
@@ -89,11 +89,11 @@ test("Roteiro reopens existing saved topic before inserting or calling Gemini", 
   assert.match(handler, /finally \{ startingScriptRef\.current = false; setBusy\(false\)/);
 });
 
-test("creating an additional OpenRouter script requires a separate explicit confirmation", () => {
+test("creating an additional Gemini script requires a separate explicit confirmation", () => {
   assert.match(code, /onClick=\{\(\) => void generateScript\(t\)\}>Roteiro<\/button>/);
   assert.match(code, /window\.confirm\("Criar uma nova versão do roteiro\?/);
   assert.match(code, /void generateScript\(t, true\)/);
-  assert.match(code, /Nova versão \(OpenRouter\)/);
+  assert.match(code, /Nova versão \(Gemini\)/);
 });
 
 test("dialogue editing retains raw whitespace and checks incomplete lines before saving", () => {
@@ -136,7 +136,7 @@ test("every completed scene supports separate video provider, prompt and downloa
   assert.match(code, /saveScenePrompt\(s\.number\)/);
   assert.match(code, /downloadTextFile\("cena-" \+ s\.number/);
   assert.match(code, /downloadReference\(char\.referenceImagePath!/);
-  assert.match(code, /Gerar cena \{s\.number\} · OpenRouter/);
+  assert.match(code, /Gerar cena \{s\.number\} · Gemini/);
   assert.match(code, /Falha ao consultar prompt anterior. Nenhum crédito de IA foi utilizado/);
 });
 
@@ -157,20 +157,20 @@ test("single scene studio keeps future scenes hidden and avoids duplicate next-s
   assert.doesNotMatch(code, /Ir adiante: gerar próxima cena/);
   assert.match(code, /async function advanceToNextScene\(sceneNumber: number\)/);
   assert.match(code, /if \(promptSaveError\) throw new Error/);
-  assert.match(code, /await generateOneScene\(project\)/);
+  assert.match(code, /await generateOneBlock\(project\)/);
 });
 
 test("advanced generation section contains no incomplete legacy Flash-Lite button", () => {
   const section = code.split('Opções avançadas de geração (manual, pode consumir cota)')[1]
-    ?.split('Uma cena por chamada, sem retentativa após erro')[0] || "";
+    ?.split('Quatro cenas por chamada, sem retentativa após erro')[0] || "";
   assert.match(section, /A geração de cenas restantes está disponível no topo do quadro/);
   assert.doesNotMatch(section, /<button\b/);
   assert.doesNotMatch(code, /generateNextSceneLite/);
 });
 
-test("saved prompts can be reused or explicitly regenerated with OpenRouter", () => {
+test("saved prompts can be reused or explicitly regenerated with Gemini", () => {
   assert.match(code, /if \(existing\?\.prompt && useGemini\)/);
-  assert.match(code, /window\.confirm\("Já existe um prompt salvo nesta cena\. Gerar uma nova versão com OpenRouter\?/);
+  assert.match(code, /window\.confirm\("Já existe um prompt salvo nesta cena\. Gerar uma nova versão com Gemini\?/);
   assert.match(code, /Prompt salvo recuperado sem gastar créditos de IA/);
   assert.match(code, /setSceneWorkbenchStep\("prompt"\)/);
 });
@@ -219,7 +219,7 @@ test("prompt stage stays compact with visual providers and two explicit generati
   assert.match(code, /aria-pressed=\{chosenPlatform === item\.value\}/);
   assert.match(code, /"\/stories\/tools\/" \+ item\.value \+ "\.svg"/);
   assert.match(code, /Gerar prompt sem IA/);
-  assert.match(code, /Gerar prompt com OpenRouter/);
+  assert.match(code, /Gerar prompt com Gemini/);
   assert.match(code, /\{scenePromptText\.trim\(\) && <>/);
   assert.match(code, /sceneWorkbenchStep !== "prompt" && <nav/);
   assert.match(code, /Outras opções e imagens para baixar/);
