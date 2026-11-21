@@ -1,3 +1,11 @@
+## 21/11/2026 — Miniaturas compactas, renomear/excluir e upload múltiplo de personagens
+
+- Em **Histórias → Temas → Personagens da história**, removido o texto explicativo; imagens reduzidas para 80 × 80 px e cartões estreitos.
+- Cada imagem salva dispõe dos botões **Renomear** e **Excluir**. A exclusão verifica referências em roteiros salvos do proprietário antes de excluir da biblioteca, evitando quebrar histórias existentes; o arquivo privado é removido após exclusão bem-sucedida do registro.
+- O formulário anterior com descrição obrigatória foi substituído por **Enviar imagens**, com seleção múltipla e nome editável por arquivo; salva individualmente, preservando êxitos parciais. Sem exigência de prompt para upload; o gerador de roteiro pode usar o nome e a imagem como referência.
+- Atualizados os testes de contrato e os documentos em `docs/historias`. Modificações concentradas no componente Histórias; nenhuma migração de banco nem mudança no robô de envio do Flow.
+- Publicação do frontend e testes completos ainda precisam de confirmação no GitHub Actions e Cloudflare.
+
 ## 21/11/2026 — Selecionar personagens salvos ANTES de gerar histórias
 
 - Histórias → Temas passa a oferecer **Personagens da história**: seleção visual de 1 a 4 personagens existentes na biblioteca privada, com nome, imagem e prompt próprios. Também foi incluído **Cadastrar personagem com imagem e prompt próprios** antes de gerar o primeiro roteiro, com upload seguro para `mv-story-images`.
