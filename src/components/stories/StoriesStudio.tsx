@@ -677,6 +677,19 @@ export function StoriesStudio() {
     setProject(updated); setExpandedScene(1); setSceneWorkbenchStep("roteiro");
     return updated;
   }
+  async function resumeFullScript() {
+    if (!project || !user || busy || project.status !== "draft") return;
+    if (project.scenes.some(s => s.action.trim() || s.setting.trim())) {
+      return setError("Este roteiro já contém cenas. Para preservar o trabalho, continue a edição existente.");
+    }
+    setBusy(true); setError(""); setSceneProgress("");
+    try {
+      await generateFullScript(project);
+      void loadProjects();
+      setMessage("Roteiro completo recuperado e salvo. Revise as 12 cenas antes de aprovar.");
+    } catch (e) { setError(plainError(e)); }
+    finally { setBusy(false); setSceneProgress(""); }
+  }
   async function generateOneScene(working: Project, synopsisOverride?: string): Promise<Project> {
     if (!user || working.status !== "draft") throw new Error("Roteiro não está disponível para edição.");
     const nextIndex = working.scenes.findIndex(s => !s.action.trim() || !s.setting.trim());
@@ -1180,7 +1193,13 @@ export function StoriesStudio() {
       {sceneWorkbenchStep !== "prompt" && project.status === "draft" && project.scenes.some(s => !s.action.trim() || !s.setting.trim()) &&
         <div className="flex flex-wrap items-center gap-2">
           <button className={button + " !px-3 !py-1.5"} disabled={busy}
-            onClick={() => { if (window.confirm("Preencher as cenas restantes com OpenRouter? Para economizar solicitações, prefira um novo roteiro completo.")) void generateRemainingScenes(); }}>Gerar cenas restantes</button>
+            onClick={() => {
+              if (project.scenes.every(s => !s.action.trim() && !s.setting.trim())) {
+                void resumeFullScript();
+              } else if (window.confirm("Este projeto possui cenas parciais. Gerar as restantes individualmente com OpenRouter? Cada cena utiliza uma chamada.")) {
+                void generateRemainingScenes();
+              }
+            }}>{project.scenes.every(s => !s.action.trim() && !s.setting.trim()) ? "Gerar roteiro completo · OpenRouter" : "Gerar cenas restantes"}</button>
           {busy && sceneProgress && <button className={button + " !px-3 !py-1.5"}
             onClick={() => { stopSceneQueue.current = true; }}>Parar após esta cena</button>}
           <span className="text-xs text-muted">Recuperação de projetos antigos com cenas parciais. O roteiro novo é gerado em uma única chamada.</span>
