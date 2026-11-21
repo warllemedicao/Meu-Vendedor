@@ -1,3 +1,13 @@
+## 20/11/2026 — Histórias: migração para OpenRouter gratuito e geração em lotes
+
+- Secret dedicado ao Supabase: **`HIST_ROTEIRO__OPENROUTER`** (dois sublinhados antes de OPENROUTER). Nenhum valor sensível versionado; sem secret cadastrado, a função responde `openrouter_not_configured`.
+- OpenRouter API `/api/v1/chat/completions` exclusivamente para **roteiro** e **prompts**. Modelo padrão `openrouter/free`; a opção `HIST_OPENROUTER_MODEL` aceita apenas `openrouter/free` ou identificadores terminados em `:free`, bloqueando a seleção de modelos pagos.
+- Temas permanecem no `HIST_TEMA_GEMINI_API_KEY` (Gemini Flash-Lite); referências visuais permanecem em `HIST_IMAGEM_GEMINI_API_KEY`, sem afetar robô Flow, IMAGEM1, IMAGEM2, IMAGEM3, Cloudflare ou Modal.
+- Fluxo principal: **uma chamada para o roteiro completo de 12 cenas de 10 segundos**, revisão e aprovação manual, **uma chamada para os 12 prompts da plataforma selecionada**. Sem regenerar projetos existentes ao abrir o tema e sem sobrescrever prompts salvos; qualquer complementação preserva os registros já existentes.
+- Validações no backend: JSON, exatamente 12 cenas/12 prompts, personagens e falas em português, suspense, limites de 26 palavras de diálogo por cena, limites por plataforma, continuidade e estilo visual; resposta truncada é recusada, sem repetição automática. Logs limitados a status/modelo/contagem de tokens/tempo.
+- Teto de saída solicitado: **8.000 tokens no roteiro** e **8.500 nos 12 prompts**; os modelos gratuitos têm restrições próprias e a capacidade real precisa de teste com uma chave válida. A estimativa de 2 chamadas por história não é garantia de aprovação do provedor.
+- Testes de contrato migrados em `tests/story-studio.test.mjs` e `tests/story-editorial.test.mjs`. Publicação Cloudflare e execução real condicionadas à validação do frontend; nenhuma inferência gratuita será consumida sem autorização do usuário.
+
 ## 20/11/2026 — Histórias: nomes dos personagens e imagens editáveis sem saltos
 
 - Correção no editor de **Personagens e imagens** (`src/components/stories/StoriesStudio.tsx`): o campo `Nome` utiliza `characterNameDrafts` enquanto o usuário digita; não altera as referências de cenas nem desfaz espaços a cada caractere. A alteração é aplicada ao sair do campo e consolidada automaticamente ao **Salvar alterações**, atualizando o nome na ficha, personagens presentes, falas estruturadas e rascunhos de falas existentes. Validação impede nomes vazios, acima de 100 caracteres ou duplicados na ficha.
