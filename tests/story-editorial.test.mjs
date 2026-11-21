@@ -197,7 +197,10 @@ test("multiple character images are accepted and preserved one by one", () => {
   assert.match(code, /characters\.findIndex\(ch => !ch\.referenceImagePath\)/);
   assert.match(code, /setProject\(prev => prev\?\.id === project\.id/);
   assert.match(code, /Imagens dos personagens/);
-  assert.match(code, /Gerar com Nano Banana \(opcional\)/);
+  assert.match(code, /Como você quer este personagem\?/);
+  assert.match(code, /Gerar e salvar imagem/);
+  assert.match(code, /Outras opções: imagens salvas, edição e envio manual/);
+  assert.match(code, /const name = \(character\.name\.slice\(0, 87\) \+ " " \+ crypto\.randomUUID\(\)\.slice\(0, 8\)\)/);
 });
 
 test("character image selection prioritizes the current scene, style and thumbnail choices", () => {
