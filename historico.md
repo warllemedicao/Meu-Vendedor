@@ -1,3 +1,11 @@
+## 21/11/2026 — Correção de roteamento OpenRouter gratuito e Preset
+
+- Logs reais: `story_studio_openrouter_transport_error` em 2026-11-21 03:14:17 UTC, `openrouter_timeout` após 90.001 ms; Edge Function respondeu HTTP 503. OpenRouter registrou modelo Liquid LFM3-1.7B gratuito, geração lenta e cancelada. Outra tentativa com NVIDIA terminou `length` por limite de saída.
+- Causa do roteamento imprevisto: `openrouter/free` selecionava modelos aleatórios, mesmo quando o responsável configurava Gemma no Preset.
+- Correção: `SCRIPT_MODEL=google/gemma-4-31b-it:free` como modelo fixo gratuito; secret `HIST_OPENROUTER_MODEL` continua permitindo indicar outro modelo terminando em `:free`; o valor legado `openrouter/free` é normalizado para o Gemma.
+- Correção adicional documentada oficialmente: identificador do Preset deve ser `@preset/<slug>`. Enviar apenas `preset: slug` faz o OpenRouter ignorá-lo. Agora a função inclui `preset: "@preset/" + presetSlug` para o roteiro completo, quando `HIST_OPENROUTER_PRESET` está configurado.
+- Nenhuma chamada de IA executada para depuração; sem repetição automática. Manter cadastro apenas de modelos gratuitos e nunca incluir provedores pagos no Preset; prompts locais continuam sendo a opção padrão.
+
 ## 20/11/2026 — Histórias: roteirista profissional e motor local de 12 prompts
 
 - Roteirista OpenRouter: instrução do roteiro completo de 12 cenas aprimorada para arco causal, ganchos reais, comédia/suspense/drama adequados ao gênero, falas sequenciais em PT-BR, geometria física de obstáculos e personagens consistentes. Uma chamada de roteiro continua sendo a meta, com revisão antes de aprovar.
