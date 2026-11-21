@@ -205,6 +205,10 @@ test("full twelve-scene story uses one OpenRouter call with scoped persistence",
   assert.match(edge, /body\.action === "script"/);
   assert.match(edge, /normalizeScript\(result\)/);
   assert.match(studio, /async function generateFullScript/);
+  assert.match(studio, /async function resumeFullScript/);
+  assert.match(studio, /void resumeFullScript\(\)/);
+  assert.match(studio, /Gerar roteiro completo · OpenRouter/);
+  assert.match(edge, /story_studio_openrouter_transport_error/);
   assert.match(studio, /await generateFullScript\(data as Project, topic\.synopsis\)/);
   assert.match(studio, /invokeStory\("script",/);
   assert.match(studio, /response\.scenes\.length !== 12/);
