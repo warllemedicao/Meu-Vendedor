@@ -698,7 +698,7 @@ export function StoriesStudio() {
       throw new Error("Os personagens selecionados precisam ter nomes diferentes.");
     return chosen.map(entry => ({
       name: castDisplayName(entry.name), role: "Personagem da história",
-      visual: (entry.image_prompt.trim() || entry.description.trim()).slice(0, 1100),
+      visual: (entry.image_prompt.trim() || entry.description.trim() || ("Personagem " + castDisplayName(entry.name) + " conforme imagem de referência salva")).slice(0, 1100),
       voice: entry.voice.trim() || "Voz expressiva em português brasileiro",
       referenceImagePath: entry.storage_path,
       referenceImagePrompt: (entry.image_prompt.trim() || entry.description.trim()).slice(0, 1200),
