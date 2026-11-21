@@ -1,3 +1,12 @@
+## 21/11/2026 — Histórias: migração de OpenRouter para Gemini único
+
+- Módulo Histórias passa a usar exclusivamente Google Gemini: `HIST_TEMA_GEMINI_API_KEY` nos temas e `HIST_ROTEIRO_GEMINI_API_KEY` nos roteiros e prompts de IA; o módulo de imagens continua com `HIST_IMAGEM_GEMINI_API_KEY`. Secret de Produtos `PROD_ROTEIRO_GEMINI_API_KEY` não foi alterado.
+- Modelo editorial de roteiros: `gemini-3.5-flash-lite`, conforme teste no AI Studio, com `thinkingLevel=LOW`, saída JSON estruturada e limite experimental de 4.000 tokens por bloco. A história é produzida em três requisições (cenas 1–4, 5–8 e 9–12), com intervalo de segurança e sem retentativas automáticas.
+- Cada bloco é persistido na tabela `mv_story_projects` antes do seguinte, por usuário autenticado; falhas não apagam os blocos anteriores. A ficha visual/voz é preservada e os blocos seguintes recebem as cenas anteriores como contexto. Projetos antigos com cena parcial fora dos limites de bloco podem ser concluídos manualmente.
+- Removido o cliente OpenRouter do backend e as chamadas da interface Histórias; a geração local de prompts YouTube Create/Flow/Dreamina permanece independente de IA e da automação do Google Flow.
+- Arquivos alterados: `supabase/functions/story-studio/index.ts`, `src/components/stories/StoriesStudio.tsx`, testes de Histórias e documentação. Alterações não modificam IMAGEM1/2/3, Modal/Chrome ou Produtos/Campanhas.
+- A publicação Supabase, os testes em produção e o frontend Cloudflare precisam ser confirmados separadamente; código versionado por si só não confirma funcionamento com a cota da conta.
+
 ## 21/11/2026 — Distinguir HTTP 429: provedor vs cota OpenRouter
 
 - Registro real: Google AI Studio (Gemma 4 31B free) rejeitou geração em 163 ms com HTTP 429; Supabase confirmou `story_studio_openrouter_error`, `model: google/gemma-4-31b-it:free`, `elapsedMs: 527`, erro `openrouter_rate_limited`. Roteamento para Gemma validado; esta ocorrência não confirma esgotamento de créditos.
