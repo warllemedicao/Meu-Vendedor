@@ -67,7 +67,7 @@ test("existing project lookup is checked before any new generation", () => {
 test("scripts validate cast and voices against scene references", () => {
   assert.match(edge, /scene[.]characters[.]some\(name => !names[.]has/);
   assert.match(edge, /scene[.]dialogue[.]some\(line =>/);
-  assert.match(edge, /const roster = startScene > 1 \? characters : result[.]characters[.]map/);
+  assert.match(edge, /const roster = characters/);
   assert.match(edge, /scene_dialogue_too_long/);
 });
 
@@ -111,4 +111,22 @@ test("image generation uses its dedicated key only", () => {
   assert.match(edge, /image_paid_api_not_authorized/);
   assert.match(edge, /paidAuthorizationRequired/);
   assert.doesNotMatch(imageBlock, /HIST_TEMA_GEMINI_API_KEY|HIST_ROTEIRO_GEMINI_API_KEY/);
+});
+
+test("selected saved cast is passed intact through every Gemini block", () => {
+  assert.match(studio, /const selectedCharacters = selectedCastForStyle\(topic[.]character_style/);
+  assert.match(studio, /characters: selectedCharacters, scenes: makeEmptyStoryScenes\(\)/);
+  assert.match(studio, /characters: working[.]characters,/);
+  assert.match(studio, /referenceImagePath: entry[.]storage_path/);
+  assert.match(studio, /referenceImagePrompt:/);
+  assert.match(edge, /Os personagens foram ESCOLHIDOS PELO USUÁRIO/);
+  assert.match(edge, /const roster = characters/);
+});
+test("saved character picker and registration appear before scripts", () => {
+  assert.match(studio, /Personagens da história/);
+  assert.match(studio, /Escolher personagens salvos para o roteiro/);
+  assert.match(studio, /Cadastrar personagem com imagem e prompt próprios/);
+  assert.match(studio, /async function savePreScriptCharacter/);
+  assert.match(studio, /selectedCastIds[.]length >= 4/);
+  assert.match(studio, /Selecion[e]? de 1 a 4 personagens salvos/);
 });
