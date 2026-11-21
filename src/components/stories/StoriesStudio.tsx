@@ -72,7 +72,10 @@ async function invokeStory(action: string, payload: Record<string, unknown>) {
     if (code === "openrouter_not_configured") throw new Error("Cadastre o Secret HIST_ROTEIRO__OPENROUTER no Supabase antes de gerar roteiros.");
     if (code === "openrouter_paid_model_blocked") throw new Error("Modelo pago bloqueado. Configure HIST_OPENROUTER_MODEL como openrouter/free ou um identificador terminado em :free.");
     if (code === "openrouter_invalid_key") throw new Error("O OpenRouter rejeitou a chave de roteiros. Confira HIST_ROTEIRO__OPENROUTER.");
-    if (code === "openrouter_billing_required" || code === "openrouter_rate_limited") throw new Error("O OpenRouter recusou a solicitação por cota, limite ou cobrança. Confira os limites gratuitos da conta; nenhuma repetição automática foi feita.");
+    if (code === "openrouter_provider_rate_limited") throw new Error("O provedor do modelo gratuito está temporariamente sem capacidade (HTTP 429). Sua chave foi reconhecida; esta falha não indica cobrança. Nenhuma repetição automática foi feita.");
+    if (code === "openrouter_account_rate_limited") throw new Error("A cota gratuita da conta OpenRouter atingiu um limite de uso (HTTP 429). Consulte o painel antes de outra solicitação.");
+    if (code === "openrouter_rate_limited") throw new Error("OpenRouter retornou HTTP 429. Não foi possível identificar se o limite é da conta ou do provedor; consulte os logs antes de repetir.");
+    if (code === "openrouter_billing_required") throw new Error("OpenRouter retornou HTTP 402: requisito de saldo/cobrança. Nenhuma tentativa automática foi feita.");
     if (code === "openrouter_service_unavailable" || code === "openrouter_timeout" || code === "openrouter_network_error") throw new Error("OpenRouter indisponível ou sem resposta. Confira os registros antes de tentar novamente.");
     if (code === "openrouter_output_truncated") throw new Error("OpenRouter interrompeu a resposta por limite de saída. Nada foi salvo; confira o limite do modelo antes de tentar novamente.");
     if (code === "openrouter_invalid_json") throw new Error("O modelo gratuito concluiu a geração, mas devolveu um JSON inválido. Nada foi salvo; não repita antes de verificar o diagnóstico.");
