@@ -30,7 +30,8 @@ test("generator selection displays per-provider prompt agents", () => {
   assert.match(workflow, /google-flow/);
   assert.match(workflow, /dreamina/);
   assert.match(workflow, /absoluteChars: 900/);
-  assert.match(studio, /Montar rascunhos locais sem IA/);
+  assert.match(studio, /Gerar e salvar 12 prompts sem IA/);
+  assert.match(studio, /ignoreDuplicates: true/);
 });
 
 test("montage planning is explicit, not a fake generated video", () => {
